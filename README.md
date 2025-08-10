@@ -4,7 +4,7 @@ Eine Sammlung von KI-generierten HTML-Spielen, die direkt im Browser gespielt we
 
 ## 🎮 Live Demo
 
-Die Spiele sind über GitHub Pages verfügbar: `https://[dein-username].github.io/games/`
+Die Spiele sind über GitHub Pages verfügbar: https://draffi-games.github.io/games
 
 ## 📁 Projektstruktur
 
@@ -36,7 +36,7 @@ Das klassische Snake-Spiel - sammle Äpfel und werde länger! Gesteuert wird mit
 4. Wähle "main" branch und "/ (root)" Ordner
 5. Speichern und warten bis die Seite deployed ist
 
-Die Spiele sind dann unter `https://[dein-username].github.io/games/` erreichbar.
+Die Spiele sind dann unter `https://draffi-games.github.io/games` erreichbar.
 
 ## 🎨 Neues Spiel hinzufügen
 
@@ -96,8 +96,8 @@ Dieses Projekt ist öffentlich und kann frei verwendet werden. Alle Spiele wurde
 
 ## 🔗 Links
 
-- [Spielesammlung](https://[dein-username].github.io/games/)
-- [GitHub Repository](https://github.com/[dein-username]/games)
+- [Spielesammlung](https://draffi-games.github.io/games)
+- [GitHub Repository](https://github.com/draffi-games/games)
 
 ---
 
