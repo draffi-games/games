@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Maze Escape</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 95vw;
+            max-width: 900px;
+            height: 90vh;
+            max-height: 700px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #header {
+            background: linear-gradient(90deg, #2c3e50 0%, #3498db 100%);
+            padding: 15px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+        
+        #canvas {
+            flex: 1;
+            width: 100%;
+            cursor: crosshair;
+        }
+        
+        #controls {
+            background: rgba(44, 62, 80, 0.9);
+            padding: 15px;
+            border-radius: 0 0 15px 15px;
+            color: white;
+            text-align: center;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: scale(1.05);
+        }
+        
+        #characterSelect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            z-index: 100;
+        }
+        
+        .character-option {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .character-option:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.2);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        #minimap {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #3498db;
+            border-radius: 10px;
+        }
+        
+        #stats {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .stat-bar {
+            width: 150px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        
+        .stat-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            transition: width 0.3s;
+        }
+        
+        .health-fill {
+            background: linear-gradient(90deg, #27ae60, #229954);
+        }
+        
+        .energy-fill {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            z-index: 100;
+        }
+        
+        .home-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            transition: background 0.3s;
+        }
+        
+        .home-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="home-button">← Back to Gallery</a>
+    
+    <div id="gameContainer">
+        <div id="header">
+            <h1>3D Maze Escape</h1>
+            <div>
+                <button class="button" onclick="toggleFullscreen()">🔳 Fullscreen</button>
+                <button class="button" onclick="resetGame()">🔄 Reset</button>
+            </div>
+        </div>
+        
+        <canvas id="canvas"></canvas>
+        
+        <div id="controls">
+            <strong>Controls:</strong> WASD = Move | Mouse/Arrow Keys = Look | Space = Use Ability | Click = Attack
+        </div>
+        
+        <div id="characterSelect">
+            <h2>Choose Your Character</h2>
+            <div class="character-option" onclick="selectCharacter('warrior')">
+                <h3>⚔️ Warrior</h3>
+                <p>High health, strong attack</p>
+                <small>Ability: Shield Block</small>
+            </div>
+            <div class="character-option" onclick="selectCharacter('mage')">
+                <h3>🔮 Mage</h3>
+                <p>Magic attacks, teleport</p>
+                <small>Ability: Teleport</small>
+            </div>
+            <div class="character-option" onclick="selectCharacter('rogue')">
+                <h3>🗡️ Rogue</h3>
+                <p>Fast movement, stealth</p>
+                <small>Ability: Invisibility</small>
+            </div>
+        </div>
+        
+        <div id="stats" class="hidden">
+            <div>Character: <span id="charName"></span></div>
+            <div>Health:</div>
+            <div class="stat-bar">
+                <div class="stat-fill health-fill" id="healthBar"></div>
+            </div>
+            <div>Energy:</div>
+            <div class="stat-bar">
+                <div class="stat-fill energy-fill" id="energyBar"></div>
+            </div>
+            <div>Enemies: <span id="enemyCount">0</span></div>
+        </div>
+        
+        <canvas id="minimap" class="hidden"></canvas>
+        
+        <div id="gameOver" class="hidden">
+            <h2 id="gameOverText">Victory!</h2>
+            <p id="gameOverMessage">You found the exit!</p>
+            <button class="button" onclick="resetGame()">Play Again</button>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimap');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        
+        let gameRunning = false;
+        let animationId;
+        
+        // Game state
+        let player = {
+            x: 1.5,
+            y: 1.5,
+            angle: 0,
+            health: 100,
+            energy: 100,
+            character: null,
+            speed: 0.05,
+            invisible: false,
+            shielded: false
+        };
+        
+        const characters = {
+            warrior: {
+                name: '⚔️ Warrior',
+                health: 150,
+                energy: 80,
+                speed: 0.02,
+                attackDamage: 40,
+                ability: 'shield',
+                abilityDuration: 3000,
+                energyCost: 30
+            },
+            mage: {
+                name: '🔮 Mage',
+                health: 80,
+                energy: 120,
+                speed: 0.025,
+                attackDamage: 25,
+                ability: 'teleport',
+                energyCost: 40
+            },
+            rogue: {
+                name: '🗡️ Rogue',
+                health: 100,
+                energy: 100,
+                speed: 0.03,
+                attackDamage: 30,
+                ability: 'invisible',
+                abilityDuration: 4000,
+                energyCost: 35
+            }
+        };
+        
+        // Maze (1 = wall, 0 = empty, 2 = exit, 3 = enemy spawn)
+        let maze = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+            [1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,0,1,1,3,1,1,0,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,1,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1,1,1,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,1,1],
+            [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,0,1,1,1,0,1,3,1,1,0,1,1,1,0,1,0,1,1],
+            [1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1,0,0,1],
+            [1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,0,1,1,0,1,0,1,1,1,1,2,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        
+        let enemies = [];
+        let keys = {};
+        
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.health = 50;
+                this.speed = 0.02;
+                this.damage = 10;
+                this.attackCooldown = 0;
+                this.color = '#e74c3c';
+                this.active = true;
+            }
+            
+            update() {
+                if (!this.active || player.invisible) return;
+                
+                // Move towards player
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0.5) {
+                    const moveX = (dx / dist) * this.speed;
+                    const moveY = (dy / dist) * this.speed;
+                    
+                    // Check collision
+                    const newX = this.x + moveX;
+                    const newY = this.y + moveY;
+                    
+                    if (maze[Math.floor(newY)][Math.floor(newX)] === 0) {
+                        this.x = newX;
+                        this.y = newY;
+                    }
+                }
+                
+                // Attack player if close
+                if (dist < 0.7 && this.attackCooldown <= 0) {
+                    if (!player.shielded) {
+                        player.health -= this.damage;
+                    }
+                    this.attackCooldown = 60;
+                }
+                
+                if (this.attackCooldown > 0) this.attackCooldown--;
+            }
+            
+            takeDamage(damage) {
+                this.health -= damage;
+                if (this.health <= 0) {
+                    this.active = false;
+                }
+            }
+        }
+        
+        function initGame() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            minimapCanvas.width = 150;
+            minimapCanvas.height = 150;
+            
+            // Spawn enemies
+            enemies = [];
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    if (maze[y][x] === 3) {
+                        enemies.push(new Enemy(x + 0.5, y + 0.5));
+                        maze[y][x] = 0; // Clear spawn point
+                    }
+                }
+            }
+            
+            document.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    useAbility();
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+            });
+            
+            // Mouse looking with pointer lock
+            canvas.addEventListener('click', async () => {
+                if (!gameRunning) return;
+                attack();
+                
+                // Request pointer lock for better mouse control
+                if (!document.pointerLockElement) {
+                    await canvas.requestPointerLock();
+                }
+            });
+            
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === canvas) {
+                    document.addEventListener('mousemove', handleMouseMove);
+                } else {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                }
+            });
+            
+            function handleMouseMove(e) {
+                if (!gameRunning) return;
+                player.angle += e.movementX * 0.002;
+            }
+            
+            });
+        }
+        
+        function selectCharacter(type) {
+            const char = characters[type];
+            player.character = type;
+            player.health = char.health;
+            player.maxHealth = char.health;
+            player.energy = char.energy;
+            player.maxEnergy = char.energy;
+            player.speed = char.speed;
+            player.attackDamage = char.attackDamage;
+            
+            document.getElementById('characterSelect').classList.add('hidden');
+            document.getElementById('stats').classList.remove('hidden');
+            document.getElementById('minimap').classList.remove('hidden');
+            document.getElementById('charName').textContent = char.name;
+            
+            gameRunning = true;
+            gameLoop();
+        }
+        
+        function useAbility() {
+            if (!player.character) return;
+            const char = characters[player.character];
+            
+            if (player.energy < char.energyCost) return;
+            player.energy -= char.energyCost;
+            
+            switch(char.ability) {
+                case 'shield':
+                    player.shielded = true;
+                    setTimeout(() => player.shielded = false, char.abilityDuration);
+                    break;
+                case 'teleport':
+                    // Teleport forward
+                    const newX = player.x + Math.sin(player.angle) * 3;
+                    const newY = player.y + Math.cos(player.angle) * 3;
+                    if (maze[Math.floor(newY)] && maze[Math.floor(newY)][Math.floor(newX)] === 0) {
+                        player.x = newX;
+                        player.y = newY;
+                    }
+                    break;
+                case 'invisible':
+                    player.invisible = true;
+                    setTimeout(() => player.invisible = false, char.abilityDuration);
+                    break;
+            }
+        }
+        
+        function attack() {
+            // Check if enemy is in front
+            const attackRange = 1.5;
+            const attackAngle = player.angle;
+            
+            enemies.forEach(enemy => {
+                if (!enemy.active) return;
+                
+                const dx = enemy.x - player.x;
+                const dy = enemy.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < attackRange) {
+                    // Check if enemy is in front
+                    const enemyAngle = Math.atan2(dx, dy);
+                    const angleDiff = Math.abs(enemyAngle - attackAngle);
+                    
+                    if (angleDiff < Math.PI / 4) {
+                        enemy.takeDamage(player.attackDamage);
+                    }
+                }
+            });
+        }
+        
+        function updatePlayer() {
+            // Rotation with arrow keys
+            if (keys['arrowleft']) {
+                player.angle -= 0.03;
+            }
+            if (keys['arrowright']) {
+                player.angle += 0.03;
+            }
+            
+            // Movement
+            let moveX = 0, moveY = 0;
+            
+            if (keys['w'] || keys['arrowup']) {
+                moveX += Math.sin(player.angle) * player.speed;
+                moveY += Math.cos(player.angle) * player.speed;
+            }
+            if (keys['s'] || keys['arrowdown']) {
+                moveX -= Math.sin(player.angle) * player.speed;
+                moveY -= Math.cos(player.angle) * player.speed;
+            }
+            if (keys['a']) {
+                moveX += Math.sin(player.angle - Math.PI/2) * player.speed;
+                moveY += Math.cos(player.angle - Math.PI/2) * player.speed;
+            }
+            if (keys['d']) {
+                moveX += Math.sin(player.angle + Math.PI/2) * player.speed;
+                moveY += Math.cos(player.angle + Math.PI/2) * player.speed;
+            }
+            
+            // Check collision
+            const newX = player.x + moveX;
+            const newY = player.y + moveY;
+            
+            if (maze[Math.floor(newY)][Math.floor(newX)] === 0) {
+                player.x = newX;
+                player.y = newY;
+            } else if (maze[Math.floor(newY)][Math.floor(newX)] === 2) {
+                // Found exit!
+                gameWin();
+            }
+            
+            // Regenerate energy
+            if (player.energy < player.maxEnergy) {
+                player.energy += 0.1;
+            }
+            
+            // Check death
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+        
+        function render3D() {
+            // Sky gradient
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height / 2);
+            skyGradient.addColorStop(0, '#1e3c72');
+            skyGradient.addColorStop(1, '#87CEEB');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+            
+            // Floor with perspective
+            const floorGradient = ctx.createLinearGradient(0, canvas.height / 2, 0, canvas.height);
+            floorGradient.addColorStop(0, '#3e2723');
+            floorGradient.addColorStop(1, '#1a0e0a');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+            
+            // Floor grid lines for depth
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.lineWidth = 1;
+            for (let y = canvas.height / 2; y < canvas.height; y += 20) {
+                const perspective = (y - canvas.height / 2) / (canvas.height / 2);
+                ctx.globalAlpha = perspective * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            
+            const numRays = canvas.width;
+            const fov = Math.PI / 3;
+            
+            // Z-buffer for depth sorting
+            let zBuffer = [];
+            
+            for (let i = 0; i < numRays; i++) {
+                const rayAngle = player.angle - fov/2 + (i / numRays) * fov;
+                
+                // Cast ray with more precision
+                let distance = 0;
+                let hit = false;
+                let wallType = 1;
+                let wallX = 0;
+                let wallY = 0;
+                let textureX = 0;
+                
+                for (let d = 0; d < 20; d += 0.02) {
+                    const testX = player.x + Math.sin(rayAngle) * d;
+                    const testY = player.y + Math.cos(rayAngle) * d;
+                    
+                    if (maze[Math.floor(testY)] && maze[Math.floor(testY)][Math.floor(testX)] !== 0) {
+                        distance = d * Math.cos(rayAngle - player.angle); // Fix fisheye effect
+                        wallType = maze[Math.floor(testY)][Math.floor(testX)];
+                        wallX = testX;
+                        wallY = testY;
+                        hit = true;
+                        
+                        // Calculate texture coordinate
+                        if (Math.abs(testX - Math.floor(testX)) < 0.01 || Math.abs(testX - Math.floor(testX)) > 0.99) {
+                            textureX = testY - Math.floor(testY);
+                        } else {
+                            textureX = testX - Math.floor(testX);
+                        }
+                        break;
+                    }
+                }
+                
+                if (hit) {
+                    zBuffer[i] = distance;
+                    
+                    // Calculate wall height with perspective
+                    const lineHeight = (canvas.height / distance) * 0.5;
+                    const lineTop = (canvas.height - lineHeight) / 2;
+                    
+                    // Enhanced shading based on distance and wall orientation
+                    const darkness = Math.max(0.2, 1 - distance / 12);
+                    
+                    // Determine if wall is north/south or east/west for different shading
+                    const isNorthSouth = Math.abs(wallX - Math.floor(wallX)) < 0.01 || Math.abs(wallX - Math.floor(wallX)) > 0.99;
+                    const shadeFactor = isNorthSouth ? 0.8 : 1;
+                    
+                    if (wallType === 2) {
+                        // Exit - glowing green with animation
+                        const pulse = Math.sin(Date.now() * 0.003) * 0.2 + 0.8;
+                        const green = Math.floor(204 * darkness * pulse);
+                        const red = Math.floor(46 * darkness * pulse);
+                        ctx.fillStyle = `rgb(${red}, ${green}, ${Math.floor(113 * darkness * pulse)})`;
+                    } else {
+                        // Normal wall with texture-like pattern
+                        const baseColor = 120;
+                        const shade = Math.floor(baseColor * darkness * shadeFactor);
+                        
+                        // Add some variation based on texture coordinate
+                        const variation = Math.sin(textureX * Math.PI * 8) * 10;
+                        const r = Math.max(0, Math.min(255, shade + variation));
+                        const g = Math.max(0, Math.min(255, shade + variation - 10));
+                        const b = Math.max(0, Math.min(255, shade + variation + 10));
+                        
+                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    }
+                    
+                    // Draw wall stripe
+                    ctx.fillRect(i, lineTop, 1, lineHeight);
+                    
+                    // Add vertical lines for brick effect
+                    if (Math.floor(textureX * 8) % 2 === 0) {
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                        ctx.fillRect(i, lineTop, 1, lineHeight);
+                    }
+                }
+            }
+            
+            // Render enemies in 3D with better sprites
+            enemies.forEach(enemy => {
+                if (!enemy.active) return;
+                
+                const dx = enemy.x - player.x;
+                const dy = enemy.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < 15) {
+                    const enemyAngle = Math.atan2(dx, dy);
+                    let angleDiff = enemyAngle - player.angle;
+                    
+                    // Normalize angle
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    
+                    if (Math.abs(angleDiff) < fov/2) {
+                        const screenX = canvas.width/2 + (angleDiff / (fov/2)) * canvas.width/2;
+                        const size = (canvas.height / dist) * 0.6;
+                        const enemyTop = canvas.height/2 - size/2 + (size * 0.2);
+                        
+                        // Check if enemy is behind a wall
+                        let behindWall = false;
+                        for (let i = Math.max(0, Math.floor(screenX - size/2)); i < Math.min(canvas.width, Math.floor(screenX + size/2)); i++) {
+                            if (zBuffer[i] && zBuffer[i] < dist) {
+                                behindWall = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!behindWall) {
+                            // Enemy shadow
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                            ctx.ellipse(screenX, canvas.height/2 + size/2, size/2, size/8, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // Enemy body with gradient
+                            const enemyGradient = ctx.createRadialGradient(screenX, enemyTop + size/2, 0, screenX, enemyTop + size/2, size/2);
+                            enemyGradient.addColorStop(0, '#ff6b6b');
+                            enemyGradient.addColorStop(1, '#c92a2a');
+                            ctx.fillStyle = enemyGradient;
+                            
+                            // Draw enemy as circle (more 3D looking)
+                            ctx.beginPath();
+                            ctx.arc(screenX, enemyTop + size/2, size/2, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // Enemy eyes (glowing effect)
+                            ctx.fillStyle = '#ffff00';
+                            ctx.shadowColor = '#ffff00';
+                            ctx.shadowBlur = 10;
+                            ctx.beginPath();
+                            ctx.arc(screenX - size/6, enemyTop + size/3, size/15, 0, Math.PI * 2);
+                            ctx.arc(screenX + size/6, enemyTop + size/3, size/15, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.shadowBlur = 0;
+                            
+                            // Health bar with border
+                            const barWidth = size;
+                            const barHeight = 8;
+                            const barY = enemyTop - 15;
+                            
+                            // Health bar background
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                            ctx.fillRect(screenX - barWidth/2, barY, barWidth, barHeight);
+                            
+                            // Health bar fill
+                            const healthPercent = enemy.health / 50;
+                            const healthColor = healthPercent > 0.5 ? '#27ae60' : healthPercent > 0.25 ? '#f39c12' : '#e74c3c';
+                            ctx.fillStyle = healthColor;
+                            ctx.fillRect(screenX - barWidth/2, barY, barWidth * healthPercent, barHeight);
+                            
+                            // Health bar border
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(screenX - barWidth/2, barY, barWidth, barHeight);
+                        }
+                    }
+                }
+            });
+            
+            // Atmospheric fog effect for distance
+            const fogGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            fogGradient.addColorStop(0, 'rgba(135, 206, 235, 0)');
+            fogGradient.addColorStop(1, 'rgba(135, 206, 235, 0.1)');
+            ctx.fillStyle = fogGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Effects
+            if (player.invisible) {
+                // Invisibility effect with animated shimmer
+                const shimmer = Math.sin(Date.now() * 0.01) * 0.1 + 0.15;
+                ctx.fillStyle = `rgba(100, 100, 255, ${shimmer})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            if (player.shielded) {
+                // Shield effect with animated glow
+                const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.3;
+                ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
+                ctx.lineWidth = 5;
+                ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+                
+                // Inner glow
+                ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+            }
+            
+            // Damage indicator
+            if (player.health < player.maxHealth * 0.3) {
+                const damageAlpha = (1 - player.health / (player.maxHealth * 0.3)) * 0.3;
+                ctx.fillStyle = `rgba(255, 0, 0, ${damageAlpha})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+        
+        function renderMinimap() {
+            minimapCtx.fillStyle = 'black';
+            minimapCtx.fillRect(0, 0, 150, 150);
+            
+            const scale = 150 / maze.length;
+            
+            // Draw maze
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    if (maze[y][x] === 1) {
+                        minimapCtx.fillStyle = '#34495e';
+                        minimapCtx.fillRect(x * scale, y * scale, scale, scale);
+                    } else if (maze[y][x] === 2) {
+                        minimapCtx.fillStyle = '#27ae60';
+                        minimapCtx.fillRect(x * scale, y * scale, scale, scale);
+                    }
+                }
+            }
+            
+            // Draw enemies
+            minimapCtx.fillStyle = '#e74c3c';
+            enemies.forEach(enemy => {
+                if (enemy.active) {
+                    minimapCtx.beginPath();
+                    minimapCtx.arc(enemy.x * scale, enemy.y * scale, 3, 0, Math.PI * 2);
+                    minimapCtx.fill();
+                }
+            });
+            
+            // Draw player
+            minimapCtx.fillStyle = '#3498db';
+            minimapCtx.beginPath();
+            minimapCtx.arc(player.x * scale, player.y * scale, 4, 0, Math.PI * 2);
+            minimapCtx.fill();
+            
+            // Draw player direction
+            minimapCtx.strokeStyle = '#3498db';
+            minimapCtx.lineWidth = 2;
+            minimapCtx.beginPath();
+            minimapCtx.moveTo(player.x * scale, player.y * scale);
+            minimapCtx.lineTo(
+                player.x * scale + Math.sin(player.angle) * 10,
+                player.y * scale + Math.cos(player.angle) * 10
+            );
+            minimapCtx.stroke();
+        }
+        
+        function updateUI() {
+            document.getElementById('healthBar').style.width = `${(player.health / player.maxHealth) * 100}%`;
+            document.getElementById('energyBar').style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+            document.getElementById('enemyCount').textContent = enemies.filter(e => e.active).length;
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            updatePlayer();
+            enemies.forEach(enemy => enemy.update());
+            render3D();
+            renderMinimap();
+            updateUI();
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        function gameWin() {
+            gameRunning = false;
+            document.getElementById('gameOver').classList.remove('hidden');
+            document.getElementById('gameOverText').textContent = 'Victory!';
+            document.getElementById('gameOverMessage').textContent = 'You escaped the maze!';
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('gameOver').classList.remove('hidden');
+            document.getElementById('gameOverText').textContent = 'Game Over';
+            document.getElementById('gameOverMessage').textContent = 'You were defeated!';
+        }
+        
+        function resetGame() {
+            gameRunning = false;
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            // Reset player
+            player = {
+                x: 1.5,
+                y: 1.5,
+                angle: 0,
+                health: 100,
+                energy: 100,
+                character: null,
+                speed: 0.05,
+                invisible: false,
+                shielded: false
+            };
+            
+            // Reset UI
+            document.getElementById('characterSelect').classList.remove('hidden');
+            document.getElementById('stats').classList.add('hidden');
+            document.getElementById('minimap').classList.add('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            
+            // Reinit
+            initGame();
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+        
+        // Initialize
+        initGame();
+    </script>
+</body>
+</html>

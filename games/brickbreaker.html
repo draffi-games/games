@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brick Breaker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .game-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .game-info span {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 10px;
+        }
+        
+        canvas {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            display: block;
+            cursor: none;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+            color: white;
+        }
+        
+        .controls button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 30px;
+            font-size: 1.1em;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s;
+        }
+        
+        .controls button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .power-up-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 1.2em;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .weather-indicator {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 1.4em;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 10px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(-5px);
+        }
+        
+        @media (max-width: 768px) {
+            .game-header h1 {
+                font-size: 1.8em;
+            }
+            
+            .controls button {
+                margin: 5px;
+                padding: 8px 20px;
+            }
+            
+            canvas {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">
+        <span>←</span>
+        <span>Back to Gallery</span>
+    </a>
+    
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🧱 Brick Breaker 🧱</h1>
+            <div class="game-info">
+                <span>Score: <span id="score">0</span></span>
+                <span>Lives: <span id="lives">3</span></span>
+                <span>Level: <span id="level">1</span></span>
+                <span>High Score: <span id="highScore">0</span></span>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="weather-indicator" id="weatherIndicator">
+            <span id="weatherIcon">☀️</span>
+            <span id="weatherName">Sunny</span>
+        </div>
+        
+        <div class="power-up-indicator" id="powerUpIndicator"></div>
+        
+        <div class="controls">
+            <button onclick="startGame()">Start Game</button>
+            <button onclick="pauseGame()">Pause</button>
+            <button onclick="toggleFullscreen()">Fullscreen</button>
+            <p style="margin-top: 10px;">Use ← → Arrow Keys or Mouse to move paddle</p>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game variables
+        let gameRunning = false;
+        let gamePaused = false;
+        let score = 0;
+        let lives = 3;
+        let highScore = localStorage.getItem('brickBreakerHighScore') || 0;
+        let animationId;
+        let gameTime = 0;
+        let difficultyLevel = 1;
+        let speedMultiplier = 1;
+        
+        // Paddle
+        const paddle = {
+            x: canvas.width / 2 - 50,
+            y: canvas.height - 30,
+            width: 100,
+            height: 15,
+            speed: 8,
+            color: '#00ff00'
+        };
+        
+        // Balls array (for multi-ball power-up)
+        let balls = [];
+        
+        // Brick configuration
+        const brickRowCount = 8;
+        const brickColumnCount = 10;
+        const brickWidth = 70;
+        const brickHeight = 20;
+        const brickPadding = 5;
+        const brickOffsetTop = 60;
+        const brickOffsetLeft = 35;
+        
+        // Bricks array
+        let bricks = [];
+        
+        // Power-ups
+        let powerUps = [];
+        let activePowerUp = null;
+        let powerUpTimer = 0;
+        
+        // Weapon upgrade
+        let weapon = {
+            type: 'normal',
+            bullets: [],
+            canShoot: false,
+            lastShot: 0
+        };
+        
+        // Power-up types
+        const POWER_UP_TYPES = {
+            MULTI_BALL: { color: '#ff00ff', icon: '⚪', name: 'Multi-Ball' },
+            LASER: { color: '#ff0000', icon: '🔫', name: 'Laser Gun' },
+            WIDE_PADDLE: { color: '#00ffff', icon: '↔️', name: 'Wide Paddle' },
+            SLOW_BALL: { color: '#ffff00', icon: '🐌', name: 'Slow Ball' }
+        };
+        
+        // Weather system
+        const WEATHER_TYPES = {
+            SUNNY: { 
+                name: 'Sunny', 
+                icon: '☀️', 
+                windX: 0, 
+                gravity: 0,
+                bgGradient: ['#87CEEB', '#FFE4B5'],
+                particles: []
+            },
+            WINDY: { 
+                name: 'Windy', 
+                icon: '💨', 
+                windX: 0.15, 
+                gravity: 0,
+                bgGradient: ['#B0C4DE', '#F0E68C'],
+                particles: []
+            },
+            RAINY: { 
+                name: 'Rainy', 
+                icon: '🌧️', 
+                windX: -0.05, 
+                gravity: 0.1,
+                bgGradient: ['#4A5568', '#718096'],
+                particles: []
+            },
+            STORMY: { 
+                name: 'Stormy', 
+                icon: '⛈️', 
+                windX: 0.25, 
+                gravity: 0.15,
+                bgGradient: ['#2D3748', '#1A202C'],
+                particles: []
+            },
+            SNOWY: { 
+                name: 'Snowy', 
+                icon: '❄️', 
+                windX: 0.05, 
+                gravity: -0.05,
+                bgGradient: ['#E0E7FF', '#C7D2FE'],
+                particles: []
+            }
+        };
+        
+        let currentWeather = 'SUNNY';
+        let weatherTimer = 0;
+        let baseWeatherInterval = 600; // 10 seconds at start
+        let weatherChangeInterval = 600;
+        let weatherParticles = [];
+        
+        // Input handling
+        let rightPressed = false;
+        let leftPressed = false;
+        let mouseX = 0;
+        let useMouseControl = false;
+        
+        // Initialize game
+        function init() {
+            document.getElementById('highScore').textContent = highScore;
+            createBricks();
+            createBall();
+            
+            // Event listeners
+            document.addEventListener('keydown', keyDownHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            canvas.addEventListener('mousemove', mouseMoveHandler);
+            canvas.addEventListener('mouseenter', () => useMouseControl = true);
+            canvas.addEventListener('mouseleave', () => useMouseControl = false);
+            document.addEventListener('keypress', shootHandler);
+        }
+        
+        function createBall(x = canvas.width / 2, y = canvas.height - 50) {
+            return {
+                x: x,
+                y: y,
+                dx: 4 * (Math.random() > 0.5 ? 1 : -1),
+                dy: -4,
+                radius: 8,
+                color: '#ffffff',
+                trail: []
+            };
+        }
+        
+        function createBricks() {
+            bricks = [];
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    // Special bricks that drop power-ups
+                    const isSpecial = Math.random() < 0.15; // 15% chance
+                    const hits = (r < 2) ? 2 : 1; // Top 2 rows need 2 hits
+                    
+                    bricks[c][r] = {
+                        x: c * (brickWidth + brickPadding) + brickOffsetLeft,
+                        y: r * (brickHeight + brickPadding) + brickOffsetTop,
+                        status: hits,
+                        maxHits: hits,
+                        isSpecial: isSpecial,
+                        powerUpType: isSpecial ? Object.keys(POWER_UP_TYPES)[Math.floor(Math.random() * Object.keys(POWER_UP_TYPES).length)] : null,
+                        color: getRandomBrickColor()
+                    };
+                }
+            }
+        }
+        
+        function getRandomBrickColor() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6ab04c', '#c44569'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        function keyDownHandler(e) {
+            if (e.key === 'Right' || e.key === 'ArrowRight') {
+                rightPressed = true;
+                useMouseControl = false;
+            } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                leftPressed = true;
+                useMouseControl = false;
+            }
+        }
+        
+        function keyUpHandler(e) {
+            if (e.key === 'Right' || e.key === 'ArrowRight') {
+                rightPressed = false;
+            } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                leftPressed = false;
+            }
+        }
+        
+        function mouseMoveHandler(e) {
+            const relativeX = e.clientX - canvas.offsetLeft;
+            mouseX = relativeX;
+        }
+        
+        function shootHandler(e) {
+            if (e.key === ' ' && weapon.type === 'laser' && Date.now() - weapon.lastShot > 300) {
+                weapon.bullets.push({
+                    x: paddle.x + paddle.width / 2,
+                    y: paddle.y,
+                    dy: -10,
+                    width: 4,
+                    height: 15
+                });
+                weapon.lastShot = Date.now();
+            }
+        }
+        
+        function collisionDetection() {
+            // Ball-brick collision
+            balls.forEach((ball, ballIndex) => {
+                for (let c = 0; c < brickColumnCount; c++) {
+                    for (let r = 0; r < brickRowCount; r++) {
+                        const b = bricks[c][r];
+                        if (b.status > 0) {
+                            if (ball.x + ball.radius > b.x && 
+                                ball.x - ball.radius < b.x + brickWidth && 
+                                ball.y + ball.radius > b.y && 
+                                ball.y - ball.radius < b.y + brickHeight) {
+                                
+                                ball.dy = -ball.dy;
+                                b.status--;
+                                
+                                if (b.status === 0) {
+                                    score += 10;
+                                    
+                                    // Drop power-up if special brick
+                                    if (b.isSpecial && b.powerUpType) {
+                                        powerUps.push({
+                                            x: b.x + brickWidth / 2,
+                                            y: b.y + brickHeight / 2,
+                                            dy: 2,
+                                            type: b.powerUpType,
+                                            width: 30,
+                                            height: 30
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Bullet-brick collision
+            weapon.bullets.forEach((bullet, bulletIndex) => {
+                for (let c = 0; c < brickColumnCount; c++) {
+                    for (let r = 0; r < brickRowCount; r++) {
+                        const b = bricks[c][r];
+                        if (b.status > 0) {
+                            if (bullet.x > b.x && 
+                                bullet.x < b.x + brickWidth && 
+                                bullet.y < b.y + brickHeight && 
+                                bullet.y > b.y) {
+                                
+                                b.status = 0; // Instant destroy with laser
+                                score += 15;
+                                weapon.bullets.splice(bulletIndex, 1);
+                                
+                                if (b.isSpecial && b.powerUpType) {
+                                    powerUps.push({
+                                        x: b.x + brickWidth / 2,
+                                        y: b.y + brickHeight / 2,
+                                        dy: 2,
+                                        type: b.powerUpType,
+                                        width: 30,
+                                        height: 30
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Power-up collision with paddle
+            powerUps.forEach((powerUp, index) => {
+                if (powerUp.x + powerUp.width / 2 > paddle.x && 
+                    powerUp.x - powerUp.width / 2 < paddle.x + paddle.width && 
+                    powerUp.y + powerUp.height / 2 > paddle.y && 
+                    powerUp.y - powerUp.height / 2 < paddle.y + paddle.height) {
+                    
+                    activatePowerUp(powerUp.type);
+                    powerUps.splice(index, 1);
+                }
+            });
+        }
+        
+        function activatePowerUp(type) {
+            activePowerUp = type;
+            powerUpTimer = 600; // 10 seconds at 60fps
+            
+            const indicator = document.getElementById('powerUpIndicator');
+            indicator.textContent = `${POWER_UP_TYPES[type].icon} ${POWER_UP_TYPES[type].name} Active!`;
+            indicator.style.display = 'block';
+            
+            switch(type) {
+                case 'MULTI_BALL':
+                    // Add 2 extra balls
+                    for (let i = 0; i < 2; i++) {
+                        const newBall = createBall(balls[0].x, balls[0].y);
+                        newBall.dx = 4 * (Math.random() - 0.5) * 2;
+                        balls.push(newBall);
+                    }
+                    break;
+                    
+                case 'LASER':
+                    weapon.type = 'laser';
+                    weapon.canShoot = true;
+                    paddle.color = '#ff0000';
+                    break;
+                    
+                case 'WIDE_PADDLE':
+                    paddle.width = 150;
+                    paddle.color = '#00ffff';
+                    break;
+                    
+                case 'SLOW_BALL':
+                    balls.forEach(ball => {
+                        ball.dx *= 0.5;
+                        ball.dy *= 0.5;
+                    });
+                    break;
+            }
+        }
+        
+        function deactivatePowerUp() {
+            const indicator = document.getElementById('powerUpIndicator');
+            indicator.style.display = 'none';
+            
+            switch(activePowerUp) {
+                case 'LASER':
+                    weapon.type = 'normal';
+                    weapon.canShoot = false;
+                    paddle.color = '#00ff00';
+                    break;
+                    
+                case 'WIDE_PADDLE':
+                    paddle.width = 100;
+                    paddle.color = '#00ff00';
+                    break;
+                    
+                case 'SLOW_BALL':
+                    balls.forEach(ball => {
+                        ball.dx *= 2;
+                        ball.dy *= 2;
+                    });
+                    break;
+            }
+            
+            activePowerUp = null;
+        }
+        
+        function drawBall(ball) {
+            // Draw trail
+            ball.trail.forEach((point, index) => {
+                ctx.globalAlpha = index / ball.trail.length * 0.5;
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, ball.radius * (index / ball.trail.length), 0, Math.PI * 2);
+                ctx.fillStyle = ball.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+            ctx.globalAlpha = 1;
+            
+            // Draw ball with gradient
+            const gradient = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, ball.radius);
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(1, '#cccccc');
+            
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.closePath();
+        }
+        
+        function drawPaddle() {
+            const gradient = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.height);
+            gradient.addColorStop(0, paddle.color);
+            gradient.addColorStop(1, shadeColor(paddle.color, -40));
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+            
+            // Draw glow effect
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = paddle.color;
+            ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawBricks() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    const b = bricks[c][r];
+                    if (b.status > 0) {
+                        const opacity = b.status / b.maxHits;
+                        ctx.globalAlpha = opacity;
+                        
+                        // Draw brick with gradient
+                        const gradient = ctx.createLinearGradient(b.x, b.y, b.x, b.y + brickHeight);
+                        gradient.addColorStop(0, b.color);
+                        gradient.addColorStop(1, shadeColor(b.color, -30));
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(b.x, b.y, brickWidth, brickHeight);
+                        
+                        // Draw special brick indicator
+                        if (b.isSpecial) {
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = '16px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('✨', b.x + brickWidth / 2, b.y + brickHeight / 2 + 5);
+                        }
+                        
+                        ctx.globalAlpha = 1;
+                    }
+                }
+            }
+        }
+        
+        function drawPowerUps() {
+            powerUps.forEach(powerUp => {
+                const type = POWER_UP_TYPES[powerUp.type];
+                
+                // Draw power-up with pulsing effect
+                const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8;
+                ctx.globalAlpha = pulse;
+                
+                // Background circle
+                ctx.beginPath();
+                ctx.arc(powerUp.x, powerUp.y, powerUp.width / 2, 0, Math.PI * 2);
+                ctx.fillStyle = type.color;
+                ctx.fill();
+                ctx.closePath();
+                
+                // Icon
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(type.icon, powerUp.x, powerUp.y);
+                
+                ctx.globalAlpha = 1;
+            });
+        }
+        
+        function drawBullets() {
+            weapon.bullets.forEach(bullet => {
+                const gradient = ctx.createLinearGradient(bullet.x - bullet.width / 2, bullet.y, bullet.x + bullet.width / 2, bullet.y);
+                gradient.addColorStop(0, '#ff0000');
+                gradient.addColorStop(0.5, '#ffffff');
+                gradient.addColorStop(1, '#ff0000');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
+                
+                // Glow effect
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff0000';
+                ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
+                ctx.shadowBlur = 0;
+            });
+        }
+        
+        function shadeColor(color, percent) {
+            const num = parseInt(color.replace("#", ""), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+                (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+                (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+        }
+        
+        function changeWeather() {
+            const weatherKeys = Object.keys(WEATHER_TYPES);
+            const currentIndex = weatherKeys.indexOf(currentWeather);
+            const nextIndex = (currentIndex + 1) % weatherKeys.length;
+            currentWeather = weatherKeys[nextIndex];
+            
+            const weather = WEATHER_TYPES[currentWeather];
+            document.getElementById('weatherIcon').textContent = weather.icon;
+            document.getElementById('weatherName').textContent = weather.name;
+            
+            // Clear old particles
+            weatherParticles = [];
+        }
+        
+        function createWeatherParticles() {
+            const weather = WEATHER_TYPES[currentWeather];
+            
+            if (currentWeather === 'RAINY') {
+                // Create rain drops
+                if (Math.random() < 0.3) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: -10,
+                        dy: 5 + Math.random() * 3,
+                        dx: weather.windX * 10,
+                        width: 2,
+                        height: 10 + Math.random() * 10,
+                        opacity: 0.3 + Math.random() * 0.3
+                    });
+                }
+            } else if (currentWeather === 'SNOWY') {
+                // Create snowflakes
+                if (Math.random() < 0.2) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: -10,
+                        dy: 0.5 + Math.random() * 1.5,
+                        dx: (Math.random() - 0.5) * 2,
+                        radius: 2 + Math.random() * 3,
+                        opacity: 0.5 + Math.random() * 0.5
+                    });
+                }
+            } else if (currentWeather === 'WINDY') {
+                // Create wind lines
+                if (Math.random() < 0.1) {
+                    weatherParticles.push({
+                        x: -50,
+                        y: Math.random() * canvas.height,
+                        dx: 8 + Math.random() * 4,
+                        dy: (Math.random() - 0.5) * 2,
+                        width: 30 + Math.random() * 20,
+                        height: 1,
+                        opacity: 0.2 + Math.random() * 0.3
+                    });
+                }
+            } else if (currentWeather === 'STORMY') {
+                // Create rain and occasional lightning
+                if (Math.random() < 0.4) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: -10,
+                        dy: 8 + Math.random() * 4,
+                        dx: weather.windX * 15,
+                        width: 2,
+                        height: 15 + Math.random() * 10,
+                        opacity: 0.4 + Math.random() * 0.3,
+                        type: 'rain'
+                    });
+                }
+                // Lightning flash
+                if (Math.random() < 0.005) {
+                    weatherParticles.push({
+                        x: Math.random() * canvas.width,
+                        y: 0,
+                        width: canvas.width,
+                        height: canvas.height,
+                        opacity: 0.8,
+                        lifetime: 3,
+                        type: 'lightning'
+                    });
+                }
+            }
+            
+            // Remove old particles
+            weatherParticles = weatherParticles.filter(p => {
+                if (p.type === 'lightning') {
+                    p.lifetime--;
+                    return p.lifetime > 0;
+                }
+                return p.y < canvas.height + 20 && p.x < canvas.width + 50 && p.x > -50;
+            });
+        }
+        
+        function drawWeatherBackground() {
+            const weather = WEATHER_TYPES[currentWeather];
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, weather.bgGradient[0]);
+            gradient.addColorStop(1, weather.bgGradient[1]);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw weather particles
+            weatherParticles.forEach(particle => {
+                ctx.save();
+                ctx.globalAlpha = particle.opacity;
+                
+                if (currentWeather === 'RAINY' || (currentWeather === 'STORMY' && particle.type === 'rain')) {
+                    // Draw rain
+                    ctx.strokeStyle = '#6B7280';
+                    ctx.lineWidth = particle.width;
+                    ctx.beginPath();
+                    ctx.moveTo(particle.x, particle.y);
+                    ctx.lineTo(particle.x + particle.dx, particle.y + particle.height);
+                    ctx.stroke();
+                } else if (currentWeather === 'SNOWY') {
+                    // Draw snow
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (currentWeather === 'WINDY') {
+                    // Draw wind lines
+                    ctx.strokeStyle = '#9CA3AF';
+                    ctx.lineWidth = particle.height;
+                    ctx.beginPath();
+                    ctx.moveTo(particle.x, particle.y);
+                    ctx.lineTo(particle.x + particle.width, particle.y);
+                    ctx.stroke();
+                } else if (particle.type === 'lightning') {
+                    // Draw lightning flash
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                ctx.restore();
+            });
+            
+            // Update particle positions
+            weatherParticles.forEach(particle => {
+                if (particle.type !== 'lightning') {
+                    particle.x += particle.dx || 0;
+                    particle.y += particle.dy || 0;
+                }
+            });
+        }
+        
+        function update() {
+            if (!gameRunning || gamePaused) return;
+            
+            // Clear canvas and draw weather background
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawWeatherBackground();
+            createWeatherParticles();
+            
+            // Draw game elements
+            drawBricks();
+            drawPaddle();
+            drawPowerUps();
+            drawBullets();
+            
+            // Update and draw balls
+            balls.forEach((ball, index) => {
+                drawBall(ball);
+                
+                // Update ball trail
+                ball.trail.push({ x: ball.x, y: ball.y });
+                if (ball.trail.length > 10) {
+                    ball.trail.shift();
+                }
+                
+                // Apply weather effects to ball physics
+                const weather = WEATHER_TYPES[currentWeather];
+                ball.dx += weather.windX * speedMultiplier;
+                ball.dy += weather.gravity * speedMultiplier;
+                
+                // Ball movement with speed multiplier
+                ball.x += ball.dx * speedMultiplier;
+                ball.y += ball.dy * speedMultiplier;
+                
+                // Ball collision with walls
+                if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+                    ball.dx = -ball.dx;
+                }
+                if (ball.y - ball.radius < 0) {
+                    ball.dy = -ball.dy;
+                }
+                
+                // Ball collision with paddle
+                if (ball.y + ball.radius > paddle.y && 
+                    ball.y - ball.radius < paddle.y + paddle.height && 
+                    ball.x > paddle.x && 
+                    ball.x < paddle.x + paddle.width) {
+                    
+                    // Calculate hit position for angle
+                    const hitPos = (ball.x - paddle.x) / paddle.width;
+                    ball.dx = 8 * (hitPos - 0.5);
+                    ball.dy = -Math.abs(ball.dy);
+                }
+                
+                // Ball out of bounds
+                if (ball.y - ball.radius > canvas.height) {
+                    balls.splice(index, 1);
+                    if (balls.length === 0) {
+                        lives--;
+                        updateUI();
+                        if (lives === 0) {
+                            gameOver();
+                        } else {
+                            balls.push(createBall());
+                        }
+                    }
+                }
+            });
+            
+            // Update paddle position
+            if (useMouseControl) {
+                paddle.x = mouseX - paddle.width / 2;
+            } else {
+                if (rightPressed && paddle.x < canvas.width - paddle.width) {
+                    paddle.x += paddle.speed;
+                } else if (leftPressed && paddle.x > 0) {
+                    paddle.x -= paddle.speed;
+                }
+            }
+            
+            // Keep paddle in bounds
+            paddle.x = Math.max(0, Math.min(canvas.width - paddle.width, paddle.x));
+            
+            // Update power-ups
+            powerUps.forEach((powerUp, index) => {
+                powerUp.y += powerUp.dy;
+                if (powerUp.y > canvas.height) {
+                    powerUps.splice(index, 1);
+                }
+            });
+            
+            // Update bullets
+            weapon.bullets.forEach((bullet, index) => {
+                bullet.y += bullet.dy;
+                if (bullet.y < 0) {
+                    weapon.bullets.splice(index, 1);
+                }
+            });
+            
+            // Update power-up timer
+            if (powerUpTimer > 0) {
+                powerUpTimer--;
+                if (powerUpTimer === 0) {
+                    deactivatePowerUp();
+                }
+            }
+            
+            // Update weather timer
+            weatherTimer++;
+            if (weatherTimer >= weatherChangeInterval) {
+                weatherTimer = 0;
+                changeWeather();
+            }
+            
+            // Update game time and difficulty
+            gameTime++;
+            
+            // Increase difficulty every 30 seconds (1800 frames at 60fps)
+            if (gameTime % 1800 === 0) {
+                difficultyLevel++;
+                speedMultiplier = 1 + (difficultyLevel - 1) * 0.15; // 15% faster each level
+                
+                // Make weather changes more frequent
+                weatherChangeInterval = Math.max(180, baseWeatherInterval - (difficultyLevel - 1) * 60); // Min 3 seconds
+                
+                // Update UI
+                document.getElementById('level').textContent = difficultyLevel;
+                
+                // Flash level indicator
+                const levelSpan = document.getElementById('level').parentElement;
+                levelSpan.style.background = '#ff6b6b';
+                setTimeout(() => {
+                    levelSpan.style.background = 'rgba(255, 255, 255, 0.2)';
+                }, 500);
+            }
+            
+            // Check for collisions
+            collisionDetection();
+            
+            // Check win condition
+            if (checkWin()) {
+                levelComplete();
+            }
+            
+            // Update UI
+            updateUI();
+            
+            // Continue game loop
+            animationId = requestAnimationFrame(update);
+        }
+        
+        function checkWin() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status > 0) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        
+        function levelComplete() {
+            gameRunning = false;
+            cancelAnimationFrame(animationId);
+            
+            score += lives * 100; // Bonus for remaining lives
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('brickBreakerHighScore', highScore);
+            }
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('LEVEL COMPLETE!', canvas.width / 2, canvas.height / 2 - 50);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText('Press Start to play again', canvas.width / 2, canvas.height / 2 + 60);
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            cancelAnimationFrame(animationId);
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('brickBreakerHighScore', highScore);
+            }
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText('Press Start to play again', canvas.width / 2, canvas.height / 2 + 60);
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('level').textContent = difficultyLevel;
+        }
+        
+        function startGame() {
+            if (gameRunning) return;
+            
+            // Reset game state
+            gameRunning = true;
+            gamePaused = false;
+            score = 0;
+            lives = 3;
+            balls = [createBall()];
+            powerUps = [];
+            weapon.bullets = [];
+            weapon.type = 'normal';
+            paddle.width = 100;
+            paddle.color = '#00ff00';
+            activePowerUp = null;
+            powerUpTimer = 0;
+            weatherTimer = 0;
+            currentWeather = 'SUNNY';
+            weatherParticles = [];
+            gameTime = 0;
+            difficultyLevel = 1;
+            speedMultiplier = 1;
+            weatherChangeInterval = baseWeatherInterval;
+            
+            // Reset weather display
+            document.getElementById('weatherIcon').textContent = WEATHER_TYPES[currentWeather].icon;
+            document.getElementById('weatherName').textContent = WEATHER_TYPES[currentWeather].name;
+            document.getElementById('powerUpIndicator').style.display = 'none';
+            
+            createBricks();
+            updateUI();
+            update();
+        }
+        
+        function pauseGame() {
+            if (!gameRunning) return;
+            gamePaused = !gamePaused;
+            
+            if (gamePaused) {
+                cancelAnimationFrame(animationId);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+            } else {
+                update();
+            }
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+        
+        // Initialize the game
+        init();
+    </script>
+</body>
+</html>
