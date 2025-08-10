@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Chain Run – Jump’n’Run mit Kette</title>
+<style>
+  html,body{margin:0;height:100%;background:#111;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;overflow:hidden}
+  #c{display:block;width:100vw;height:100vh;touch-action:none}
+  .hud{position:fixed;left:12px;top:12px;font-size:14px;line-height:1.35;background:rgba(0,0,0,.45);padding:10px 12px;border-radius:10px;border:1px solid #2b3446;backdrop-filter:blur(6px);z-index:3;color:#fff}
+  #fullscreenBtn{position:fixed;right:12px;top:12px;padding:6px 10px;font-size:14px;cursor:pointer;background:#3b82f6;color:#fff;border:none;border-radius:6px;z-index:4;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  #fullscreenBtn:hover{filter:brightness(1.1)}
+  .test-badge{position:fixed;right:12px;bottom:12px;background:#16a34a;color:#fff;padding:6px 10px;border-radius:6px;font-size:12px;z-index:4;box-shadow:0 2px 6px rgba(0,0,0,.3);display:none}
+  .controls{position:fixed;left:0;right:0;bottom:8px;display:flex;justify-content:space-between;align-items:center;padding:0 12px;z-index:4;pointer-events:none}
+  .cluster{display:flex;gap:8px}
+  .btn{pointer-events:auto;min-width:64px;min-height:64px;border-radius:12px;border:1px solid #334155;background:rgba(15,23,42,.6);color:#e2e8f0;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .btn:active{transform:scale(.97)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud" id="hud"></div>
+<button id="fullscreenBtn">Fullscreen</button>
+<div id="testBadge" class="test-badge">Tests ok</div>
+<div class="controls">
+  <div class="cluster">
+    <button class="btn" id="btnLeft">←</button>
+    <button class="btn" id="btnRight">→</button>
+  </div>
+  <div class="cluster">
+    <button class="btn" id="btnJump">⤒</button>
+    <button class="btn" id="btnAnchor">⛓</button>
+  </div>
+</div>
+<script>
+(()=>{
+// Canvas
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight;canvas.width=W;canvas.height=H;
+addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;});
+
+// Fullscreen
+const fsBtn=document.getElementById('fullscreenBtn');
+fsBtn.onclick=()=>{if(!document.fullscreenElement){(document.documentElement.requestFullscreen||document.body.requestFullscreen).call(document.documentElement);}else{document.exitFullscreen();}};
+
+// Input
+const hud=document.getElementById('hud');
+const keys={left:false,right:false,jump:false,anchor:false};
+const block=['ArrowLeft','ArrowRight','ArrowUp',' ','a','A','d','D','w','W'];
+addEventListener('keydown',e=>{if(block.includes(e.key))e.preventDefault();handleKey(e,true);},{capture:true});
+addEventListener('keyup',e=>{if(block.includes(e.key))e.preventDefault();handleKey(e,false);},{capture:true});
+function handleKey(e,down){const k=e.key;if(['ArrowLeft','a','A'].includes(k))keys.left=down;if(['ArrowRight','d','D'].includes(k))keys.right=down;if(['w','W','ArrowUp',' '].includes(k))keys.jump=down;if((k==='e'||k==='E')&&down){keys.anchor=true;toggleAnchor();}else if((k==='e'||k==='E')&&!down){keys.anchor=false;}if((k==='r'||k==='R')&&down)resetLevel();}
+// Touch controls
+function bindBtn(id,prop){const el=document.getElementById(id);const on=()=>keys[prop]=true,off=()=>keys[prop]=false;el.addEventListener('pointerdown',e=>{e.preventDefault();on();});el.addEventListener('pointerup',e=>{e.preventDefault();off();});el.addEventListener('pointerleave',off);el.addEventListener('pointercancel',off);} 
+bindBtn('btnLeft','left');bindBtn('btnRight','right');bindBtn('btnJump','jump');document.getElementById('btnAnchor').addEventListener('pointerdown',e=>{e.preventDefault();toggleAnchor();});
+
+// Physik
+const world={g:2000,air:0.995,friction:0.82};
+const playerSize=36;const maxSpeed=320;const accel=1600;const decel=2200;const jumpVel=-820;const coyoteTimeMax=0.12;const jumpBufferMax=0.12;let coyote1=0,coyote2=0,buffer=0;
+let rope={rest:150,stiff:0.02,max:340},ropeAnchor=null;
+function newPlayer(x,y){return{pos:{x,y},vel:{x:0,y:0},onGround:false,fixed:false,justJumped:false};}
+
+// Procedural BG
+function rng(seed){let s=0;for(let i=0;i<seed.length;i++)s=(s*31+seed.charCodeAt(i))|0;return ()=>{s=(s*1664525+1013904223)|0;return ((s>>>0)%1e9)/1e9;};}
+function drawBG(theme,t,data){if(theme==='wiese')return drawBGWiese(t,data);if(theme==='hoehle')return drawBGHoehle(t,data);return drawBGSpace(t,data);} 
+function drawBGWiese(t,d){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#8ec5ff');g.addColorStop(1,'#cdeac0');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.fillStyle='#6ab04c';paintHill(0.6,40);ctx.fillStyle='#4aa03c';paintHill(0.8,80);ctx.globalAlpha=0.7;paintedCircle(120+Math.sin(t*0.2)*30,100,40,'#ffd166');ctx.globalAlpha=1;for(const tr of d.trees){paintTree(tr.x,tr.h);} }
+function paintHill(scale,offset){ctx.beginPath();ctx.moveTo(0,H-offset);for(let x=0;x<=W;x+=8){const y=H-offset- Math.sin((x/W)*Math.PI*2)*20*scale;ctx.lineTo(x,y);}ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();}
+function paintTree(x,h){ctx.fillStyle='#8d6e63';paintedRect(x-6,H-120,12,60,'#8d6e63');ctx.fillStyle='#2e7d32';paintedCircle(x,H-120,h,'#2e7d32');}
+function drawBGHoehle(t,d){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#171a22');g.addColorStop(1,'#0c0f16');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.fillStyle='#2b3446';for(const s of d.spikesTop){paintSpike(s.x,0,-s.h,true);}for(const s of d.spikesBottom){paintSpike(s.x,H,s.h,false);}for(const f of d.torches){const flick=1+Math.sin(t*6+f.phase)*0.15;paintTorch(f.x,f.y,flick);} }
+function paintSpike(x,y,h){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+18,y);ctx.lineTo(x+9,y+h);ctx.closePath();ctx.fill();}
+function paintTorch(x,y,s){paintedRect(x-3,y-18,6,18,'#6b4f4f');ctx.globalAlpha=0.8;paintedCircle(x,y-24,8*s,'#ffb703');ctx.globalAlpha=1;}
+function drawBGSpace(t,d){const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0b0f1f');g.addColorStop(1,'#02040a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.fillStyle='#cbd5e1';for(const s of d.stars){const tw=0.7+0.3*Math.sin(elapsed*3+s.p);ctx.globalAlpha=tw;ctx.fillRect(s.x,s.y,2,2);}ctx.globalAlpha=1;paintedCircle(W*0.8,H*0.25,60,'#64748b');paintStation(W*0.35,H*0.45);} 
+function paintStation(x,y){paintedRect(x-80,y-10,160,20,'#94a3b8');paintedRect(x-6,y-40,12,60,'#cbd5e1');paintedRect(x-40,y-60,80,18,'#94a3b8');}
+function paintedRect(x,y,w,h,fill){ctx.save();ctx.fillStyle=fill;ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.rect(x,y,w,h);ctx.fill();ctx.stroke();ctx.restore();}
+function paintedCircle(x,y,r,fill){ctx.save();ctx.fillStyle=fill;ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
+
+// Levels
+const levels=[
+  {name:'Wiese',theme:'wiese',seed:'wiese-1',start:{p1:{x:120,y:520},p2:{x:220,y:520}},platforms:[{x:-400,y:640,w:2200,h:40},{x:260,y:560,w:360,h:22},{x:680,y:520,w:280,h:22},{x:1040,y:500,w:220,h:22}],moving:[],anchors:[{x:740,y:520}],switchPlate:{x:500,y:600,w:80,h:16},gate:{x:930,y:500,w:40,h:140},goal:{x:980,y:500,w:160,h:64}},
+  {name:'Höhle',theme:'hoehle',seed:'cave-2',start:{p1:{x:80,y:600},p2:{x:180,y:600}},platforms:[{x:-400,y:660,w:2200,h:40},{x:200,y:560,w:220,h:22},{x:480,y:520,w:220,h:22},{x:760,y:480,w:220,h:22}],moving:[{baseX:1060,y:440,w:180,h:18,amp:140,speed:1.4}],anchors:[{x:540,y:500},{x:820,y:460}],switchPlate:{x:300,y:620,w:80,h:16},gate:{x:1200,y:420,w:40,h:160},goal:{x:1280,y:420,w:160,h:64}},
+  {name:'Raumstation',theme:'space',seed:'space-3',start:{p1:{x:120,y:520},p2:{x:220,y:520}},platforms:[{x:-400,y:640,w:2400,h:40},{x:380,y:560,w:300,h:22},{x:760,y:520,w:240,h:22},{x:1100,y:480,w:260,h:22}],moving:[{baseX:980,y:430,w:200,h:18,amp:160,speed:1.6}],anchors:[{x:760,y:500},{x:1040,y:460}],switchPlate:{x:560,y:600,w:80,h:16},gate:{x:1360,y:460,w:40,h:160},goal:{x:1460,y:440,w:160,h:64}}
+];
+
+function makeBGData(level){const rand=rng(level.seed||level.name);const d={trees:[],spikesTop:[],spikesBottom:[],torches:[],stars:[]};
+  if(level.theme==='wiese'){for(let i=0;i<18;i++)d.trees.push({x:Math.floor(rand()*W),h:18+Math.floor(rand()*24)});} 
+  if(level.theme==='hoehle'){for(let i=0;i<18;i++)d.spikesTop.push({x:Math.floor(rand()*W),h:40+Math.floor(rand()*80)});for(let i=0;i<14;i++)d.spikesBottom.push({x:Math.floor(rand()*W),h:30+Math.floor(rand()*70)});for(let i=0;i<4;i++)d.torches.push({x:100+Math.floor(rand()*(W-200)),y:180+Math.floor(rand()*120),phase:rand()*6});}
+  if(level.theme==='space'){for(let i=0;i<120;i++)d.stars.push({x:Math.floor(rand()*W),y:Math.floor(rand()*H),p:rand()*6});}
+  return d;
+}
+
+// State
+let levelIndex=0,p1,p2,platforms=[],movingPlatforms=[],goal={},gate={},gateOpen=false,switchPlate={},anchors=[],cam={x:0,y:0},bgData=null;
+
+function loadLevel(i){const L=levels[i];if(!L)return;p1=newPlayer(L.start.p1.x,L.start.p1.y);p2=newPlayer(L.start.p2.x,L.start.p2.y);platforms=JSON.parse(JSON.stringify(L.platforms));movingPlatforms=(L.moving||[]).map(m=>({...m,cx:m.baseX}));goal={...L.goal};gate={...L.gate};gateOpen=false;switchPlate={...L.switchPlate,pressed:false};anchors=(L.anchors||[]).map(a=>({...a}));ropeAnchor=null;bgData=makeBGData(L);updateHUD();coyote1=0;coyote2=0,buffer=0;}
+function nextLevel(){levelIndex=(levelIndex+1)%levels.length;loadLevel(levelIndex);} 
+function resetLevel(){loadLevel(levelIndex);} 
+function updateHUD(){hud.innerHTML=`<b>Chain Run</b><br/>Level ${levelIndex+1}/${levels.length}: ${levels[levelIndex].name}<br/>A/← links • D/→ rechts • W/↑/␣ springen • E Anker • R Level neu`;}
+
+// Movement
+function applyInput(pl){const wantLeft=keys.left,wantRight=keys.right;const target=(wantLeft&&!wantRight)?-1:(wantRight&&!wantLeft)?1:0;if(target!==0){pl.vel.x+=target*accel*dt;}else{if(Math.abs(pl.vel.x)<10)pl.vel.x=0;else pl.vel.x+=-Math.sign(pl.vel.x)*decel*dt;}pl.vel.x=Math.max(-maxSpeed,Math.min(maxSpeed,pl.vel.x));}
+function doJumpLogic(){coyote1=Math.max(0,coyote1-dt);coyote2=Math.max(0,coyote2-dt);buffer=Math.max(0,buffer-dt);if(keys.jump)buffer=jumpBufferMax;if(buffer>0&&(coyote1>0&&!p1.justJumped)){p1.vel.y=jumpVel;p1.onGround=false;p1.justJumped=true;buffer=0;}if(buffer>0&&(coyote2>0&&!p2.justJumped)){p2.vel.y=jumpVel;p2.onGround=false;p2.justJumped=true;buffer=0;}if(!keys.jump){p1.justJumped=false;p2.justJumped=false;}}
+function integrate(pl){pl.vel.y+=world.g*dt;pl.vel.x*=world.air;pl.pos.x+=pl.vel.x*dt;pl.pos.y+=pl.vel.y*dt;}
+function collide(pl,rects){pl.onGround=false;const s=playerSize;for(const r of rects){const dx=(pl.pos.x-(r.x+r.w/2));const px=(r.w/2+s/2)-Math.abs(dx);if(px<=0)continue;const dy=(pl.pos.y-(r.y+r.h/2));const py=(r.h/2+s/2)-Math.abs(dy);if(py<=0)continue;if(px<py){if(dx>0)pl.pos.x=r.x+r.w+s/2;else pl.pos.x=r.x-s/2;pl.vel.x*=-0.05;}else{if(dy>0){pl.pos.y=r.y+r.h+s/2;pl.vel.y*=-0.05;}else{pl.pos.y=r.y-s/2;if(pl.vel.y>120)pl.vel.y=0;pl.onGround=true;}}}}
+function ropeConstraint(a,b){const dx=b.pos.x-a.pos.x,dy=b.pos.y-a.pos.y;let dist=Math.hypot(dx,dy)||0.0001;const dirx=dx/dist,diry=dy/dist;const diff=dist-rope.rest;const k=rope.stiff*diff;const half=0.5;const mA=a.fixed?0:half,mB=b.fixed?0:half;a.pos.x+=k*dirx*mA;a.pos.y+=k*diry*mA;b.pos.x-=k*dirx*mB;b.pos.y-=k*diry*mB;if(dist>rope.max){const pull=(dist-rope.max);a.pos.x+=pull*dirx*mA;a.pos.y+=pull*diry*mA;b.pos.x-=pull*dirx*mB;b.pos.y-=pull*diry*mB;}}
+
+// Draw
+function draw(){
+  // Hintergrund ohne Kamera-Shift
+  const L=levels[levelIndex];
+  drawBG(L.theme,elapsed,bgData);
+  // Welt verschieben
+  ctx.save();
+  ctx.translate(-cam.x,-cam.y);
+  for(const r of platforms){paintedRect(r.x,r.y,r.w,r.h,'#7f8c8d');}
+  for(const m of movingPlatforms){paintedRect(m.cx,m.y,m.w,m.h,'#95a5a6');}
+  paintedRect(switchPlate.x,switchPlate.y,switchPlate.w,switchPlate.h,switchPlate.pressed?'#22c55e':'#f59e0b');
+  if(!gateOpen)paintedRect(gate.x,gate.y,gate.w,gate.h,'#ef4444');
+  paintedRect(goal.x,goal.y,goal.w,goal.h,'#16a34a');
+  for(const a of anchors){paintedCircle(a.x,a.y,8,'#60a5fa');}
+  ctx.strokeStyle='#334155';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p1.pos.x,p1.pos.y);ctx.lineTo(p2.pos.x,p2.pos.y);ctx.stroke();
+  paintedRect(p1.pos.x-playerSize/2,p1.pos.y-playerSize/2,playerSize,playerSize,'#3b82f6');
+  paintedRect(p2.pos.x-playerSize/2,p2.pos.y-playerSize/2,playerSize,playerSize,'#f59e0b');
+  ctx.restore();
+}
+
+// Loop
+let last=performance.now(),dt=0,elapsed=0;
+function step(t){dt=Math.min(1/60,(t-last)/1000);elapsed+=(t-last)/1000;last=t;for(const m of movingPlatforms){m.cx=m.baseX+Math.sin(elapsed*m.speed)*m.amp;}applyInput(p1);applyInput(p2);doJumpLogic();integrate(p1);integrate(p2);if(ropeAnchor){for(let i=0;i<6;i++){ropeConstraint(p1,ropeAnchor);ropeConstraint(ropeAnchor,p2);}}else{for(let i=0;i<6;i++)ropeConstraint(p1,p2);}const rects=[...platforms,...movingPlatforms.map(m=>({x:m.cx,y:m.y,w:m.w,h:m.h}))];if(!gateOpen)rects.push(gate);collide(p1,rects);collide(p2,rects);coyote1=p1.onGround?coyoteTimeMax:coyote1;coyote2=p2.onGround?coyoteTimeMax:coyote2;if(intersects(aabbOf(p1),switchPlate)||intersects(aabbOf(p2),switchPlate))switchPlate.pressed=true;if(switchPlate.pressed)gateOpen=true;if(intersects(aabbOf(p1),goal)&&intersects(aabbOf(p2),goal))nextLevel();cam.x=(p1.pos.x+p2.pos.x)/2 - W/2;cam.y=(p1.pos.y+p2.pos.y)/2 - H/2;draw();requestAnimationFrame(step);} 
+
+// Utils
+function aabbOf(pl){const s=playerSize;return{x:pl.pos.x-s/2,y:pl.pos.y-s/2,w:s,h:s};}
+function intersects(a,b){return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;}
+function toggleAnchor(){if(ropeAnchor){ropeAnchor=null;return;}const mid={x:(p1.pos.x+p2.pos.x)/2,y:(p1.pos.y+p2.pos.y)/2};let best=null,bd=1e9;for(const a of anchors){const d=Math.hypot(a.x-mid.x,a.y-mid.y);if(d<bd){bd=d;best=a;}}if(best&&bd<110){ropeAnchor={pos:{x:best.x,y:best.y},vel:{x:0,y:0},fixed:true};}}
+
+// Tests
+function runTests(){const results=[];function ok(name,cond){results.push({name,ok:!!cond});if(!cond)console.error('Test fail:',name);}try{drawBG('wiese',0,{trees:[{x:10,h:20}]});drawBG('hoehle',0,{spikesTop:[{x:10,h:20}],spikesBottom:[{x:20,h:15}],torches:[{x:40,y:200,phase:0}]});drawBG('space',0,{stars:[{x:1,y:1,p:0}]});ok('BG-Renderer',true);}catch(e){ok('BG-Renderer',false);}try{paintedRect(0,0,10,10,'#fff');paintedCircle(5,5,3,'#fff');ok('Painter',true);}catch(e){ok('Painter',false);}const a=newPlayer(0,0),b=newPlayer(1000,0);for(let i=0;i<10;i++)ropeConstraint(a,b);ok('Rope max',Math.hypot(b.pos.x-a.pos.x,b.pos.y-a.pos.y)<=rope.max+2);const oldP1=p1,oldP2=p2; p1=newPlayer(0,0); p2=newPlayer(0,0); p1.onGround=false; p2.onGround=false; coyote1=coyoteTimeMax; coyote2=coyoteTimeMax; keys.jump=true; buffer=jumpBufferMax; doJumpLogic(); ok('Coyote jump',p1.vel.y===jumpVel || p2.vel.y===jumpVel); keys.jump=false; p1=oldP1; p2=oldP2; const before=levelIndex; nextLevel(); ok('NextLevel',levelIndex!==before); levelIndex=before; loadLevel(levelIndex); const badge=document.getElementById('testBadge'); const allOk=results.every(r=>r.ok); badge.style.display=allOk?'block':'block'; badge.textContent=allOk?'Tests ok':'Tests fehlgeschlagen';}
+
+// Start
+loadLevel(levelIndex);
+draw();
+requestAnimationFrame(step);
+runTests();
+})();
+</script>
+</body>
+</html>
