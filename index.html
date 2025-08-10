@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KI Game Collection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+        
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .game-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .game-thumbnail {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #3498db, #2ecc71);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 3em;
+        }
+        
+        .game-info {
+            padding: 20px;
+        }
+        
+        .game-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .game-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .play-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: transform 0.2s ease;
+        }
+        
+        .play-button:hover {
+            transform: scale(1.05);
+        }
+        
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 50px;
+            padding: 20px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>KI Game Collection</h1>
+            <p class="subtitle">Eine Sammlung von KI-generierten HTML-Spielen</p>
+        </header>
+        
+        <div class="games-grid" id="gamesGrid">
+            <!-- Spiele werden hier dynamisch geladen -->
+        </div>
+        
+        <footer>
+            <p>Alle Spiele wurden mit KI generiert und laufen direkt im Browser</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Liste der verfügbaren Spiele
+        const games = [
+            {
+                title: "Snake",
+                description: "Das klassische Snake-Spiel - sammle Äpfel und werde länger!",
+                url: "games/snake.html",
+                icon: "🐍"
+            }
+        ];
+        
+        // Spiele in das Grid laden
+        const gamesGrid = document.getElementById('gamesGrid');
+        
+        games.forEach(game => {
+            const gameCard = document.createElement('div');
+            gameCard.className = 'game-card';
+            gameCard.innerHTML = `
+                <div class="game-thumbnail">
+                    ${game.icon}
+                </div>
+                <div class="game-info">
+                    <h2 class="game-title">${game.title}</h2>
+                    <p class="game-description">${game.description}</p>
+                    <a href="${game.url}" class="play-button">Spielen</a>
+                </div>
+            `;
+            gamesGrid.appendChild(gameCard);
+        });
+    </script>
+</body>
+</html>
