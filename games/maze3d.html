@@ -197,25 +197,30 @@
         <canvas id="canvas"></canvas>
         
         <div id="controls">
-            <strong>Controls:</strong> WASD = Move | Mouse/Arrow Keys = Look | Space = Use Ability | Click = Attack
+            <strong>Controls:</strong> WASD = Move | Hold Mouse & Drag/Arrow Keys = Look | Space = Use Ability | Click = Attack
         </div>
         
         <div id="characterSelect">
             <h2>Choose Your Character</h2>
-            <div class="character-option" onclick="selectCharacter('warrior')">
+            <div class="character-option" onclick="startWithCharacter('warrior')">
                 <h3>⚔️ Warrior</h3>
                 <p>High health, strong attack</p>
                 <small>Ability: Shield Block</small>
             </div>
-            <div class="character-option" onclick="selectCharacter('mage')">
+            <div class="character-option" onclick="startWithCharacter('mage')">
                 <h3>🔮 Mage</h3>
                 <p>Magic attacks, teleport</p>
                 <small>Ability: Teleport</small>
             </div>
-            <div class="character-option" onclick="selectCharacter('rogue')">
+            <div class="character-option" onclick="startWithCharacter('rogue')">
                 <h3>🗡️ Rogue</h3>
                 <p>Fast movement, stealth</p>
                 <small>Ability: Invisibility</small>
+            </div>
+            <div class="character-option" onclick="startWithCharacter('helldiver')">
+                <h3>🪖 Helldiver</h3>
+                <p>Tactical soldier, heavy firepower</p>
+                <small>Ability: Orbital Strike</small>
             </div>
         </div>
         
@@ -246,6 +251,12 @@
         const ctx = canvas.getContext('2d');
         const minimapCanvas = document.getElementById('minimap');
         const minimapCtx = minimapCanvas.getContext('2d');
+        
+        // Check if canvas contexts are available
+        if (!ctx || !minimapCtx) {
+            console.error('Could not get canvas context');
+            alert('Browser does not support canvas');
+        }
         
         let gameRunning = false;
         let animationId;
@@ -292,6 +303,16 @@
                 ability: 'invisible',
                 abilityDuration: 4000,
                 energyCost: 35
+            },
+            helldiver: {
+                name: '🪖 Helldiver',
+                health: 120,
+                energy: 90,
+                speed: 0.025,
+                attackDamage: 35,
+                ability: 'orbital_strike',
+                abilityDuration: 1000,
+                energyCost: 50
             }
         };
         
@@ -322,6 +343,29 @@
         let enemies = [];
         let keys = {};
         
+        // Forward declare game state functions
+        function gameWin() {
+            gameRunning = false;
+            const gameOverDiv = document.getElementById('gameOver');
+            const gameOverText = document.getElementById('gameOverText');
+            const gameOverMessage = document.getElementById('gameOverMessage');
+            
+            if (gameOverDiv) gameOverDiv.classList.remove('hidden');
+            if (gameOverText) gameOverText.textContent = 'Victory!';
+            if (gameOverMessage) gameOverMessage.textContent = 'You escaped the maze!';
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            const gameOverDiv = document.getElementById('gameOver');
+            const gameOverText = document.getElementById('gameOverText');
+            const gameOverMessage = document.getElementById('gameOverMessage');
+            
+            if (gameOverDiv) gameOverDiv.classList.remove('hidden');
+            if (gameOverText) gameOverText.textContent = 'Game Over';
+            if (gameOverMessage) gameOverMessage.textContent = 'You were defeated!';
+        }
+        
         class Enemy {
             constructor(x, y) {
                 this.x = x;
@@ -350,7 +394,7 @@
                     const newX = this.x + moveX;
                     const newY = this.y + moveY;
                     
-                    if (maze[Math.floor(newY)][Math.floor(newX)] === 0) {
+                    if (maze[Math.floor(newY)] && maze[Math.floor(newY)][Math.floor(newX)] !== undefined && maze[Math.floor(newY)][Math.floor(newX)] === 0) {
                         this.x = newX;
                         this.y = newY;
                     }
@@ -375,6 +419,9 @@
             }
         }
         
+        let isMouseDown = false;
+        let lastMouseX = 0;
+        
         function initGame() {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
@@ -391,48 +438,50 @@
                     }
                 }
             }
-            
-            document.addEventListener('keydown', (e) => {
-                keys[e.key.toLowerCase()] = true;
-                if (e.key === ' ') {
-                    e.preventDefault();
-                    useAbility();
-                }
-            });
-            
-            document.addEventListener('keyup', (e) => {
-                keys[e.key.toLowerCase()] = false;
-            });
-            
-            // Mouse looking with pointer lock
-            canvas.addEventListener('click', async () => {
-                if (!gameRunning) return;
-                attack();
-                
-                // Request pointer lock for better mouse control
-                if (!document.pointerLockElement) {
-                    await canvas.requestPointerLock();
-                }
-            });
-            
-            document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement === canvas) {
-                    document.addEventListener('mousemove', handleMouseMove);
-                } else {
-                    document.removeEventListener('mousemove', handleMouseMove);
-                }
-            });
-            
-            function handleMouseMove(e) {
-                if (!gameRunning) return;
-                player.angle += e.movementX * 0.002;
-            }
-            
-            });
         }
         
-        function selectCharacter(type) {
+        // Setup input handlers immediately
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (gameRunning) useAbility();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            if (!gameRunning) return;
+            isMouseDown = true;
+            lastMouseX = e.clientX;
+            attack();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isMouseDown = false;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameRunning || !isMouseDown) return;
+            const deltaX = e.clientX - lastMouseX;
+            player.angle += deltaX * 0.003;
+            lastMouseX = e.clientX;
+        });
+        
+        function startWithCharacter(type) {
             const char = characters[type];
+            if (!char) {
+                console.error('Character type not found:', type);
+                return;
+            }
+            
             player.character = type;
             player.health = char.health;
             player.maxHealth = char.health;
@@ -446,9 +495,15 @@
             document.getElementById('minimap').classList.remove('hidden');
             document.getElementById('charName').textContent = char.name;
             
+            // Initialize game before starting
+            initGame();
+            
             gameRunning = true;
             gameLoop();
         }
+        
+        // Make function globally accessible
+        window.startWithCharacter = startWithCharacter;
         
         function useAbility() {
             if (!player.character) return;
@@ -475,11 +530,31 @@
                     player.invisible = true;
                     setTimeout(() => player.invisible = false, char.abilityDuration);
                     break;
+                case 'orbital_strike':
+                    // Orbital Strike - damages all enemies in view
+                    player.orbitalStrike = true;
+                    enemies.forEach(enemy => {
+                        if (!enemy.active) return;
+                        
+                        // Calculate distance to enemy from player position (not camera)
+                        const dx = enemy.x - player.x;
+                        const dy = enemy.y - player.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Damage enemies within range
+                        if (dist < 5) {
+                            enemy.takeDamage(60);
+                        }
+                    });
+                    
+                    // Visual effect duration
+                    setTimeout(() => player.orbitalStrike = false, char.abilityDuration);
+                    break;
             }
         }
         
         function attack() {
-            // Check if enemy is in front
+            // Check if enemy is in front of player
             const attackRange = 1.5;
             const attackAngle = player.angle;
             
@@ -535,12 +610,14 @@
             const newX = player.x + moveX;
             const newY = player.y + moveY;
             
-            if (maze[Math.floor(newY)][Math.floor(newX)] === 0) {
-                player.x = newX;
-                player.y = newY;
-            } else if (maze[Math.floor(newY)][Math.floor(newX)] === 2) {
-                // Found exit!
-                gameWin();
+            if (maze[Math.floor(newY)] && maze[Math.floor(newY)][Math.floor(newX)] !== undefined) {
+                if (maze[Math.floor(newY)][Math.floor(newX)] === 0) {
+                    player.x = newX;
+                    player.y = newY;
+                } else if (maze[Math.floor(newY)][Math.floor(newX)] === 2) {
+                    // Found exit!
+                    if (typeof gameWin === 'function') gameWin();
+                }
             }
             
             // Regenerate energy
@@ -550,11 +627,17 @@
             
             // Check death
             if (player.health <= 0) {
-                gameOver();
+                if (typeof gameOver === 'function') gameOver();
             }
         }
         
         function render3D() {
+            // Third-person camera setup
+            const cameraDistance = 3;
+            const cameraHeight = 1.5;
+            const cameraX = player.x - Math.sin(player.angle) * cameraDistance;
+            const cameraY = player.y - Math.cos(player.angle) * cameraDistance;
+            
             // Sky gradient
             const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height / 2);
             skyGradient.addColorStop(0, '#1e3c72');
@@ -591,7 +674,7 @@
             for (let i = 0; i < numRays; i++) {
                 const rayAngle = player.angle - fov/2 + (i / numRays) * fov;
                 
-                // Cast ray with more precision
+                // Cast ray from camera position behind player
                 let distance = 0;
                 let hit = false;
                 let wallType = 1;
@@ -600,8 +683,8 @@
                 let textureX = 0;
                 
                 for (let d = 0; d < 20; d += 0.02) {
-                    const testX = player.x + Math.sin(rayAngle) * d;
-                    const testY = player.y + Math.cos(rayAngle) * d;
+                    const testX = cameraX + Math.sin(rayAngle) * d;
+                    const testY = cameraY + Math.cos(rayAngle) * d;
                     
                     if (maze[Math.floor(testY)] && maze[Math.floor(testY)][Math.floor(testX)] !== 0) {
                         distance = d * Math.cos(rayAngle - player.angle); // Fix fisheye effect
@@ -669,8 +752,8 @@
             enemies.forEach(enemy => {
                 if (!enemy.active) return;
                 
-                const dx = enemy.x - player.x;
-                const dy = enemy.y - player.y;
+                const dx = enemy.x - cameraX;
+                const dy = enemy.y - cameraY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < 15) {
@@ -698,6 +781,7 @@
                         if (!behindWall) {
                             // Enemy shadow
                             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                            ctx.beginPath();
                             ctx.ellipse(screenX, canvas.height/2 + size/2, size/2, size/8, 0, 0, Math.PI * 2);
                             ctx.fill();
                             
@@ -753,6 +837,157 @@
             ctx.fillStyle = fogGradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // Draw player character from behind (third-person view)
+            const playerDist = cameraDistance;
+            const playerAngle = player.angle;
+            const screenX = canvas.width / 2;
+            const screenY = canvas.height / 2 + 50;
+            const playerHeight = 200 / (playerDist * 0.8);
+            const playerWidth = playerHeight * 0.6;
+            
+            // Player shadow
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY + playerHeight/2, playerWidth/2, playerWidth/6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Player body based on character class
+            if (player.character === 'warrior') {
+                // Warrior - heavy armor
+                ctx.fillStyle = '#4A4A4A';
+                ctx.fillRect(screenX - playerWidth/2.5, screenY - playerHeight/3, playerWidth * 0.8, playerHeight * 0.7);
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(screenX - playerWidth/2.8, screenY - playerHeight/3.5, playerWidth * 0.7, playerHeight * 0.6);
+                // Helmet
+                ctx.fillStyle = '#808080';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (player.character === 'mage') {
+                // Mage - robes
+                ctx.fillStyle = '#4B0082';
+                ctx.beginPath();
+                ctx.moveTo(screenX - playerWidth/3, screenY - playerHeight/3);
+                ctx.lineTo(screenX + playerWidth/3, screenY - playerHeight/3);
+                ctx.lineTo(screenX + playerWidth/2, screenY + playerHeight/2);
+                ctx.lineTo(screenX - playerWidth/2, screenY + playerHeight/2);
+                ctx.closePath();
+                ctx.fill();
+                // Hood
+                ctx.fillStyle = '#2F0147';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (player.character === 'rogue') {
+                // Rogue - dark outfit
+                ctx.fillStyle = '#1C1C1C';
+                ctx.fillRect(screenX - playerWidth/3, screenY - playerHeight/3, playerWidth * 0.66, playerHeight * 0.7);
+                // Hood
+                ctx.fillStyle = '#0A0A0A';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3.5, 0, Math.PI * 2);
+                ctx.fill();
+                // Cloak
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.beginPath();
+                ctx.moveTo(screenX - playerWidth/2.5, screenY - playerHeight/4);
+                ctx.lineTo(screenX + playerWidth/2.5, screenY - playerHeight/4);
+                ctx.lineTo(screenX + playerWidth/2, screenY + playerHeight/2);
+                ctx.lineTo(screenX - playerWidth/2, screenY + playerHeight/2);
+                ctx.closePath();
+                ctx.fill();
+            } else if (player.character === 'helldiver') {
+                // Helldiver - military gear
+                ctx.fillStyle = '#4A5D23';
+                ctx.fillRect(screenX - playerWidth/3, screenY - playerHeight/3, playerWidth * 0.66, playerHeight * 0.7);
+                // Helmet
+                ctx.fillStyle = '#556B2F';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3, 0, Math.PI * 2);
+                ctx.fill();
+                // Backpack
+                ctx.fillStyle = '#3A4A1A';
+                ctx.fillRect(screenX - playerWidth/2.5, screenY - playerHeight/3.5, playerWidth * 0.2, playerHeight * 0.4);
+            }
+            
+            // Arms/legs animation based on movement
+            const walkCycle = Math.sin(Date.now() * 0.01) * 0.2;
+            if (keys['w'] || keys['s'] || keys['a'] || keys['d']) {
+                ctx.fillStyle = player.character === 'warrior' ? '#4A4A4A' : 
+                               player.character === 'mage' ? '#4B0082' :
+                               player.character === 'rogue' ? '#1C1C1C' : '#4A5D23';
+                // Left leg
+                ctx.fillRect(screenX - playerWidth/4 - walkCycle * 10, screenY + playerHeight/3, playerWidth/5, playerHeight/3);
+                // Right leg  
+                ctx.fillRect(screenX + playerWidth/20 + walkCycle * 10, screenY + playerHeight/3, playerWidth/5, playerHeight/3);
+            }
+            
+            ctx.restore();
+            
+            // Draw weapon/hand at bottom of screen (remove this for third person)
+            if (false && player.character) {
+                ctx.save();
+                
+                // Weapon bob effect
+                const bobX = Math.sin(Date.now() * 0.003) * 5;
+                const bobY = Math.abs(Math.sin(Date.now() * 0.006)) * 3;
+                
+                const weaponX = canvas.width - 200 + bobX;
+                const weaponY = canvas.height - 150 + bobY;
+                
+                if (player.character === 'warrior') {
+                    // Draw sword
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.fillRect(weaponX, weaponY - 100, 15, 120);
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(weaponX - 20, weaponY, 55, 15);
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillRect(weaponX + 2, weaponY - 100, 11, 120);
+                } else if (player.character === 'mage') {
+                    // Draw staff
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(weaponX, weaponY - 120, 10, 150);
+                    // Crystal on top
+                    ctx.fillStyle = '#9400D3';
+                    ctx.beginPath();
+                    ctx.moveTo(weaponX + 5, weaponY - 140);
+                    ctx.lineTo(weaponX - 10, weaponY - 120);
+                    ctx.lineTo(weaponX + 20, weaponY - 120);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Glow effect
+                    ctx.shadowColor = '#9400D3';
+                    ctx.shadowBlur = 20;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                } else if (player.character === 'rogue') {
+                    // Draw daggers
+                    ctx.fillStyle = '#696969';
+                    ctx.fillRect(weaponX, weaponY - 60, 8, 80);
+                    ctx.fillRect(weaponX - 30, weaponY - 50, 8, 70);
+                    ctx.fillStyle = '#1C1C1C';
+                    ctx.fillRect(weaponX - 5, weaponY, 18, 10);
+                    ctx.fillRect(weaponX - 35, weaponY, 18, 10);
+                } else if (player.character === 'helldiver') {
+                    // Draw rifle
+                    ctx.fillStyle = '#2F4F2F';
+                    ctx.fillRect(weaponX - 20, weaponY - 80, 60, 20);
+                    ctx.fillRect(weaponX + 40, weaponY - 75, 40, 10);
+                    ctx.fillStyle = '#1C1C1C';
+                    ctx.fillRect(weaponX - 10, weaponY - 60, 15, 30);
+                    ctx.fillRect(weaponX + 10, weaponY - 85, 5, 40);
+                    // Scope
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(weaponX + 12, weaponY - 90, 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+            
             // Effects
             if (player.invisible) {
                 // Invisibility effect with animated shimmer
@@ -777,6 +1012,31 @@
             if (player.health < player.maxHealth * 0.3) {
                 const damageAlpha = (1 - player.health / (player.maxHealth * 0.3)) * 0.3;
                 ctx.fillStyle = `rgba(255, 0, 0, ${damageAlpha})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Orbital Strike effect
+            if (player.orbitalStrike) {
+                // Draw orbital strike beams
+                const strikeTime = Date.now() % 500;
+                const alpha = 0.8 - (strikeTime / 500) * 0.5;
+                
+                for (let i = 0; i < 5; i++) {
+                    const x = Math.random() * canvas.width;
+                    const beamWidth = 10 + Math.random() * 20;
+                    
+                    // Draw beam
+                    const gradient = ctx.createLinearGradient(x, 0, x, canvas.height);
+                    gradient.addColorStop(0, `rgba(255, 255, 0, 0)`);
+                    gradient.addColorStop(0.5, `rgba(255, 200, 0, ${alpha})`);
+                    gradient.addColorStop(1, `rgba(255, 100, 0, 0)`);
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(x - beamWidth/2, 0, beamWidth, canvas.height);
+                }
+                
+                // Screen flash effect
+                ctx.fillStyle = `rgba(255, 255, 200, ${Math.sin(Date.now() * 0.01) * 0.2 + 0.1})`;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
         }
@@ -829,9 +1089,13 @@
         }
         
         function updateUI() {
-            document.getElementById('healthBar').style.width = `${(player.health / player.maxHealth) * 100}%`;
-            document.getElementById('energyBar').style.width = `${(player.energy / player.maxEnergy) * 100}%`;
-            document.getElementById('enemyCount').textContent = enemies.filter(e => e.active).length;
+            const healthBar = document.getElementById('healthBar');
+            const energyBar = document.getElementById('energyBar');
+            const enemyCount = document.getElementById('enemyCount');
+            
+            if (healthBar) healthBar.style.width = `${(player.health / player.maxHealth) * 100}%`;
+            if (energyBar) energyBar.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+            if (enemyCount) enemyCount.textContent = enemies.filter(e => e.active).length;
         }
         
         function gameLoop() {
@@ -846,23 +1110,33 @@
             animationId = requestAnimationFrame(gameLoop);
         }
         
-        function gameWin() {
-            gameRunning = false;
-            document.getElementById('gameOver').classList.remove('hidden');
-            document.getElementById('gameOverText').textContent = 'Victory!';
-            document.getElementById('gameOverMessage').textContent = 'You escaped the maze!';
-        }
-        
-        function gameOver() {
-            gameRunning = false;
-            document.getElementById('gameOver').classList.remove('hidden');
-            document.getElementById('gameOverText').textContent = 'Game Over';
-            document.getElementById('gameOverMessage').textContent = 'You were defeated!';
-        }
-        
         function resetGame() {
             gameRunning = false;
             if (animationId) cancelAnimationFrame(animationId);
+            
+            // Reset maze back to original state
+            maze = [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+                [1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,1,0,1],
+                [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+                [1,0,1,1,1,1,0,1,1,3,1,1,0,1,1,1,0,1,0,1],
+                [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+                [1,1,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1,1,1,1],
+                [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,0,1,1,1,1,0,1,0,1,1,1,1,0,1,1,1,1],
+                [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,0,1,1,1,0,1,3,1,1,0,1,1,1,0,1,0,1,1],
+                [1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1,0,0,1],
+                [1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,1,0,1,0,1,1,0,1,0,1,1,1,1,2,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ];
             
             // Reset player
             player = {
@@ -882,10 +1156,10 @@
             document.getElementById('stats').classList.add('hidden');
             document.getElementById('minimap').classList.add('hidden');
             document.getElementById('gameOver').classList.add('hidden');
-            
-            // Reinit
-            initGame();
         }
+        
+        // Make resetGame globally accessible
+        window.resetGame = resetGame;
         
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
@@ -897,8 +1171,16 @@
             }
         }
         
-        // Initialize
-        initGame();
+        // Make toggleFullscreen globally accessible  
+        window.toggleFullscreen = toggleFullscreen;
+        
+        // Initialize canvas sizes on load
+        window.addEventListener('load', () => {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            minimapCanvas.width = 150;
+            minimapCanvas.height = 150;
+        });
     </script>
 </body>
 </html>
