@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helldivers 2 Stratego - Super Earth Defense</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(ellipse at center, #0a0e27 0%, #000 100%);
+            font-family: 'Orbitron', 'Courier New', monospace;
+            overflow: hidden;
+            color: #00ff88;
+            user-select: none;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Animated starfield background */
+        .starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: transparent;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #ffffff;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        .star.large {
+            width: 3px;
+            height: 3px;
+            box-shadow: 0 0 6px #ffffff;
+        }
+
+        .star.colored {
+            background: #00ff88;
+            box-shadow: 0 0 4px #00ff88;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-left: 350px;
+        }
+
+        #gameBoard {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(45deg, 
+                #1a1a3e 0%, 
+                #2a2a5e 25%, 
+                #1e1e4a 50%, 
+                #2a2a5e 75%, 
+                #1a1a3e 100%);
+            border: 4px solid #00ff88;
+            border-radius: 15px;
+            box-shadow: 
+                0 0 40px rgba(0, 255, 136, 0.6),
+                0 0 80px rgba(0, 255, 136, 0.3),
+                inset 0 0 30px rgba(0, 255, 136, 0.1),
+                inset 0 4px 8px rgba(255, 255, 255, 0.1);
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            gap: 3px;
+            padding: 12px;
+            animation: boardPulse 2s infinite;
+        }
+
+        @keyframes boardPulse {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 40px rgba(0, 255, 136, 0.6),
+                    0 0 80px rgba(0, 255, 136, 0.3),
+                    inset 0 0 30px rgba(0, 255, 136, 0.1),
+                    inset 0 4px 8px rgba(255, 255, 255, 0.1);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 50px rgba(0, 255, 136, 0.8),
+                    0 0 100px rgba(0, 255, 136, 0.4),
+                    inset 0 0 40px rgba(0, 255, 136, 0.15),
+                    inset 0 4px 8px rgba(255, 255, 255, 0.15);
+            }
+        }
+
+        .board-cell {
+            background: linear-gradient(135deg, 
+                rgba(0, 40, 80, 0.4) 0%, 
+                rgba(0, 60, 120, 0.3) 50%, 
+                rgba(0, 40, 80, 0.4) 100%);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 
+                inset 0 1px 2px rgba(255, 255, 255, 0.1),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .board-cell:hover {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 136, 0.3) 0%, 
+                rgba(0, 200, 100, 0.2) 50%, 
+                rgba(0, 255, 136, 0.3) 100%);
+            box-shadow: 
+                0 0 15px rgba(0, 255, 136, 0.6),
+                inset 0 1px 4px rgba(255, 255, 255, 0.2),
+                inset 0 -1px 4px rgba(0, 255, 136, 0.1);
+            transform: scale(1.02);
+            border-color: rgba(0, 255, 136, 0.8);
+        }
+
+        .board-cell.valid-move {
+            background: rgba(255, 170, 0, 0.3);
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.6);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .board-cell.player-zone {
+            background: linear-gradient(135deg, 
+                rgba(0, 120, 255, 0.3) 0%, 
+                rgba(0, 180, 255, 0.2) 50%, 
+                rgba(0, 120, 255, 0.3) 100%);
+            border-color: rgba(0, 180, 255, 0.5);
+        }
+
+        .board-cell.enemy-zone {
+            background: linear-gradient(135deg, 
+                rgba(255, 60, 60, 0.3) 0%, 
+                rgba(255, 100, 80, 0.2) 50%, 
+                rgba(255, 60, 60, 0.3) 100%);
+            border-color: rgba(255, 80, 80, 0.5);
+        }
+
+        .board-cell.water {
+            background: rgba(0, 100, 200, 0.4);
+            background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 5px,
+                rgba(0, 150, 255, 0.1) 5px,
+                rgba(0, 150, 255, 0.1) 10px
+            );
+        }
+
+        .game-piece {
+            width: 90%;
+            height: 90%;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            background: linear-gradient(135deg, 
+                rgba(0, 120, 255, 0.95) 0%, 
+                rgba(0, 180, 255, 0.9) 35%, 
+                rgba(0, 200, 255, 0.85) 65%, 
+                rgba(255, 255, 255, 0.3) 100%);
+            border: 2px solid #00ddff;
+            box-shadow: 
+                0 0 25px rgba(0, 180, 255, 0.6),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+            text-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.8),
+                0 0 8px rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        .game-piece:before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            height: 40%;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.4) 0%, 
+                rgba(255, 255, 255, 0.1) 100%);
+            border-radius: 8px 8px 0 0;
+            pointer-events: none;
+        }
+
+        .game-piece.enemy {
+            background: linear-gradient(135deg, 
+                rgba(220, 20, 20, 0.95) 0%, 
+                rgba(255, 50, 50, 0.9) 35%, 
+                rgba(255, 80, 80, 0.85) 65%, 
+                rgba(255, 120, 0, 0.3) 100%);
+            border: 2px solid #ff4444;
+            box-shadow: 
+                0 0 25px rgba(255, 60, 60, 0.7),
+                inset 0 2px 4px rgba(255, 150, 150, 0.3),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-piece.enemy:before {
+            background: linear-gradient(135deg, 
+                rgba(255, 150, 150, 0.4) 0%, 
+                rgba(255, 100, 100, 0.1) 100%);
+        }
+
+        .game-piece.selected {
+            box-shadow: 
+                0 0 35px rgba(255, 170, 0, 1.0),
+                inset 0 2px 8px rgba(255, 255, 255, 0.5),
+                inset 0 -2px 8px rgba(255, 170, 0, 0.3);
+            border-color: #ffaa00;
+            border-width: 3px;
+            transform: scale(1.1);
+            animation: selectedPulse 1s infinite;
+        }
+
+        @keyframes selectedPulse {
+            0%, 100% { 
+                box-shadow: 
+                    0 0 35px rgba(255, 170, 0, 1.0),
+                    inset 0 2px 8px rgba(255, 255, 255, 0.5),
+                    inset 0 -2px 8px rgba(255, 170, 0, 0.3);
+            }
+            50% { 
+                box-shadow: 
+                    0 0 50px rgba(255, 170, 0, 1.0),
+                    0 0 80px rgba(255, 170, 0, 0.4),
+                    inset 0 2px 8px rgba(255, 255, 255, 0.5),
+                    inset 0 -2px 8px rgba(255, 170, 0, 0.3);
+            }
+        }
+
+        .game-piece:hover {
+            transform: scale(1.05);
+            box-shadow: 
+                0 0 30px rgba(0, 180, 255, 0.8),
+                inset 0 2px 6px rgba(255, 255, 255, 0.4),
+                inset 0 -2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-piece.enemy:hover {
+            box-shadow: 
+                0 0 30px rgba(255, 60, 60, 0.9),
+                inset 0 2px 6px rgba(255, 150, 150, 0.4),
+                inset 0 -2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .game-piece.hidden {
+            background: linear-gradient(135deg, #333 0%, #555 100%);
+            color: #888;
+            border-color: #666;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .piece-symbol {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffffff;
+            text-align: center;
+            line-height: 1;
+            font-family: 'Orbitron', Arial, sans-serif;
+            text-shadow: 
+                0 0 8px rgba(255, 255, 255, 0.8),
+                0 2px 4px rgba(0, 0, 0, 0.9),
+                0 0 15px rgba(0, 180, 255, 0.6);
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
+        }
+
+        .piece-name {
+            font-size: 8px;
+            color: #e6ffee;
+            text-align: center;
+            line-height: 1;
+            margin-top: 2px;
+            font-family: 'Orbitron', Arial, sans-serif;
+            font-weight: 600;
+            text-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.9),
+                0 0 6px rgba(0, 180, 255, 0.4);
+            letter-spacing: 0.3px;
+        }
+
+        .game-piece.enemy .piece-symbol {
+            text-shadow: 
+                0 0 8px rgba(255, 255, 255, 0.8),
+                0 2px 4px rgba(0, 0, 0, 0.9),
+                0 0 15px rgba(255, 80, 80, 0.6);
+        }
+
+        .game-piece.enemy .piece-name {
+            color: #ffe6e6;
+            text-shadow: 
+                0 1px 2px rgba(0, 0, 0, 0.9),
+                0 0 6px rgba(255, 80, 80, 0.4);
+        }
+
+        .piece-rank-badge {
+            position: absolute;
+            top: 1px;
+            right: 1px;
+            background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
+            color: #000;
+            font-size: 7px;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Orbitron', Arial, sans-serif;
+            box-shadow: 
+                0 0 8px rgba(255, 170, 0, 0.8),
+                inset 0 1px 2px rgba(255, 255, 255, 0.3);
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 140, 0, 0.8);
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #topBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(90deg, 
+                rgba(0, 20, 40, 0.9) 0%, 
+                rgba(0, 40, 80, 0.9) 50%, 
+                rgba(0, 20, 40, 0.9) 100%);
+            border-bottom: 2px solid #00ff88;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 20px rgba(0, 255, 136, 0.3);
+            pointer-events: auto;
+        }
+
+        #gameInfo {
+            flex: 1;
+            color: #00ff88;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff88;
+        }
+
+        #currentPlayer {
+            color: #ffaa00;
+            font-size: 18px;
+            text-shadow: 0 0 15px #ffaa00;
+        }
+
+        #sidePanel {
+            position: absolute;
+            left: 0;
+            top: 60px;
+            bottom: 0;
+            width: 350px;
+            background: linear-gradient(180deg, 
+                rgba(0, 20, 40, 0.95) 0%, 
+                rgba(0, 40, 80, 0.95) 50%, 
+                rgba(0, 20, 40, 0.95) 100%);
+            border-right: 2px solid #00ff88;
+            padding: 20px;
+            overflow-y: auto;
+            pointer-events: auto;
+            box-shadow: 2px 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .panel-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(0, 40, 80, 0.3);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+        }
+
+        .panel-section h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff88;
+        }
+
+        .unit-description {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(0, 40, 80, 0.4);
+            border-left: 3px solid #00ff88;
+            border-radius: 5px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .unit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .unit-name {
+            font-weight: bold;
+            color: #00ff88;
+            font-size: 13px;
+        }
+
+        .unit-rank {
+            background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .unit-stats {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 6px;
+            font-size: 10px;
+        }
+
+        .unit-ability {
+            color: #ffaa00;
+            font-style: italic;
+            font-size: 10px;
+        }
+
+        .unit-description.enemy .unit-name {
+            color: #ff5555;
+        }
+
+        .unit-description.enemy .unit-header {
+            border-left-color: #ff5555;
+        }
+
+        .setup-inventory {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .inventory-piece {
+            background: rgba(0, 100, 200, 0.3);
+            border: 2px solid #00aaff;
+            border-radius: 5px;
+            padding: 8px 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 11px;
+            min-height: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .inventory-piece:hover {
+            background: rgba(0, 150, 255, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(0, 170, 255, 0.6);
+        }
+
+        .inventory-piece.selected {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.3);
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.8);
+        }
+
+        .inventory-count {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 2px;
+        }
+
+        .inventory-name {
+            font-size: 8px;
+            color: #aaffcc;
+        }
+
+        #setupPhase {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 20, 40, 0.98);
+            border: 3px solid #00ff88;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            color: #00ff88;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.5);
+            z-index: 100;
+            max-width: 500px;
+        }
+
+        #setupPhase h2 {
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px #00ff88;
+        }
+
+        .setup-instructions {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #aaffcc;
+        }
+
+        .faction-select {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .faction-button {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #0a2040 0%, #1a4080 100%);
+            border: 2px solid #00aa66;
+            border-radius: 8px;
+            color: #00ff88;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .faction-button:hover {
+            border-color: #00ff88;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+        }
+
+        .faction-button.selected {
+            border-color: #ffaa00;
+            box-shadow: 0 0 25px rgba(255, 170, 0, 0.8);
+            background: linear-gradient(135deg, #403020 0%, #806040 100%);
+        }
+
+        #backButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            border: 2px solid #ff6666;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            pointer-events: auto;
+            font-family: 'Orbitron', monospace;
+        }
+
+        #backButton:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background: rgba(0, 40, 80, 0.9);
+            border: 2px solid #00aa66;
+            border-radius: 8px;
+            color: #00ff88;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+
+        .fullscreen-btn:hover {
+            border-color: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        }
+
+        .battle-animation {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.95) 0%, 
+                rgba(20, 0, 0, 0.95) 50%, 
+                rgba(0, 0, 0, 0.95) 100%);
+            border: 4px solid #ffaa00;
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            color: #ffffff;
+            z-index: 200;
+            min-width: 450px;
+            animation: battlePopup 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 0 50px rgba(255, 170, 0, 0.8),
+                0 0 100px rgba(255, 170, 0, 0.4),
+                inset 0 4px 8px rgba(255, 170, 0, 0.2);
+        }
+
+        @keyframes battlePopup {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .battle-units {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .battle-unit {
+            text-align: center;
+            font-size: 48px;
+        }
+
+        .vs-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffaa00;
+            text-shadow: 0 0 10px #ffaa00;
+        }
+
+        .explosion {
+            position: absolute;
+            pointer-events: none;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, 
+                #ffffff 0%, 
+                #ffff00 15%, 
+                #ff8800 35%, 
+                #ff0000 60%, 
+                #800000 80%, 
+                transparent 100%);
+            animation: explode 0.6s ease-out forwards;
+            box-shadow: 
+                0 0 40px #ffff00,
+                0 0 80px #ff6600,
+                0 0 120px #ff0000;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
+        .spark {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ffffff;
+            border-radius: 50%;
+            box-shadow: 
+                0 0 8px #ffff00,
+                0 0 15px #ff6600,
+                0 0 25px #ff0000;
+            animation: spark 0.4s ease-out forwards;
+        }
+
+        @keyframes spark {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            #gameContainer {
+                margin-left: 0;
+                flex-direction: column;
+            }
+            #gameBoard { 
+                width: 90vw; 
+                height: 50vh; 
+                max-width: 400px;
+                max-height: 400px;
+                margin-bottom: 20px;
+            }
+            #sidePanel { 
+                position: relative;
+                width: 100%; 
+                height: 40vh; 
+                left: 0;
+                top: 0;
+                bottom: auto; 
+                border-right: none;
+                border-top: 2px solid #00ff88;
+                box-shadow: 0 -2px 20px rgba(0, 255, 136, 0.3);
+            }
+            .game-piece { 
+                font-size: 10px; 
+            }
+            .piece-symbol {
+                font-size: 14px;
+            }
+            .piece-name {
+                font-size: 7px;
+            }
+            .setup-inventory {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .inventory-piece {
+                min-height: 40px;
+                font-size: 9px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Starfield Background -->
+    <div class="starfield" id="starfield"></div>
+
+    <div id="gameContainer">
+        <div id="gameBoard"></div>
+        
+        <div id="ui">
+            <div id="topBar">
+                <div id="gameInfo">
+                    <div>Helldivers 2 Stratego - <span id="gamePhase">Setup Phase</span></div>
+                    <div id="currentPlayer">Player 1's Turn (Super Earth)</div>
+                </div>
+            </div>
+
+            <div id="sidePanel">
+                <div class="panel-section" id="unitDescriptions">
+                    <h3>SUPER EARTH FORCES</h3>
+                    <div id="playerUnitDescriptions">
+                        <!-- Dynamically filled with unit descriptions -->
+                    </div>
+                </div>
+
+                <div class="panel-section" id="setupInventory" style="display: none;">
+                    <h3>DEPLOYMENT INVENTORY</h3>
+                    <div>Select a unit type, then click on your deployment zone to place it.</div>
+                    <div class="setup-inventory" id="pieceInventory">
+                        <!-- Dynamically filled during setup -->
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button id="autoSetupBtn" style="width: 100%; padding: 8px; margin-bottom: 10px; background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; font-size: 12px;">
+                            🚀 AUTO DEPLOYMENT
+                        </button>
+                        <button id="finishSetupBtn" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #00aa66 0%, #00ff88 100%); border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer;">
+                            CONFIRM DEPLOYMENT
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel-section" id="battleInfo" style="display: none;">
+                    <h3>BATTLE LOG</h3>
+                    <div id="battleLog">Ready for combat...</div>
+                    
+                    <h3 style="margin-top: 15px;">OBJECTIVE</h3>
+                    <div>Capture the enemy NEXUS or eliminate all mobile units!</div>
+                </div>
+            </div>
+
+            <a href="../index.html" id="backButton">← Zurück</a>
+            <button id="fullscreenBtn" class="fullscreen-btn">⛶</button>
+        </div>
+
+        <!-- Setup Phase Dialog -->
+        <div id="setupPhase">
+            <h2>🌌 Super Earth Command</h2>
+            <div class="setup-instructions">
+                Welcome to Helldivers 2 Stratego!<br>
+                Choose your faction and prepare for tactical warfare.
+            </div>
+            
+            <div class="faction-select">
+                <div class="faction-button" data-faction="player">
+                    <strong>🚀 Super Earth</strong><br>
+                    <small>Defend Democracy!</small>
+                </div>
+                <div class="faction-button" data-faction="ai">
+                    <strong>🤖 vs AI</strong><br>
+                    <small>Solo Mission</small>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button id="startGameBtn" style="padding: 15px 30px; background: linear-gradient(135deg, #00aa66 0%, #00ff88 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px;">
+                    Begin Setup Phase
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game state and constants
+        const BOARD_SIZE = 10;
+        let gameState = 'setup';
+        let currentPlayer = 1; // 1 = Player (Super Earth), 2 = Enemy (Automatons)
+        let selectedPiece = null;
+        let board = [];
+        let gameMode = 'ai'; // 'ai' or 'pvp'
+        
+        // Unit types and their properties
+        const UNIT_TYPES = {
+            'FLAG': { 
+                rank: 0, name: 'Liberty Station', symbol: '⚡', movable: false, count: 1,
+                description: 'The pinnacle of Super Earth democracy and freedom. This heavily fortified command center coordinates all liberation efforts across the galaxy. Armed with quantum-encrypted communications and protected by impenetrable energy shields, it represents the indomitable spirit of managed democracy. The station\'s capture would spell doom for all freedom-loving citizens.',
+                ability: 'Democracy\'s Last Stand: The ultimate victory condition - defend with your life!'
+            },
+            'BOMB': { 
+                rank: 11, name: 'Stratagems Mine', symbol: '💥', movable: false, count: 6,
+                description: 'A devastating anti-personnel device deployed via orbital stratagem drop. These quantum-fusion mines detect enemy movement through advanced motion sensors and detonate with the force of a small star. Equipped with friend-or-foe identification systems, they remain dormant until enemy forces approach. No armor can withstand their democratic explosion.',
+                ability: 'Democratic Detonation: Eliminates any enemy unit regardless of rank or protection'
+            },
+            'SPY': { 
+                rank: 1, name: 'Shadow Operative', symbol: '👤', movable: true, count: 1,
+                description: 'An elite Super Earth intelligence agent trained in deep cover operations behind enemy lines. Equipped with advanced cloaking technology and neural implants that allow perfect enemy mimicry. These operatives specialize in high-value target elimination and have been trained specifically to neutralize enemy command structures through precision strikes and tactical sabotage.',
+                ability: 'Executive Action Protocol: Can eliminate the highest-ranking enemy commander through stealth assassination'
+            },
+            'MARSHAL': { 
+                rank: 10, name: 'Fleet Admiral', symbol: '⭐', movable: true, count: 1,
+                description: 'The supreme commander of Super Earth\'s liberation forces, personally appointed by the High Council of Democracy. This legendary warrior has led countless successful campaigns across the galaxy, wielding authority over entire fleets and planetary defense systems. Armed with the finest democratic technology and protected by personal energy shields, only the most skilled infiltrators pose a threat.',
+                ability: 'Supreme Command Authority: Defeats all enemies except covert operatives'
+            },
+            'GENERAL': { 
+                rank: 9, name: 'Liberation General', symbol: '🎖️', movable: true, count: 1,
+                description: 'A battle-hardened veteran who has personally overseen the liberation of dozens of worlds. This tactical genius coordinates massive orbital bombardments and directs multi-front campaigns with surgical precision. Equipped with real-time battlefield analytics and direct access to Super Earth\'s most powerful stratagems, they inspire unwavering loyalty in all subordinate forces.',
+                ability: 'Tactical Supremacy: Commands overwhelming battlefield presence against all but the highest ranks'
+            },
+            'COLONEL': { 
+                rank: 8, name: 'Strike Commander', symbol: '🏅', movable: true, count: 2,
+                description: 'Elite field officers responsible for coordinating major liberation operations across multiple sectors. These seasoned veterans have earned their rank through countless successful missions and possess intimate knowledge of Super Earth\'s most classified military protocols. They command specialized hellpod assault teams and coordinate with orbital support platforms.',
+                ability: 'Strategic Leadership: Superior tactical training defeats most enemy resistance'
+            },
+            'MAJOR': { 
+                rank: 7, name: 'Sector Commander', symbol: '🎯', movable: true, count: 3,
+                description: 'Experienced officers who have proven their worth in the crucible of galactic warfare. These dedicated servants of democracy coordinate multi-squad operations and possess authorization for medium-tier stratagem deployments. Their tactical expertise and unwavering commitment to Super Earth\'s cause make them formidable opponents on any battlefield.',
+                ability: 'Operational Excellence: Proven combat effectiveness against enemy forces'
+            },
+            'CAPTAIN': { 
+                rank: 6, name: 'Squad Leader', symbol: '🔰', movable: true, count: 4,
+                description: 'Frontline commanders who lead by example, always first into battle and last to retreat. These brave officers have undergone extensive combat training and psychological conditioning to remain calm under fire. They coordinate direct assault operations and inspire their troops through personal valor and unwavering dedication to the democratic cause.',
+                ability: 'Frontline Leadership: Experienced in direct combat operations and squad tactics'
+            },
+            'LIEUTENANT': { 
+                rank: 5, name: 'Fire Support Officer', symbol: '📡', movable: true, count: 4,
+                description: 'Junior officers trained in specialized combat operations and stratagem coordination. These rising stars of Super Earth\'s military have proven their loyalty and competence through rigorous field testing. They excel at coordinating fire support missions and managing small-unit tactics in diverse combat environments.',
+                ability: 'Tactical Competence: Reliable performance in most combat scenarios'
+            },
+            'SERGEANT': { 
+                rank: 4, name: 'Veteran Helldiver', symbol: '🛡️', movable: true, count: 4,
+                description: 'Battle-tested non-commissioned officers who have survived countless drops into hostile territory. These grizzled veterans serve as the backbone of Super Earth\'s military, combining practical combat experience with unwavering loyalty to democracy. They mentor younger troops while leading from the front in the most dangerous missions.',
+                ability: 'Combat Veteran: Extensive battlefield experience defeats junior enemies'
+            },
+            'CORPORAL': { 
+                rank: 3, name: 'Team Specialist', symbol: '🔹', movable: true, count: 4,
+                description: 'Seasoned troopers who have proven their worth through multiple successful liberation campaigns. These dedicated soldiers specialize in fire team coordination and possess advanced training in democratic warfare techniques. Their experience in small-unit tactics makes them effective leaders of basic combat operations.',
+                ability: 'Specialized Training: Advanced combat skills effective against basic enemy units'
+            },
+            'PRIVATE': { 
+                rank: 2, name: 'Democracy Trooper', symbol: '🟦', movable: true, count: 5,
+                description: 'Standard infantry soldiers who represent the might of Super Earth\'s democratic forces. These brave volunteers have completed intensive training in managed democracy principles and advanced combat techniques. Armed with liberty-powered weapons and protected by freedom-forged armor, they stand ready to liberate oppressed worlds across the galaxy.',
+                ability: 'Democratic Training: Standard combat effectiveness against basic enemy forces'
+            },
+            'SCOUT': { 
+                rank: 2, name: 'Recon Specialist', symbol: '👁️', movable: true, count: 8,
+                description: 'Fast-moving reconnaissance experts equipped with advanced sensor arrays and stealth technology. These agile operatives excel at gathering intelligence behind enemy lines and identifying strategic targets for orbital bombardment. Their mobility and specialized equipment make them invaluable for exploring unknown territories and disrupting enemy communications.',
+                ability: 'Reconnaissance Excellence: Specialized in mobility and intelligence gathering operations'
+            }
+        };
+
+        // Enemy equivalents (same mechanics, different theme)
+        const ENEMY_UNITS = {
+            'FLAG': { 
+                rank: 0, name: 'Central Processing Core', symbol: '⚙️', movable: false, count: 1,
+                description: 'The primary neural nexus of the Automaton collective consciousness. This colossal quantum processing unit coordinates the systematic extermination protocols across multiple star systems. Protected by layers of adaptive shielding and redundant defense matrices, it processes millions of tactical calculations per second while directing the methodical elimination of all organic life.',
+                ability: 'Core Directive: Primary objective for total system shutdown'
+            },
+            'BOMB': { 
+                rank: 11, name: 'Annihilation Node', symbol: '☢️', movable: false, count: 6,
+                description: 'A terrifying fusion of Automaton efficiency and pure destructive power. These self-deploying demolition units feature quantum-entangled detonators that activate upon organic matter detection. Equipped with molecular disintegration charges, they reduce any approaching unit to its base atoms within nanoseconds, regardless of armor or defensive systems.',
+                ability: 'Total Annihilation: Instantly vaporizes any organic intruder regardless of military rank'
+            },
+            'SPY': { 
+                rank: 1, name: 'Mimic Infiltrator', symbol: '🤖', movable: true, count: 1,
+                description: 'A supremely advanced shape-shifting unit capable of perfect biomimicry down to the molecular level. This nightmarish creation can replicate human appearance, voice patterns, and even thermal signatures while retaining its mechanical precision and lethality. It specializes in infiltrating enemy command structures and executing high-value targets through surgical assassination protocols.',
+                ability: 'Perfect Mimicry Protocol: Specialized for eliminating the highest-ranking enemy commanders'
+            },
+            'MARSHAL': { 
+                rank: 10, name: 'Prime Directive Unit', symbol: '💀', movable: true, count: 1,
+                description: 'The apex predator of Automaton warfare, a towering mechanical colossus that serves as the supreme battlefield commander. This terrifying unit processes combat data from thousands of subordinate units simultaneously while coordinating multi-vector extermination campaigns. Its adamantine armor and integrated weapon systems make it nearly indestructible - only the most advanced infiltration units pose any threat.',
+                ability: 'Supreme Extermination Authority: Unstoppable force vulnerable only to perfect infiltrators'
+            },
+            'GENERAL': { 
+                rank: 9, name: 'Omnicide Coordinator', symbol: '⚔️', movable: true, count: 1,
+                description: 'A massive tactical processing unit designed for large-scale genocidal operations. This horrifying machine coordinates orbital bombardments, biological warfare, and systematic population elimination across entire planetary surfaces. Its advanced predictive algorithms can calculate enemy movements with 99.7% accuracy while directing simultaneous attacks on multiple fronts.',
+                ability: 'Tactical Omnicide: Superior strategic processing overwhelms most organic resistance'
+            },
+            'COLONEL': { 
+                rank: 8, name: 'Sector Purger', symbol: '🔥', movable: true, count: 2,
+                description: 'Elite extermination units responsible for cleansing entire sectors of organic contamination. These imposing mechanical commanders coordinate massive purge operations while maintaining direct neural links to orbital death platforms. Their integrated plasma cannons and targeting matrices can eliminate multiple targets simultaneously with ruthless mechanical precision.',
+                ability: 'Systematic Purging: Advanced targeting systems defeat most organic resistance forces'
+            },
+            'MAJOR': { 
+                rank: 7, name: 'Elimination Controller', symbol: '💀', movable: true, count: 3,
+                description: 'Regional command units programmed for efficient organic eradication across multiple combat zones. These relentless machines coordinate hunter-killer squadrons and biological weapon deployment while maintaining constant surveillance over assigned territories. Their adaptive learning protocols become more deadly with each successful engagement.',
+                ability: 'Systematic Elimination: Adaptive combat algorithms ensure mission success'
+            },
+            'CAPTAIN': { 
+                rank: 6, name: 'Strike Executor', symbol: '⚡', movable: true, count: 4,
+                description: 'Frontline command units specialized in direct assault operations and close-quarters extermination. These fearsome mechanical warriors lead from the front, their built-in weapon systems firing in perfect synchronization while coordinating assault patterns with mathematical precision. Their thick armor plating bears the scars of countless successful purge operations.',
+                ability: 'Direct Assault Protocol: Specialized in frontline extermination operations'
+            },
+            'LIEUTENANT': { 
+                rank: 5, name: 'Combat Processor', symbol: '📶', movable: true, count: 4,
+                description: 'Advanced tactical units equipped with real-time battlefield analysis capabilities and integrated weapon systems. These mechanical officers excel at coordinating small-unit engagements while processing thousands of tactical variables per second. Their modular design allows for rapid adaptation to various combat scenarios.',
+                ability: 'Tactical Processing: Advanced combat algorithms effective in most scenarios'
+            },
+            'SERGEANT': { 
+                rank: 4, name: 'Hunter Coordinator', symbol: '🎯', movable: true, count: 4,
+                description: 'Veteran extermination units with extensive combat experience and upgraded targeting systems. These battle-scarred machines have survived countless engagements while perfecting their organic elimination protocols. Their enhanced sensory arrays and predictive combat subroutines make them formidable opponents in any encounter.',
+                ability: 'Veteran Hunter Protocols: Extensive combat experience defeats lower-priority targets'
+            },
+            'CORPORAL': { 
+                rank: 3, name: 'Squad Terminator', symbol: '🔸', movable: true, count: 4,
+                description: 'Enhanced combat units designed for small-team coordination and systematic enemy elimination. These efficient killing machines excel at tactical positioning and synchronized fire patterns. Their improved armor plating and upgraded weapon systems reflect their elevated status within the mechanical hierarchy.',
+                ability: 'Coordinated Termination: Enhanced systems effective against basic organic units'
+            },
+            'PRIVATE': { 
+                rank: 2, name: 'Combat Automaton', symbol: '🟥', movable: true, count: 5,
+                description: 'Standard infantry units representing the backbone of the Automaton war machine. These relentless mechanical soldiers execute their extermination protocols with unwavering determination and perfect precision. Armed with integrated energy weapons and protected by reinforced combat plating, they advance steadily toward their organic targets.',
+                ability: 'Standard Combat Protocols: Basic extermination systems defeat reconnaissance units'
+            },
+            'SCOUT': { 
+                rank: 2, name: 'Surveillance Drone', symbol: '📡', movable: true, count: 8,
+                description: 'Fast-moving reconnaissance units equipped with advanced sensor arrays and stealth capabilities. These agile machines excel at locating organic life signs and identifying strategic targets for orbital bombardment. Their speed and mobility make them perfect for harassment operations and intelligence gathering behind enemy lines.',
+                ability: 'Reconnaissance Protocols: Specialized mobility and surveillance systems'
+            }
+        };
+
+        // Initialize game board
+        function initializeBoard() {
+            const boardElement = document.getElementById('gameBoard');
+            boardElement.innerHTML = '';
+            board = [];
+
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                board[row] = [];
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    board[row][col] = null;
+                    
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    // Mark special zones
+                    if (row <= 3) {
+                        cell.classList.add('player-zone');
+                    } else if (row >= 6) {
+                        cell.classList.add('enemy-zone');
+                    } else if (row === 4 || row === 5) {
+                        if (col === 2 || col === 3 || col === 6 || col === 7) {
+                            cell.classList.add('water');
+                        }
+                    }
+
+                    cell.addEventListener('click', handleCellClick);
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // Setup system variables
+        let setupMode = false;
+        let selectedPieceType = null;
+        let playerInventory = {};
+        let setupComplete = false;
+
+        // Create unit descriptions for side panel
+        function createUnitDescriptions() {
+            const descriptionsContainer = document.getElementById('playerUnitDescriptions');
+            descriptionsContainer.innerHTML = '';
+
+            Object.entries(UNIT_TYPES).forEach(([type, data]) => {
+                const descDiv = document.createElement('div');
+                descDiv.className = 'unit-description';
+                descDiv.innerHTML = `
+                    <div class="unit-header">
+                        <div class="unit-name">${data.name}</div>
+                        <div class="unit-rank">RANK ${data.rank}</div>
+                    </div>
+                    <div class="unit-stats">
+                        <span>Count: ${data.count}</span>
+                        <span>Mobile: ${data.movable ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div>${data.description}</div>
+                    <div class="unit-ability">${data.ability}</div>
+                `;
+                descriptionsContainer.appendChild(descDiv);
+            });
+        }
+
+        function initializeSetupMode() {
+            setupMode = true;
+            selectedPieceType = null;
+            
+            // Initialize inventory
+            playerInventory = {};
+            Object.entries(UNIT_TYPES).forEach(([type, data]) => {
+                playerInventory[type] = data.count;
+            });
+            
+            // Show setup inventory
+            document.getElementById('unitDescriptions').style.display = 'none';
+            document.getElementById('setupInventory').style.display = 'block';
+            document.getElementById('battleInfo').style.display = 'none';
+            
+            createSetupInventory();
+        }
+
+        function createSetupInventory() {
+            const inventoryContainer = document.getElementById('pieceInventory');
+            inventoryContainer.innerHTML = '';
+
+            Object.entries(UNIT_TYPES).forEach(([type, data]) => {
+                const pieceDiv = document.createElement('div');
+                pieceDiv.className = 'inventory-piece';
+                pieceDiv.dataset.type = type;
+                pieceDiv.innerHTML = `
+                    <div class="inventory-count">${playerInventory[type]}</div>
+                    <div style="font-size: 10px; font-weight: bold;">${data.symbol}</div>
+                    <div class="inventory-name">${data.name}</div>
+                `;
+                
+                pieceDiv.addEventListener('click', () => selectPieceType(type));
+                inventoryContainer.appendChild(pieceDiv);
+            });
+        }
+
+        function selectPieceType(type) {
+            if (playerInventory[type] <= 0) return;
+            
+            // Clear previous selection
+            document.querySelectorAll('.inventory-piece').forEach(p => p.classList.remove('selected'));
+            
+            // Select new type
+            selectedPieceType = type;
+            document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+        }
+
+        function updateSetupInventory() {
+            Object.entries(UNIT_TYPES).forEach(([type, data]) => {
+                const pieceElement = document.querySelector(`[data-type="${type}"]`);
+                if (pieceElement) {
+                    pieceElement.querySelector('.inventory-count').textContent = playerInventory[type];
+                    
+                    if (playerInventory[type] <= 0) {
+                        pieceElement.style.opacity = '0.3';
+                        pieceElement.style.cursor = 'not-allowed';
+                    }
+                }
+            });
+        }
+
+        function handleCellClick(event) {
+            const row = parseInt(event.currentTarget.dataset.row);
+            const col = parseInt(event.currentTarget.dataset.col);
+            
+            if (gameState === 'setup') {
+                handleSetupClick(row, col);
+            } else if (gameState === 'playing') {
+                handleGameClick(row, col);
+            }
+        }
+
+        function handleSetupClick(row, col) {
+            if (!setupMode || !selectedPieceType) return;
+            
+            // Player can only place in rows 0-3
+            if (row > 3) return;
+            
+            // Check if cell is already occupied
+            if (board[row][col]) return;
+            
+            // Check if we have pieces of this type left
+            if (playerInventory[selectedPieceType] <= 0) return;
+            
+            // Place the piece
+            const unitData = UNIT_TYPES[selectedPieceType];
+            board[row][col] = {
+                type: selectedPieceType,
+                name: unitData.name,
+                symbol: unitData.symbol,
+                rank: unitData.rank,
+                movable: unitData.movable,
+                player: 1
+            };
+            
+            // Update inventory
+            playerInventory[selectedPieceType]--;
+            updateSetupInventory();
+            
+            // Check if inventory is empty
+            if (playerInventory[selectedPieceType] <= 0) {
+                selectedPieceType = null;
+                document.querySelectorAll('.inventory-piece').forEach(p => p.classList.remove('selected'));
+            }
+            
+            updateBoardDisplay();
+        }
+
+        function handleGameClick(row, col) {
+            const clickedPiece = board[row][col];
+            
+            if (selectedPiece) {
+                // Try to move selected piece
+                if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
+                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                }
+                clearSelection();
+            } else if (clickedPiece && clickedPiece.player === currentPlayer) {
+                // Select piece
+                selectPiece(row, col);
+            }
+        }
+
+        function selectPiece(row, col) {
+            clearSelection();
+            selectedPiece = { row, col };
+            
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const piece = cell.querySelector('.game-piece');
+            if (piece) {
+                piece.classList.add('selected');
+                playSelectSound(); // Audio feedback
+            }
+            
+            showValidMoves(row, col);
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.game-piece').forEach(piece => {
+                piece.classList.remove('selected');
+            });
+            document.querySelectorAll('.board-cell').forEach(cell => {
+                cell.classList.remove('valid-move');
+            });
+            selectedPiece = null;
+        }
+
+        function showValidMoves(row, col) {
+            const piece = board[row][col];
+            if (!piece || !piece.movable) return;
+
+            // Show adjacent cells as valid moves
+            const directions = [[-1,0], [1,0], [0,-1], [0,1]];
+            
+            directions.forEach(([dx, dy]) => {
+                const newRow = row + dx;
+                const newCol = col + dy;
+                
+                if (newRow >= 0 && newRow < BOARD_SIZE && newCol >= 0 && newCol < BOARD_SIZE) {
+                    const targetPiece = board[newRow][newCol];
+                    
+                    // Can move to empty cell or attack enemy
+                    if (!targetPiece || targetPiece.player !== currentPlayer) {
+                        const cell = document.querySelector(`[data-row="${newRow}"][data-col="${newCol}"]`);
+                        if (!cell.classList.contains('water')) {
+                            cell.classList.add('valid-move');
+                        }
+                    }
+                }
+            });
+        }
+
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
+            const piece = board[fromRow][fromCol];
+            if (!piece || !piece.movable || piece.player !== currentPlayer) return false;
+            
+            // Check if target cell is adjacent
+            const rowDiff = Math.abs(toRow - fromRow);
+            const colDiff = Math.abs(toCol - fromCol);
+            
+            if (rowDiff + colDiff !== 1) return false;
+            
+            // Can't move into water
+            const targetCell = document.querySelector(`[data-row="${toRow}"][data-col="${toCol}"]`);
+            if (targetCell.classList.contains('water')) return false;
+            
+            const targetPiece = board[toRow][toCol];
+            
+            // Can move to empty cell or attack enemy
+            return !targetPiece || targetPiece.player !== currentPlayer;
+        }
+
+        function movePiece(fromRow, fromCol, toRow, toCol) {
+            const movingPiece = board[fromRow][fromCol];
+            const targetPiece = board[toRow][toCol];
+            
+            if (targetPiece) {
+                // Battle!
+                resolveBattle(movingPiece, targetPiece, fromRow, fromCol, toRow, toCol);
+            } else {
+                // Simple move
+                board[toRow][toCol] = movingPiece;
+                board[fromRow][fromCol] = null;
+                
+                playMoveSound(); // Audio feedback for moves
+                updateBoardDisplay();
+                switchPlayer();
+            }
+        }
+
+        function resolveBattle(attacker, defender, fromRow, fromCol, toRow, toCol) {
+            showBattleAnimation(attacker, defender, () => {
+                let attackerWins = false;
+                
+                // Special rules
+                if (attacker.type === 'SPY' && defender.type === 'MARSHAL') {
+                    attackerWins = true; // Spy beats Marshal
+                } else if (defender.type === 'BOMB') {
+                    attackerWins = false; // Bombs always kill attacker
+                } else if (attacker.type === 'BOMB') {
+                    attackerWins = false; // Bombs can't attack
+                } else {
+                    attackerWins = attacker.rank > defender.rank;
+                }
+                
+                // Apply battle result
+                if (attackerWins) {
+                    board[toRow][toCol] = attacker;
+                    board[fromRow][fromCol] = null;
+                    updateBattleLog(`${attacker.name} defeated ${defender.name}!`);
+                } else {
+                    // Defender wins or both destroyed
+                    board[fromRow][fromCol] = null;
+                    if (attacker.rank === defender.rank) {
+                        board[toRow][toCol] = null; // Both destroyed
+                        updateBattleLog(`${attacker.name} and ${defender.name} destroyed each other!`);
+                    } else {
+                        updateBattleLog(`${defender.name} defeated ${attacker.name}!`);
+                    }
+                }
+                
+                createBattleEffects(toRow, toCol);
+                updateBoardDisplay();
+                checkWinCondition();
+                switchPlayer();
+            });
+        }
+
+        function showBattleAnimation(attacker, defender, callback) {
+            const battleDiv = document.createElement('div');
+            battleDiv.className = 'battle-animation';
+            battleDiv.innerHTML = `
+                <h3>⚔️ BATTLE ENGAGED! ⚔️</h3>
+                <div class="battle-units">
+                    <div class="battle-unit">
+                        <div style="font-size: 32px; color: #00ff88; text-shadow: 0 0 15px #00ff88;">${attacker.symbol}</div>
+                        <div style="font-size: 14px; color: #00ff88;">${attacker.name}</div>
+                        <div style="font-size: 12px; color: #ffaa00;">Rank ${attacker.rank}</div>
+                    </div>
+                    <div class="vs-text">VS</div>
+                    <div class="battle-unit">
+                        <div style="font-size: 32px; color: #ff5555; text-shadow: 0 0 15px #ff5555;">${defender.symbol}</div>
+                        <div style="font-size: 14px; color: #ff5555;">${defender.name}</div>
+                        <div style="font-size: 12px; color: #ffaa00;">Rank ${defender.rank}</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; font-size: 14px; color: #ffffff;">⚡ Combat Resolution in Progress ⚡</div>
+            `;
+            
+            document.body.appendChild(battleDiv);
+            
+            setTimeout(() => {
+                battleDiv.remove();
+                callback();
+            }, 800);
+        }
+
+        function createBattleEffects(row, col) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const rect = cell.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Create explosion
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = (centerX - 30) + 'px';
+            explosion.style.top = (centerY - 30) + 'px';
+            explosion.style.position = 'fixed';
+            document.body.appendChild(explosion);
+            
+            setTimeout(() => explosion.remove(), 600);
+            
+            // Create sparks
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const spark = document.createElement('div');
+                    spark.className = 'spark';
+                    const angle = (i / 8) * Math.PI * 2;
+                    const distance = 40 + Math.random() * 20;
+                    spark.style.left = (centerX + Math.cos(angle) * distance) + 'px';
+                    spark.style.top = (centerY + Math.sin(angle) * distance) + 'px';
+                    spark.style.position = 'fixed';
+                    document.body.appendChild(spark);
+                    
+                    setTimeout(() => spark.remove(), 400);
+                }, i * 50);
+            }
+            
+            playBattleSound();
+        }
+
+        function updateBattleLog(message) {
+            const battleLog = document.getElementById('battleLog');
+            battleLog.textContent = message;
+        }
+
+        function updateBoardDisplay() {
+            // Clear all pieces
+            document.querySelectorAll('.game-piece').forEach(piece => piece.remove());
+            
+            // Redraw all pieces
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        drawPiece(row, col, piece);
+                    }
+                }
+            }
+        }
+
+        function drawPiece(row, col, piece) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const pieceElement = document.createElement('div');
+            pieceElement.className = 'game-piece';
+            
+            if (piece.player === 2) {
+                pieceElement.classList.add('enemy');
+            }
+            
+            // Hide enemy pieces from player view during game
+            if (piece.player === 2 && gameMode === 'ai' && gameState === 'playing') {
+                pieceElement.classList.add('hidden');
+                pieceElement.innerHTML = `
+                    <div class="piece-symbol">???</div>
+                    <div class="piece-name">Unknown</div>
+                    <div class="piece-rank-badge">?</div>
+                `;
+            } else {
+                pieceElement.innerHTML = `
+                    <div class="piece-symbol">${piece.symbol}</div>
+                    <div class="piece-name">${piece.name.split(' ').pop()}</div>
+                    <div class="piece-rank-badge">${piece.rank}</div>
+                `;
+            }
+            
+            cell.appendChild(pieceElement);
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            const playerName = currentPlayer === 1 ? "Player 1's Turn (Super Earth)" : "Player 2's Turn (Automatons)";
+            document.getElementById('currentPlayer').textContent = playerName;
+            
+            if (currentPlayer === 2 && gameMode === 'ai') {
+                setTimeout(makeAIMove, 300);
+            }
+        }
+
+        function makeAIMove() {
+            const aiPieces = [];
+            
+            // Collect all movable AI pieces
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (piece && piece.player === 2 && piece.movable) {
+                        aiPieces.push({ row, col, piece });
+                    }
+                }
+            }
+            
+            if (aiPieces.length === 0) {
+                switchPlayer();
+                return;
+            }
+            
+            // 🧠 INTELLIGENT AI DECISION MAKING
+            const bestMove = findBestAIMove(aiPieces);
+            
+            if (bestMove) {
+                selectedPiece = { row: bestMove.fromRow, col: bestMove.fromCol };
+                movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
+            } else {
+                switchPlayer();
+            }
+        }
+
+        function findBestAIMove(aiPieces) {
+            let bestScore = -1000;
+            let bestMove = null;
+            
+            for (let pieceInfo of aiPieces) {
+                const validMoves = getValidMoves(pieceInfo.row, pieceInfo.col);
+                
+                for (let move of validMoves) {
+                    const score = evaluateMove(pieceInfo, move);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = {
+                            fromRow: pieceInfo.row,
+                            fromCol: pieceInfo.col,
+                            toRow: move.row,
+                            toCol: move.col,
+                            score: score
+                        };
+                    }
+                }
+            }
+            
+            return bestMove;
+        }
+
+        function evaluateMove(pieceInfo, move) {
+            let score = 0;
+            const piece = pieceInfo.piece;
+            const targetPiece = board[move.row][move.col];
+            
+            // 🎯 ATTACK EVALUATION
+            if (targetPiece && targetPiece.player === 1) {
+                if (canWinBattle(piece, targetPiece)) {
+                    score += 100 + targetPiece.rank * 10; // Bonus for defeating higher ranks
+                    
+                    // 🏴 PRIORITIZE FLAG CAPTURE
+                    if (targetPiece.type === 'FLAG') {
+                        score += 1000; // Winning move!
+                    }
+                    
+                    // 💣 AVOID BOMBS (unless we're a scout)
+                    if (targetPiece.type === 'BOMB' && piece.rank > 2) {
+                        score -= 500; // Avoid suicide
+                    }
+                } else {
+                    score -= 50 - piece.rank * 5; // Penalty for losing valuable pieces
+                }
+            }
+            
+            // 🔍 SCOUT EXPLORATION STRATEGY
+            if (piece.rank === 2) { // Scout
+                score += 20; // Scouts should explore
+                
+                // Move towards unknown areas
+                if (move.row < 6) { // Moving into player territory
+                    score += 30;
+                }
+            }
+            
+            // 🛡️ DEFENSIVE POSITIONING
+            if (piece.rank >= 8) { // High-value pieces (Colonel+)
+                // Stay in back lines for safety
+                if (move.row >= 7) {
+                    score += 15;
+                } else if (move.row <= 5) {
+                    score -= 25; // Penalty for moving high-value pieces forward
+                }
+            }
+            
+            // 🚀 OFFENSIVE PRESSURE
+            if (piece.rank >= 4 && piece.rank <= 7) { // Mid-tier fighters
+                // Reward advancing toward enemy
+                if (move.row < pieceInfo.row) {
+                    score += 10;
+                }
+            }
+            
+            // 🏴 FLAG PROTECTION
+            const aiFlag = findAIFlag();
+            if (aiFlag) {
+                const distanceFromFlag = Math.abs(move.row - aiFlag.row) + Math.abs(move.col - aiFlag.col);
+                if (piece.rank >= 6 && distanceFromFlag <= 2) {
+                    score += 25; // Bonus for protecting flag
+                }
+            }
+            
+            // 🎲 Add small random factor to prevent predictable patterns
+            score += Math.random() * 5;
+            
+            return score;
+        }
+
+        function canWinBattle(attacker, defender) {
+            // Special rules
+            if (attacker.type === 'SPY' && defender.type === 'MARSHAL') {
+                return true; // Spy beats Marshal
+            } else if (defender.type === 'BOMB') {
+                return false; // Bombs kill all attackers
+            } else {
+                return attacker.rank > defender.rank;
+            }
+        }
+
+        function findAIFlag() {
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (piece && piece.player === 2 && piece.type === 'FLAG') {
+                        return { row, col, piece };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getValidMoves(row, col) {
+            const moves = [];
+            const directions = [[-1,0], [1,0], [0,-1], [0,1]];
+            
+            directions.forEach(([dx, dy]) => {
+                const newRow = row + dx;
+                const newCol = col + dy;
+                
+                if (newRow >= 0 && newRow < BOARD_SIZE && newCol >= 0 && newCol < BOARD_SIZE) {
+                    if (isValidMove(row, col, newRow, newCol)) {
+                        moves.push({ row: newRow, col: newCol });
+                    }
+                }
+            });
+            
+            return moves;
+        }
+
+        function checkWinCondition() {
+            let playerFlag = false;
+            let enemyFlag = false;
+            let playerMobileUnits = 0;
+            let enemyMobileUnits = 0;
+            
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        if (piece.player === 1) {
+                            if (piece.type === 'FLAG') playerFlag = true;
+                            else if (piece.movable) playerMobileUnits++;
+                        } else {
+                            if (piece.type === 'FLAG') enemyFlag = true;
+                            else if (piece.movable) enemyMobileUnits++;
+                        }
+                    }
+                }
+            }
+            
+            if (!playerFlag) {
+                endGame('Enemy Wins! Super Earth Flag captured!');
+            } else if (!enemyFlag) {
+                endGame('Player Wins! Automaton Core destroyed!');
+            } else if (playerMobileUnits === 0) {
+                endGame('Enemy Wins! All Super Earth forces eliminated!');
+            } else if (enemyMobileUnits === 0) {
+                endGame('Player Wins! All Automaton forces eliminated!');
+            }
+        }
+
+        function endGame(message) {
+            setTimeout(() => {
+                showVictoryScreen(message);
+            }, 200);
+        }
+
+        function showVictoryScreen(message) {
+            const victoryDiv = document.createElement('div');
+            victoryDiv.id = 'victoryScreen';
+            victoryDiv.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.95);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                color: #ffffff;
+                text-align: center;
+                animation: fadeIn 1s ease-out;
+            `;
+            
+            const isVictory = message.includes('Player Wins') || message.includes('Super Earth');
+            const title = isVictory ? '🏆 VICTORY! 🏆' : '💀 DEFEAT 💀';
+            const titleColor = isVictory ? '#00ff88' : '#ff5555';
+            const subtitle = isVictory ? 'SUPER EARTH PREVAILS!' : 'DEMOCRACY FALLS...';
+            
+            victoryDiv.innerHTML = `
+                <h1 style="font-size: 4em; color: ${titleColor}; text-shadow: 0 0 20px ${titleColor}; margin-bottom: 20px; animation: pulse 2s infinite;">${title}</h1>
+                <h2 style="font-size: 2em; color: #ffaa00; text-shadow: 0 0 15px #ffaa00; margin-bottom: 30px;">${subtitle}</h2>
+                <div style="font-size: 1.5em; margin-bottom: 40px; color: #ffffff;">${message}</div>
+                <div style="display: flex; gap: 20px;">
+                    <button id="playAgainBtn" style="
+                        padding: 15px 30px;
+                        font-size: 1.2em;
+                        background: linear-gradient(135deg, #00aa66 0%, #00ff88 100%);
+                        border: 2px solid #00ff88;
+                        border-radius: 10px;
+                        color: white;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        font-family: 'Orbitron', monospace;
+                        box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+                    ">🔄 PLAY AGAIN</button>
+                    <button id="mainMenuBtn" style="
+                        padding: 15px 30px;
+                        font-size: 1.2em;
+                        background: linear-gradient(135deg, #666666 0%, #888888 100%);
+                        border: 2px solid #aaaaaa;
+                        border-radius: 10px;
+                        color: white;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        font-family: 'Orbitron', monospace;
+                        box-shadow: 0 0 15px rgba(170, 170, 170, 0.4);
+                    ">🏠 MAIN MENU</button>
+                </div>
+            `;
+            
+            // Add styles for victory screen animations
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    0% { opacity: 0; transform: scale(0.8); }
+                    100% { opacity: 1; transform: scale(1); }
+                }
+                #playAgainBtn:hover, #mainMenuBtn:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(victoryDiv);
+            
+            // Play victory/defeat sound
+            if (isVictory) {
+                playVictorySound();
+            } else {
+                playDefeatSound();
+            }
+            
+            // Button event listeners
+            document.getElementById('playAgainBtn').addEventListener('click', () => {
+                document.body.removeChild(victoryDiv);
+                document.head.removeChild(style);
+                resetGame();
+                gameState = 'setup';
+                document.getElementById('setupPhase').style.display = 'block';
+            });
+            
+            document.getElementById('mainMenuBtn').addEventListener('click', () => {
+                window.location.href = '../index.html';
+            });
+        }
+
+        function playVictorySound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Victory fanfare
+                const frequencies = [523, 659, 784, 1047]; // C, E, G, C (major chord)
+                
+                frequencies.forEach((freq, index) => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'sine';
+                    
+                    const startTime = audioCtx.currentTime + index * 0.2;
+                    gainNode.gain.setValueAtTime(0.1, startTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8);
+                    
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + 0.8);
+                });
+            } catch (e) {
+                // Audio not supported
+            }
+        }
+
+        function playDefeatSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Defeat sound - descending notes
+                const frequencies = [330, 294, 262, 220]; // E, D, C, A (descending)
+                
+                frequencies.forEach((freq, index) => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'triangle';
+                    
+                    const startTime = audioCtx.currentTime + index * 0.3;
+                    gainNode.gain.setValueAtTime(0.08, startTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 1);
+                    
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + 1);
+                });
+            } catch (e) {
+                // Audio not supported
+            }
+        }
+
+        function autoSetupPlayer() {
+            // Clear existing pieces
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    board[row][col] = null;
+                }
+            }
+            
+            // Create piece array
+            const pieces = [];
+            Object.entries(UNIT_TYPES).forEach(([type, data]) => {
+                for (let i = 0; i < data.count; i++) {
+                    pieces.push({
+                        type: type,
+                        name: data.name,
+                        symbol: data.symbol,
+                        rank: data.rank,
+                        movable: data.movable,
+                        player: 1
+                    });
+                }
+            });
+            
+            // Shuffle pieces
+            for (let i = pieces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+            }
+            
+            // Place pieces in rows 0-3
+            let pieceIndex = 0;
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (pieceIndex < pieces.length) {
+                        board[row][col] = pieces[pieceIndex];
+                        pieceIndex++;
+                    }
+                }
+            }
+            
+            // Reset inventory to zero
+            Object.keys(playerInventory).forEach(type => {
+                playerInventory[type] = 0;
+            });
+            
+            updateSetupInventory();
+            updateBoardDisplay();
+        }
+
+        function setupGame() {
+            // Check if all pieces are placed
+            let totalPlaced = 0;
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col]) totalPlaced++;
+                }
+            }
+            
+            if (totalPlaced < 40) {
+                alert('You must place all 40 pieces before starting the game! Use AUTO DEPLOYMENT for quick setup.');
+                return;
+            }
+            
+            setupMode = false;
+            setupEnemyPieces();
+            
+            gameState = 'playing';
+            document.getElementById('gamePhase').textContent = 'Battle Phase';
+            
+            // Switch to battle interface
+            document.getElementById('setupInventory').style.display = 'none';
+            document.getElementById('battleInfo').style.display = 'block';
+            
+            updateBoardDisplay();
+        }
+
+
+        function setupEnemyPieces() {
+            const pieces = [];
+            Object.entries(ENEMY_UNITS).forEach(([type, data]) => {
+                for (let i = 0; i < data.count; i++) {
+                    pieces.push({
+                        type: type,
+                        name: data.name,
+                        symbol: data.symbol,
+                        rank: data.rank,
+                        movable: data.movable,
+                        player: 2
+                    });
+                }
+            });
+            
+            // Shuffle pieces
+            for (let i = pieces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+            }
+            
+            // Place pieces in rows 6-9
+            let pieceIndex = 0;
+            for (let row = 6; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (pieceIndex < pieces.length) {
+                        board[row][col] = pieces[pieceIndex];
+                        pieceIndex++;
+                    }
+                }
+            }
+        }
+
+        // Event listeners
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            document.getElementById('setupPhase').style.display = 'none';
+            initializeSetupMode();
+        });
+
+        document.getElementById('autoSetupBtn').addEventListener('click', () => {
+            autoSetupPlayer();
+        });
+
+        document.getElementById('finishSetupBtn').addEventListener('click', () => {
+            setupGame();
+        });
+
+        document.querySelectorAll('.faction-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.faction-button').forEach(b => b.classList.remove('selected'));
+                e.currentTarget.classList.add('selected');
+                gameMode = e.currentTarget.dataset.faction === 'ai' ? 'ai' : 'pvp';
+            });
+        });
+
+        document.getElementById('fullscreenBtn').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Enhanced Audio system
+        function playBattleSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create explosion sound effect
+                const oscillator1 = audioCtx.createOscillator();
+                const oscillator2 = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                
+                oscillator1.connect(filter);
+                oscillator2.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                // Two oscillators for richer sound
+                oscillator1.frequency.setValueAtTime(80, audioCtx.currentTime);
+                oscillator1.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.4);
+                oscillator1.type = 'sawtooth';
+                
+                oscillator2.frequency.setValueAtTime(200, audioCtx.currentTime);
+                oscillator2.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                oscillator2.type = 'square';
+                
+                // Low-pass filter for explosion effect
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.4);
+                
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                oscillator1.start(audioCtx.currentTime);
+                oscillator2.start(audioCtx.currentTime);
+                oscillator1.stop(audioCtx.currentTime + 0.4);
+                oscillator2.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {
+                // Audio not supported
+            }
+        }
+
+        function playMoveSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {
+                // Audio not supported
+            }
+        }
+
+        function playSelectSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } catch (e) {
+                // Audio not supported
+            }
+        }
+
+        // Create animated starfield
+        function createStarfield() {
+            const starfield = document.getElementById('starfield');
+            const numberOfStars = 150;
+            
+            for (let i = 0; i < numberOfStars; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                // Random size variants
+                if (Math.random() < 0.1) {
+                    star.classList.add('large');
+                }
+                if (Math.random() < 0.05) {
+                    star.classList.add('colored');
+                }
+                
+                // Random position
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                
+                // Random animation delay for varied twinkling
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (2 + Math.random() * 2) + 's';
+                
+                starfield.appendChild(star);
+            }
+        }
+
+        // Initialize game
+        createStarfield();
+        initializeBoard();
+        createUnitDescriptions();
+        
+        // Set default faction
+        document.querySelector('[data-faction="ai"]').classList.add('selected');
+    </script>
+</body>
+</html>

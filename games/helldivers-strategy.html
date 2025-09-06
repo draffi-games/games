@@ -432,9 +432,20 @@
             <h2 style="margin-bottom: 20px; color: #00ff88; text-shadow: 0 0 15px #00ff88;">
                 Super Earth Command
             </h2>
-            <p style="margin-bottom: 30px; color: #aaffcc;">
+            <p style="margin-bottom: 20px; color: #aaffcc;">
                 Select your mission, Helldiver!
             </p>
+            
+            <div style="background: rgba(0, 40, 80, 0.8); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00aa66;">
+                <h4 style="color: #00ff88; margin-bottom: 10px;">🎮 CONTROLS:</h4>
+                <div style="font-size: 12px; color: #cccccc; line-height: 1.4;">
+                    • <strong>Click unit</strong> to select<br>
+                    • <strong>Click ground</strong> to move<br>
+                    • <strong>1-6 keys</strong> for stratagems<br>
+                    • <strong>Tab</strong> to cycle units<br>
+                    • <strong>Space</strong> to attack nearest enemy
+                </div>
+            </div>
             
             <button class="mission-option" data-mission="defend-base" onclick="startMissionDirect('defend-base')">
                 <strong>🛡️ Defend Base Alpha</strong><br>
@@ -453,18 +464,40 @@
                 <small>Difficulty: ★★★ | Duration: 10min</small><br>
                 <small>Protect vital supplies through hostile territory</small>
             </button>
+            
+            <button class="mission-option" onclick="debugGame()" style="background: linear-gradient(135deg, #ff4444 0%, #aa2222 100%); margin-top: 20px;">
+                <strong>🔧 DEBUG TEST</strong><br>
+                <small>Test game functionality</small>
+            </button>
         </div>
     </div>
 
     <script>
         // Game state and initialization
-        const canvas = document.getElementById('gameCanvas');
-        if (!canvas) {
-            console.error('Canvas element not found!');
-        }
-        const ctx = canvas ? canvas.getContext('2d') : null;
-        if (!ctx) {
-            console.error('Canvas context not available!');
+        let canvas = null;
+        let ctx = null;
+        
+        // Initialize canvas after DOM is ready
+        function initializeCanvas() {
+            console.log('🎯 Initializing canvas...');
+            canvas = document.getElementById('gameCanvas');
+            console.log('🖼️ Canvas found:', !!canvas);
+            
+            if (!canvas) {
+                console.error('❌ Canvas element not found!');
+                return false;
+            }
+            
+            ctx = canvas.getContext('2d');
+            console.log('✏️ Context created:', !!ctx);
+            
+            if (!ctx) {
+                console.error('❌ Canvas context not available!');
+                return false;
+            }
+            
+            console.log('✅ Canvas successfully initialized');
+            return true;
         }
         
         let gameWidth, gameHeight;
@@ -478,7 +511,7 @@
         const clickDebounceTime = 50; // 50ms between clicks
         
         // Debug mode
-        const DEBUG_CLICKS = true;
+        const DEBUG_CLICKS = false;
         
         // Game entities
         let units = [];
@@ -502,24 +535,31 @@
             gameWidth = window.innerWidth;
             gameHeight = window.innerHeight;
             
+            console.log('📏 Resizing canvas to:', gameWidth, 'x', gameHeight);
+            
             if (canvas) {
                 canvas.width = gameWidth;
                 canvas.height = gameHeight;
+                console.log('✅ Canvas resized successfully');
                 
-                if (DEBUG_CLICKS) {
-                    console.log('Canvas resized to:', gameWidth, 'x', gameHeight);
+                // Clear canvas after resize
+                if (ctx) {
+                    ctx.clearRect(0, 0, gameWidth, gameHeight);
                 }
             } else {
-                console.error('Canvas not available for resizing');
+                console.error('❌ Canvas not available for resizing');
             }
         }
 
         function init() {
-            if (DEBUG_CLICKS) {
-                console.log('=== INITIALIZING GAME ===');
-                console.log('DOM ready state:', document.readyState);
-                console.log('Canvas element:', canvas);
-                console.log('Canvas context:', ctx);
+            console.log('🎮 === INITIALIZING GAME ===');
+            console.log('📄 DOM ready state:', document.readyState);
+            
+            // Initialize canvas first
+            if (!initializeCanvas()) {
+                console.error('❌ CRITICAL ERROR: Canvas initialization failed!');
+                alert('Game initialization failed: Canvas not available');
+                return;
             }
             
             resizeCanvas();
@@ -561,6 +601,7 @@
             
             // Mouse and touch events - with safety checks
             if (canvas) {
+                console.log('🖱️ Adding canvas event listeners...');
                 canvas.addEventListener('mousemove', handleMouseMove);
                 canvas.addEventListener('click', handleCanvasClick);
                 
@@ -572,11 +613,9 @@
                 // Prevent context menu on right click
                 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
                 
-                if (DEBUG_CLICKS) {
-                    console.log('Canvas event listeners added successfully');
-                }
+                console.log('✅ Canvas event listeners added successfully');
             } else {
-                console.error('Canvas not found, cannot add event listeners');
+                console.error('❌ Canvas not found, cannot add event listeners');
             }
             
             // Stratagem selection with better error handling
@@ -600,9 +639,10 @@
             
             // Mission selection with multiple fallback methods
             const missionButtons = document.querySelectorAll('.mission-option');
-            if (DEBUG_CLICKS) {
-                console.log('Found', missionButtons.length, 'mission buttons');
-            }
+            console.log('🔘 Found', missionButtons.length, 'mission buttons');
+            missionButtons.forEach((btn, i) => {
+                console.log(`🔘 Button ${i}:`, btn.dataset.mission, 'onclick:', !!btn.onclick);
+            });
             
             // Method 1: Individual event listeners
             missionButtons.forEach((btn, index) => {
@@ -774,15 +814,14 @@
 
         // Global function for HTML onclick fallback
         window.startMissionDirect = function(missionType) {
-            if (DEBUG_CLICKS) {
-                console.log('=== MISSION STARTED VIA DIRECT CALL ===');
-                console.log('Mission type:', missionType);
-            }
+            console.log('🎮 === MISSION STARTED VIA DIRECT CALL ===');
+            console.log('🎯 Mission type:', missionType);
+            console.log('📊 Current game state before:', gameState);
             
             if (missionType) {
                 startMission(missionType);
             } else {
-                console.error('No mission type provided to startMissionDirect');
+                console.error('❌ No mission type provided to startMissionDirect');
             }
         };
 
@@ -793,6 +832,37 @@
             console.log('Canvas element:', canvas);
             console.log('Mission select element:', document.getElementById('missionSelect'));
             startMissionDirect(missionType);
+        };
+        
+        // Debug game function for testing
+        window.debugGame = function() {
+            console.log('🔧 === DEBUG TEST STARTED ===');
+            console.log('🎮 Current game state:', gameState);
+            console.log('🖼️ Canvas element:', canvas);
+            console.log('✏️ Canvas context:', ctx);
+            console.log('📏 Game dimensions:', gameWidth, 'x', gameHeight);
+            console.log('🔫 Current units:', units.length);
+            
+            // Test mission start directly
+            console.log('🚀 Starting defend-base mission for test...');
+            startMission('defend-base');
+            
+            // Give user feedback
+            setTimeout(() => {
+                console.log('📊 After mission start:');
+                console.log('🎯 Game state:', gameState);
+                console.log('🔫 Units count:', units.length);
+                console.log('🏢 Buildings count:', buildings.length);
+                
+                if (units.length > 0) {
+                    console.log('✅ Units successfully created!');
+                    console.log('🎯 Selecting first unit for test...');
+                    selectedUnit = units[0];
+                    updateUI();
+                } else {
+                    console.error('❌ No units were created!');
+                }
+            }, 100);
         };
 
         function selectStratagem(type) {
@@ -842,14 +912,10 @@
         }
 
         function handleCanvasClick(e) {
-            if (DEBUG_CLICKS) {
-                console.log('Canvas click detected, gameState:', gameState);
-            }
+            console.log('🖱️ Canvas click detected, gameState:', gameState);
             
             if (gameState !== 'playing') {
-                if (DEBUG_CLICKS) {
-                    console.log('Click ignored - game not playing');
-                }
+                console.log('❌ Click ignored - game not playing (current state:', gameState, ')');
                 return;
             }
             
@@ -963,10 +1029,9 @@
         }
 
         function selectUnitAt(x, y) {
-            if (DEBUG_CLICKS) {
-                console.log(`selectUnitAt called with (${x}, ${y})`);
-                console.log('Units array length:', units ? units.length : 'null');
-            }
+            console.log(`🎯 selectUnitAt called with (${Math.round(x)}, ${Math.round(y)})`);
+            console.log('🔫 Units array length:', units ? units.length : 'null');
+            console.log('🎮 Current game state:', gameState);
             
             // Safety check for units array
             if (!units || units.length === 0) {
@@ -997,8 +1062,8 @@
                 }
                 
                 const dist = Math.sqrt((unit.x - x) ** 2 + (unit.y - y) ** 2);
-                // Larger selection radius for easier clicking
-                const selectionRadius = Math.max(20, (unit.size || 15) + 20);
+                // Much larger selection radius for easier clicking on mobile and desktop
+                const selectionRadius = Math.max(35, (unit.size || 15) + 25);
                 
                 if (DEBUG_CLICKS) {
                     console.log(`Unit ${i}: pos(${Math.round(unit.x)}, ${Math.round(unit.y)}), dist: ${Math.round(dist)}, radius: ${selectionRadius}`);
@@ -1011,9 +1076,8 @@
             }
             
             if (closestUnit) {
-                if (DEBUG_CLICKS) {
-                    console.log('Unit selected:', closestUnit.type || 'unknown', 'at distance', Math.round(closestDistance));
-                }
+                console.log('✅ Unit selected:', closestUnit.type || 'unknown', 'at distance', Math.round(closestDistance));
+                console.log('📍 Unit position:', Math.round(closestUnit.x), Math.round(closestUnit.y));
                 
                 selectedUnit = closestUnit;
                 updateUI();
@@ -1029,9 +1093,9 @@
             
             // If no unit selected, move selected unit (if we have one)
             if (selectedUnit && selectedUnit.x !== undefined && selectedUnit.y !== undefined) {
-                if (DEBUG_CLICKS) {
-                    console.log('Moving selected unit to:', Math.round(x), Math.round(y));
-                }
+                console.log('🚶 Moving selected unit to:', Math.round(x), Math.round(y));
+                console.log('🔄 Previous position:', Math.round(selectedUnit.x), Math.round(selectedUnit.y));
+                console.log('🎯 Setting targetX/Y:', Math.round(x), Math.round(y));
                 
                 selectedUnit.targetX = x;
                 selectedUnit.targetY = y;
@@ -1039,6 +1103,7 @@
                 // Visual feedback for move command
                 try {
                     createMoveOrderEffect(x, y);
+                    console.log('✅ Movement command successful!');
                 } catch (e) {
                     console.error('Error creating move order effect:', e);
                 }
@@ -1052,11 +1117,10 @@
         }
 
         function startMission(type) {
-            if (DEBUG_CLICKS) {
-                console.log('=== STARTING MISSION ===');
-                console.log('Mission type:', type);
-                console.log('Previous game state:', gameState);
-            }
+            console.log('🚀 === STARTING MISSION ===');
+            console.log('🎯 Mission type:', type);
+            console.log('📊 Previous game state:', gameState);
+            console.log('🖼️ Canvas dimensions:', gameWidth, 'x', gameHeight);
             
             try {
                 currentMission = {
@@ -1120,11 +1184,19 @@
                         return;
                 }
                 
-                if (DEBUG_CLICKS) {
-                    console.log('Mission setup complete!');
-                    console.log('Units created:', units.length);
-                    console.log('Buildings created:', buildings.length);
-                    console.log('Final game state:', gameState);
+                console.log('🎮 Mission setup complete!');
+                console.log('🔫 Units created:', units.length);
+                console.log('🏢 Buildings created:', buildings.length);
+                console.log('🎯 Final game state:', gameState);
+                
+                // Enhanced debugging for unit positions
+                if (units.length > 0) {
+                    console.log('📍 Unit positions:', units.map(u => ({
+                        type: u.type, 
+                        x: Math.round(u.x), 
+                        y: Math.round(u.y),
+                        size: u.size
+                    })));
                 }
                 
                 updateUI();
@@ -1168,15 +1240,28 @@
             }
             
             update() {
-                // Movement
+                // Movement with enhanced debugging
                 const dx = this.targetX - this.x;
                 const dy = this.targetY - this.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
+                // Debug movement when unit is selected
+                if (selectedUnit === this && dist > 5) {
+                    console.log(`🏃 ${this.type} moving: dist=${Math.round(dist)}, speed=${this.speed}`);
+                    console.log(`📍 Current: (${Math.round(this.x)}, ${Math.round(this.y)}) → Target: (${Math.round(this.targetX)}, ${Math.round(this.targetY)})`);
+                }
+                
                 if (dist > 5) {
-                    this.x += (dx / dist) * this.speed;
-                    this.y += (dy / dist) * this.speed;
+                    const newX = this.x + (dx / dist) * this.speed;
+                    const newY = this.y + (dy / dist) * this.speed;
+                    
+                    this.x = newX;
+                    this.y = newY;
                     this.angle = Math.atan2(dy, dx);
+                    
+                    if (selectedUnit === this) {
+                        console.log(`➡️ New position: (${Math.round(this.x)}, ${Math.round(this.y)})`);
+                    }
                 }
                 
                 // Combat
@@ -1233,45 +1318,114 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
                 
-                // Unit body
-                ctx.fillStyle = this.type === 'convoy' ? '#666666' : '#00ff88';
-                ctx.beginPath();
+                // Enhanced unit body with better visibility
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
                 if (this.type === 'convoy') {
+                    gradient.addColorStop(0, '#888888');
+                    gradient.addColorStop(1, '#444444');
+                    ctx.fillStyle = gradient;
                     ctx.fillRect(-20, -10, 40, 20);
+                    
+                    // Add convoy details
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-20, -10, 40, 20);
                 } else {
+                    // Create glowing effect for units
+                    gradient.addColorStop(0, '#00ffaa');
+                    gradient.addColorStop(0.7, '#00ff88');
+                    gradient.addColorStop(1, '#00cc66');
+                    ctx.fillStyle = gradient;
+                    
+                    // Main unit circle
+                    ctx.beginPath();
                     ctx.arc(0, 0, this.size, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Weapon barrel
+                    // Add glow effect
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00ff88';
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    // Unit border
                     ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 3;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Unit type indicator
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.type[0].toUpperCase(), 0, 3);
+                    
+                    // Enhanced weapon barrel
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
-                    ctx.lineTo(this.size + 5, 0);
+                    ctx.lineTo(this.size + 8, 0);
                     ctx.stroke();
+                    
+                    // Weapon tip
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.arc(this.size + 8, 0, 2, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 
                 ctx.restore();
                 
-                // Health bar
+                // Enhanced health bar
                 if (this.health < this.maxHealth) {
-                    const barWidth = 30;
-                    const barHeight = 4;
-                    ctx.fillStyle = '#ff0000';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth, barHeight);
-                    ctx.fillStyle = '#00ff00';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, 
-                        barWidth * (this.health / this.maxHealth), barHeight);
+                    const barWidth = this.size * 2.5;
+                    const barHeight = 6;
+                    
+                    // Health bar background
+                    ctx.fillStyle = '#440000';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 15, barWidth, barHeight);
+                    
+                    // Health bar border
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(this.x - barWidth/2, this.y - this.size - 15, barWidth, barHeight);
+                    
+                    // Health bar fill
+                    const healthPercent = this.health / this.maxHealth;
+                    const healthColor = healthPercent > 0.6 ? '#00ff00' : healthPercent > 0.3 ? '#ffaa00' : '#ff0000';
+                    ctx.fillStyle = healthColor;
+                    ctx.fillRect(this.x - barWidth/2 + 1, this.y - this.size - 14, 
+                        (barWidth - 2) * healthPercent, barHeight - 2);
                 }
                 
-                // Selection indicator
+                // Enhanced selection indicator
                 if (selectedUnit === this) {
                     ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    
+                    // Selection pulse effect
+                    const pulseRadius = this.size + 12 + Math.sin(Date.now() * 0.008) * 4;
+                    ctx.strokeStyle = 'rgba(255, 170, 0, 0.5)';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, pulseRadius, 0, Math.PI * 2);
                     ctx.stroke();
                 }
+                
+                // Unit label for better identification
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(this.type.toUpperCase(), this.x, this.y + this.size + 25);
+                ctx.fillText(this.type.toUpperCase(), this.x, this.y + this.size + 25);
             }
         }
 
@@ -1485,146 +1639,152 @@
             draw() {
                 ctx.save();
                 
-                // Main body
-                ctx.fillStyle = this.color;
+                // Enhanced enemy body with gradient and glow
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                gradient.addColorStop(0, this.color);
+                const darkerColor = this.color.replace(/\d+/g, (match) => Math.max(0, parseInt(match) - 50));
+                gradient.addColorStop(1, darkerColor);
+                
+                ctx.fillStyle = gradient;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Type-specific visual elements
+                // Add hostile glow effect
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Enemy border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Type-specific enhanced visual elements
                 if (this.type === 'heavy') {
-                    // Armor plating
-                    ctx.strokeStyle = '#666666';
-                    ctx.lineWidth = 2;
+                    // Enhanced armor plating
+                    ctx.strokeStyle = '#888888';
+                    ctx.lineWidth = 3;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size - 2, 0, Math.PI * 2);
                     ctx.stroke();
-                } else if (this.type === 'fast') {
-                    // Speed lines
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 1;
-                    for (let i = 0; i < 3; i++) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const x1 = this.x + Math.cos(angle) * this.size;
-                        const y1 = this.y + Math.sin(angle) * this.size;
-                        const x2 = x1 + Math.cos(angle) * 10;
-                        const y2 = y1 + Math.sin(angle) * 10;
+                    
+                    // Armor segments
+                    ctx.strokeStyle = '#666666';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        const x1 = this.x + Math.cos(angle) * (this.size - 4);
+                        const y1 = this.y + Math.sin(angle) * (this.size - 4);
+                        const x2 = this.x + Math.cos(angle) * (this.size + 2);
+                        const y2 = this.y + Math.sin(angle) * (this.size + 2);
                         ctx.beginPath();
                         ctx.moveTo(x1, y1);
                         ctx.lineTo(x2, y2);
                         ctx.stroke();
                     }
+                    
+                } else if (this.type === 'fast') {
+                    // Enhanced speed lines with trail effect
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (Date.now() * 0.01 + i) % (Math.PI * 2);
+                        const x1 = this.x + Math.cos(angle) * this.size;
+                        const y1 = this.y + Math.sin(angle) * this.size;
+                        const x2 = x1 + Math.cos(angle) * 15;
+                        const y2 = y1 + Math.sin(angle) * 15;
+                        ctx.globalAlpha = 0.7;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                    
                 } else if (this.type === 'spitter') {
-                    // Spitting organ
-                    ctx.fillStyle = '#226622';
+                    // Enhanced spitting organ
+                    ctx.fillStyle = '#44aa44';
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y - this.size/2, 4, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y - this.size/2, 6, 0, Math.PI * 2);
                     ctx.fill();
+                    
+                    // Acid drips
+                    ctx.fillStyle = '#66cc66';
+                    for (let i = 0; i < 3; i++) {
+                        const x = this.x - 3 + i * 3;
+                        const y = this.y - this.size/2 + 8;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
                 } else if (this.type === 'exploder') {
-                    // Pulsing glow
-                    const pulseIntensity = 0.5 + Math.sin(Date.now() * 0.01) * 0.5;
-                    ctx.fillStyle = `rgba(255, 170, 68, ${pulseIntensity * 0.5})`;
+                    // Enhanced pulsing glow with warning effect
+                    const pulseIntensity = 0.7 + Math.sin(Date.now() * 0.015) * 0.3;
+                    ctx.fillStyle = `rgba(255, 170, 68, ${pulseIntensity * 0.6})`;
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size + pulseIntensity * 5, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, this.size + pulseIntensity * 8, 0, Math.PI * 2);
                     ctx.fill();
+                    
+                    // Warning indicators
+                    ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 2;
+                    const warningRadius = this.size + pulseIntensity * 12;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, warningRadius, 0, Math.PI * 2);
+                    ctx.stroke();
                 }
+                
+                // Enemy type indicator
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 8px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                const typeChar = this.type[0].toUpperCase();
+                ctx.strokeText(typeChar, this.x, this.y);
+                ctx.fillText(typeChar, this.x, this.y);
                 
                 ctx.restore();
                 
-                // Health bar
+                // Enhanced health bar
                 if (this.health < this.maxHealth) {
-                    const barWidth = 24;
-                    const barHeight = 3;
-                    ctx.fillStyle = '#660000';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 8, barWidth, barHeight);
-                    ctx.fillStyle = '#ff0000';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 8, 
-                        barWidth * (this.health / this.maxHealth), barHeight);
+                    const barWidth = this.size * 2.2;
+                    const barHeight = 5;
+                    
+                    // Health bar background
+                    ctx.fillStyle = '#220000';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 12, barWidth, barHeight);
+                    
+                    // Health bar border
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(this.x - barWidth/2, this.y - this.size - 12, barWidth, barHeight);
+                    
+                    // Health bar fill
+                    const healthPercent = this.health / this.maxHealth;
+                    const healthColor = healthPercent > 0.6 ? '#ff4444' : healthPercent > 0.3 ? '#ff6666' : '#ff8888';
+                    ctx.fillStyle = healthColor;
+                    ctx.fillRect(this.x - barWidth/2 + 1, this.y - this.size - 11, 
+                        (barWidth - 2) * healthPercent, barHeight - 2);
                 }
+                
+                // Enemy label for better identification
+                ctx.fillStyle = '#ffcccc';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.strokeText(this.type.toUpperCase(), this.x, this.y + this.size + 20);
+                ctx.fillText(this.type.toUpperCase(), this.x, this.y + this.size + 20);
             }
         }
 
-        // Acid projectile for spitter enemies
-        class AcidProjectile extends Projectile {
-            constructor(x, y, angle, damage) {
-                super(x, y, angle, damage, 'enemy');
-                this.speed = 4;
-                this.life = 80;
-                this.acidTrail = [];
-            }
-            
-            update() {
-                // Store trail positions
-                this.acidTrail.push({ x: this.x, y: this.y, life: 30 });
-                
-                // Update trail
-                for (let i = this.acidTrail.length - 1; i >= 0; i--) {
-                    this.acidTrail[i].life--;
-                    if (this.acidTrail[i].life <= 0) {
-                        this.acidTrail.splice(i, 1);
-                    }
-                }
-                
-                // Move projectile
-                this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed;
-                this.life--;
-                
-                // Check collisions with player units
-                for (let i = units.length - 1; i >= 0; i--) {
-                    const unit = units[i];
-                    const dist = Math.sqrt((unit.x - this.x) ** 2 + (unit.y - this.y) ** 2);
-                    if (dist < unit.size) {
-                        unit.health -= this.damage;
-                        createImpactEffect(this.x, this.y, 'organic');
-                        
-                        // Create acid splash
-                        for (let j = 0; j < 8; j++) {
-                            particles.push(new Particle(this.x, this.y, 'smoke', {
-                                life: 40,
-                                size: Math.random() * 6 + 2,
-                                color: '#44aa44'
-                            }));
-                        }
-                        
-                        if (unit.health <= 0) {
-                            units.splice(i, 1);
-                        }
-                        return false; // Remove projectile
-                    }
-                }
-                
-                return this.life > 0 && this.x >= -10 && this.x <= gameWidth + 10 && this.y >= -10 && this.y <= gameHeight + 10;
-            }
-            
-            draw() {
-                // Draw acid trail
-                for (let trail of this.acidTrail) {
-                    ctx.save();
-                    ctx.globalAlpha = trail.life / 30;
-                    ctx.fillStyle = '#44aa44';
-                    ctx.beginPath();
-                    ctx.arc(trail.x, trail.y, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-                
-                // Draw main projectile
-                ctx.fillStyle = '#66cc66';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Glow effect
-                ctx.save();
-                ctx.globalAlpha = 0.6;
-                ctx.fillStyle = '#44aa44';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-        }
 
         class Building {
             constructor(x, y, type) {
@@ -1738,6 +1898,88 @@
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
                 ctx.fill();
+            }
+        }
+
+        // Acid projectile for spitter enemies
+        class AcidProjectile extends Projectile {
+            constructor(x, y, angle, damage) {
+                super(x, y, angle, damage, 'enemy');
+                this.speed = 4;
+                this.life = 80;
+                this.acidTrail = [];
+            }
+            
+            update() {
+                // Store trail positions
+                this.acidTrail.push({ x: this.x, y: this.y, life: 30 });
+                
+                // Update trail
+                for (let i = this.acidTrail.length - 1; i >= 0; i--) {
+                    this.acidTrail[i].life--;
+                    if (this.acidTrail[i].life <= 0) {
+                        this.acidTrail.splice(i, 1);
+                    }
+                }
+                
+                // Move projectile
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                this.life--;
+                
+                // Check collisions with player units
+                for (let i = units.length - 1; i >= 0; i--) {
+                    const unit = units[i];
+                    const dist = Math.sqrt((unit.x - this.x) ** 2 + (unit.y - this.y) ** 2);
+                    if (dist < unit.size) {
+                        unit.health -= this.damage;
+                        createImpactEffect(this.x, this.y, 'organic');
+                        
+                        // Create acid splash
+                        for (let j = 0; j < 8; j++) {
+                            particles.push(new Particle(this.x, this.y, 'smoke', {
+                                life: 40,
+                                size: Math.random() * 6 + 2,
+                                color: '#44aa44'
+                            }));
+                        }
+                        
+                        if (unit.health <= 0) {
+                            units.splice(i, 1);
+                        }
+                        return false; // Remove projectile
+                    }
+                }
+                
+                return this.life > 0 && this.x >= -10 && this.x <= gameWidth + 10 && this.y >= -10 && this.y <= gameHeight + 10;
+            }
+            
+            draw() {
+                // Draw acid trail
+                for (let trail of this.acidTrail) {
+                    ctx.save();
+                    ctx.globalAlpha = trail.life / 30;
+                    ctx.fillStyle = '#44aa44';
+                    ctx.beginPath();
+                    ctx.arc(trail.x, trail.y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                
+                // Draw main projectile
+                ctx.fillStyle = '#66cc66';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Glow effect
+                ctx.save();
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = '#44aa44';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
         }
 
@@ -1973,7 +2215,7 @@
             }
         }
 
-        class LaserTurret extends Unit {
+        class LaserCannon extends Unit {
             constructor(x, y) {
                 super(x, y, 'laser-turret');
                 this.health = 120;
@@ -2744,13 +2986,25 @@
         let secondTimer = 0;
 
         function gameLoop(currentTime) {
+            // Safety check - don't run if canvas is not ready
+            if (!canvas || !ctx) {
+                console.error('❌ Game loop stopped - canvas not ready');
+                return;
+            }
+            
             const deltaTime = currentTime - lastTime;
             lastTime = currentTime;
             secondTimer += deltaTime;
             waveTimer += deltaTime;
             
-            // Clear canvas
-            ctx.clearRect(0, 0, gameWidth, gameHeight);
+            // Clear canvas and reset all transformations
+            try {
+                ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset any accumulated transformations
+                ctx.clearRect(0, 0, gameWidth, gameHeight);
+            } catch (e) {
+                console.error('❌ Error clearing canvas:', e);
+                return;
+            }
             
             if (gameState === 'playing') {
                 // Update game timer
@@ -2793,34 +3047,92 @@
                     playAlertSound();
                 }
                 
-                // Update entities
-                units.forEach(unit => unit.update());
-                enemies.forEach(enemy => enemy.update());
+                // Update entities with error handling
+                try {
+                    units.forEach(unit => {
+                        if (unit && typeof unit.update === 'function') {
+                            unit.update();
+                        }
+                    });
+                    enemies.forEach(enemy => {
+                        if (enemy && typeof enemy.update === 'function') {
+                            enemy.update();
+                        }
+                    });
+                } catch (e) {
+                    console.error('❌ Error updating entities:', e);
+                }
                 
                 // Update projectiles
-                projectiles = projectiles.filter(proj => proj.update());
+                try {
+                    projectiles = projectiles.filter(proj => proj && proj.update && proj.update());
+                } catch (e) {
+                    console.error('❌ Error updating projectiles:', e);
+                }
                 
                 // Update particles
-                particles = particles.filter(particle => particle.update());
+                try {
+                    particles = particles.filter(particle => particle && particle.update && particle.update());
+                } catch (e) {
+                    console.error('❌ Error updating particles:', e);
+                }
                 
                 // Remove dead units
-                units = units.filter(unit => unit.health > 0);
+                try {
+                    units = units.filter(unit => unit && unit.health > 0);
+                } catch (e) {
+                    console.error('❌ Error filtering dead units:', e);
+                }
                 
-                // Draw grid for tactical feeling
-                drawTacticalGrid();
-                
-                // Draw everything
-                buildings.forEach(building => building.draw());
-                units.forEach(unit => unit.draw());
-                enemies.forEach(enemy => enemy.draw());
-                projectiles.forEach(proj => proj.draw());
-                particles.forEach(particle => particle.draw());
-                
-                // Draw unit selection indicators
-                drawSelectionIndicators();
+                // Draw everything with error handling
+                try {
+                    // Draw grid for tactical feeling
+                    drawTacticalGrid();
+                    
+                    // Draw everything
+                    buildings.forEach(building => {
+                        if (building && typeof building.draw === 'function') {
+                            building.draw();
+                        }
+                    });
+                    
+                    units.forEach(unit => {
+                        if (unit && typeof unit.draw === 'function') {
+                            unit.draw();
+                        }
+                    });
+                    
+                    enemies.forEach(enemy => {
+                        if (enemy && typeof enemy.draw === 'function') {
+                            enemy.draw();
+                        }
+                    });
+                    
+                    projectiles.forEach(proj => {
+                        if (proj && typeof proj.draw === 'function') {
+                            proj.draw();
+                        }
+                    });
+                    
+                    particles.forEach(particle => {
+                        if (particle && typeof particle.draw === 'function') {
+                            particle.draw();
+                        }
+                    });
+                    
+                    // Draw unit selection indicators
+                    drawSelectionIndicators();
+                    
+                } catch (e) {
+                    console.error('❌ Error drawing entities:', e);
+                }
                 
                 // Check victory/defeat conditions
-                checkMissionStatus();
+                try {
+                    checkMissionStatus();
+                } catch (e) {
+                    console.error('❌ Error checking mission status:', e);
+                }
             }
             
             requestAnimationFrame(gameLoop);
@@ -2852,35 +3164,66 @@
 
         function drawSelectionIndicators() {
             if (selectedUnit) {
-                // Draw movement path if target is set
+                // Draw enhanced movement path if target is set
                 if (selectedUnit.targetX !== selectedUnit.x || selectedUnit.targetY !== selectedUnit.y) {
                     ctx.save();
+                    
+                    // Draw movement path with better visibility
                     ctx.strokeStyle = '#ffaa00';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 4]);
                     ctx.beginPath();
                     ctx.moveTo(selectedUnit.x, selectedUnit.y);
                     ctx.lineTo(selectedUnit.targetX, selectedUnit.targetY);
                     ctx.stroke();
                     
-                    // Draw target indicator
-                    ctx.fillStyle = '#ffaa0066';
+                    // Draw animated target indicator
+                    const pulseSize = 15 + Math.sin(Date.now() * 0.01) * 5;
+                    ctx.fillStyle = '#ffaa0080';
                     ctx.beginPath();
-                    ctx.arc(selectedUnit.targetX, selectedUnit.targetY, 10, 0, Math.PI * 2);
+                    ctx.arc(selectedUnit.targetX, selectedUnit.targetY, pulseSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Target crosshair
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(selectedUnit.targetX - 10, selectedUnit.targetY);
+                    ctx.lineTo(selectedUnit.targetX + 10, selectedUnit.targetY);
+                    ctx.moveTo(selectedUnit.targetX, selectedUnit.targetY - 10);
+                    ctx.lineTo(selectedUnit.targetX, selectedUnit.targetY + 10);
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                }
+                
+                // Draw enhanced weapon range
+                if (selectedUnit.weapon && selectedUnit.weapon.range > 0) {
+                    ctx.save();
+                    const alpha = 0.2 + Math.sin(Date.now() * 0.005) * 0.1;
+                    ctx.strokeStyle = `rgba(255, 170, 0, ${alpha})`;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([10, 5]);
+                    ctx.beginPath();
+                    ctx.arc(selectedUnit.x, selectedUnit.y, selectedUnit.weapon.range, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Range fill
+                    ctx.fillStyle = `rgba(255, 170, 0, ${alpha * 0.3})`;
                     ctx.fill();
                     ctx.restore();
                 }
                 
-                // Draw weapon range
-                if (selectedUnit.weapon && selectedUnit.weapon.range > 0) {
-                    ctx.save();
-                    ctx.strokeStyle = 'rgba(255, 170, 0, 0.3)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.arc(selectedUnit.x, selectedUnit.y, selectedUnit.weapon.range, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
+                // Draw selection radius for easier clicking
+                ctx.save();
+                ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                const selectionRadius = Math.max(35, (selectedUnit.size || 15) + 25);
+                ctx.beginPath();
+                ctx.arc(selectedUnit.x, selectedUnit.y, selectionRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
             }
         }
 
@@ -3062,8 +3405,12 @@
             }
         });
 
-        // Initialize game
-        init();
+        // Initialize game after DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
