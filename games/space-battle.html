@@ -103,6 +103,14 @@
             color: white;
             border-radius: 5px;
             cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .game-over button:hover {
+            background: #0088ff;
+            box-shadow: 0 0 10px #00ffff;
+            transform: scale(1.05);
         }
     </style>
 </head>
@@ -191,9 +199,12 @@
                 this.vy = 0;
                 this.health = 100;
                 this.maxHealth = 100;
-                this.size = 15;
+                this.shield = 100;
+                this.maxShield = 100;
+                this.size = 22;
                 this.shootCooldown = 0;
                 this.alive = true;
+                this.lastDamageTime = 0;
                 
                 // AI properties
                 this.target = null;
@@ -212,8 +223,9 @@
                 // Apply movement
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vx *= 0.98;
-                this.vy *= 0.98;
+                // Reduced drifting - more responsive movement
+                this.vx *= 0.85;
+                this.vy *= 0.85;
 
                 // Screen wrapping
                 if (this.x < 0) this.x = canvas.width;
@@ -224,31 +236,41 @@
                 // Update cooldown
                 if (this.shootCooldown > 0) this.shootCooldown--;
 
-                // Health regeneration
-                if (this.health < this.maxHealth) {
+                // Shield regeneration (only when not taking damage recently)
+                const now = Date.now();
+                if (now - this.lastDamageTime > 3000) { // 3 seconds after last damage
+                    if (this.shield < this.maxShield) {
+                        this.shield += 0.5;
+                        this.shield = Math.min(this.shield, this.maxShield);
+                    }
+                }
+
+                // Health regeneration (slower than shields)
+                if (this.health < this.maxHealth && this.shield >= this.maxShield) {
                     this.health += 0.1;
+                    this.health = Math.min(this.health, this.maxHealth);
                 }
             }
 
             handlePlayerInput() {
-                // Rotation
-                if (keys['KeyA']) this.angle -= 0.1;
-                if (keys['KeyD']) this.angle += 0.1;
+                // Rotation - faster turning
+                if (keys['KeyA']) this.angle -= 0.12;
+                if (keys['KeyD']) this.angle += 0.12;
 
-                // Movement
+                // Movement - more responsive
                 let thrust = 0;
-                if (keys['KeyW']) thrust = 0.3;
-                if (keys['KeyS']) thrust = -0.15;
+                if (keys['KeyW']) thrust = 0.5;
+                if (keys['KeyS']) thrust = -0.25;
                 
                 // Boost
-                if (keys['ShiftLeft']) thrust *= 2;
+                if (keys['ShiftLeft']) thrust *= 1.8;
 
                 if (thrust !== 0) {
                     this.vx += Math.cos(this.angle) * thrust;
                     this.vy += Math.sin(this.angle) * thrust;
                 }
 
-                // Shooting
+                // Shooting - more responsive
                 if (keys['Space'] && this.shootCooldown <= 0) {
                     this.shoot();
                 }
@@ -316,7 +338,7 @@
                     bulletX, bulletY, 
                     this.angle, this.team
                 ));
-                this.shootCooldown = 15;
+                this.shootCooldown = 8; // Faster shooting
 
                 // Muzzle flash
                 for (let i = 0; i < 5; i++) {
@@ -330,24 +352,76 @@
             }
 
             takeDamage(amount) {
-                this.health -= amount;
-                if (this.health <= 0) {
-                    this.die();
+                this.lastDamageTime = Date.now();
+                
+                // Shields absorb damage first
+                if (this.shield > 0) {
+                    const shieldDamage = Math.min(this.shield, amount);
+                    this.shield -= shieldDamage;
+                    amount -= shieldDamage;
+                    
+                    // Create shield hit effect
+                    for (let i = 0; i < 8; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 2 + Math.random() * 3;
+                        particles.push(new Particle(
+                            this.x + Math.cos(angle) * this.size,
+                            this.y + Math.sin(angle) * this.size,
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            '#00ffff', 20
+                        ));
+                    }
+                }
+                
+                // Remaining damage goes to health
+                if (amount > 0) {
+                    this.health -= amount;
+                    if (this.health <= 0) {
+                        this.die();
+                    }
                 }
             }
 
             die() {
                 this.alive = false;
                 
-                // Explosion effect
-                for (let i = 0; i < 20; i++) {
+                // Massive explosion effect - Helldivers style
+                for (let i = 0; i < 40; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = 2 + Math.random() * 4;
+                    const speed = 3 + Math.random() * 8;
+                    const color = ['#ff6600', '#ffaa00', '#ff0000', '#ffffff'][Math.floor(Math.random() * 4)];
                     particles.push(new Particle(
                         this.x, this.y,
                         Math.cos(angle) * speed,
                         Math.sin(angle) * speed,
-                        '#ff6600', 40 + Math.random() * 20
+                        color, 60 + Math.random() * 40
+                    ));
+                }
+                
+                // Secondary explosion wave
+                for (let i = 0; i < 15; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1 + Math.random() * 3;
+                    particles.push(new Particle(
+                        this.x + Math.cos(angle) * 20, 
+                        this.y + Math.sin(angle) * 20,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        this.team === 'red' ? '#ff4400' : '#0044ff', 
+                        80 + Math.random() * 30
+                    ));
+                }
+                
+                // Debris particles
+                for (let i = 0; i < 10; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1 + Math.random() * 4;
+                    particles.push(new Particle(
+                        this.x, this.y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        '#888888', 120 + Math.random() * 60
                     ));
                 }
                 
@@ -357,37 +431,176 @@
             draw() {
                 if (!this.alive) return;
 
+                // Draw shield effect if shields are active
+                if (this.shield > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.3 + (this.shield / this.maxShield) * 0.4;
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size + 12, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Shield glow effect
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#00ffff';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
 
-                // Ship body
-                ctx.fillStyle = this.team === 'red' ? '#ff4444' : '#4444ff';
-                ctx.strokeStyle = this.team === 'red' ? '#ff8888' : '#8888ff';
-                ctx.lineWidth = 2;
+                // Engine trails/fire effect
+                if (this.vx !== 0 || this.vy !== 0) {
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > 1) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.8;
+                        
+                        // Left engine trail
+                        ctx.fillStyle = this.team === 'red' ? '#ff8800' : '#0088ff';
+                        ctx.beginPath();
+                        ctx.ellipse(-this.size * 0.7, -this.size * 0.3, speed * 2, 3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Right engine trail  
+                        ctx.beginPath();
+                        ctx.ellipse(-this.size * 0.7, this.size * 0.3, speed * 2, 3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Center engine trail
+                        ctx.fillStyle = this.team === 'red' ? '#ffaa00' : '#00aaff';
+                        ctx.beginPath();
+                        ctx.ellipse(-this.size * 0.8, 0, speed * 1.5, 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+
+                // Main hull - Helldivers style
+                const mainColor = this.team === 'red' ? '#cc3333' : '#3333cc';
+                const accentColor = this.team === 'red' ? '#ff6666' : '#6666ff';
+                const metalColor = this.team === 'red' ? '#aa2222' : '#2222aa';
                 
+                // Main body (elongated hexagon)
+                ctx.fillStyle = mainColor;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(this.size, 0);
-                ctx.lineTo(-this.size * 0.6, -this.size * 0.6);
-                ctx.lineTo(-this.size * 0.3, 0);
-                ctx.lineTo(-this.size * 0.6, this.size * 0.6);
+                ctx.moveTo(this.size * 0.9, 0);
+                ctx.lineTo(this.size * 0.3, -this.size * 0.4);
+                ctx.lineTo(-this.size * 0.4, -this.size * 0.5);
+                ctx.lineTo(-this.size * 0.7, -this.size * 0.3);
+                ctx.lineTo(-this.size * 0.7, this.size * 0.3);
+                ctx.lineTo(-this.size * 0.4, this.size * 0.5);
+                ctx.lineTo(this.size * 0.3, this.size * 0.4);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
+                // Cockpit/Command center
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = accentColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(this.size * 0.4, 0, this.size * 0.15, this.size * 0.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Wing details
+                ctx.fillStyle = metalColor;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                
+                // Upper wing
+                ctx.beginPath();
+                ctx.moveTo(this.size * 0.2, -this.size * 0.4);
+                ctx.lineTo(-this.size * 0.1, -this.size * 0.8);
+                ctx.lineTo(-this.size * 0.3, -this.size * 0.6);
+                ctx.lineTo(-this.size * 0.2, -this.size * 0.4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Lower wing
+                ctx.beginPath();
+                ctx.moveTo(this.size * 0.2, this.size * 0.4);
+                ctx.lineTo(-this.size * 0.1, this.size * 0.8);
+                ctx.lineTo(-this.size * 0.3, this.size * 0.6);
+                ctx.lineTo(-this.size * 0.2, this.size * 0.4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Weapon mounts/details
+                ctx.fillStyle = '#666666';
+                ctx.strokeStyle = '#888888';
+                ctx.lineWidth = 1;
+                
+                // Top weapon mount
+                ctx.beginPath();
+                ctx.rect(this.size * 0.1, -this.size * 0.15, this.size * 0.3, this.size * 0.1);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Bottom weapon mount
+                ctx.beginPath();
+                ctx.rect(this.size * 0.1, this.size * 0.05, this.size * 0.3, this.size * 0.1);
+                ctx.fill();
+                ctx.stroke();
+
+                // Engine details
+                ctx.fillStyle = this.team === 'red' ? '#ff0000' : '#0000ff';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                
+                // Left engine
+                ctx.beginPath();
+                ctx.ellipse(-this.size * 0.6, -this.size * 0.25, this.size * 0.1, this.size * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Right engine
+                ctx.beginPath();
+                ctx.ellipse(-this.size * 0.6, this.size * 0.25, this.size * 0.1, this.size * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Hull details/panels
+                ctx.strokeStyle = accentColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.size * 0.1, -this.size * 0.3);
+                ctx.lineTo(this.size * 0.1, this.size * 0.3);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 0.1, -this.size * 0.2);
+                ctx.lineTo(-this.size * 0.1, this.size * 0.2);
+                ctx.stroke();
+
                 ctx.restore();
 
-                // Health bar
-                if (this.health < this.maxHealth) {
-                    const barWidth = 30;
-                    const barHeight = 4;
+                // Health and shield bars
+                if (this.health < this.maxHealth || this.shield < this.maxShield) {
+                    const barWidth = 35;
+                    const barHeight = 5;
                     const healthPercent = this.health / this.maxHealth;
+                    const shieldPercent = this.shield / this.maxShield;
                     
+                    // Health bar (bottom)
                     ctx.fillStyle = '#333';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth, barHeight);
-                    
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 15, barWidth, barHeight);
                     ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth * healthPercent, barHeight);
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 15, barWidth * healthPercent, barHeight);
+                    
+                    // Shield bar (top)
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth, barHeight);
+                    ctx.fillStyle = '#00ffff';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth * shieldPercent, barHeight);
                 }
             }
         }
@@ -397,11 +610,11 @@
             constructor(x, y, angle, team) {
                 this.x = x;
                 this.y = y;
-                this.vx = Math.cos(angle) * 6;
-                this.vy = Math.sin(angle) * 6;
+                this.vx = Math.cos(angle) * 10; // Faster bullets
+                this.vy = Math.sin(angle) * 10;
                 this.team = team;
-                this.life = 100;
-                this.size = 3;
+                this.life = 120; // Longer range
+                this.size = 4; // Slightly bigger
             }
 
             update() {
@@ -419,13 +632,56 @@
             }
 
             draw() {
+                ctx.save();
+                
+                // Bullet trail effect
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const angle = Math.atan2(this.vy, this.vx);
+                
+                // Trail
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = this.team === 'red' ? '#ff8800' : '#0088ff';
+                ctx.beginPath();
+                ctx.ellipse(
+                    this.x - Math.cos(angle) * speed * 2, 
+                    this.y - Math.sin(angle) * speed * 2,
+                    speed * 1.5, 2, angle, 0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Main bullet body (energy core)
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = this.team === 'red' ? '#ffff00' : '#00ffff';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.team === 'red' ? '#ffff00' : '#00ffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Outer energy ring
                 ctx.fillStyle = this.team === 'red' ? '#ff6666' : '#6666ff';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 8;
                 ctx.shadowColor = this.team === 'red' ? '#ff6666' : '#6666ff';
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.shadowBlur = 0;
+                
+                // Energy sparks
+                const sparkCount = 3;
+                for (let i = 0; i < sparkCount; i++) {
+                    const sparkAngle = (Date.now() * 0.01 + i * Math.PI * 2 / sparkCount) % (Math.PI * 2);
+                    const sparkDist = this.size * 1.5;
+                    const sparkX = this.x + Math.cos(sparkAngle) * sparkDist;
+                    const sparkY = this.y + Math.sin(sparkAngle) * sparkDist;
+                    
+                    ctx.fillStyle = this.team === 'red' ? '#ffaa00' : '#00aaff';
+                    ctx.globalAlpha = 0.8;
+                    ctx.beginPath();
+                    ctx.arc(sparkX, sparkY, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
             }
         }
 
@@ -533,13 +789,12 @@
             document.getElementById('redScore').textContent = redAlive;
             document.getElementById('blueScore').textContent = blueAlive;
             
-            // Update player shield
+            // Update player shield display
             if (player && player.alive) {
-                const percent = Math.max(0, Math.round(player.health));
-                document.getElementById('shieldPercent').textContent = percent;
-                document.getElementById('shieldBar').style.width = percent + '%';
-                document.getElementById('shieldBar').style.background = 
-                    percent > 60 ? '#00ff00' : percent > 30 ? '#ffff00' : '#ff0000';
+                const shieldPercent = Math.max(0, Math.round(player.shield));
+                document.getElementById('shieldPercent').textContent = shieldPercent;
+                document.getElementById('shieldBar').style.width = shieldPercent + '%';
+                document.getElementById('shieldBar').style.background = '#00ffff';
             }
             
             // Check for game over
@@ -551,12 +806,17 @@
             }
         }
 
-        // Start new game
-        function startNewGame() {
-            gameRunning = true;
-            document.getElementById('gameOver').style.display = 'none';
-            initGame();
-        }
+            // Start new game
+            function startNewGame() {
+                gameRunning = true;
+                document.getElementById('gameOver').style.display = 'none';
+                initGame();
+                gameLoop(); // Restart the game loop
+                console.log('New game started!');
+            }
+            
+            // Make function globally available
+            window.startNewGame = startNewGame;
 
             // Draw background
             function drawBackground() {
