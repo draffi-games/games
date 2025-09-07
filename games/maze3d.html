@@ -632,11 +632,10 @@
         }
         
         function render3D() {
-            // Third-person camera setup
-            const cameraDistance = 3;
-            const cameraHeight = 1.5;
-            const cameraX = player.x - Math.sin(player.angle) * cameraDistance;
-            const cameraY = player.y - Math.cos(player.angle) * cameraDistance;
+            // DEBUG: Simple first-person camera to isolate issues
+            const cameraX = player.x;
+            const cameraY = player.y;
+            const cameraAngle = player.angle;
             
             // Sky gradient
             const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height / 2);
@@ -665,95 +664,107 @@
             }
             ctx.globalAlpha = 1;
             
-            const numRays = canvas.width;
+            const numRays = Math.max(100, canvas.width / 4); // Reduce rays for debugging
             const fov = Math.PI / 3;
+            
+            // DEBUG: Clear with a visible color first
+            ctx.fillStyle = 'purple';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // Z-buffer for depth sorting
             let zBuffer = [];
             
+            let hitCount = 0; // DEBUG
+            
             for (let i = 0; i < numRays; i++) {
-                const rayAngle = player.angle - fov/2 + (i / numRays) * fov;
+                const rayAngle = cameraAngle - fov/2 + (i / numRays) * fov;
                 
-                // Cast ray from camera position behind player
-                let distance = 0;
+                // Simple raycasting - step by step
                 let hit = false;
+                let distance = 0;
                 let wallType = 1;
-                let wallX = 0;
-                let wallY = 0;
-                let textureX = 0;
                 
-                for (let d = 0; d < 20; d += 0.02) {
+                for (let d = 0.1; d < 20; d += 0.1) {
                     const testX = cameraX + Math.sin(rayAngle) * d;
                     const testY = cameraY + Math.cos(rayAngle) * d;
                     
-                    if (maze[Math.floor(testY)] && maze[Math.floor(testY)][Math.floor(testX)] !== 0) {
-                        distance = d * Math.cos(rayAngle - player.angle); // Fix fisheye effect
-                        wallType = maze[Math.floor(testY)][Math.floor(testX)];
-                        wallX = testX;
-                        wallY = testY;
+                    const mapX = Math.floor(testX);
+                    const mapY = Math.floor(testY);
+                    
+                    // Check bounds
+                    if (mapX < 0 || mapX >= maze[0].length || mapY < 0 || mapY >= maze.length) {
+                        // Out of bounds
                         hit = true;
-                        
-                        // Calculate texture coordinate
-                        if (Math.abs(testX - Math.floor(testX)) < 0.01 || Math.abs(testX - Math.floor(testX)) > 0.99) {
-                            textureX = testY - Math.floor(testY);
-                        } else {
-                            textureX = testX - Math.floor(testX);
-                        }
+                        distance = d;
+                        wallType = 1;
+                        break;
+                    }
+                    
+                    // Check for wall
+                    if (maze[mapY][mapX] !== 0) {
+                        hit = true;
+                        distance = d * Math.cos(rayAngle - cameraAngle);
+                        wallType = maze[mapY][mapX];
+                        hitCount++; // DEBUG
                         break;
                     }
                 }
                 
-                if (hit) {
+                if (hit && distance > 0) {
                     zBuffer[i] = distance;
                     
-                    // Calculate wall height with perspective
-                    const lineHeight = (canvas.height / distance) * 0.5;
+                    // Simple wall rendering
+                    const lineHeight = Math.max(1, (canvas.height / distance) * 0.8);
                     const lineTop = (canvas.height - lineHeight) / 2;
                     
-                    // Enhanced shading based on distance and wall orientation
-                    const darkness = Math.max(0.2, 1 - distance / 12);
-                    
-                    // Determine if wall is north/south or east/west for different shading
-                    const isNorthSouth = Math.abs(wallX - Math.floor(wallX)) < 0.01 || Math.abs(wallX - Math.floor(wallX)) > 0.99;
-                    const shadeFactor = isNorthSouth ? 0.8 : 1;
+                    // Simple shading based on distance
+                    const brightness = Math.max(50, 255 - distance * 20);
                     
                     if (wallType === 2) {
-                        // Exit - glowing green with animation
-                        const pulse = Math.sin(Date.now() * 0.003) * 0.2 + 0.8;
-                        const green = Math.floor(204 * darkness * pulse);
-                        const red = Math.floor(46 * darkness * pulse);
-                        ctx.fillStyle = `rgb(${red}, ${green}, ${Math.floor(113 * darkness * pulse)})`;
+                        // Exit wall - green
+                        ctx.fillStyle = `rgb(0, ${Math.floor(brightness)}, 0)`;
                     } else {
-                        // Normal wall with texture-like pattern
-                        const baseColor = 120;
-                        const shade = Math.floor(baseColor * darkness * shadeFactor);
-                        
-                        // Add some variation based on texture coordinate
-                        const variation = Math.sin(textureX * Math.PI * 8) * 10;
-                        const r = Math.max(0, Math.min(255, shade + variation));
-                        const g = Math.max(0, Math.min(255, shade + variation - 10));
-                        const b = Math.max(0, Math.min(255, shade + variation + 10));
-                        
-                        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                        // Normal wall - gray
+                        ctx.fillStyle = `rgb(${Math.floor(brightness * 0.8)}, ${Math.floor(brightness * 0.8)}, ${Math.floor(brightness)})`;
                     }
                     
-                    // Draw wall stripe
-                    ctx.fillRect(i, lineTop, 1, lineHeight);
-                    
-                    // Add vertical lines for brick effect
-                    if (Math.floor(textureX * 8) % 2 === 0) {
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-                        ctx.fillRect(i, lineTop, 1, lineHeight);
+                    // Draw wall stripe - make sure it's visible
+                    const stripeWidth = Math.max(4, canvas.width / numRays);
+                    ctx.fillRect(i * stripeWidth, lineTop, stripeWidth + 1, lineHeight);
+                }
+            }
+            
+            // DEBUG: Show hit count
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.fillText(`Hits: ${hitCount}, Player: ${player.x.toFixed(1)}, ${player.y.toFixed(1)}`, 10, 30);
+            ctx.fillText(`Maze size: ${maze.length}x${maze[0].length}, Rays: ${numRays}`, 10, 50);
+            ctx.fillText(`Angle: ${player.angle.toFixed(2)}, FOV: ${fov.toFixed(2)}`, 10, 70);
+            
+            // DEBUG: Show maze as 2D overlay in corner
+            const scale = 3;
+            for (let y = 0; y < maze.length && y < 15; y++) {
+                for (let x = 0; x < maze[y].length && x < 15; x++) {
+                    if (maze[y][x] !== 0) {
+                        ctx.fillStyle = maze[y][x] === 2 ? 'green' : 'red';
+                        ctx.fillRect(canvas.width - 200 + x * scale, 100 + y * scale, scale, scale);
                     }
                 }
+            }
+            // Show player position
+            ctx.fillStyle = 'blue';
+            const px = Math.floor(player.x);
+            const py = Math.floor(player.y);
+            if (px < 15 && py < 15) {
+                ctx.fillRect(canvas.width - 200 + px * scale, 100 + py * scale, scale, scale);
             }
             
             // Render enemies in 3D with better sprites
             enemies.forEach(enemy => {
                 if (!enemy.active) return;
                 
-                const dx = enemy.x - cameraX;
-                const dy = enemy.y - cameraY;
+                const dx = enemy.x - player.x;
+                const dy = enemy.y - player.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < 15) {
@@ -837,96 +848,8 @@
             ctx.fillStyle = fogGradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw player character from behind (third-person view)
-            const playerDist = cameraDistance;
-            const playerAngle = player.angle;
-            const screenX = canvas.width / 2;
-            const screenY = canvas.height / 2 + 50;
-            const playerHeight = 200 / (playerDist * 0.8);
-            const playerWidth = playerHeight * 0.6;
-            
-            // Player shadow
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-            ctx.beginPath();
-            ctx.ellipse(screenX, screenY + playerHeight/2, playerWidth/2, playerWidth/6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Player body based on character class
-            if (player.character === 'warrior') {
-                // Warrior - heavy armor
-                ctx.fillStyle = '#4A4A4A';
-                ctx.fillRect(screenX - playerWidth/2.5, screenY - playerHeight/3, playerWidth * 0.8, playerHeight * 0.7);
-                ctx.fillStyle = '#C0C0C0';
-                ctx.fillRect(screenX - playerWidth/2.8, screenY - playerHeight/3.5, playerWidth * 0.7, playerHeight * 0.6);
-                // Helmet
-                ctx.fillStyle = '#808080';
-                ctx.beginPath();
-                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (player.character === 'mage') {
-                // Mage - robes
-                ctx.fillStyle = '#4B0082';
-                ctx.beginPath();
-                ctx.moveTo(screenX - playerWidth/3, screenY - playerHeight/3);
-                ctx.lineTo(screenX + playerWidth/3, screenY - playerHeight/3);
-                ctx.lineTo(screenX + playerWidth/2, screenY + playerHeight/2);
-                ctx.lineTo(screenX - playerWidth/2, screenY + playerHeight/2);
-                ctx.closePath();
-                ctx.fill();
-                // Hood
-                ctx.fillStyle = '#2F0147';
-                ctx.beginPath();
-                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (player.character === 'rogue') {
-                // Rogue - dark outfit
-                ctx.fillStyle = '#1C1C1C';
-                ctx.fillRect(screenX - playerWidth/3, screenY - playerHeight/3, playerWidth * 0.66, playerHeight * 0.7);
-                // Hood
-                ctx.fillStyle = '#0A0A0A';
-                ctx.beginPath();
-                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3.5, 0, Math.PI * 2);
-                ctx.fill();
-                // Cloak
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.beginPath();
-                ctx.moveTo(screenX - playerWidth/2.5, screenY - playerHeight/4);
-                ctx.lineTo(screenX + playerWidth/2.5, screenY - playerHeight/4);
-                ctx.lineTo(screenX + playerWidth/2, screenY + playerHeight/2);
-                ctx.lineTo(screenX - playerWidth/2, screenY + playerHeight/2);
-                ctx.closePath();
-                ctx.fill();
-            } else if (player.character === 'helldiver') {
-                // Helldiver - military gear
-                ctx.fillStyle = '#4A5D23';
-                ctx.fillRect(screenX - playerWidth/3, screenY - playerHeight/3, playerWidth * 0.66, playerHeight * 0.7);
-                // Helmet
-                ctx.fillStyle = '#556B2F';
-                ctx.beginPath();
-                ctx.arc(screenX, screenY - playerHeight/2.5, playerWidth/3, 0, Math.PI * 2);
-                ctx.fill();
-                // Backpack
-                ctx.fillStyle = '#3A4A1A';
-                ctx.fillRect(screenX - playerWidth/2.5, screenY - playerHeight/3.5, playerWidth * 0.2, playerHeight * 0.4);
-            }
-            
-            // Arms/legs animation based on movement
-            const walkCycle = Math.sin(Date.now() * 0.01) * 0.2;
-            if (keys['w'] || keys['s'] || keys['a'] || keys['d']) {
-                ctx.fillStyle = player.character === 'warrior' ? '#4A4A4A' : 
-                               player.character === 'mage' ? '#4B0082' :
-                               player.character === 'rogue' ? '#1C1C1C' : '#4A5D23';
-                // Left leg
-                ctx.fillRect(screenX - playerWidth/4 - walkCycle * 10, screenY + playerHeight/3, playerWidth/5, playerHeight/3);
-                // Right leg  
-                ctx.fillRect(screenX + playerWidth/20 + walkCycle * 10, screenY + playerHeight/3, playerWidth/5, playerHeight/3);
-            }
-            
-            ctx.restore();
-            
-            // Draw weapon/hand at bottom of screen (remove this for third person)
-            if (false && player.character) {
+            // First-person weapon rendering
+            if (player.character) {
                 ctx.save();
                 
                 // Weapon bob effect

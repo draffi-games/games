@@ -12,11 +12,31 @@
         }
 
         body {
-            background: radial-gradient(ellipse at center, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            background: 
+                /* Helldivers 2 authentic alien planet atmosphere */
+                radial-gradient(ellipse at 20% 80%, rgba(255, 140, 0, 0.2) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(180, 50, 0, 0.15) 0%, transparent 40%),
+                radial-gradient(ellipse at 50% 10%, rgba(255, 200, 0, 0.1) 0%, transparent 30%),
+                /* Toxic atmosphere */
+                linear-gradient(145deg, 
+                    #2a1a0a 0%,    /* Dark orange-brown */
+                    #3a2010 20%,   /* Rust */
+                    #4a2a15 40%,   /* Deep orange */
+                    #3a1a0a 60%,   /* Dark brown */
+                    #2a1505 80%,   /* Almost black */
+                    #1a0f00 100%); /* Black */
             font-family: 'Orbitron', 'Courier New', monospace;
             overflow: hidden;
-            color: #00ff88;
+            color: #FFD700; /* Helldivers yellow */
             user-select: none;
+            animation: planetaryAtmosphere 15s infinite ease-in-out;
+        }
+        
+        @keyframes planetaryAtmosphere {
+            0%, 100% { filter: hue-rotate(0deg) brightness(1) contrast(1); }
+            25% { filter: hue-rotate(5deg) brightness(1.05) contrast(1.1); }
+            50% { filter: hue-rotate(-3deg) brightness(0.95) contrast(0.9); }
+            75% { filter: hue-rotate(8deg) brightness(1.02) contrast(1.05); }
         }
 
         #gameContainer {
@@ -30,9 +50,58 @@
             flex: 1;
             cursor: crosshair;
             background: 
-                radial-gradient(circle at 25% 25%, rgba(0, 255, 136, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(255, 0, 136, 0.1) 0%, transparent 50%),
-                linear-gradient(135deg, #0a0a1e 0%, #1a1a2e 100%);
+                /* Authentic Helldivers 2 alien planet surface */
+                radial-gradient(ellipse at 25% 75%, rgba(200, 80, 20, 0.4) 0%, transparent 35%), /* Crater */
+                radial-gradient(ellipse at 75% 25%, rgba(150, 60, 10, 0.3) 0%, transparent 30%), /* Impact site */
+                radial-gradient(ellipse at 10% 50%, rgba(255, 120, 0, 0.2) 0%, transparent 25%), /* Lava glow */
+                radial-gradient(ellipse at 90% 80%, rgba(180, 90, 30, 0.25) 0%, transparent 40%), /* Burn marks */
+                /* Toxic atmosphere effects */
+                radial-gradient(circle at 30% 20%, rgba(255, 255, 0, 0.08) 0%, transparent 60%), /* Toxic gas */
+                radial-gradient(circle at 70% 90%, rgba(255, 150, 0, 0.06) 0%, transparent 50%), /* Methane */
+                /* Base alien terrain */
+                linear-gradient(125deg, 
+                    #3a2010 0%,    /* Orange dirt */
+                    #4a1a0a 20%,   /* Red soil */ 
+                    #5a2515 40%,   /* Rust ground */
+                    #4a2010 60%,   /* Orange rocks */
+                    #3a1505 80%,   /* Dark dirt */
+                    #2a0f00 100%); /* Deep shadows */
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Animated atmospheric particles */
+        #gameCanvas::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 170, 0, 0.1) 0%, transparent 30%),
+                radial-gradient(circle at 80% 20%, rgba(0, 170, 255, 0.08) 0%, transparent 25%);
+            animation: atmosphereShift 8s infinite ease-in-out;
+            pointer-events: none;
+        }
+        
+        @keyframes atmosphereShift {
+            0%, 100% { 
+                opacity: 0.7;
+                transform: translateX(0) translateY(0) scale(1);
+            }
+            25% { 
+                opacity: 0.9;
+                transform: translateX(2%) translateY(-1%) scale(1.02);
+            }
+            50% { 
+                opacity: 0.8;
+                transform: translateX(-1%) translateY(2%) scale(0.98);
+            }
+            75% { 
+                opacity: 1;
+                transform: translateX(1%) translateY(1%) scale(1.01);
+            }
         }
 
         #ui {
@@ -52,22 +121,24 @@
             right: 0;
             height: 60px;
             background: linear-gradient(90deg, 
-                rgba(0, 20, 40, 0.9) 0%, 
-                rgba(0, 40, 80, 0.9) 50%, 
-                rgba(0, 20, 40, 0.9) 100%);
-            border-bottom: 2px solid #00ff88;
+                rgba(47, 79, 47, 0.95) 0%,   /* Dark military green */
+                rgba(85, 107, 47, 0.9) 30%,  /* Olive */
+                rgba(255, 215, 0, 0.2) 50%,  /* Gold accent */
+                rgba(85, 107, 47, 0.9) 70%,  /* Olive */
+                rgba(47, 79, 47, 0.95) 100%); /* Dark military green */
+            border-bottom: 3px solid #FFD700; /* Helldivers gold */
             display: flex;
             align-items: center;
             padding: 0 20px;
-            box-shadow: 0 2px 20px rgba(0, 255, 136, 0.3);
+            box-shadow: 0 3px 25px rgba(255, 215, 0, 0.4);
             pointer-events: auto;
         }
 
         #missionInfo {
             flex: 1;
-            color: #00ff88;
+            color: #FFD700; /* Helldivers gold */
             font-weight: bold;
-            text-shadow: 0 0 10px #00ff88;
+            text-shadow: 0 0 12px #FFD700, 0 0 20px #FFA500;
         }
 
         #resources {
@@ -80,8 +151,9 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            color: #ffaa00;
-            text-shadow: 0 0 10px #ffaa00;
+            color: #FFA500; /* Helldivers orange */
+            text-shadow: 0 0 10px #FFA500, 0 0 15px #FFD700;
+            font-weight: bold;
         }
 
         #bottomPanel {
@@ -1331,47 +1403,182 @@
                     ctx.lineWidth = 2;
                     ctx.strokeRect(-20, -10, 40, 20);
                 } else {
-                    // Create glowing effect for units
-                    gradient.addColorStop(0, '#00ffaa');
-                    gradient.addColorStop(0.7, '#00ff88');
-                    gradient.addColorStop(1, '#00cc66');
+                    // 🎖️ EPIC HELLDIVER DESIGN
+                    
+                    // Democratic cape (behind unit) 
+                    ctx.fillStyle = '#002244';
+                    ctx.beginPath();
+                    ctx.ellipse(-this.size * 0.4, this.size * 0.2, this.size * 0.7, this.size * 1.3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Cape Super Earth emblem
+                    ctx.fillStyle = '#ffdd00';
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.4, 0, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // AUTHENTIC HELLDIVERS 2 SUPER EARTH ARMOR
+                    gradient.addColorStop(0, '#FFD700');  /* Gold core */
+                    gradient.addColorStop(0.2, '#FFA500'); /* Orange */
+                    gradient.addColorStop(0.4, '#DAA520'); /* Goldenrod */
+                    gradient.addColorStop(0.6, '#8FBC8F'); /* Military green */
+                    gradient.addColorStop(0.8, '#556B2F'); /* Olive drab */
+                    gradient.addColorStop(1, '#2F4F2F');   /* Dark military green */
                     ctx.fillStyle = gradient;
                     
-                    // Main unit circle
+                    // Armored torso
                     ctx.beginPath();
                     ctx.arc(0, 0, this.size, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Add glow effect
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = '#00ff88';
+                    // Super Earth democratic glow
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#FFD700'; /* Helldivers gold */
                     ctx.fill();
                     ctx.shadowBlur = 0;
                     
-                    // Unit border
-                    ctx.strokeStyle = '#ffffff';
+                    // Authentic Super Earth armor plating
+                    ctx.strokeStyle = '#B8860B'; /* Dark goldenrod */
                     ctx.lineWidth = 2;
-                    ctx.stroke();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        const x1 = Math.cos(angle) * this.size * 0.6;
+                        const y1 = Math.sin(angle) * this.size * 0.6;
+                        const x2 = Math.cos(angle) * this.size * 0.9;
+                        const y2 = Math.sin(angle) * this.size * 0.9;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
                     
-                    // Unit type indicator
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 8px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(this.type[0].toUpperCase(), 0, 3);
-                    
-                    // Enhanced weapon barrel
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 4;
+                    // Helmet with Super Earth insignia
+                    ctx.fillStyle = '#0088bb';
                     ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(this.size + 8, 0);
-                    ctx.stroke();
+                    ctx.arc(0, -this.size * 0.3, this.size * 0.6, 0, Math.PI);
+                    ctx.fill();
                     
-                    // Weapon tip
+                    // Helmet visor
+                    ctx.fillStyle = '#44bbff';
+                    ctx.beginPath();
+                    ctx.arc(0, -this.size * 0.3, this.size * 0.4, 0, Math.PI);
+                    ctx.fill();
+                    
+                    // Visor reflection
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.15, -this.size * 0.35, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Jetpack (on back)
+                    ctx.fillStyle = '#666666';
+                    ctx.fillRect(-this.size * 0.8, -this.size * 0.2, this.size * 0.4, this.size * 0.6);
+                    
+                    // Jetpack exhaust pipes
                     ctx.fillStyle = '#ffaa00';
                     ctx.beginPath();
-                    ctx.arc(this.size + 8, 0, 2, 0, Math.PI * 2);
+                    ctx.arc(-this.size * 0.9, -this.size * 0.1, 1.5, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.9, this.size * 0.1, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Jetpack thrust particles (when moving)
+                    if (Math.abs(this.targetX - this.x) > 5 || Math.abs(this.targetY - this.y) > 5) {
+                        for (let i = 0; i < 4; i++) {
+                            const thrustX = -this.size - 5 - Math.random() * 10;
+                            const thrustY = (Math.random() - 0.5) * this.size * 0.6;
+                            ctx.fillStyle = `rgba(0, 150, 255, ${0.9 - i * 0.15})`;
+                            ctx.beginPath();
+                            ctx.arc(thrustX, thrustY, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    // 🔫 ADVANCED HELLDIVERS 2 STRATAGEM LAUNCHER
+                    
+                    // Main weapon body (chunky military design)
+                    ctx.fillStyle = '#2F4F2F'; /* Dark military green */
+                    ctx.fillRect(this.size * 0.2, -4, this.size + 20, 8);
+                    
+                    // Weapon housing details
+                    ctx.fillStyle = '#556B2F'; /* Olive drab */
+                    ctx.fillRect(this.size * 0.3, -3, this.size + 15, 6);
+                    
+                    // Heat vents along barrel
+                    ctx.fillStyle = '#1C1C1C'; /* Dark gray */
+                    for (let i = 0; i < 6; i++) {
+                        ctx.fillRect(this.size * 0.4 + i * 4, -2, 1, 4);
+                    }
+                    
+                    // Tactical scope mount
+                    ctx.fillStyle = '#1C1C1C';
+                    ctx.fillRect(this.size * 0.6, -7, 12, 4);
+                    
+                    // Scope optics
+                    ctx.fillStyle = '#4169E1'; /* Royal blue lens */
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.66, -5, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Tactical rail system
+                    ctx.strokeStyle = '#696969'; /* Dim gray */
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.3, -4.5);
+                    ctx.lineTo(this.size + 12, -4.5);
+                    ctx.moveTo(this.size * 0.3, 4.5);
+                    ctx.lineTo(this.size + 12, 4.5);
+                    ctx.stroke();
+                    
+                    // Muzzle brake (realistic military design)
+                    ctx.fillStyle = '#1C1C1C';
+                    ctx.fillRect(this.size + 15, -3, 6, 6);
+                    
+                    // Muzzle flash ports
+                    for (let i = 0; i < 4; i++) {
+                        const angle = (i / 4) * Math.PI * 2;
+                        const portX = (this.size + 18) + Math.cos(angle) * 2;
+                        const portY = Math.sin(angle) * 2;
+                        ctx.fillStyle = '#FFD700';
+                        ctx.beginPath();
+                        ctx.arc(portX, portY, 0.8, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Active muzzle energy (when firing)
+                    if (Date.now() - this.lastShotTime < 100) {
+                        // Muzzle flash effect
+                        ctx.fillStyle = `rgba(255, 215, 0, ${1 - (Date.now() - this.lastShotTime) / 100})`;
+                        ctx.beginPath();
+                        ctx.arc(this.size + 21, 0, 8, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Flash particles
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            const flashX = (this.size + 25) + Math.cos(angle) * 12;
+                            const flashY = Math.sin(angle) * 12;
+                            ctx.fillStyle = `rgba(255, 165, 0, ${0.8 - (Date.now() - this.lastShotTime) / 125})`;
+                            ctx.beginPath();
+                            ctx.arc(flashX, flashY, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    // Weapon energy indicator
+                    ctx.fillStyle = '#32CD32'; /* Lime green - ready status */
+                    ctx.fillRect(this.size * 0.5, -1, 3, 2);
+                    
+                    // Rank insignia on chest
+                    ctx.fillStyle = '#ffdd00';
+                    ctx.font = 'bold 8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 1;
+                    const rankSymbol = this.type === 'marine' ? '🚀' : this.type === 'heavy' ? '⚡' : '🎯';
+                    ctx.strokeText(rankSymbol, 0, this.size * 0.3);
+                    ctx.fillText(rankSymbol, 0, this.size * 0.3);
                 }
                 
                 ctx.restore();
@@ -1639,104 +1846,198 @@
             draw() {
                 ctx.save();
                 
-                // Enhanced enemy body with gradient and glow
+                // 🤖 EPIC AUTOMATON DESIGN
                 const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-                gradient.addColorStop(0, this.color);
-                const darkerColor = this.color.replace(/\d+/g, (match) => Math.max(0, parseInt(match) - 50));
-                gradient.addColorStop(1, darkerColor);
-                
+                gradient.addColorStop(0, '#ff6666');
+                gradient.addColorStop(0.4, '#ff3333');
+                gradient.addColorStop(0.7, '#cc2222');
+                gradient.addColorStop(1, '#881111');
                 ctx.fillStyle = gradient;
+                
+                // Main Automaton body
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Add hostile glow effect
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = this.color;
+                // Hostile machine glow
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#ff4444';
                 ctx.fill();
                 ctx.shadowBlur = 0;
                 
-                // Enemy border
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1.5;
+                // Mechanical border with segments
+                ctx.strokeStyle = '#cccccc';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // Type-specific enhanced visual elements
-                if (this.type === 'heavy') {
-                    // Enhanced armor plating
-                    ctx.strokeStyle = '#888888';
-                    ctx.lineWidth = 3;
+                // Mechanical panel lines
+                ctx.strokeStyle = '#888888';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const x1 = this.x + Math.cos(angle) * this.size * 0.7;
+                    const y1 = this.y + Math.sin(angle) * this.size * 0.7;
+                    const x2 = this.x + Math.cos(angle) * this.size * 0.9;
+                    const y2 = this.y + Math.sin(angle) * this.size * 0.9;
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size - 2, 0, Math.PI * 2);
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+                
+                // Red scanning eye
+                const scanPulse = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
+                ctx.fillStyle = `rgba(255, 0, 0, ${scanPulse})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y - this.size * 0.3, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Eye glow
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = '#ff0000';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Type-specific AUTOMATON enhancements
+                if (this.type === 'heavy') {
+                    // 🛡️ DEVASTATOR CLASS - Heavy battle mech
+                    
+                    // Thick armor plating
+                    ctx.fillStyle = '#444444';
+                    ctx.fillRect(this.x - this.size + 2, this.y - this.size/2, this.size * 2 - 4, this.size);
+                    
+                    // Armor rivets
+                    ctx.fillStyle = '#666666';
+                    for (let i = 0; i < 12; i++) {
+                        const angle = (i / 12) * Math.PI * 2;
+                        const x = this.x + Math.cos(angle) * (this.size - 3);
+                        const y = this.y + Math.sin(angle) * (this.size - 3);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Heavy weapon cannons
+                    ctx.strokeStyle = '#333333';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.size, this.y - 4);
+                    ctx.lineTo(this.x + this.size + 12, this.y - 4);
+                    ctx.moveTo(this.x + this.size, this.y + 4);
+                    ctx.lineTo(this.x + this.size + 12, this.y + 4);
                     ctx.stroke();
                     
-                    // Armor segments
-                    ctx.strokeStyle = '#666666';
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (i / 6) * Math.PI * 2;
-                        const x1 = this.x + Math.cos(angle) * (this.size - 4);
-                        const y1 = this.y + Math.sin(angle) * (this.size - 4);
-                        const x2 = this.x + Math.cos(angle) * (this.size + 2);
-                        const y2 = this.y + Math.sin(angle) * (this.size + 2);
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.stroke();
-                    }
-                    
                 } else if (this.type === 'fast') {
-                    // Enhanced speed lines with trail effect
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (Date.now() * 0.01 + i) % (Math.PI * 2);
-                        const x1 = this.x + Math.cos(angle) * this.size;
-                        const y1 = this.y + Math.sin(angle) * this.size;
-                        const x2 = x1 + Math.cos(angle) * 15;
-                        const y2 = y1 + Math.sin(angle) * 15;
-                        ctx.globalAlpha = 0.7;
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.stroke();
-                    }
-                    ctx.globalAlpha = 1;
+                    // ⚡ SCOUT DRONE - Fast reconnaissance unit
                     
-                } else if (this.type === 'spitter') {
-                    // Enhanced spitting organ
-                    ctx.fillStyle = '#44aa44';
+                    // Energy trail when moving
+                    for (let i = 0; i < 8; i++) {
+                        const trailAngle = Date.now() * 0.02 + (i / 8) * Math.PI * 2;
+                        const x = this.x + Math.cos(trailAngle) * (this.size + 5 + i * 2);
+                        const y = this.y + Math.sin(trailAngle) * (this.size + 5 + i * 2);
+                        ctx.fillStyle = `rgba(255, 100, 100, ${0.8 - i * 0.1})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Spinning energy core
+                    ctx.fillStyle = '#ffaaaa';
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y - this.size/2, 6, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Acid drips
-                    ctx.fillStyle = '#66cc66';
+                    // Energy spikes
+                    for (let i = 0; i < 4; i++) {
+                        const spikeAngle = Date.now() * 0.01 + (i / 4) * Math.PI * 2;
+                        const x1 = this.x + Math.cos(spikeAngle) * this.size * 0.8;
+                        const y1 = this.y + Math.sin(spikeAngle) * this.size * 0.8;
+                        const x2 = this.x + Math.cos(spikeAngle) * this.size * 1.2;
+                        const y2 = this.y + Math.sin(spikeAngle) * this.size * 1.2;
+                        ctx.strokeStyle = '#ff6666';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                    
+                } else if (this.type === 'spitter') {
+                    // 🧪 ACID LAUNCHER - Bio-weapon platform
+                    
+                    // Acid cannon
+                    ctx.fillStyle = '#22aa22';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y - this.size/2, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Bio-mechanical tubes
+                    ctx.strokeStyle = '#44cc44';
+                    ctx.lineWidth = 3;
                     for (let i = 0; i < 3; i++) {
-                        const x = this.x - 3 + i * 3;
-                        const y = this.y - this.size/2 + 8;
+                        const tubeAngle = (i / 3) * Math.PI * 2;
+                        const x1 = this.x + Math.cos(tubeAngle) * this.size * 0.5;
+                        const y1 = this.y + Math.sin(tubeAngle) * this.size * 0.5;
+                        const x2 = this.x + Math.cos(tubeAngle) * this.size;
+                        const y2 = this.y + Math.sin(tubeAngle) * this.size;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                    
+                    // Acid dripping effect
+                    const drips = 5;
+                    for (let i = 0; i < drips; i++) {
+                        const drip = Date.now() * 0.005 + i;
+                        const x = this.x + (Math.sin(drip) * this.size * 0.3);
+                        const y = this.y + this.size + (drip % 10) * 2;
+                        ctx.fillStyle = `rgba(100, 200, 100, ${0.8 - (drip % 10) * 0.08})`;
                         ctx.beginPath();
                         ctx.arc(x, y, 1, 0, Math.PI * 2);
                         ctx.fill();
                     }
                     
                 } else if (this.type === 'exploder') {
-                    // Enhanced pulsing glow with warning effect
-                    const pulseIntensity = 0.7 + Math.sin(Date.now() * 0.015) * 0.3;
-                    ctx.fillStyle = `rgba(255, 170, 68, ${pulseIntensity * 0.6})`;
+                    // 💥 BOMBER UNIT - Suicide explosive drone
+                    
+                    // Volatile core with warning stripes
+                    const pulseIntensity = 0.8 + Math.sin(Date.now() * 0.02) * 0.2;
+                    
+                    // Warning stripes
+                    ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 3;
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2 + Date.now() * 0.005;
+                        const x1 = this.x + Math.cos(angle) * this.size * 0.4;
+                        const y1 = this.y + Math.sin(angle) * this.size * 0.4;
+                        const x2 = this.x + Math.cos(angle) * this.size * 0.9;
+                        const y2 = this.y + Math.sin(angle) * this.size * 0.9;
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+                    }
+                    
+                    // Unstable energy core
+                    ctx.fillStyle = `rgba(255, 200, 100, ${pulseIntensity})`;
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size + pulseIntensity * 8, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Warning indicators
-                    ctx.strokeStyle = '#ffaa00';
-                    ctx.lineWidth = 2;
-                    const warningRadius = this.size + pulseIntensity * 12;
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, warningRadius, 0, Math.PI * 2);
-                    ctx.stroke();
+                    // Warning glow
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#ffaa00';
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    // Danger indicators
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('⚠️', this.x, this.y + this.size + 8);
                 }
                 
                 // Enemy type indicator
@@ -2330,41 +2631,91 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 
-                // Base
-                ctx.fillStyle = '#222244';
+                // 🔫 EPIC LASER CANNON PLATFORM
+                
+                // Reinforced base with Super Earth markings
+                const baseGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+                baseGradient.addColorStop(0, '#334466');
+                baseGradient.addColorStop(0.6, '#223344');
+                baseGradient.addColorStop(1, '#112233');
+                ctx.fillStyle = baseGradient;
                 ctx.beginPath();
                 ctx.arc(0, 0, this.size, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Laser cannon
+                // Base armor plating
+                ctx.strokeStyle = '#556677';
+                ctx.lineWidth = 3;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const x1 = Math.cos(angle) * this.size * 0.6;
+                    const y1 = Math.sin(angle) * this.size * 0.6;
+                    const x2 = Math.cos(angle) * this.size * 0.9;
+                    const y2 = Math.sin(angle) * this.size * 0.9;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+                
+                // Super Earth emblem on base
+                ctx.fillStyle = '#ffdd00';
+                ctx.beginPath();
+                ctx.arc(0, this.size * 0.4, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Rotating laser cannon
                 ctx.rotate(this.angle);
-                ctx.fillStyle = '#0066aa';
+                
+                // Main cannon body
+                ctx.fillStyle = '#0088cc';
+                ctx.fillRect(-15, -10, 30, 20);
+                
+                // Cannon details
+                ctx.fillStyle = '#005588';
                 ctx.fillRect(-12, -8, 24, 16);
                 
-                // Barrel with charge effect
+                // Advanced laser barrel
                 const chargeIntensity = this.chargeTime / this.maxChargeTime;
-                ctx.fillStyle = '#004488';
-                ctx.fillRect(12, -4, 20, 8);
+                ctx.fillStyle = '#003366';
+                ctx.fillRect(15, -6, 25, 12);
                 
-                // Charge glow
+                // Laser focusing rings
+                ctx.strokeStyle = '#00aadd';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(20 + i * 6, 0, 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Charge buildup effect
                 if (this.chargeTime > 0) {
+                    // Energy buildup in barrel
+                    ctx.fillStyle = `rgba(0, 255, 200, ${chargeIntensity})`;
+                    ctx.fillRect(15, -6 * chargeIntensity, 25, 12 * chargeIntensity);
+                    
+                    // Muzzle energy
                     ctx.fillStyle = `rgba(0, 255, 136, ${chargeIntensity})`;
                     ctx.beginPath();
-                    ctx.arc(32, 0, 6 * chargeIntensity, 0, Math.PI * 2);
+                    ctx.arc(40, 0, 8 * chargeIntensity, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Charging particles
-                    if (Math.random() < chargeIntensity) {
-                        particles.push(new Particle(
-                            this.x + Math.cos(this.angle) * 32,
-                            this.y + Math.sin(this.angle) * 32,
-                            'energy',
-                            {
-                                life: 20,
-                                size: Math.random() * 4 + 2,
-                                color: '#00ff88'
-                            }
-                        ));
+                    // Energy crackling
+                    for (let i = 0; i < 6; i++) {
+                        if (Math.random() < chargeIntensity * 0.8) {
+                            const crackleAngle = Math.random() * Math.PI * 2;
+                            const x1 = 40 + Math.cos(crackleAngle) * 8;
+                            const y1 = Math.sin(crackleAngle) * 8;
+                            const x2 = x1 + Math.cos(crackleAngle) * 8;
+                            const y2 = y1 + Math.sin(crackleAngle) * 8;
+                            ctx.strokeStyle = `rgba(0, 255, 200, ${chargeIntensity})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.stroke();
+                        }
                     }
                 }
                 
@@ -2420,23 +2771,87 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
                 
-                // Heavy unit body (larger, more armored look)
-                ctx.fillStyle = '#00aa88';
+                // 🛡️ EPIC HEAVY HELLDIVER UNIT
+                
+                // Enhanced cape
+                ctx.fillStyle = '#001133';
+                ctx.beginPath();
+                ctx.ellipse(-this.size * 0.5, this.size * 0.3, this.size * 0.8, this.size * 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Heavy armor gradient
+                const armorGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+                armorGradient.addColorStop(0, '#00ddee');
+                armorGradient.addColorStop(0.3, '#00bbcc');
+                armorGradient.addColorStop(0.7, '#008899');
+                armorGradient.addColorStop(1, '#005566');
+                ctx.fillStyle = armorGradient;
+                
+                // Heavy armor body
                 ctx.beginPath();
                 ctx.arc(0, 0, this.size, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Armor plating
-                ctx.fillStyle = '#006666';
+                // Armor segments and plating
+                ctx.fillStyle = '#007788';
                 ctx.fillRect(-this.size + 2, -this.size/2, this.size * 2 - 4, this.size);
                 
-                // Heavy weapon
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 4;
+                // Chest armor plate
+                ctx.fillStyle = '#009999';
+                ctx.fillRect(-this.size * 0.6, -this.size * 0.7, this.size * 1.2, this.size * 0.8);
+                
+                // Shoulder armor
+                ctx.fillStyle = '#005566';
                 ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(this.size + 8, 0);
+                ctx.arc(-this.size * 0.7, -this.size * 0.5, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(this.size * 0.7, -this.size * 0.5, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Heavy helmet
+                ctx.fillStyle = '#006677';
+                ctx.fillRect(-this.size * 0.8, -this.size, this.size * 1.6, this.size * 0.6);
+                
+                // Helmet visor (menacing)
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(-this.size * 0.6, -this.size * 0.8, this.size * 1.2, this.size * 0.3);
+                
+                // EPIC heavy weapon system
+                ctx.strokeStyle = '#dddddd';
+                ctx.lineWidth = 8;
+                ctx.beginPath();
+                ctx.moveTo(this.size * 0.2, -3);
+                ctx.lineTo(this.size + 20, -3);
+                ctx.moveTo(this.size * 0.2, 3);
+                ctx.lineTo(this.size + 20, 3);
                 ctx.stroke();
+                
+                // Weapon cooling vents
+                ctx.strokeStyle = '#aaaaaa';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 4; i++) {
+                    const ventX = this.size * 0.6 + i * 4;
+                    ctx.beginPath();
+                    ctx.moveTo(ventX, -6);
+                    ctx.lineTo(ventX, 6);
+                    ctx.stroke();
+                }
+                
+                // Heavy weapon muzzle
+                ctx.fillStyle = '#ffaa00';
+                ctx.beginPath();
+                ctx.arc(this.size + 20, -3, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(this.size + 20, 3, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Rank insignia
+                ctx.fillStyle = '#ffdd00';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚡', 0, this.size * 0.4);
                 
                 ctx.restore();
                 
@@ -3086,6 +3501,9 @@
                 
                 // Draw everything with error handling
                 try {
+                    // Draw atmospheric effects first
+                    drawAtmosphericEffects();
+                    
                     // Draw grid for tactical feeling
                     drawTacticalGrid();
                     
@@ -3140,10 +3558,12 @@
 
         function drawTacticalGrid() {
             ctx.save();
-            ctx.strokeStyle = 'rgba(0, 255, 136, 0.1)';
+            
+            // ADVANCED HELLDIVERS 2 TACTICAL OVERLAY
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.15)'; /* Helldivers gold */
             ctx.lineWidth = 1;
             
-            // Vertical lines
+            // Primary grid lines
             for (let x = 0; x < gameWidth; x += 50) {
                 ctx.beginPath();
                 ctx.moveTo(x, 0);
@@ -3151,12 +3571,96 @@
                 ctx.stroke();
             }
             
-            // Horizontal lines
             for (let y = 0; y < gameHeight; y += 50) {
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(gameWidth, y);
                 ctx.stroke();
+            }
+            
+            // Secondary grid (finer)
+            ctx.strokeStyle = 'rgba(255, 165, 0, 0.08)'; /* Orange */
+            ctx.lineWidth = 0.5;
+            
+            for (let x = 25; x < gameWidth; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, gameHeight);
+                ctx.stroke();
+            }
+            
+            for (let y = 25; y < gameHeight; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(gameWidth, y);
+                ctx.stroke();
+            }
+            
+            // Tactical corner markers
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+            for (let x = 0; x <= gameWidth; x += 100) {
+                for (let y = 0; y <= gameHeight; y += 100) {
+                    ctx.fillRect(x - 2, y - 2, 4, 4);
+                }
+            }
+            
+            ctx.restore();
+        }
+
+        function drawAtmosphericEffects() {
+            ctx.save();
+            
+            // 🌪️ HELLDIVERS 2 ATMOSPHERIC WEATHER SYSTEM
+            
+            // Toxic wind effects
+            const windOffset = Date.now() * 0.001;
+            
+            // Floating dust particles
+            for (let i = 0; i < 15; i++) {
+                const x = (windOffset * 30 + i * 80) % (gameWidth + 100);
+                const y = 50 + i * (gameHeight / 15) + Math.sin(windOffset + i) * 20;
+                const size = 2 + Math.sin(windOffset * 2 + i) * 1;
+                
+                ctx.fillStyle = `rgba(218, 165, 32, ${0.1 + Math.sin(windOffset + i) * 0.05})`; /* Goldenrod dust */
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Atmospheric haze layers
+            for (let layer = 0; layer < 3; layer++) {
+                const layerSpeed = 0.5 + layer * 0.3;
+                const layerOpacity = 0.03 + layer * 0.01;
+                
+                for (let i = 0; i < 8; i++) {
+                    const x = (Date.now() * layerSpeed + i * 150) % (gameWidth + 200);
+                    const y = layer * (gameHeight / 3) + Math.sin(Date.now() * 0.002 + i) * 30;
+                    const size = 40 + layer * 20 + Math.sin(Date.now() * 0.003 + i) * 10;
+                    
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                    gradient.addColorStop(0, `rgba(255, 140, 0, ${layerOpacity})`); /* Orange haze */
+                    gradient.addColorStop(0.7, `rgba(255, 215, 0, ${layerOpacity * 0.5})`); /* Gold haze */
+                    gradient.addColorStop(1, 'transparent');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            
+            // War debris floating
+            for (let i = 0; i < 6; i++) {
+                const x = (Date.now() * 0.02 + i * 120) % (gameWidth + 60);
+                const y = 80 + i * (gameHeight / 6) + Math.sin(Date.now() * 0.004 + i) * 15;
+                const rotation = Date.now() * 0.001 + i;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                ctx.fillStyle = `rgba(139, 69, 19, ${0.15 + Math.sin(Date.now() * 0.002 + i) * 0.05})`; /* Brown debris */
+                ctx.fillRect(-2, -1, 4, 2);
+                ctx.restore();
             }
             
             ctx.restore();
@@ -3351,7 +3855,40 @@
         }
 
         function playShootSound() {
-            playSound(400, 0.05, 'square');
+            // Enhanced Helldivers 2 style weapon sound
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create realistic gunshot with multiple frequencies
+                const frequencies = [200, 800, 1200]; /* Low, mid, high */
+                
+                frequencies.forEach((freq, index) => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    const filter = audioCtx.createBiquadFilter();
+                    
+                    oscillator.connect(filter);
+                    filter.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(freq * 0.3, audioCtx.currentTime + 0.1);
+                    oscillator.type = index === 0 ? 'sawtooth' : index === 1 ? 'square' : 'triangle';
+                    
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(2000, audioCtx.currentTime);
+                    
+                    const volume = 0.02 + index * 0.01;
+                    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                    
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                });
+            } catch (e) {
+                // Fallback to simple sound
+                playSound(400, 0.05, 'square');
+            }
         }
 
         function playAlertSound() {
