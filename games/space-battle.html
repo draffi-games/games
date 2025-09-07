@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Battle Arena - 4v4 Weltraumkampf</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: #001122;
+            cursor: crosshair;
+        }
+
+        .ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ffff;
+        }
+
+        .shield-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ffff;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 10px;
+            border: 2px solid #ffffff;
+            font-size: 14px;
+        }
+
+        .back-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            padding: 10px 20px;
+            background: rgba(100,100,100,0.8);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: 2px solid white;
+        }
+
+        .back-btn:hover {
+            background: rgba(150,150,150,0.9);
+        }
+
+        .team-red { color: #ff4444; }
+        .team-blue { color: #4444ff; }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border: 3px solid #ffff00;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+
+        .game-over button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #0066cc;
+            border: 2px solid #00ffff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="ui">
+        <div>🔴 <span class="team-red">Rot: <span id="redScore">4</span></span></div>
+        <div>🔵 <span class="team-blue">Blau: <span id="blueScore">4</span></span></div>
+    </div>
+    
+    <div class="shield-info">
+        <div>🛡️ Schild: <span id="shieldPercent">100</span>%</div>
+        <div style="width: 100px; height: 10px; background: #333; border-radius: 5px; margin-top: 5px;">
+            <div id="shieldBar" style="width: 100%; height: 100%; background: #00ff00; border-radius: 5px; transition: all 0.3s;"></div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div><strong>Steuerung:</strong></div>
+        <div>WASD - Bewegung</div>
+        <div>SPACE - Schießen</div>
+        <div>SHIFT - Boost</div>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <h2 id="winnerText">Team Rot gewinnt!</h2>
+        <button onclick="startNewGame()">Neues Spiel</button>
+    </div>
+    
+    <a href="../index.html" class="back-btn">← Zurück</a>
+
+    <script>
+        // Ensure DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!canvas || !ctx) {
+                console.error('Canvas oder Context nicht verfügbar!');
+                return;
+            }
+            
+            // Setup canvas
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                console.log('Canvas Größe:', canvas.width, 'x', canvas.height);
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Test if canvas works
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(10, 10, 50, 50);
+            console.log('Canvas Test-Rechteck gezeichnet');
+            
+            startGame();
+        });
+        
+        function startGame() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+
+        // Game variables
+        let gameRunning = true;
+        let ships = [];
+        let bullets = [];
+        let particles = [];
+        let player = null;
+        
+        // Input handling
+        const keys = {};
+        window.addEventListener('keydown', (e) => { keys[e.code] = true; e.preventDefault(); });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; e.preventDefault(); });
+
+        // Ship class
+        class Ship {
+            constructor(x, y, team, isPlayer = false) {
+                this.x = x;
+                this.y = y;
+                this.team = team;
+                this.isPlayer = isPlayer;
+                this.angle = 0;
+                this.vx = 0;
+                this.vy = 0;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.size = 15;
+                this.shootCooldown = 0;
+                this.alive = true;
+                
+                // AI properties
+                this.target = null;
+                this.aiTimer = 0;
+            }
+
+            update() {
+                if (!this.alive) return;
+
+                if (this.isPlayer) {
+                    this.handlePlayerInput();
+                } else {
+                    this.handleAI();
+                }
+
+                // Apply movement
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+
+                // Screen wrapping
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                // Update cooldown
+                if (this.shootCooldown > 0) this.shootCooldown--;
+
+                // Health regeneration
+                if (this.health < this.maxHealth) {
+                    this.health += 0.1;
+                }
+            }
+
+            handlePlayerInput() {
+                // Rotation
+                if (keys['KeyA']) this.angle -= 0.1;
+                if (keys['KeyD']) this.angle += 0.1;
+
+                // Movement
+                let thrust = 0;
+                if (keys['KeyW']) thrust = 0.3;
+                if (keys['KeyS']) thrust = -0.15;
+                
+                // Boost
+                if (keys['ShiftLeft']) thrust *= 2;
+
+                if (thrust !== 0) {
+                    this.vx += Math.cos(this.angle) * thrust;
+                    this.vy += Math.sin(this.angle) * thrust;
+                }
+
+                // Shooting
+                if (keys['Space'] && this.shootCooldown <= 0) {
+                    this.shoot();
+                }
+            }
+
+            handleAI() {
+                this.aiTimer++;
+                
+                // Find target
+                if (this.aiTimer % 60 === 0) {
+                    this.target = this.findNearestEnemy();
+                }
+
+                if (this.target) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const targetAngle = Math.atan2(dy, dx);
+                    
+                    // Turn towards target
+                    let angleDiff = targetAngle - this.angle;
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    
+                    if (Math.abs(angleDiff) > 0.1) {
+                        this.angle += Math.sign(angleDiff) * 0.05;
+                    }
+                    
+                    // Move towards target
+                    if (distance > 150) {
+                        this.vx += Math.cos(this.angle) * 0.2;
+                        this.vy += Math.sin(this.angle) * 0.2;
+                    }
+                    
+                    // Shoot
+                    if (distance < 300 && Math.abs(angleDiff) < 0.5 && this.shootCooldown <= 0) {
+                        this.shoot();
+                    }
+                }
+            }
+
+            findNearestEnemy() {
+                let nearest = null;
+                let minDist = Infinity;
+                
+                for (let ship of ships) {
+                    if (ship.team !== this.team && ship.alive) {
+                        const dx = ship.x - this.x;
+                        const dy = ship.y - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearest = ship;
+                        }
+                    }
+                }
+                return nearest;
+            }
+
+            shoot() {
+                const bulletX = this.x + Math.cos(this.angle) * this.size;
+                const bulletY = this.y + Math.sin(this.angle) * this.size;
+                
+                bullets.push(new Bullet(
+                    bulletX, bulletY, 
+                    this.angle, this.team
+                ));
+                this.shootCooldown = 15;
+
+                // Muzzle flash
+                for (let i = 0; i < 5; i++) {
+                    particles.push(new Particle(
+                        bulletX, bulletY,
+                        Math.cos(this.angle) * 2 + (Math.random() - 0.5) * 3,
+                        Math.sin(this.angle) * 2 + (Math.random() - 0.5) * 3,
+                        '#ffff00', 15
+                    ));
+                }
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                if (this.health <= 0) {
+                    this.die();
+                }
+            }
+
+            die() {
+                this.alive = false;
+                
+                // Explosion effect
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 4;
+                    particles.push(new Particle(
+                        this.x, this.y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        '#ff6600', 40 + Math.random() * 20
+                    ));
+                }
+                
+                updateScore();
+            }
+
+            draw() {
+                if (!this.alive) return;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // Ship body
+                ctx.fillStyle = this.team === 'red' ? '#ff4444' : '#4444ff';
+                ctx.strokeStyle = this.team === 'red' ? '#ff8888' : '#8888ff';
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                ctx.moveTo(this.size, 0);
+                ctx.lineTo(-this.size * 0.6, -this.size * 0.6);
+                ctx.lineTo(-this.size * 0.3, 0);
+                ctx.lineTo(-this.size * 0.6, this.size * 0.6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Health bar
+                if (this.health < this.maxHealth) {
+                    const barWidth = 30;
+                    const barHeight = 4;
+                    const healthPercent = this.health / this.maxHealth;
+                    
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth, barHeight);
+                    
+                    ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 10, barWidth * healthPercent, barHeight);
+                }
+            }
+        }
+
+        // Bullet class
+        class Bullet {
+            constructor(x, y, angle, team) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * 6;
+                this.vy = Math.sin(angle) * 6;
+                this.team = team;
+                this.life = 100;
+                this.size = 3;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+
+                // Screen wrapping
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                return this.life > 0;
+            }
+
+            draw() {
+                ctx.fillStyle = this.team === 'red' ? '#ff6666' : '#6666ff';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.team === 'red' ? '#ff6666' : '#6666ff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Particle class
+        class Particle {
+            constructor(x, y, vx, vy, color, life) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.life = life;
+                this.maxLife = life;
+                this.size = 2 + Math.random() * 3;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.life--;
+                return this.life > 0;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Initialize game
+        function initGame() {
+            ships = [];
+            bullets = [];
+            particles = [];
+            
+            // Create player (red team)
+            player = new Ship(100, canvas.height / 2, 'red', true);
+            ships.push(player);
+            
+            // Create red team AI
+            for (let i = 0; i < 3; i++) {
+                ships.push(new Ship(
+                    Math.random() * canvas.width * 0.3,
+                    Math.random() * canvas.height,
+                    'red'
+                ));
+            }
+            
+            // Create blue team
+            for (let i = 0; i < 4; i++) {
+                ships.push(new Ship(
+                    canvas.width * 0.7 + Math.random() * canvas.width * 0.3,
+                    Math.random() * canvas.height,
+                    'blue'
+                ));
+            }
+            
+            updateScore();
+        }
+
+        // Collision detection
+        function checkCollisions() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                for (let ship of ships) {
+                    if (ship.alive && ship.team !== bullet.team) {
+                        const dx = ship.x - bullet.x;
+                        const dy = ship.y - bullet.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < ship.size) {
+                            ship.takeDamage(25);
+                            bullets.splice(i, 1);
+                            
+                            // Hit particles
+                            for (let j = 0; j < 5; j++) {
+                                particles.push(new Particle(
+                                    bullet.x, bullet.y,
+                                    (Math.random() - 0.5) * 4,
+                                    (Math.random() - 0.5) * 4,
+                                    '#ffff00', 20
+                                ));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update score display
+        function updateScore() {
+            const redAlive = ships.filter(s => s.team === 'red' && s.alive).length;
+            const blueAlive = ships.filter(s => s.team === 'blue' && s.alive).length;
+            
+            document.getElementById('redScore').textContent = redAlive;
+            document.getElementById('blueScore').textContent = blueAlive;
+            
+            // Update player shield
+            if (player && player.alive) {
+                const percent = Math.max(0, Math.round(player.health));
+                document.getElementById('shieldPercent').textContent = percent;
+                document.getElementById('shieldBar').style.width = percent + '%';
+                document.getElementById('shieldBar').style.background = 
+                    percent > 60 ? '#00ff00' : percent > 30 ? '#ffff00' : '#ff0000';
+            }
+            
+            // Check for game over
+            if (redAlive === 0 || blueAlive === 0) {
+                gameRunning = false;
+                document.getElementById('winnerText').textContent = 
+                    redAlive > 0 ? 'Team Rot gewinnt!' : 'Team Blau gewinnt!';
+                document.getElementById('gameOver').style.display = 'block';
+            }
+        }
+
+        // Start new game
+        function startNewGame() {
+            gameRunning = true;
+            document.getElementById('gameOver').style.display = 'none';
+            initGame();
+        }
+
+            // Draw background
+            function drawBackground() {
+                // Space background
+                const gradient = ctx.createRadialGradient(
+                    canvas.width/2, canvas.height/2, 0,
+                    canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)/2
+                );
+                gradient.addColorStop(0, '#001144');
+                gradient.addColorStop(1, '#000011');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Stars
+                ctx.fillStyle = 'white';
+                for (let i = 0; i < 100; i++) {
+                    const x = (i * 137.508) % canvas.width;
+                    const y = (i * 241.111) % canvas.height;
+                    const size = Math.abs(Math.sin(i)) * 2 + 1;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Main game loop
+            function gameLoop() {
+                if (!gameRunning) {
+                    console.log('Game stopped');
+                    return;
+                }
+                
+                // Clear screen
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBackground();
+                
+                // Update game objects
+                ships.forEach(ship => {
+                    if (ship) ship.update();
+                });
+                
+                bullets = bullets.filter(bullet => {
+                    if (bullet && bullet.update()) {
+                        bullet.draw();
+                        return true;
+                    }
+                    return false;
+                });
+                
+                particles = particles.filter(particle => {
+                    if (particle && particle.update()) {
+                        particle.draw();
+                        return true;
+                    }
+                    return false;
+                });
+                
+                // Draw ships
+                ships.forEach(ship => {
+                    if (ship && ship.alive) {
+                        ship.draw();
+                    }
+                });
+                
+                // Check collisions
+                checkCollisions();
+                
+                requestAnimationFrame(gameLoop);
+            }
+
+            // Start game
+            initGame();
+            gameLoop();
+            
+            console.log('Space Battle Arena gestartet!');
+        } // End of startGame function
+    </script>
+</body>
+</html>
