@@ -133,6 +133,8 @@
         <div><strong>Steuerung:</strong></div>
         <div>WASD - Bewegung</div>
         <div>SPACE - Schießen</div>
+        <div>E - Rakete</div>
+        <div>T - Ziel wechseln</div>
         <div>SHIFT - Boost</div>
     </div>
     
@@ -179,13 +181,24 @@
         let gameRunning = true;
         let ships = [];
         let bullets = [];
+        let rockets = [];
         let particles = [];
         let player = null;
+        let currentTarget = null;
         
         // Input handling
         const keys = {};
-        window.addEventListener('keydown', (e) => { keys[e.code] = true; e.preventDefault(); });
-        window.addEventListener('keyup', (e) => { keys[e.code] = false; e.preventDefault(); });
+        const keysPressed = {};
+        window.addEventListener('keydown', (e) => { 
+            if (!keys[e.code]) keysPressed[e.code] = true;
+            keys[e.code] = true; 
+            e.preventDefault(); 
+        });
+        window.addEventListener('keyup', (e) => { 
+            keys[e.code] = false; 
+            keysPressed[e.code] = false;
+            e.preventDefault(); 
+        });
 
         // Ship class
         class Ship {
@@ -203,6 +216,7 @@
                 this.maxShield = 100;
                 this.size = 22;
                 this.shootCooldown = 0;
+                this.rocketCooldown = 0;
                 this.alive = true;
                 this.lastDamageTime = 0;
                 
@@ -233,8 +247,9 @@
                 if (this.y < 0) this.y = canvas.height;
                 if (this.y > canvas.height) this.y = 0;
 
-                // Update cooldown
+                // Update cooldowns
                 if (this.shootCooldown > 0) this.shootCooldown--;
+                if (this.rocketCooldown > 0) this.rocketCooldown--;
 
                 // Shield regeneration (only when not taking damage recently)
                 const now = Date.now();
@@ -253,9 +268,9 @@
             }
 
             handlePlayerInput() {
-                // Rotation - faster turning
-                if (keys['KeyA']) this.angle -= 0.12;
-                if (keys['KeyD']) this.angle += 0.12;
+                // Rotation - slower turning
+                if (keys['KeyA']) this.angle -= 0.06;
+                if (keys['KeyD']) this.angle += 0.06;
 
                 // Movement - more responsive
                 let thrust = 0;
@@ -273,6 +288,17 @@
                 // Shooting - more responsive
                 if (keys['Space'] && this.shootCooldown <= 0) {
                     this.shoot();
+                }
+                
+                // Rocket firing
+                if (keys['KeyE'] && this.rocketCooldown <= 0) {
+                    this.shootRocket();
+                }
+                
+                // Target cycling - only on key press, not hold
+                if (keysPressed['KeyT'] && this.isPlayer) {
+                    this.cycleTarget();
+                    keysPressed['KeyT'] = false; // Prevent multiple triggers
                 }
             }
 
@@ -296,7 +322,7 @@
                     while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
                     
                     if (Math.abs(angleDiff) > 0.1) {
-                        this.angle += Math.sign(angleDiff) * 0.05;
+                        this.angle += Math.sign(angleDiff) * 0.03;
                     }
                     
                     // Move towards target
@@ -348,6 +374,65 @@
                         Math.sin(this.angle) * 2 + (Math.random() - 0.5) * 3,
                         '#ffff00', 15
                     ));
+                }
+            }
+            
+            shootRocket() {
+                const rocketX = this.x + Math.cos(this.angle) * this.size;
+                const rocketY = this.y + Math.sin(this.angle) * this.size;
+                
+                rockets.push(new Rocket(
+                    rocketX, rocketY, 
+                    this.angle, this.team, currentTarget
+                ));
+                this.rocketCooldown = 60; // Much slower firing rate
+
+                // Rocket launch effect
+                for (let i = 0; i < 15; i++) {
+                    particles.push(new Particle(
+                        rocketX, rocketY,
+                        Math.cos(this.angle) * 3 + (Math.random() - 0.5) * 5,
+                        Math.sin(this.angle) * 3 + (Math.random() - 0.5) * 5,
+                        ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)], 25
+                    ));
+                }
+            }
+            
+            cycleTarget() {
+                const enemies = ships.filter(ship => ship.team !== this.team && ship.alive);
+                console.log(`Found ${enemies.length} enemy targets`);
+                
+                if (enemies.length === 0) {
+                    currentTarget = null;
+                    console.log('No targets available');
+                    return;
+                }
+                
+                // Find current target index
+                let currentIndex = currentTarget ? enemies.indexOf(currentTarget) : -1;
+                
+                // Cycle to next target
+                currentIndex = (currentIndex + 1) % enemies.length;
+                currentTarget = enemies[currentIndex];
+                
+                console.log(`Target switched to enemy at (${Math.round(currentTarget.x)}, ${Math.round(currentTarget.y)})`);
+                
+                // Ensure we have a valid target
+                if (!currentTarget || !currentTarget.alive) {
+                    let nearest = null;
+                    let minDist = Infinity;
+                    
+                    for (let enemy of enemies) {
+                        const dx = enemy.x - this.x;
+                        const dy = enemy.y - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearest = enemy;
+                        }
+                    }
+                    currentTarget = nearest;
+                    console.log('Auto-selected nearest target');
                 }
             }
 
@@ -583,6 +668,9 @@
 
                 ctx.restore();
 
+                // Draw targeting indicators
+                this.drawTargetingIndicators();
+
                 // Health and shield bars
                 if (this.health < this.maxHealth || this.shield < this.maxShield) {
                     const barWidth = 35;
@@ -602,6 +690,74 @@
                     ctx.fillStyle = '#00ffff';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth * shieldPercent, barHeight);
                 }
+            }
+            
+            drawTargetingIndicators() {
+                // Only draw indicators for enemy ships when there's a player
+                if (!player || this.team === 'red') return;
+                
+                ctx.save();
+                
+                // Determine if this ship is the current target
+                const isCurrentTarget = currentTarget === this;
+                
+                // Set color based on targeting status
+                ctx.strokeStyle = isCurrentTarget ? '#00ff00' : '#666666'; // Green for target, gray for others
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]); // Dashed line
+                
+                // Draw targeting rectangle
+                const padding = 10;
+                ctx.strokeRect(
+                    this.x - this.size - padding,
+                    this.y - this.size - padding,
+                    (this.size + padding) * 2,
+                    (this.size + padding) * 2
+                );
+                
+                // If this is the current target, add corner indicators
+                if (isCurrentTarget) {
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([]); // Solid line
+                    
+                    const cornerSize = 8;
+                    const rectSize = this.size + padding;
+                    
+                    // Top-left corner
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - rectSize, this.y - rectSize);
+                    ctx.lineTo(this.x - rectSize + cornerSize, this.y - rectSize);
+                    ctx.moveTo(this.x - rectSize, this.y - rectSize);
+                    ctx.lineTo(this.x - rectSize, this.y - rectSize + cornerSize);
+                    ctx.stroke();
+                    
+                    // Top-right corner
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + rectSize, this.y - rectSize);
+                    ctx.lineTo(this.x + rectSize - cornerSize, this.y - rectSize);
+                    ctx.moveTo(this.x + rectSize, this.y - rectSize);
+                    ctx.lineTo(this.x + rectSize, this.y - rectSize + cornerSize);
+                    ctx.stroke();
+                    
+                    // Bottom-left corner
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - rectSize, this.y + rectSize);
+                    ctx.lineTo(this.x - rectSize + cornerSize, this.y + rectSize);
+                    ctx.moveTo(this.x - rectSize, this.y + rectSize);
+                    ctx.lineTo(this.x - rectSize, this.y + rectSize - cornerSize);
+                    ctx.stroke();
+                    
+                    // Bottom-right corner
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + rectSize, this.y + rectSize);
+                    ctx.lineTo(this.x + rectSize - cornerSize, this.y + rectSize);
+                    ctx.moveTo(this.x + rectSize, this.y + rectSize);
+                    ctx.lineTo(this.x + rectSize, this.y + rectSize - cornerSize);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
             }
         }
 
@@ -685,6 +841,142 @@
             }
         }
 
+        // Rocket class (Guided Missile)
+        class Rocket {
+            constructor(x, y, angle, team, target) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.speed = 6; // Base speed
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                this.team = team;
+                this.target = target; // Homing target
+                this.life = 180; // Longer range than bullets
+                this.size = 8; // Bigger than bullets
+                this.turnSpeed = 0.05; // How fast it can turn
+                this.hasTarget = target && target.alive;
+            }
+
+            update() {
+                // Homing behavior - steer toward target
+                if (this.target && this.target.alive) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const targetAngle = Math.atan2(dy, dx);
+                    
+                    // Calculate angle difference
+                    let angleDiff = targetAngle - this.angle;
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    
+                    // More aggressive turning when close to target
+                    let currentTurnSpeed = this.turnSpeed;
+                    if (distance < 100) {
+                        currentTurnSpeed = this.turnSpeed * 2;
+                    }
+                    
+                    // Turn toward target
+                    if (Math.abs(angleDiff) > 0.05) {
+                        this.angle += Math.sign(angleDiff) * Math.min(currentTurnSpeed, Math.abs(angleDiff));
+                    }
+                    
+                    // Update velocity based on new angle
+                    this.vx = Math.cos(this.angle) * this.speed;
+                    this.vy = Math.sin(this.angle) * this.speed;
+                    this.hasTarget = true;
+                } else {
+                    // No target - fly straight
+                    this.hasTarget = false;
+                }
+
+                // Apply movement
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+
+                // Screen wrapping
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+
+                // Create exhaust trail
+                if (Math.random() < 0.8) {
+                    particles.push(new Particle(
+                        this.x - Math.cos(this.angle) * this.size,
+                        this.y - Math.sin(this.angle) * this.size,
+                        -Math.cos(this.angle) * 3 + (Math.random() - 0.5) * 2,
+                        -Math.sin(this.angle) * 3 + (Math.random() - 0.5) * 2,
+                        this.hasTarget ? '#00ff00' : ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)],
+                        20 + Math.random() * 10
+                    ));
+                }
+
+                return this.life > 0;
+            }
+
+            draw() {
+                ctx.save();
+                
+                // Rocket body
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // Main rocket body - color changes if homing
+                const bodyColor = this.hasTarget ? 
+                    (this.team === 'red' ? '#ff6600' : '#0066ff') : 
+                    (this.team === 'red' ? '#ff4444' : '#4444ff');
+                ctx.fillStyle = bodyColor;
+                ctx.strokeStyle = this.hasTarget ? '#00ff00' : '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size, this.size * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Rocket tip
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(this.size, 0);
+                ctx.lineTo(this.size * 0.6, -this.size * 0.2);
+                ctx.lineTo(this.size * 0.6, this.size * 0.2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Rocket fins
+                ctx.fillStyle = this.team === 'red' ? '#aa2222' : '#2222aa';
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 0.8, 0);
+                ctx.lineTo(-this.size * 0.4, -this.size * 0.6);
+                ctx.lineTo(-this.size * 0.2, -this.size * 0.3);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 0.8, 0);
+                ctx.lineTo(-this.size * 0.4, this.size * 0.6);
+                ctx.lineTo(-this.size * 0.2, this.size * 0.3);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.restore();
+                
+                // Glow effect - green if homing
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+                const glowColor = this.hasTarget ? '#00ff00' : (this.team === 'red' ? '#ff6666' : '#6666ff');
+                ctx.fillStyle = glowColor;
+                ctx.shadowBlur = this.hasTarget ? 25 : 20;
+                ctx.shadowColor = glowColor;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
         // Particle class
         class Particle {
             constructor(x, y, vx, vy, color, life) {
@@ -723,7 +1015,9 @@
         function initGame() {
             ships = [];
             bullets = [];
+            rockets = [];
             particles = [];
+            currentTarget = null;
             
             // Create player (red team)
             player = new Ship(100, canvas.height / 2, 'red', true);
@@ -747,11 +1041,23 @@
                 ));
             }
             
+            // Auto-target first enemy for easier testing
+            setTimeout(() => {
+                if (player) {
+                    const enemies = ships.filter(ship => ship.team !== player.team && ship.alive);
+                    if (enemies.length > 0) {
+                        currentTarget = enemies[0];
+                        console.log('Auto-selected first target for testing');
+                    }
+                }
+            }, 100);
+            
             updateScore();
         }
 
         // Collision detection
         function checkCollisions() {
+            // Bullet collisions
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const bullet = bullets[i];
                 
@@ -773,6 +1079,43 @@
                                     (Math.random() - 0.5) * 4,
                                     '#ffff00', 20
                                 ));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Rocket collisions
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const rocket = rockets[i];
+                
+                for (let ship of ships) {
+                    if (ship.alive && ship.team !== rocket.team) {
+                        const dx = ship.x - rocket.x;
+                        const dy = ship.y - rocket.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < ship.size + rocket.size) {
+                            ship.takeDamage(50); // More damage than bullets
+                            rockets.splice(i, 1);
+                            
+                            // Rocket explosion effect
+                            for (let j = 0; j < 20; j++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const speed = 2 + Math.random() * 6;
+                                particles.push(new Particle(
+                                    rocket.x, rocket.y,
+                                    Math.cos(angle) * speed,
+                                    Math.sin(angle) * speed,
+                                    ['#ff6600', '#ffaa00', '#ff0000', '#ffffff'][Math.floor(Math.random() * 4)],
+                                    30 + Math.random() * 20
+                                ));
+                            }
+                            
+                            // Clear target if it was destroyed
+                            if (ship === currentTarget && !ship.alive) {
+                                currentTarget = null;
                             }
                             break;
                         }
@@ -818,28 +1161,112 @@
             // Make function globally available
             window.startNewGame = startNewGame;
 
-            // Draw background
+            // Enhanced background
+            let backgroundTime = 0;
             function drawBackground() {
-                // Space background
+                backgroundTime += 0.01;
+                
+                // Deep space gradient base
                 const gradient = ctx.createRadialGradient(
                     canvas.width/2, canvas.height/2, 0,
-                    canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)/2
+                    canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)
                 );
-                gradient.addColorStop(0, '#001144');
-                gradient.addColorStop(1, '#000011');
+                gradient.addColorStop(0, '#001a33');
+                gradient.addColorStop(0.3, '#001122');
+                gradient.addColorStop(0.7, '#000814');
+                gradient.addColorStop(1, '#000000');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Stars
-                ctx.fillStyle = 'white';
-                for (let i = 0; i < 100; i++) {
-                    const x = (i * 137.508) % canvas.width;
-                    const y = (i * 241.111) % canvas.height;
-                    const size = Math.abs(Math.sin(i)) * 2 + 1;
+                // Nebula clouds
+                ctx.save();
+                for (let i = 0; i < 3; i++) {
+                    ctx.globalAlpha = 0.1 + Math.sin(backgroundTime + i) * 0.05;
+                    const nebulaGradient = ctx.createRadialGradient(
+                        canvas.width * (0.3 + i * 0.2), canvas.height * (0.4 + i * 0.3), 50,
+                        canvas.width * (0.3 + i * 0.2), canvas.height * (0.4 + i * 0.3), 300
+                    );
+                    const colors = ['#ff4400', '#4400ff', '#00ff44'];
+                    nebulaGradient.addColorStop(0, colors[i]);
+                    nebulaGradient.addColorStop(1, 'transparent');
+                    ctx.fillStyle = nebulaGradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                ctx.restore();
+
+                // Animated stars - different layers for parallax effect
+                ctx.save();
+                // Layer 1 - distant stars
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                for (let i = 0; i < 200; i++) {
+                    const x = ((i * 137.508 + backgroundTime * 10) % canvas.width);
+                    const y = ((i * 241.111 + backgroundTime * 5) % canvas.height);
+                    const size = Math.abs(Math.sin(i + backgroundTime)) * 1.5 + 0.5;
+                    const twinkle = Math.sin(backgroundTime * 2 + i) * 0.5 + 0.5;
+                    ctx.globalAlpha = twinkle * 0.8;
                     ctx.beginPath();
                     ctx.arc(x, y, size, 0, Math.PI * 2);
                     ctx.fill();
                 }
+                
+                // Layer 2 - medium stars
+                ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
+                for (let i = 0; i < 50; i++) {
+                    const x = ((i * 234.567 + backgroundTime * 20) % canvas.width);
+                    const y = ((i * 345.678 + backgroundTime * 15) % canvas.height);
+                    const size = Math.abs(Math.sin(i * 2 + backgroundTime)) * 2 + 1;
+                    const twinkle = Math.sin(backgroundTime * 3 + i * 2) * 0.5 + 0.5;
+                    ctx.globalAlpha = twinkle;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Layer 3 - bright foreground stars
+                ctx.fillStyle = 'rgba(255, 255, 200, 1)';
+                for (let i = 0; i < 25; i++) {
+                    const x = ((i * 456.789 + backgroundTime * 30) % canvas.width);
+                    const y = ((i * 567.890 + backgroundTime * 25) % canvas.height);
+                    const size = Math.abs(Math.sin(i * 3 + backgroundTime * 2)) * 3 + 1.5;
+                    const twinkle = Math.sin(backgroundTime * 4 + i * 3) * 0.3 + 0.7;
+                    ctx.globalAlpha = twinkle;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'white';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+                ctx.restore();
+
+                // Cosmic dust particles
+                ctx.save();
+                ctx.globalAlpha = 0.3;
+                ctx.fillStyle = '#444466';
+                for (let i = 0; i < 100; i++) {
+                    const x = ((i * 123.456 + backgroundTime * 50) % (canvas.width + 100)) - 50;
+                    const y = ((i * 789.012 + backgroundTime * 40) % (canvas.height + 100)) - 50;
+                    const size = Math.random() * 2 + 0.5;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // Distant galaxies
+                ctx.save();
+                ctx.globalAlpha = 0.2;
+                for (let i = 0; i < 5; i++) {
+                    const x = (canvas.width * 0.2) + (i * canvas.width * 0.2);
+                    const y = (canvas.height * 0.3) + (Math.sin(i + backgroundTime * 0.1) * canvas.height * 0.4);
+                    const galaxyGradient = ctx.createRadialGradient(x, y, 5, x, y, 40);
+                    galaxyGradient.addColorStop(0, 'rgba(255, 200, 100, 0.5)');
+                    galaxyGradient.addColorStop(0.5, 'rgba(100, 150, 255, 0.3)');
+                    galaxyGradient.addColorStop(1, 'transparent');
+                    ctx.fillStyle = galaxyGradient;
+                    ctx.fillRect(x-40, y-40, 80, 80);
+                }
+                ctx.restore();
             }
 
             // Main game loop
@@ -861,6 +1288,14 @@
                 bullets = bullets.filter(bullet => {
                     if (bullet && bullet.update()) {
                         bullet.draw();
+                        return true;
+                    }
+                    return false;
+                });
+                
+                rockets = rockets.filter(rocket => {
+                    if (rocket && rocket.update()) {
+                        rocket.draw();
                         return true;
                     }
                     return false;
