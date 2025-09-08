@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Das Geheimnis des Professors - Puzzle Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #2F1B14 0%, #1A0E0A 50%, #2F1B14 100%);
+            color: #DAA520;
+            font-family: 'Georgia', 'Times', serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-attachment: fixed;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(218, 165, 32, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 69, 19, 0.15) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(90deg, rgba(139, 69, 19, 0.3) 0%, rgba(218, 165, 32, 0.2) 50%, rgba(139, 69, 19, 0.3) 100%);
+            border-bottom: 3px solid #DAA520;
+            box-shadow: 0 4px 20px rgba(218, 165, 32, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            color: #F4D03F;
+            text-shadow: 
+                0 0 20px rgba(244, 208, 63, 0.8),
+                0 0 40px rgba(218, 165, 32, 0.5);
+            animation: mysticalGlow 3s ease-in-out infinite alternate;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            color: #DAA520;
+            font-style: italic;
+            opacity: 0.9;
+        }
+
+        @keyframes mysticalGlow {
+            from { 
+                text-shadow: 
+                    0 0 20px rgba(244, 208, 63, 0.8),
+                    0 0 40px rgba(218, 165, 32, 0.5);
+            }
+            to { 
+                text-shadow: 
+                    0 0 30px rgba(244, 208, 63, 1),
+                    0 0 60px rgba(218, 165, 32, 0.8),
+                    0 0 80px rgba(139, 69, 19, 0.3);
+            }
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #DAA520;
+            text-decoration: none;
+            font-size: 1.1em;
+            padding: 12px 16px;
+            border: 2px solid #DAA520;
+            border-radius: 8px;
+            background: rgba(139, 69, 19, 0.2);
+            transition: all 0.3s;
+            font-family: 'Georgia', serif;
+        }
+
+        .back-link:hover {
+            background: rgba(218, 165, 32, 0.3);
+            color: #F4D03F;
+            box-shadow: 0 0 20px rgba(218, 165, 32, 0.5);
+            transform: translateX(-2px);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .story-intro {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.4) 0%, rgba(47, 27, 20, 0.6) 100%);
+            border: 2px solid #DAA520;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            max-width: 800px;
+            text-align: center;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(244, 208, 63, 0.2);
+        }
+
+        .story-intro h2 {
+            color: #F4D03F;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(244, 208, 63, 0.5);
+        }
+
+        .room-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .room-btn {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.6) 0%, rgba(47, 27, 20, 0.8) 100%);
+            color: #DAA520;
+            border: 2px solid #8B4513;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Georgia', serif;
+            font-size: 1em;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .room-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(218, 165, 32, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .room-btn:hover::before {
+            left: 100%;
+        }
+
+        .room-btn:hover {
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.4) 0%, rgba(139, 69, 19, 0.6) 100%);
+            border-color: #DAA520;
+            box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .room-btn.active {
+            background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
+            color: #2F1B14;
+            border-color: #F4D03F;
+            box-shadow: 0 0 25px rgba(218, 165, 32, 0.6);
+            font-weight: bold;
+        }
+
+        .room-btn.locked {
+            background: #3C2B1F;
+            color: #6B4E3D;
+            border-color: #4A3428;
+            cursor: not-allowed;
+        }
+
+        .game-area {
+            background: linear-gradient(135deg, rgba(47, 27, 20, 0.6) 0%, rgba(139, 69, 19, 0.3) 100%);
+            border: 3px solid #8B4513;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(218, 165, 32, 0.1);
+        }
+
+        .room-title {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #F4D03F;
+            text-shadow: 0 0 15px rgba(244, 208, 63, 0.6);
+            font-weight: normal;
+        }
+
+        .story-text {
+            background: rgba(139, 69, 19, 0.2);
+            border: 1px solid #8B4513;
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin: 20px 0;
+            color: #F4D03F;
+            font-style: italic;
+            text-align: left;
+        }
+
+        .puzzle-question {
+            font-size: 1.3em;
+            color: #DAA520;
+            margin: 25px 0;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(218, 165, 32, 0.5);
+        }
+
+        .choice-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .choice-btn {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.6) 0%, rgba(47, 27, 20, 0.8) 100%);
+            color: #DAA520;
+            border: 2px solid #8B4513;
+            border-radius: 12px;
+            padding: 18px 25px;
+            font-size: 1.1em;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .choice-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(218, 165, 32, 0.3) 0%, transparent 70%);
+            transition: all 0.4s;
+            transform: translate(-50%, -50%);
+        }
+
+        .choice-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .choice-btn:hover {
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.4) 0%, rgba(139, 69, 19, 0.6) 100%);
+            border-color: #DAA520;
+            color: #F4D03F;
+            box-shadow: 0 8px 25px rgba(218, 165, 32, 0.4);
+            transform: translateY(-3px);
+        }
+
+        .choice-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .success {
+            background: linear-gradient(135deg, rgba(46, 125, 50, 0.3) 0%, rgba(76, 175, 80, 0.2) 100%);
+            border: 2px solid #4CAF50;
+            color: #81C784;
+        }
+
+        .error {
+            background: linear-gradient(135deg, rgba(183, 28, 28, 0.3) 0%, rgba(244, 67, 54, 0.2) 100%);
+            border: 2px solid #F44336;
+            color: #EF5350;
+        }
+
+        .progress {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .progress-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3C2B1F;
+            border: 2px solid #6B4E3D;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .progress-dot.completed {
+            background: linear-gradient(135deg, #DAA520 0%, #F4D03F 100%);
+            border-color: #F4D03F;
+            box-shadow: 0 0 20px rgba(218, 165, 32, 0.6);
+        }
+
+        .progress-dot.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #2F1B14;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .final-message {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.6) 0%, rgba(218, 165, 32, 0.4) 100%);
+            border: 3px solid #DAA520;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 30px 0;
+            font-size: 1.3em;
+            text-shadow: 0 0 20px rgba(244, 208, 63, 0.8);
+            animation: mysticalGlow 2s ease-in-out infinite alternate;
+            text-align: center;
+        }
+
+        .final-message h2 {
+            color: #F4D03F;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #DAA520 0%, #F4D03F 100%);
+            color: #2F1B14;
+            border: none;
+            border-radius: 12px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .restart-btn:hover {
+            background: linear-gradient(135deg, #F4D03F 0%, #FFD700 100%);
+            box-shadow: 0 8px 25px rgba(244, 208, 63, 0.5);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.2em;
+            }
+            
+            .choice-buttons {
+                gap: 12px;
+            }
+            
+            .choice-btn {
+                padding: 15px 20px;
+                font-size: 1em;
+            }
+            
+            .room-selector {
+                gap: 8px;
+            }
+            
+            .room-btn {
+                padding: 10px 14px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Zurück zur Galerie</a>
+    
+    <div class="header">
+        <h1>📚 Das Geheimnis des Professors 🔍</h1>
+        <p class="subtitle">Ein mysteriöses Rätselabenteuer</p>
+    </div>
+
+    <div class="main-container">
+        <div class="story-intro">
+            <h2>Die Geschichte beginnt...</h2>
+            <p>Professor Blackwood ist spurlos verschwunden! Sein Haus steht leer, aber überall finden sich mysteriöse Hinweise. 
+            Er hat eine Serie von Rätseln hinterlassen, die zu seinem wertvollsten Schatz führen sollen. 
+            Kannst du das Geheimnis lüften und herausfinden, was mit dem Professor geschehen ist?</p>
+        </div>
+
+        <div class="room-selector">
+            <button class="room-btn active" onclick="selectRoom(1)">📚 Bücherzimmer</button>
+            <button class="room-btn locked" onclick="selectRoom(2)">🍳 Küche</button>
+            <button class="room-btn locked" onclick="selectRoom(3)">🧪 Labor</button>
+            <button class="room-btn locked" onclick="selectRoom(4)">🌸 Garten</button>
+            <button class="room-btn locked" onclick="selectRoom(5)">🏛️ Tresor</button>
+        </div>
+
+        <div class="game-area">
+            <h2 class="room-title" id="roomTitle">Das Bücherzimmer</h2>
+            
+            <div class="story-text" id="storyText">
+                Du betrittst das staubige Bücherzimmer des Professors. Überall stehen alte Bücher und auf seinem Schreibtisch liegt ein vergilbter Zettel. 
+                "Mein Lieblingsbuch steht im 3. Regal, 7. Position von links. Die Seitenzahl meines Geheimnisses ist die Summe aller Ziffern meines Alters: 73 Jahre."
+            </div>
+
+            <div class="puzzle-question" id="puzzleQuestion">
+                Was ist die Summe der Ziffern von 73? (7 + 3 = ?)
+            </div>
+
+            <div class="choice-buttons" id="choiceButtons">
+                <button class="choice-btn" onclick="checkAnswer('A')">A) 9</button>
+                <button class="choice-btn" onclick="checkAnswer('B')">B) 10</button>
+                <button class="choice-btn" onclick="checkAnswer('C')">C) 11</button>
+            </div>
+
+            <div class="message" id="messageBox" style="display: none;"></div>
+
+            <div class="progress" id="progressBar">
+                <div class="progress-dot" id="dot1" title="Bücherzimmer"></div>
+                <div class="progress-dot" id="dot2" title="Küche"></div>
+                <div class="progress-dot" id="dot3" title="Labor"></div>
+                <div class="progress-dot" id="dot4" title="Garten"></div>
+                <div class="progress-dot" id="dot5" title="Tresor"></div>
+            </div>
+        </div>
+
+        <div class="final-message" id="finalMessage" style="display: none;">
+            <h2>🎉 Das Geheimnis ist gelüftet! 🎉</h2>
+            <p>Du hast alle Rätsel gelöst und den Tresor des Professors geöffnet! 
+            Darin findest du nicht Gold oder Juwelen, sondern sein wertvollstes Buch - 
+            eine Sammlung all seines Wissens und seiner Entdeckungen. 
+            Der wahre Schatz war das Wissen selbst!</p>
+            <p><em>"Das größte Abenteuer ist das Lernen." - Professor Blackwood</em></p>
+            <button class="restart-btn" onclick="resetGame()">Neues Abenteuer starten</button>
+        </div>
+    </div>
+
+    <script>
+        const rooms = [
+            {
+                title: "Das Bücherzimmer",
+                story: "Du betrittst das staubige Bücherzimmer des Professors. Überall stehen alte Bücher und auf seinem Schreibtisch liegt ein vergilbter Zettel. \"Mein Lieblingsbuch steht im 3. Regal, 7. Position von links. Die Seitenzahl meines Geheimnisses ist die Summe aller Ziffern meines Alters: 73 Jahre.\"",
+                question: "Was ist die Summe der Ziffern von 73? (7 + 3 = ?)",
+                choices: ["A) 9", "B) 10", "C) 11"],
+                correct: "B",
+                explanation: "7 + 3 = 10. Du findest das Buch und darin einen Hinweis für den nächsten Raum!"
+            },
+            {
+                title: "Die Küche",
+                story: "In der gemütlichen Küche des Professors findest du drei Gläser mit verschiedenfarbiger Marmelade. Ein Zettel klebt am alten Kühlschrank: \"Rot wie Erdbeeren, süß wie Honig, aber nicht gelb wie die Sonne. Welche Marmelade öffnet den nächsten Hinweis?\"",
+                question: "Welche Farbe ist gemeint?",
+                choices: ["A) Gelb", "B) Rot", "C) Grün"],
+                correct: "B",
+                explanation: "Die rote Erdbeermarmelade! Darunter versteckt sich ein weiterer Hinweis."
+            },
+            {
+                title: "Das Labor",
+                story: "Das Labor ist voller glitzernder Reagenzgläser und komplizierter Apparate. Ein offenes Experiment-Protokoll liegt auf dem Tisch: \"Mische 2 Tropfen blaue Flüssigkeit mit 1 Tropfen roter Flüssigkeit. Das Ergebnis zeigt dir den Weg zum nächsten Rätsel.\"",
+                question: "Welche Farbe entsteht, wenn man Blau und Rot mischt?",
+                choices: ["A) Grün", "B) Lila/Violett", "C) Orange"],
+                correct: "B",
+                explanation: "Richtig! Blau + Rot = Lila. Die violette Mischung leuchtet auf und zeigt dir den nächsten Hinweis!"
+            },
+            {
+                title: "Der Garten",
+                story: "Im verwunschenen Garten siehst du drei wunderschöne Blumenbeete in verschiedenen Himmelsrichtungen. Eine alte Plakette am Gartentor ist verwittert aber lesbar: \"Wenn die Sonne aufgeht im Osten, wo geht sie unter? Dort findest du die vorletzte Wahrheit.\"",
+                question: "In welcher Himmelsrichtung geht die Sonne unter?",
+                choices: ["A) Norden", "B) Süden", "C) Westen"],
+                correct: "C",
+                explanation: "Genau! Die Sonne geht im Westen unter. Im westlichen Blumenbeet findest du den letzten Schlüssel!"
+            },
+            {
+                title: "Der Tresor",
+                story: "Du stehst vor dem alten, imposanten Tresor des Professors. Drei geheimnisvolle Symbole leuchten auf den Zahlenschlössern: ⭐ 🌙 ☀️. Ein letzter, goldener Zettel ist an der Tresortür befestigt: \"Was leuchtet am hellsten von allen und wärmt uns jeden Tag mit seinem Licht?\"",
+                question: "Welches Symbol musst du wählen?",
+                choices: ["A) ⭐ Stern", "B) 🌙 Mond", "C) ☀️ Sonne"],
+                correct: "C",
+                explanation: "Die Sonne! Der Tresor öffnet sich mit einem mystischen Knacken..."
+            }
+        ];
+
+        let currentRoom = 1;
+        let unlockedRooms = 1;
+
+        // Load progress from localStorage
+        function loadProgress() {
+            const saved = localStorage.getItem('professorMysteryProgress');
+            if (saved) {
+                const data = JSON.parse(saved);
+                unlockedRooms = data.unlockedRooms || 1;
+                updateRoomButtons();
+                updateProgress();
+            }
+        }
+
+        function saveProgress() {
+            const data = {
+                unlockedRooms: unlockedRooms
+            };
+            localStorage.setItem('professorMysteryProgress', JSON.stringify(data));
+        }
+
+        function selectRoom(room) {
+            if (room <= unlockedRooms) {
+                currentRoom = room;
+                document.getElementById('messageBox').style.display = 'none';
+                
+                const roomData = rooms[room - 1];
+                document.getElementById('roomTitle').textContent = roomData.title;
+                document.getElementById('storyText').textContent = roomData.story;
+                document.getElementById('puzzleQuestion').textContent = roomData.question;
+                
+                const choiceButtons = document.getElementById('choiceButtons');
+                choiceButtons.innerHTML = '';
+                
+                roomData.choices.forEach((choice, index) => {
+                    const letter = String.fromCharCode(65 + index); // A, B, C
+                    const button = document.createElement('button');
+                    button.className = 'choice-btn';
+                    button.textContent = choice;
+                    button.onclick = () => checkAnswer(letter);
+                    choiceButtons.appendChild(button);
+                });
+                
+                updateRoomButtons();
+            }
+        }
+
+        function updateRoomButtons() {
+            const buttons = document.querySelectorAll('.room-btn');
+            buttons.forEach((btn, index) => {
+                const roomNum = index + 1;
+                if (roomNum <= unlockedRooms) {
+                    btn.classList.remove('locked');
+                    btn.style.pointerEvents = 'auto';
+                } else {
+                    btn.classList.add('locked');
+                    btn.style.pointerEvents = 'none';
+                }
+                
+                if (roomNum === currentRoom) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function checkAnswer(selectedLetter) {
+            const roomData = rooms[currentRoom - 1];
+            const messageBox = document.getElementById('messageBox');
+            
+            if (selectedLetter === roomData.correct) {
+                messageBox.className = 'message success';
+                messageBox.textContent = '✅ Richtig! ' + roomData.explanation;
+                messageBox.style.display = 'block';
+                
+                // Mark room as completed
+                document.getElementById(`dot${currentRoom}`).classList.add('completed');
+                
+                // Unlock next room
+                if (currentRoom < 5) {
+                    unlockedRooms = Math.max(unlockedRooms, currentRoom + 1);
+                    saveProgress();
+                    
+                    setTimeout(() => {
+                        selectRoom(currentRoom + 1);
+                    }, 3000);
+                } else {
+                    // Game completed!
+                    setTimeout(() => {
+                        document.getElementById('finalMessage').style.display = 'block';
+                        document.querySelector('.game-area').style.display = 'none';
+                    }, 3000);
+                }
+                
+                updateRoomButtons();
+            } else {
+                messageBox.className = 'message error';
+                messageBox.textContent = '❌ Das ist nicht richtig. Lies den Hinweis nochmal aufmerksam durch...';
+                messageBox.style.display = 'block';
+                
+                setTimeout(() => {
+                    messageBox.style.display = 'none';
+                }, 4000);
+            }
+        }
+
+        function updateProgress() {
+            for (let i = 1; i <= unlockedRooms - 1; i++) {
+                document.getElementById(`dot${i}`).classList.add('completed');
+            }
+        }
+
+        function resetGame() {
+            currentRoom = 1;
+            unlockedRooms = 1;
+            localStorage.removeItem('professorMysteryProgress');
+            
+            document.getElementById('finalMessage').style.display = 'none';
+            document.querySelector('.game-area').style.display = 'block';
+            
+            // Reset progress dots
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`dot${i}`).classList.remove('completed');
+            }
+            
+            selectRoom(1);
+        }
+
+        // Initialize game
+        loadProgress();
+        selectRoom(currentRoom);
+    </script>
+</body>
+</html>
