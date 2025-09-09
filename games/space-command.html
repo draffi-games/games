@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Command - Galactic RTS</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggMkwxMCA2SDE0TDEwLjUgOUwxMiAxNEw4IDExTDQgMTRMNS41IDlMMiA2SDZMOCAyWiIgZmlsbD0iIzAwZmZmZiIgc3Ryb2tlPSIjMDBhYWFhIiBzdHJva2Utd2lkdGg9IjAuNSIvPgo8L3N2Zz4K">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Courier New', monospace;
+            color: #00ffff;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+            background: radial-gradient(circle at center, #001122 0%, #000000 100%);
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-panel {
+            position: absolute;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            padding: 10px;
+            backdrop-filter: blur(5px);
+            pointer-events: auto;
+        }
+
+        .resources-panel {
+            top: 10px;
+            left: 10px;
+            min-width: 200px;
+        }
+
+        .minimap-panel {
+            bottom: 10px;
+            left: 10px;
+            width: 200px;
+            height: 150px;
+        }
+
+        .unit-info-panel {
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 300px;
+        }
+
+        .command-panel {
+            bottom: 10px;
+            right: 10px;
+            width: 200px;
+        }
+
+        .resource-display {
+            font-size: 16px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .resource-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        .minimap {
+            width: 180px;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00aaaa;
+            margin-top: 5px;
+        }
+
+        .command-button {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            background: rgba(0, 100, 150, 0.3);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .command-button:hover {
+            background: rgba(0, 150, 200, 0.5);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .command-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .unit-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00aaaa;
+            margin-right: 5px;
+            text-align: center;
+            line-height: 22px;
+            font-size: 12px;
+        }
+
+        .health-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 0, 0, 0.3);
+            border: 1px solid #600;
+            margin-top: 5px;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 0.3s;
+        }
+
+        .game-title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+            text-align: center;
+            z-index: 20;
+        }
+
+        .start-button {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 20px;
+            background: rgba(0, 100, 200, 0.5);
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            cursor: pointer;
+            font-family: inherit;
+            border-radius: 5px;
+            transition: all 0.3s;
+            z-index: 20;
+        }
+
+        .start-button:hover {
+            background: rgba(0, 150, 255, 0.7);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+        }
+
+        .loading-text {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #00ffff;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 10px;
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            overflow: hidden;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff, #0088ff);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .victory-screen, .defeat-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 40;
+        }
+
+        .victory-text {
+            font-size: 36px;
+            color: #00ff00;
+            text-shadow: 0 0 20px #00ff00;
+            margin-bottom: 20px;
+        }
+
+        .defeat-text {
+            font-size: 36px;
+            color: #ff0000;
+            text-shadow: 0 0 20px #ff0000;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #00ffff;
+            text-decoration: none;
+            font-size: 16px;
+            z-index: 50;
+            padding: 5px 10px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ffff;
+            border-radius: 3px;
+        }
+
+        .back-link:hover {
+            background: rgba(0, 50, 80, 0.9);
+        }
+
+        .selection-box {
+            position: absolute;
+            border: 2px dashed #00ffff;
+            background: rgba(0, 255, 255, 0.1);
+            pointer-events: none;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .ui-panel {
+                font-size: 12px;
+            }
+            
+            .resources-panel, .command-panel {
+                width: 150px;
+            }
+            
+            .unit-info-panel {
+                min-width: 250px;
+            }
+            
+            .minimap-panel {
+                width: 150px;
+                height: 100px;
+            }
+            
+            .minimap {
+                width: 130px;
+                height: 80px;
+            }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 30, 60, 0.95);
+            border: 1px solid #00ffff;
+            color: #ffffff;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Zurück zur Galerie</a>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="ui-overlay">
+        <div class="resources-panel ui-panel">
+            <div class="resource-display">
+                <span class="resource-icon">💎</span>
+                <span>Energie: <span id="energyCount">1000</span></span>
+            </div>
+            <div class="resource-display">
+                <span class="resource-icon">👥</span>
+                <span>Bevölkerung: <span id="populationCount">0</span>/<span id="populationMax">200</span></span>
+            </div>
+        </div>
+
+        <div class="minimap-panel ui-panel">
+            <div>Karte</div>
+            <canvas class="minimap" id="minimapCanvas"></canvas>
+        </div>
+
+        <div class="unit-info-panel ui-panel">
+            <div id="selectedUnitInfo">
+                <div>Keine Einheit ausgewählt</div>
+            </div>
+        </div>
+
+        <div class="command-panel ui-panel">
+            <div id="buildCommands" style="display: none;">
+                <button class="command-button" id="buildWorker" title="Arbeiter-Schiff bauen (50 Energie)">🔧 Arbeiter (Q)</button>
+                <button class="command-button" id="buildShipyard" title="Werft bauen (200 Energie)">🏭 Werft (W)</button>
+                <button class="command-button" id="buildExtractor" title="Extraktor bauen (150 Energie)">⚡ Extraktor (E)</button>
+                <button class="command-button" id="buildTurret" title="Verteidigungsturm bauen (100 Energie)">🎯 Turm (R)</button>
+            </div>
+            <div id="shipCommands" style="display: none;">
+                <button class="command-button" id="buildFighter" title="Jäger bauen (50 Energie)">🚀 Jäger (Q)</button>
+                <button class="command-button" id="buildCruiser" title="Kreuzer bauen (150 Energie)">🛸 Kreuzer (W)</button>
+                <button class="command-button" id="buildCarrier" title="Träger bauen (400 Energie)">🛰️ Träger (E)</button>
+            </div>
+            <div id="unitCommands" style="display: none;">
+                <button class="command-button" id="attackCommand" title="Angreifen">⚔️ Angriff (A)</button>
+                <button class="command-button" id="patrolCommand" title="Patrouillieren">🔄 Patrouille (P)</button>
+                <button class="command-button" id="stopCommand" title="Stoppen">⏹️ Stop (S)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="selection-box" id="selectionBox"></div>
+    
+    <div class="tooltip" id="tooltip"></div>
+
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-text">Lade Space Command...</div>
+        <div class="loading-bar">
+            <div class="loading-progress" id="loadingProgress"></div>
+        </div>
+    </div>
+
+    <div id="mainMenu" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 25; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <div class="game-title">SPACE COMMAND</div>
+        <div style="margin: 20px 0; color: #00aaaa; font-size: 18px; text-align: center;">
+            Galaktische Echtzeitstrategie
+        </div>
+        <button class="start-button" onclick="startGame()">Mission beginnen</button>
+        <div style="margin-top: 30px; color: #008888; font-size: 14px; text-align: center; max-width: 600px;">
+            <p>Befehlige eine Raumflotte, sammle Ressourcen, baue Basen und kämpfe um die Kontrolle des Weltalls!</p>
+            <p style="margin-top: 10px;"><strong>Steuerung:</strong> Linksklick = Auswählen, Rechtsklick = Bewegen/Angreifen, WASD = Kamera</p>
+            <p style="margin-top: 10px;"><strong>Taktik:</strong> Baue Arbeiter für Ressourcen, dann Werften für Kampfschiffe. Zerstöre die feindliche Basis!</p>
+        </div>
+        <div style="margin-top: 20px; color: #006666; font-size: 12px; text-align: center;">
+            <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                <div><strong>🔧 Arbeiter (Q)</strong><br/>Sammelt Ressourcen</div>
+                <div><strong>🚀 Jäger</strong><br/>Schnell & günstig</div>
+                <div><strong>🛸 Kreuzer</strong><br/>Ausgewogen</div>
+                <div><strong>🛰️ Träger</strong><br/>Stark & langsam</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="victory-screen" id="victoryScreen">
+        <div class="victory-text">MISSION ERFOLGREICH!</div>
+        <div style="color: #00ffff; font-size: 18px; margin-bottom: 20px;">Der Feind wurde besiegt!</div>
+        <button class="start-button" onclick="restartGame()">Neue Mission</button>
+    </div>
+
+    <div class="defeat-screen" id="defeatScreen">
+        <div class="defeat-text">MISSION FEHLGESCHLAGEN</div>
+        <div style="color: #00ffff; font-size: 18px; margin-bottom: 20px;">Deine Basis wurde zerstört!</div>
+        <button class="start-button" onclick="restartGame()">Erneut versuchen</button>
+    </div>
+
+    <script>
+        // Game Core System
+        console.log("Space Command loading...");
+        
+        // Global variables
+        let canvas, ctx, minimapCanvas, minimapCtx;
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Canvas setup
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            minimapCanvas = document.getElementById('minimapCanvas');
+            minimapCtx = minimapCanvas.getContext('2d');
+            
+            // Initialize canvas size and start menu animation
+            resizeCanvas();
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            menuAnimation();
+        });
+
+        // Game constants
+        const GAME_CONFIG = {
+            MAP_WIDTH: 2400,
+            MAP_HEIGHT: 1600,
+            GRID_SIZE: 40,
+            UNIT_TYPES: {
+                WORKER: { cost: 50, buildTime: 3000, health: 50, speed: 60, damage: 5, range: 50 },
+                FIGHTER: { cost: 50, buildTime: 3000, health: 80, speed: 120, damage: 15, range: 120 },
+                CRUISER: { cost: 150, buildTime: 8000, health: 200, speed: 80, damage: 30, range: 150 },
+                CARRIER: { cost: 400, buildTime: 20000, health: 500, speed: 40, damage: 50, range: 200 }
+            },
+            BUILDING_TYPES: {
+                COMMAND_CENTER: { cost: 0, buildTime: 0, health: 1000 },
+                SHIPYARD: { cost: 200, buildTime: 15000, health: 400 },
+                EXTRACTOR: { cost: 150, buildTime: 10000, health: 200 },
+                TURRET: { cost: 100, buildTime: 8000, health: 300, damage: 25, range: 180 }
+            }
+        };
+
+        // Game State
+        class GameEngine {
+            constructor() {
+                this.isRunning = false;
+                this.lastTime = 0;
+                this.camera = { x: 0, y: 0 };
+                this.selectedUnits = [];
+                this.isSelecting = false;
+                this.selectionStart = { x: 0, y: 0 };
+                this.buildMode = null;
+                this.buildPreview = null;
+                
+                // Game entities
+                this.units = [];
+                this.buildings = [];
+                this.projectiles = [];
+                this.effects = [];
+                this.resources = [];
+                
+                // Players
+                this.player = {
+                    id: 'player',
+                    energy: 1000,
+                    population: 0,
+                    maxPopulation: 200,
+                    color: '#00ffff'
+                };
+                
+                this.enemy = {
+                    id: 'enemy',
+                    energy: 1000,
+                    population: 0,
+                    maxPopulation: 200,
+                    color: '#ff4444'
+                };
+
+                this.inputHandler = new InputHandler(this);
+                this.renderer = new Renderer(this);
+                this.aiManager = new AIManager(this);
+                this.soundManager = soundManager;
+                
+                this.initializeMap();
+            }
+
+            initializeMap() {
+                // Generate resource nodes
+                for (let i = 0; i < 12; i++) {
+                    this.resources.push({
+                        id: 'resource_' + i,
+                        x: Math.random() * (GAME_CONFIG.MAP_WIDTH - 200) + 100,
+                        y: Math.random() * (GAME_CONFIG.MAP_HEIGHT - 200) + 100,
+                        amount: 2000 + Math.random() * 3000,
+                        maxAmount: 5000,
+                        type: 'energy'
+                    });
+                }
+
+                // Player starting base
+                this.addBuilding('COMMAND_CENTER', 200, 200, 'player');
+                this.addUnit('WORKER', 250, 250, 'player');
+                this.addUnit('WORKER', 270, 250, 'player');
+
+                // Enemy starting base
+                this.addBuilding('COMMAND_CENTER', GAME_CONFIG.MAP_WIDTH - 200, GAME_CONFIG.MAP_HEIGHT - 200, 'enemy');
+                this.addUnit('WORKER', GAME_CONFIG.MAP_WIDTH - 250, GAME_CONFIG.MAP_HEIGHT - 250, 'enemy');
+                this.addUnit('WORKER', GAME_CONFIG.MAP_WIDTH - 270, GAME_CONFIG.MAP_HEIGHT - 250, 'enemy');
+            }
+
+            addUnit(type, x, y, owner) {
+                const config = GAME_CONFIG.UNIT_TYPES[type];
+                const unit = {
+                    id: Date.now() + '_' + Math.random(),
+                    type,
+                    x, y,
+                    owner,
+                    health: config.health,
+                    maxHealth: config.health,
+                    speed: config.speed,
+                    damage: config.damage,
+                    range: config.range,
+                    target: null,
+                    destination: null,
+                    state: 'idle', // idle, moving, attacking, building, mining
+                    buildProgress: 0,
+                    angle: Math.random() * Math.PI * 2,
+                    selected: false,
+                    lastAttack: 0
+                };
+                
+                this.units.push(unit);
+                if (owner === 'player') this.player.population++;
+                else this.enemy.population++;
+                
+                return unit;
+            }
+
+            addBuilding(type, x, y, owner) {
+                const config = GAME_CONFIG.BUILDING_TYPES[type];
+                const building = {
+                    id: Date.now() + '_' + Math.random(),
+                    type,
+                    x: Math.floor(x / GAME_CONFIG.GRID_SIZE) * GAME_CONFIG.GRID_SIZE,
+                    y: Math.floor(y / GAME_CONFIG.GRID_SIZE) * GAME_CONFIG.GRID_SIZE,
+                    owner,
+                    health: config.health,
+                    maxHealth: config.health,
+                    buildProgress: type === 'COMMAND_CENTER' ? 1 : 0,
+                    isComplete: type === 'COMMAND_CENTER',
+                    productionQueue: [],
+                    currentProduction: null,
+                    productionProgress: 0,
+                    selected: false
+                };
+                
+                this.buildings.push(building);
+                return building;
+            }
+
+            addProjectile(x, y, targetX, targetY, damage, owner) {
+                this.projectiles.push({
+                    id: Date.now() + '_' + Math.random(),
+                    x, y,
+                    targetX, targetY,
+                    damage,
+                    owner,
+                    speed: 300,
+                    life: 3000
+                });
+            }
+
+            addEffect(x, y, type, duration = 1000) {
+                this.effects.push({
+                    id: Date.now() + '_' + Math.random(),
+                    x, y, type, duration,
+                    startTime: Date.now(),
+                    particles: []
+                });
+            }
+
+            update(deltaTime) {
+                if (!this.isRunning) return;
+
+                this.updateUnits(deltaTime);
+                this.updateBuildings(deltaTime);
+                this.updateProjectiles(deltaTime);
+                this.updateEffects(deltaTime);
+                this.aiManager.update(deltaTime);
+                this.updateUI();
+                this.checkVictoryConditions();
+            }
+
+            updateUnits(deltaTime) {
+                this.units.forEach(unit => {
+                    // Movement
+                    if (unit.destination && unit.state !== 'building') {
+                        const dx = unit.destination.x - unit.x;
+                        const dy = unit.destination.y - unit.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance > 5) {
+                            const moveDistance = unit.speed * deltaTime;
+                            unit.x += (dx / distance) * moveDistance;
+                            unit.y += (dy / distance) * moveDistance;
+                            unit.angle = Math.atan2(dy, dx);
+                            unit.state = 'moving';
+                        } else {
+                            unit.destination = null;
+                            unit.state = 'idle';
+                        }
+                    }
+
+                    // Combat
+                    if (unit.target && unit.state !== 'building') {
+                        const dx = unit.target.x - unit.x;
+                        const dy = unit.target.y - unit.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance <= unit.range) {
+                            if (Date.now() - unit.lastAttack > 1000) {
+                                this.addProjectile(unit.x, unit.y, unit.target.x, unit.target.y, unit.damage, unit.owner);
+                                if (this.soundManager) this.soundManager.play('laser');
+                                unit.lastAttack = Date.now();
+                            }
+                            unit.state = 'attacking';
+                        } else {
+                            unit.destination = { x: unit.target.x, y: unit.target.y };
+                        }
+                    }
+
+                    // Resource gathering for workers
+                    if (unit.type === 'WORKER' && unit.state === 'mining') {
+                        const nearbyResource = this.resources.find(r => {
+                            const dx = r.x - unit.x;
+                            const dy = r.y - unit.y;
+                            return Math.sqrt(dx * dx + dy * dy) < 60;
+                        });
+                        
+                        if (nearbyResource && nearbyResource.amount > 0) {
+                            const mined = Math.min(10, nearbyResource.amount);
+                            nearbyResource.amount -= mined;
+                            if (unit.owner === 'player') this.player.energy += mined;
+                            else this.enemy.energy += mined;
+                        }
+                    }
+                });
+
+                // Remove dead units
+                this.units = this.units.filter(unit => {
+                    if (unit.health <= 0) {
+                        this.addEffect(unit.x, unit.y, 'explosion');
+                        if (this.soundManager) this.soundManager.play('explosion');
+                        if (unit.owner === 'player') this.player.population--;
+                        else this.enemy.population--;
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            updateBuildings(deltaTime) {
+                this.buildings.forEach(building => {
+                    // Construction
+                    if (!building.isComplete) {
+                        building.buildProgress += deltaTime / GAME_CONFIG.BUILDING_TYPES[building.type].buildTime;
+                        if (building.buildProgress >= 1) {
+                            building.isComplete = true;
+                            building.buildProgress = 1;
+                        }
+                    }
+
+                    // Production
+                    if (building.isComplete && building.currentProduction) {
+                        building.productionProgress += deltaTime / GAME_CONFIG.UNIT_TYPES[building.currentProduction].buildTime;
+                        
+                        if (building.productionProgress >= 1) {
+                            // Spawn unit
+                            const spawnX = building.x + Math.random() * 80 - 40;
+                            const spawnY = building.y + 60 + Math.random() * 40;
+                            this.addUnit(building.currentProduction, spawnX, spawnY, building.owner);
+                            
+                            building.currentProduction = building.productionQueue.shift() || null;
+                            building.productionProgress = 0;
+                        }
+                    }
+
+                    // Turret auto-attack
+                    if (building.type === 'TURRET' && building.isComplete) {
+                        const enemies = this.units.filter(u => u.owner !== building.owner);
+                        const target = enemies.find(enemy => {
+                            const dx = enemy.x - building.x;
+                            const dy = enemy.y - building.y;
+                            return Math.sqrt(dx * dx + dy * dy) <= GAME_CONFIG.BUILDING_TYPES.TURRET.range;
+                        });
+
+                        if (target && (!building.lastAttack || Date.now() - building.lastAttack > 800)) {
+                            this.addProjectile(building.x, building.y, target.x, target.y, GAME_CONFIG.BUILDING_TYPES.TURRET.damage, building.owner);
+                            if (this.soundManager) this.soundManager.play('laser');
+                            building.lastAttack = Date.now();
+                        }
+                    }
+                });
+
+                // Remove destroyed buildings
+                this.buildings = this.buildings.filter(building => {
+                    if (building.health <= 0) {
+                        this.addEffect(building.x, building.y, 'explosion', 2000);
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            updateProjectiles(deltaTime) {
+                this.projectiles.forEach(projectile => {
+                    const dx = projectile.targetX - projectile.x;
+                    const dy = projectile.targetY - projectile.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 5) {
+                        const moveDistance = projectile.speed * deltaTime;
+                        projectile.x += (dx / distance) * moveDistance;
+                        projectile.y += (dy / distance) * moveDistance;
+                    } else {
+                        // Hit target
+                        const target = this.units.find(u => {
+                            const d = Math.sqrt((u.x - projectile.targetX) ** 2 + (u.y - projectile.targetY) ** 2);
+                            return d < 30 && u.owner !== projectile.owner;
+                        }) || this.buildings.find(b => {
+                            const d = Math.sqrt((b.x - projectile.targetX) ** 2 + (b.y - projectile.targetY) ** 2);
+                            return d < 40 && b.owner !== projectile.owner;
+                        });
+                        
+                        if (target) {
+                            target.health -= projectile.damage;
+                            this.addEffect(projectile.targetX, projectile.targetY, 'hit');
+                            if (this.soundManager) this.soundManager.play('hit');
+                        }
+                        
+                        projectile.life = 0;
+                    }
+                    
+                    projectile.life -= deltaTime;
+                });
+
+                this.projectiles = this.projectiles.filter(p => p.life > 0);
+            }
+
+            updateEffects(deltaTime) {
+                this.effects = this.effects.filter(effect => {
+                    const age = Date.now() - effect.startTime;
+                    return age < effect.duration;
+                });
+            }
+
+            updateUI() {
+                document.getElementById('energyCount').textContent = Math.floor(this.player.energy);
+                document.getElementById('populationCount').textContent = this.player.population;
+                document.getElementById('populationMax').textContent = this.player.maxPopulation;
+
+                // Update selected unit info
+                const infoPanel = document.getElementById('selectedUnitInfo');
+                if (this.selectedUnits.length === 1) {
+                    const unit = this.selectedUnits[0];
+                    infoPanel.innerHTML = `
+                        <div class="unit-icon">${this.getUnitIcon(unit.type)}</div>
+                        <div>${this.getUnitName(unit.type)}</div>
+                        <div class="health-bar">
+                            <div class="health-bar-fill" style="width: ${(unit.health/unit.maxHealth)*100}%"></div>
+                        </div>
+                        <div style="font-size: 12px; margin-top: 5px;">${Math.floor(unit.health)}/${unit.maxHealth} HP</div>
+                    `;
+                } else if (this.selectedUnits.length > 1) {
+                    infoPanel.innerHTML = `<div>${this.selectedUnits.length} Einheiten ausgewählt</div>`;
+                } else {
+                    infoPanel.innerHTML = '<div>Keine Einheit ausgewählt</div>';
+                }
+
+                // Show/hide command panels
+                const buildCommands = document.getElementById('buildCommands');
+                const shipCommands = document.getElementById('shipCommands');
+                const unitCommands = document.getElementById('unitCommands');
+                
+                buildCommands.style.display = 'none';
+                shipCommands.style.display = 'none';
+                unitCommands.style.display = 'none';
+
+                if (this.selectedUnits.length === 1) {
+                    const selected = this.selectedUnits[0];
+                    if (selected.type === 'COMMAND_CENTER') {
+                        buildCommands.style.display = 'block';
+                    } else if (selected.type === 'SHIPYARD') {
+                        shipCommands.style.display = 'block';
+                    } else {
+                        unitCommands.style.display = 'block';
+                    }
+                }
+            }
+
+            getUnitIcon(type) {
+                const icons = {
+                    WORKER: '🔧',
+                    FIGHTER: '🚀',
+                    CRUISER: '🛸',
+                    CARRIER: '🛰️',
+                    COMMAND_CENTER: '🏢',
+                    SHIPYARD: '🏭',
+                    EXTRACTOR: '⚡',
+                    TURRET: '🎯'
+                };
+                return icons[type] || '❓';
+            }
+
+            getUnitName(type) {
+                const names = {
+                    WORKER: 'Arbeiter-Schiff',
+                    FIGHTER: 'Jäger',
+                    CRUISER: 'Kreuzer',
+                    CARRIER: 'Träger',
+                    COMMAND_CENTER: 'Kommandozentrale',
+                    SHIPYARD: 'Werft',
+                    EXTRACTOR: 'Extraktor',
+                    TURRET: 'Verteidigungsturm'
+                };
+                return names[type] || 'Unbekannt';
+            }
+
+            checkVictoryConditions() {
+                const playerBuildings = this.buildings.filter(b => b.owner === 'player');
+                const enemyBuildings = this.buildings.filter(b => b.owner === 'enemy');
+                
+                const playerCommandCenters = playerBuildings.filter(b => b.type === 'COMMAND_CENTER');
+                const enemyCommandCenters = enemyBuildings.filter(b => b.type === 'COMMAND_CENTER');
+
+                if (enemyCommandCenters.length === 0) {
+                    this.endGame('victory');
+                } else if (playerCommandCenters.length === 0) {
+                    this.endGame('defeat');
+                }
+            }
+
+            endGame(result) {
+                this.isRunning = false;
+                if (result === 'victory') {
+                    document.getElementById('victoryScreen').style.display = 'flex';
+                } else {
+                    document.getElementById('defeatScreen').style.display = 'flex';
+                }
+            }
+
+            start() {
+                this.isRunning = true;
+                this.gameLoop();
+            }
+
+            gameLoop() {
+                if (!this.isRunning) return;
+
+                const currentTime = performance.now();
+                const deltaTime = (currentTime - this.lastTime) / 1000;
+                this.lastTime = currentTime;
+
+                this.update(deltaTime);
+                this.renderer.render();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        // Input Handler
+        class InputHandler {
+            constructor(game) {
+                this.game = game;
+                this.keys = {};
+                this.mouse = { x: 0, y: 0, down: false };
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                // Keyboard
+                window.addEventListener('keydown', e => this.keys[e.key.toLowerCase()] = true);
+                window.addEventListener('keyup', e => this.keys[e.key.toLowerCase()] = false);
+
+                // Mouse
+                canvas.addEventListener('mousedown', e => this.onMouseDown(e));
+                canvas.addEventListener('mouseup', e => this.onMouseUp(e));
+                canvas.addEventListener('mousemove', e => this.onMouseMove(e));
+
+                // UI Buttons
+                this.setupUIListeners();
+
+                // Camera movement
+                this.updateCamera();
+            }
+
+            onMouseDown(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left + this.game.camera.x;
+                const y = e.clientY - rect.top + this.game.camera.y;
+
+                if (e.button === 0) { // Left click
+                    if (this.game.buildMode) {
+                        this.placeBuildingAt(x, y);
+                    } else {
+                        this.startSelection(e.clientX - rect.left, e.clientY - rect.top);
+                    }
+                } else if (e.button === 2) { // Right click
+                    this.rightClickCommand(x, y);
+                }
+            }
+
+            onMouseUp(e) {
+                if (e.button === 0 && this.game.isSelecting) {
+                    this.endSelection(e);
+                }
+            }
+
+            onMouseMove(e) {
+                const rect = canvas.getBoundingClientRect();
+                this.mouse.x = e.clientX - rect.left;
+                this.mouse.y = e.clientY - rect.top;
+
+                if (this.game.isSelecting) {
+                    this.updateSelection();
+                }
+            }
+
+            startSelection(screenX, screenY) {
+                this.game.isSelecting = true;
+                this.game.selectionStart = { x: screenX, y: screenY };
+                document.getElementById('selectionBox').style.display = 'block';
+            }
+
+            updateSelection() {
+                const box = document.getElementById('selectionBox');
+                const startX = Math.min(this.game.selectionStart.x, this.mouse.x);
+                const startY = Math.min(this.game.selectionStart.y, this.mouse.y);
+                const width = Math.abs(this.mouse.x - this.game.selectionStart.x);
+                const height = Math.abs(this.mouse.y - this.game.selectionStart.y);
+
+                box.style.left = startX + 'px';
+                box.style.top = startY + 'px';
+                box.style.width = width + 'px';
+                box.style.height = height + 'px';
+            }
+
+            endSelection(e) {
+                this.game.isSelecting = false;
+                document.getElementById('selectionBox').style.display = 'none';
+
+                const rect = canvas.getBoundingClientRect();
+                const endX = e.clientX - rect.left;
+                const endY = e.clientY - rect.top;
+
+                const selectionBounds = {
+                    left: Math.min(this.game.selectionStart.x, endX) + this.game.camera.x,
+                    right: Math.max(this.game.selectionStart.x, endX) + this.game.camera.x,
+                    top: Math.min(this.game.selectionStart.y, endY) + this.game.camera.y,
+                    bottom: Math.max(this.game.selectionStart.y, endY) + this.game.camera.y
+                };
+
+                // Select units and buildings
+                this.game.selectedUnits.forEach(u => u.selected = false);
+                this.game.selectedUnits = [];
+
+                [...this.game.units, ...this.game.buildings]
+                    .filter(entity => entity.owner === 'player')
+                    .forEach(entity => {
+                        if (entity.x >= selectionBounds.left && entity.x <= selectionBounds.right &&
+                            entity.y >= selectionBounds.top && entity.y <= selectionBounds.bottom) {
+                            entity.selected = true;
+                            this.game.selectedUnits.push(entity);
+                        }
+                    });
+
+                // Single click selection
+                if (Math.abs(endX - this.game.selectionStart.x) < 5 && Math.abs(endY - this.game.selectionStart.y) < 5) {
+                    const clickX = this.game.selectionStart.x + this.game.camera.x;
+                    const clickY = this.game.selectionStart.y + this.game.camera.y;
+                    
+                    const clicked = [...this.game.units, ...this.game.buildings]
+                        .find(entity => {
+                            const dx = entity.x - clickX;
+                            const dy = entity.y - clickY;
+                            return Math.sqrt(dx * dx + dy * dy) < 30 && entity.owner === 'player';
+                        });
+
+                    if (clicked) {
+                        this.game.selectedUnits = [clicked];
+                        clicked.selected = true;
+                        if (this.game.soundManager) this.game.soundManager.play('select');
+                    }
+                }
+            }
+
+            rightClickCommand(x, y) {
+                if (this.game.selectedUnits.length === 0) return;
+
+                // Check if clicking on enemy
+                const target = [...this.game.units, ...this.game.buildings]
+                    .find(entity => {
+                        const dx = entity.x - x;
+                        const dy = entity.y - y;
+                        return Math.sqrt(dx * dx + dy * dy) < 30 && entity.owner === 'enemy';
+                    });
+
+                // Check if clicking on resource
+                const resource = this.game.resources.find(r => {
+                    const dx = r.x - x;
+                    const dy = r.y - y;
+                    return Math.sqrt(dx * dx + dy * dy) < 40;
+                });
+
+                this.game.selectedUnits.forEach(unit => {
+                    if (target) {
+                        unit.target = target;
+                        unit.destination = null;
+                    } else if (resource && unit.type === 'WORKER') {
+                        unit.destination = { x: resource.x, y: resource.y };
+                        unit.state = 'mining';
+                        unit.target = null;
+                    } else {
+                        unit.destination = { x, y };
+                        unit.target = null;
+                        unit.state = 'idle';
+                    }
+                });
+            }
+
+            placeBuildingAt(x, y) {
+                if (!this.game.buildMode) return;
+
+                const cost = GAME_CONFIG.BUILDING_TYPES[this.game.buildMode].cost;
+                if (this.game.player.energy >= cost) {
+                    this.game.player.energy -= cost;
+                    this.game.addBuilding(this.game.buildMode, x, y, 'player');
+                    if (this.game.soundManager) this.game.soundManager.play('build');
+                }
+
+                this.game.buildMode = null;
+                canvas.style.cursor = 'crosshair';
+            }
+
+            updateCamera() {
+                setInterval(() => {
+                    const speed = 200;
+                    
+                    if (this.keys['w'] || this.keys['arrowup']) this.game.camera.y -= speed;
+                    if (this.keys['s'] || this.keys['arrowdown']) this.game.camera.y += speed;
+                    if (this.keys['a'] || this.keys['arrowleft']) this.game.camera.x -= speed;
+                    if (this.keys['d'] || this.keys['arrowright']) this.game.camera.x += speed;
+
+                    // Keep camera in bounds
+                    this.game.camera.x = Math.max(0, Math.min(GAME_CONFIG.MAP_WIDTH - canvas.width, this.game.camera.x));
+                    this.game.camera.y = Math.max(0, Math.min(GAME_CONFIG.MAP_HEIGHT - canvas.height, this.game.camera.y));
+                }, 16);
+            }
+
+            setupUIListeners() {
+                // Building buttons
+                document.getElementById('buildWorker').addEventListener('click', () => this.queueProduction('WORKER'));
+                document.getElementById('buildShipyard').addEventListener('click', () => this.enterBuildMode('SHIPYARD'));
+                document.getElementById('buildExtractor').addEventListener('click', () => this.enterBuildMode('EXTRACTOR'));
+                document.getElementById('buildTurret').addEventListener('click', () => this.enterBuildMode('TURRET'));
+
+                // Ship buttons
+                document.getElementById('buildFighter').addEventListener('click', () => this.queueProduction('FIGHTER'));
+                document.getElementById('buildCruiser').addEventListener('click', () => this.queueProduction('CRUISER'));
+                document.getElementById('buildCarrier').addEventListener('click', () => this.queueProduction('CARRIER'));
+
+                // Keyboard shortcuts
+                window.addEventListener('keydown', e => {
+                    if (e.key.toLowerCase() === 'q') this.queueProduction('WORKER');
+                    if (e.key.toLowerCase() === 'w') this.enterBuildMode('SHIPYARD');
+                    if (e.key.toLowerCase() === 'e') this.enterBuildMode('EXTRACTOR');
+                });
+            }
+
+            enterBuildMode(buildingType) {
+                this.game.buildMode = buildingType;
+                canvas.style.cursor = 'copy';
+            }
+
+            queueProduction(unitType) {
+                if (this.game.selectedUnits.length !== 1) return;
+                
+                const building = this.game.selectedUnits[0];
+                if (!building.productionQueue) return;
+
+                const cost = GAME_CONFIG.UNIT_TYPES[unitType].cost;
+                if (this.game.player.energy >= cost) {
+                    this.game.player.energy -= cost;
+                    
+                    if (!building.currentProduction) {
+                        building.currentProduction = unitType;
+                        building.productionProgress = 0;
+                    } else {
+                        building.productionQueue.push(unitType);
+                    }
+                }
+            }
+        }
+
+        // Renderer
+        class Renderer {
+            constructor(game) {
+                this.game = game;
+                this.stars = this.generateStars();
+            }
+
+            generateStars() {
+                const stars = [];
+                for (let i = 0; i < 200; i++) {
+                    stars.push({
+                        x: Math.random() * GAME_CONFIG.MAP_WIDTH,
+                        y: Math.random() * GAME_CONFIG.MAP_HEIGHT,
+                        brightness: Math.random()
+                    });
+                }
+                return stars;
+            }
+
+            render() {
+                this.clearCanvas();
+                this.drawBackground();
+                this.drawResources();
+                this.drawBuildings();
+                this.drawUnits();
+                this.drawProjectiles();
+                this.drawEffects();
+                this.drawUI();
+                this.renderMinimap();
+            }
+
+            clearCanvas() {
+                ctx.fillStyle = '#000011';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            drawBackground() {
+                // Stars
+                ctx.fillStyle = '#ffffff';
+                this.stars.forEach(star => {
+                    const screenX = star.x - this.game.camera.x;
+                    const screenY = star.y - this.game.camera.y;
+                    
+                    if (screenX >= -10 && screenX <= canvas.width + 10 && 
+                        screenY >= -10 && screenY <= canvas.height + 10) {
+                        ctx.globalAlpha = star.brightness;
+                        ctx.fillRect(screenX, screenY, 1, 1);
+                    }
+                });
+                ctx.globalAlpha = 1;
+            }
+
+            drawResources() {
+                this.game.resources.forEach(resource => {
+                    const screenX = resource.x - this.game.camera.x;
+                    const screenY = resource.y - this.game.camera.y;
+                    
+                    if (this.isOnScreen(screenX, screenY)) {
+                        ctx.fillStyle = '#ffff00';
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, 15, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.strokeStyle = '#ffaa00';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        
+                        // Amount text
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '12px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(Math.floor(resource.amount), screenX, screenY - 20);
+                    }
+                });
+            }
+
+            drawBuildings() {
+                this.game.buildings.forEach(building => {
+                    const screenX = building.x - this.game.camera.x;
+                    const screenY = building.y - this.game.camera.y;
+                    
+                    if (this.isOnScreen(screenX, screenY)) {
+                        const color = building.owner === 'player' ? '#00ffff' : '#ff4444';
+                        
+                        // Building base
+                        ctx.fillStyle = building.isComplete ? color : '#666666';
+                        ctx.fillRect(screenX - 20, screenY - 20, 40, 40);
+                        
+                        // Building border
+                        ctx.strokeStyle = building.selected ? '#ffffff' : color;
+                        ctx.lineWidth = building.selected ? 3 : 1;
+                        ctx.strokeRect(screenX - 20, screenY - 20, 40, 40);
+                        
+                        // Icon
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '16px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(this.game.getUnitIcon(building.type), screenX, screenY + 5);
+                        
+                        // Health bar
+                        this.drawHealthBar(screenX, screenY - 30, building.health / building.maxHealth);
+                        
+                        // Build progress
+                        if (!building.isComplete) {
+                            this.drawProgressBar(screenX, screenY + 25, building.buildProgress);
+                        }
+                        
+                        // Production progress
+                        if (building.currentProduction) {
+                            this.drawProgressBar(screenX, screenY + 35, building.productionProgress, '#00ff00');
+                        }
+                    }
+                });
+            }
+
+            drawUnits() {
+                this.game.units.forEach(unit => {
+                    const screenX = unit.x - this.game.camera.x;
+                    const screenY = unit.y - this.game.camera.y;
+                    
+                    if (this.isOnScreen(screenX, screenY)) {
+                        const color = unit.owner === 'player' ? '#00ffff' : '#ff4444';
+                        
+                        // Unit body
+                        ctx.save();
+                        ctx.translate(screenX, screenY);
+                        ctx.rotate(unit.angle);
+                        
+                        ctx.fillStyle = color;
+                        ctx.beginPath();
+                        ctx.moveTo(10, 0);
+                        ctx.lineTo(-8, -6);
+                        ctx.lineTo(-5, 0);
+                        ctx.lineTo(-8, 6);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Engine trail
+                        if (unit.state === 'moving') {
+                            ctx.fillStyle = '#00aaff';
+                            ctx.globalAlpha = 0.7;
+                            ctx.fillRect(-12, -2, 6, 4);
+                            ctx.globalAlpha = 1;
+                        }
+                        
+                        ctx.restore();
+                        
+                        // Selection circle
+                        if (unit.selected) {
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.arc(screenX, screenY, 20, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                        
+                        // Health bar
+                        this.drawHealthBar(screenX, screenY - 25, unit.health / unit.maxHealth);
+                    }
+                });
+            }
+
+            drawProjectiles() {
+                this.game.projectiles.forEach(projectile => {
+                    const screenX = projectile.x - this.game.camera.x;
+                    const screenY = projectile.y - this.game.camera.y;
+                    
+                    if (this.isOnScreen(screenX, screenY)) {
+                        ctx.fillStyle = '#ffff00';
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Glow effect
+                        ctx.strokeStyle = '#ffaa00';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                });
+            }
+
+            drawEffects() {
+                this.game.effects.forEach(effect => {
+                    const screenX = effect.x - this.game.camera.x;
+                    const screenY = effect.y - this.game.camera.y;
+                    
+                    if (this.isOnScreen(screenX, screenY)) {
+                        const age = (Date.now() - effect.startTime) / effect.duration;
+                        const alpha = 1 - age;
+                        
+                        if (effect.type === 'explosion') {
+                            const radius = age * 30;
+                            ctx.globalAlpha = alpha;
+                            ctx.fillStyle = '#ff6600';
+                            ctx.beginPath();
+                            ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.globalAlpha = 1;
+                        } else if (effect.type === 'hit') {
+                            ctx.globalAlpha = alpha;
+                            ctx.fillStyle = '#ffff00';
+                            ctx.fillRect(screenX - 3, screenY - 3, 6, 6);
+                            ctx.globalAlpha = 1;
+                        }
+                    }
+                });
+            }
+
+            drawHealthBar(x, y, healthPercent) {
+                const width = 30;
+                const height = 4;
+                
+                ctx.fillStyle = '#660000';
+                ctx.fillRect(x - width/2, y, width, height);
+                
+                const healthWidth = width * healthPercent;
+                const color = healthPercent > 0.6 ? '#00ff00' : healthPercent > 0.3 ? '#ffff00' : '#ff0000';
+                ctx.fillStyle = color;
+                ctx.fillRect(x - width/2, y, healthWidth, height);
+            }
+
+            drawProgressBar(x, y, progress, color = '#00ffff') {
+                const width = 30;
+                const height = 3;
+                
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(x - width/2, y, width, height);
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(x - width/2, y, width * progress, height);
+            }
+
+            drawUI() {
+                // Build preview
+                if (this.game.buildMode) {
+                    const mouseX = this.game.inputHandler.mouse.x + this.game.camera.x;
+                    const mouseY = this.game.inputHandler.mouse.y + this.game.camera.y;
+                    const gridX = Math.floor(mouseX / GAME_CONFIG.GRID_SIZE) * GAME_CONFIG.GRID_SIZE;
+                    const gridY = Math.floor(mouseY / GAME_CONFIG.GRID_SIZE) * GAME_CONFIG.GRID_SIZE;
+                    
+                    const screenX = gridX - this.game.camera.x;
+                    const screenY = gridY - this.game.camera.y;
+                    
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(screenX - 20, screenY - 20, 40, 40);
+                    ctx.setLineDash([]);
+                }
+            }
+
+            renderMinimap() {
+                minimapCtx.fillStyle = '#000022';
+                minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+                
+                const scaleX = minimapCanvas.width / GAME_CONFIG.MAP_WIDTH;
+                const scaleY = minimapCanvas.height / GAME_CONFIG.MAP_HEIGHT;
+                
+                // Resources
+                minimapCtx.fillStyle = '#ffff00';
+                this.game.resources.forEach(resource => {
+                    const x = resource.x * scaleX;
+                    const y = resource.y * scaleY;
+                    minimapCtx.fillRect(x - 1, y - 1, 2, 2);
+                });
+                
+                // Buildings
+                this.game.buildings.forEach(building => {
+                    const x = building.x * scaleX;
+                    const y = building.y * scaleY;
+                    minimapCtx.fillStyle = building.owner === 'player' ? '#00ffff' : '#ff4444';
+                    minimapCtx.fillRect(x - 2, y - 2, 4, 4);
+                });
+                
+                // Units
+                this.game.units.forEach(unit => {
+                    const x = unit.x * scaleX;
+                    const y = unit.y * scaleY;
+                    minimapCtx.fillStyle = unit.owner === 'player' ? '#00aaaa' : '#aa2222';
+                    minimapCtx.fillRect(x - 1, y - 1, 2, 2);
+                });
+                
+                // Camera viewport
+                const viewX = this.game.camera.x * scaleX;
+                const viewY = this.game.camera.y * scaleY;
+                const viewWidth = canvas.width * scaleX;
+                const viewHeight = canvas.height * scaleY;
+                
+                minimapCtx.strokeStyle = '#ffffff';
+                minimapCtx.lineWidth = 1;
+                minimapCtx.strokeRect(viewX, viewY, viewWidth, viewHeight);
+            }
+
+            isOnScreen(x, y, margin = 50) {
+                return x >= -margin && x <= canvas.width + margin && 
+                       y >= -margin && y <= canvas.height + margin;
+            }
+        }
+
+        // AI Manager
+        class AIManager {
+            constructor(game) {
+                this.game = game;
+                this.lastAction = 0;
+                this.strategy = 'economy'; // economy, military, attack
+                this.actionDelay = 2000;
+            }
+
+            update(deltaTime) {
+                if (Date.now() - this.lastAction < this.actionDelay) return;
+
+                this.analyzeGameState();
+                this.executeStrategy();
+                
+                this.lastAction = Date.now();
+            }
+
+            analyzeGameState() {
+                const enemyUnits = this.game.units.filter(u => u.owner === 'enemy');
+                const enemyBuildings = this.game.buildings.filter(b => b.owner === 'enemy');
+                
+                if (this.game.enemy.energy > 500 && enemyUnits.length < 15) {
+                    this.strategy = 'military';
+                } else if (enemyUnits.length > 10) {
+                    this.strategy = 'attack';
+                } else {
+                    this.strategy = 'economy';
+                }
+            }
+
+            executeStrategy() {
+                const commandCenters = this.game.buildings.filter(b => b.owner === 'enemy' && b.type === 'COMMAND_CENTER');
+                const shipyards = this.game.buildings.filter(b => b.owner === 'enemy' && b.type === 'SHIPYARD');
+                const workers = this.game.units.filter(u => u.owner === 'enemy' && u.type === 'WORKER');
+
+                if (this.strategy === 'economy') {
+                    // Build workers
+                    if (workers.length < 4 && commandCenters.length > 0) {
+                        this.produceUnit(commandCenters[0], 'WORKER');
+                    }
+                    
+                    // Build extractors
+                    if (this.game.enemy.energy > 200 && workers.length > 0) {
+                        const nearestResource = this.findNearestResource(workers[0]);
+                        if (nearestResource) {
+                            this.game.addBuilding('EXTRACTOR', nearestResource.x, nearestResource.y, 'enemy');
+                            this.game.enemy.energy -= 150;
+                        }
+                    }
+                    
+                    // Build shipyard
+                    if (shipyards.length === 0 && this.game.enemy.energy > 200) {
+                        const commandCenter = commandCenters[0];
+                        if (commandCenter) {
+                            this.game.addBuilding('SHIPYARD', commandCenter.x + 80, commandCenter.y, 'enemy');
+                            this.game.enemy.energy -= 200;
+                        }
+                    }
+                } else if (this.strategy === 'military') {
+                    // Produce military units
+                    if (shipyards.length > 0) {
+                        const unitType = Math.random() < 0.6 ? 'FIGHTER' : 'CRUISER';
+                        this.produceUnit(shipyards[0], unitType);
+                    }
+                } else if (this.strategy === 'attack') {
+                    // Send attack waves
+                    const fighters = this.game.units.filter(u => u.owner === 'enemy' && u.type !== 'WORKER');
+                    const playerBuildings = this.game.buildings.filter(b => b.owner === 'player');
+                    
+                    if (fighters.length > 5 && playerBuildings.length > 0) {
+                        const target = playerBuildings[0];
+                        fighters.forEach(unit => {
+                            unit.target = target;
+                            unit.destination = null;
+                        });
+                    }
+                }
+
+                // Worker AI
+                workers.forEach(worker => {
+                    if (worker.state === 'idle') {
+                        const nearestResource = this.findNearestResource(worker);
+                        if (nearestResource) {
+                            worker.destination = { x: nearestResource.x, y: nearestResource.y };
+                            worker.state = 'mining';
+                        }
+                    }
+                });
+            }
+
+            produceUnit(building, unitType) {
+                const cost = GAME_CONFIG.UNIT_TYPES[unitType].cost;
+                if (this.game.enemy.energy >= cost) {
+                    this.game.enemy.energy -= cost;
+                    
+                    if (!building.currentProduction) {
+                        building.currentProduction = unitType;
+                        building.productionProgress = 0;
+                    } else if (building.productionQueue.length < 3) {
+                        building.productionQueue.push(unitType);
+                    }
+                }
+            }
+
+            findNearestResource(unit) {
+                let nearest = null;
+                let nearestDistance = Infinity;
+                
+                this.game.resources.forEach(resource => {
+                    if (resource.amount > 0) {
+                        const dx = resource.x - unit.x;
+                        const dy = resource.y - unit.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < nearestDistance) {
+                            nearestDistance = distance;
+                            nearest = resource;
+                        }
+                    }
+                });
+                
+                return nearest;
+            }
+        }
+
+        // Sound Manager
+        class SoundManager {
+            constructor() {
+                this.audioContext = null;
+                this.sounds = {};
+                this.masterVolume = 0.7;
+                this.enabled = true;
+                this.initializeAudioContext();
+            }
+
+            initializeAudioContext() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.createSounds();
+                } catch (e) {
+                    console.warn('Audio not available:', e);
+                    this.enabled = false;
+                }
+            }
+
+            createSounds() {
+                // Create procedural sound effects
+                this.sounds = {
+                    laser: this.createLaserSound(),
+                    explosion: this.createExplosionSound(),
+                    hit: this.createHitSound(),
+                    build: this.createBuildSound(),
+                    select: this.createSelectSound()
+                };
+            }
+
+            createLaserSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
+                    
+                    gainNode.gain.setValueAtTime(this.masterVolume * 0.3, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.1);
+                };
+            }
+
+            createExplosionSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+                    
+                    const bufferSize = this.audioContext.sampleRate * 0.5;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const output = buffer.getChannelData(0);
+                    
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+                    }
+                    
+                    const source = this.audioContext.createBufferSource();
+                    const gainNode = this.audioContext.createGain();
+                    const filter = this.audioContext.createBiquadFilter();
+                    
+                    source.buffer = buffer;
+                    source.connect(filter);
+                    filter.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1000, this.audioContext.currentTime);
+                    filter.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.3);
+                    
+                    gainNode.gain.setValueAtTime(this.masterVolume * 0.5, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5);
+                    
+                    source.start();
+                };
+            }
+
+            createHitSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(300, this.audioContext.currentTime);
+                    oscillator.frequency.linearRampToValueAtTime(100, this.audioContext.currentTime + 0.05);
+                    
+                    gainNode.gain.setValueAtTime(this.masterVolume * 0.2, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.05);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.05);
+                };
+            }
+
+            createBuildSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+                    oscillator.frequency.linearRampToValueAtTime(600, this.audioContext.currentTime + 0.2);
+                    
+                    gainNode.gain.setValueAtTime(this.masterVolume * 0.15, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.2);
+                };
+            }
+
+            createSelectSound() {
+                return () => {
+                    if (!this.enabled || !this.audioContext) return;
+                    
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
+                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime + 0.02);
+                    
+                    gainNode.gain.setValueAtTime(this.masterVolume * 0.1, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.05);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.05);
+                };
+            }
+
+            play(soundName) {
+                if (this.sounds[soundName]) {
+                    this.sounds[soundName]();
+                }
+            }
+
+            setVolume(volume) {
+                this.masterVolume = Math.max(0, Math.min(1, volume));
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+            }
+        }
+
+        // Game instance
+        let game = null;
+        let soundManager = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            minimapCanvas.width = 180;
+            minimapCanvas.height = 120;
+        }
+
+        function startGame() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('loadingScreen').style.display = 'flex';
+            
+            let progress = 0;
+            const loadingInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(loadingInterval);
+                    setTimeout(() => {
+                        document.getElementById('loadingScreen').style.display = 'none';
+                        initializeGame();
+                    }, 500);
+                }
+                document.getElementById('loadingProgress').style.width = progress + '%';
+            }, 100);
+        }
+
+        function restartGame() {
+            document.getElementById('victoryScreen').style.display = 'none';
+            document.getElementById('defeatScreen').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'flex';
+            if (game) {
+                game.isRunning = false;
+            }
+        }
+
+        function initializeGame() {
+            soundManager = new SoundManager();
+            game = new GameEngine();
+            game.start();
+            console.log("Space Command initialized successfully!");
+        }
+
+        // Initialize resize listener
+        window.addEventListener('resize', resizeCanvas);
+
+        // Menu starfield animation
+        function drawStarfield() {
+            ctx.fillStyle = '#000011';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 100; i++) {
+                const x = (Math.sin(Date.now() * 0.001 + i) * 0.5 + 0.5) * canvas.width;
+                const y = (Math.cos(Date.now() * 0.0008 + i) * 0.5 + 0.5) * canvas.height;
+                const size = Math.random() * 2;
+                ctx.fillRect(x, y, size, size);
+            }
+        }
+
+        function menuAnimation() {
+            if (document.getElementById('mainMenu').style.display !== 'none') {
+                drawStarfield();
+                requestAnimationFrame(menuAnimation);
+            }
+        }
+    </script>
+</body>
+</html>
