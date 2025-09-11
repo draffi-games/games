@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neon Tetris - Cooler Block Style</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjQiIGhlaWdodD0iNCIgZmlsbD0iIzAwZmZmZiIgc3Ryb2tlPSIjMDBhYWFhIiBzdHJva2Utd2lkdGg9IjAuNSIvPgo8cmVjdCB4PSI2IiB5PSIyIiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmYwMGZmIiBzdHJva2U9IiNhYTAwYWEiIHN0cm9rZS13aWR0aD0iMC41Ii8+CjxyZWN0IHg9IjEwIiB5PSIyIiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmZjAwIiBzdHJva2U9IiNhYWFhMDAiIHN0cm9rZS13aWR0aD0iMC41Ii8+CjxyZWN0IHg9IjIiIHk9IjEwIiB3aWR0aD0iMTIiIGhlaWdodD0iNCIgZmlsbD0iIzAwZmYwMCIgc3Ryb2tlPSIjMDBhYTAwIiBzdHJva2Utd2lkdGg9IjAuNSIvPgo8L3N2Zz4K">
     <style>
         * {
             margin: 0;
@@ -190,6 +191,43 @@
             text-shadow: 0 0 10px #00ffff;
         }
 
+        .start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, rgba(0,0,0,0.95), rgba(26,26,46,0.95));
+            border: 3px solid #00ffff;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0,255,255,0.6);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .start-screen h2 {
+            color: #00ffff;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px #00ffff, 0 0 40px #00ffff;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        .start-btn {
+            font-size: 18px;
+            padding: 20px 40px;
+            background: linear-gradient(145deg, #00ffff, #0099cc);
+            box-shadow: 0 0 30px rgba(0,255,255,0.4);
+            transition: all 0.3s ease;
+        }
+
+        .start-btn:hover {
+            background: linear-gradient(145deg, #0099cc, #00ffff);
+            box-shadow: 0 0 50px rgba(0,255,255,0.7);
+            transform: translateY(-3px) scale(1.05);
+        }
+
         .game-over {
             position: absolute;
             top: 50%;
@@ -341,6 +379,12 @@
         </div>
     </div>
 
+    <div class="start-screen" id="startScreen">
+        <h2>NEON TETRIS</h2>
+        <p style="color: #00ffff; margin-bottom: 30px; font-size: 18px; text-shadow: 0 0 10px #00ffff;">Bereit für das ultimative Block-Puzzle?</p>
+        <button class="btn start-btn" id="startBtn">SPIEL STARTEN</button>
+    </div>
+
     <div class="game-over" id="gameOver">
         <h2>GAME OVER</h2>
         <p style="color: #ccc; margin-bottom: 20px;">Score: <span id="finalScore">0</span></p>
@@ -359,7 +403,7 @@
         let level = 1;
         let lines = 0;
         let gameRunning = false;
-        let gameLoop = null;
+        let gameLoopId = null;
         let dropTime = 0;
         let lastTime = 0;
         let isPaused = false;
@@ -683,6 +727,13 @@
             document.getElementById('gameOver').style.display = 'block';
         }
 
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameRunning = true;
+            initGame();
+            requestAnimationFrame(gameLoop);
+        }
+
         function startNewGame() {
             document.getElementById('gameOver').style.display = 'none';
             gameRunning = true;
@@ -810,9 +861,12 @@
             }
         });
 
-        // Start the game
-        initGame();
-        startNewGame();
+        // Initialize but don't start the game automatically
+        loadHighScore();
+        
+        // Add event listener for start button
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        // Game will start when start button is clicked
     </script>
 </body>
 </html>
