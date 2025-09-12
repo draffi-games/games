@@ -3,511 +3,658 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI Game Collection</title>
-    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjciIGZpbGw9IiM2NjAwZmYiIHN0cm9rZT0iIzk5MzNmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+Cjx0ZXh0IHg9IjgiIHk9IjExIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R308L3RleHQ+Cjwvc3ZnPgo=">
+    <title>Starship Command - Game Archive</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjciIGZpbGw9IiMwMDgwZmYiIHN0cm9rZT0iIzAwZmZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+Cjx0ZXh0IHg9IjgiIHk9IjExIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UzwvdGV4dD4KPHN2Zz4K">
+    
     <style>
-        body {
-            background: #000;
-            color: white;
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            min-height: 100vh;
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #001122;
+            --accent-blue: #00ffff;
+            --accent-orange: #ff6600;
+            --accent-green: #00ff00;
+            --accent-red: #ff0000;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --border-color: #004466;
+            --glow-blue: 0 0 10px var(--accent-blue);
+            --glow-orange: 0 0 10px var(--accent-orange);
+            --glow-green: 0 0 10px var(--accent-green);
         }
 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-        #canvas-container {
+        body {
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Background and Stars */
+        .starfield {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(ellipse at center, #0a0e27 0%, #000 100%);
-            z-index: -1;
+            z-index: 1;
         }
 
-        .nebula {
+        .star {
             position: absolute;
-            width: 300%;
-            height: 300%;
-            top: -100%;
-            left: -100%;
-            background: radial-gradient(circle at 50% 50%, 
-                rgba(138, 43, 226, 0.08) 0%,
-                rgba(30, 144, 255, 0.04) 25%,
-                rgba(255, 20, 147, 0.02) 50%,
-                transparent 70%);
-            animation: rotateNebula 180s linear infinite;
-            filter: blur(50px);
-            pointer-events: none;
+            background: var(--text-primary);
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: twinkle 3s infinite;
         }
 
-        .aurora {
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* Main Layout Grid */
+        .command-center {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: grid;
+            grid-template-areas:
+                "header header header"
+                "left-panel main-display right-panel"
+                "console console console";
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 80px 1fr 100px;
+            gap: 2px;
+            background: var(--border-color);
+        }
+
+        /* Header */
+        .header {
+            grid-area: header;
+            background: linear-gradient(90deg, var(--secondary-bg), var(--primary-bg));
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+
+        .ship-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--accent-blue);
+            text-shadow: var(--glow-blue);
+            letter-spacing: 3px;
+        }
+
+        .ship-status {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-light {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: var(--glow-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-light.warning {
+            background: var(--accent-orange);
+            box-shadow: var(--glow-orange);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Side Panels */
+        .side-panel {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .left-panel {
+            grid-area: left-panel;
+        }
+
+        .right-panel {
+            grid-area: right-panel;
+        }
+
+        .panel-section {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            background: rgba(0, 68, 102, 0.1);
+        }
+
+        .panel-title {
+            font-size: 14px;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Radar */
+        .radar {
+            width: 120px;
+            height: 120px;
+            border: 2px solid var(--accent-blue);
+            border-radius: 50%;
+            position: relative;
+            background: radial-gradient(circle at center, transparent 50px, rgba(0, 255, 255, 0.1) 51px);
+            margin: 0 auto;
+        }
+
+        .radar-sweep {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, 
-                transparent 0%,
-                rgba(0, 255, 170, 0.03) 20%,
-                rgba(0, 170, 255, 0.05) 40%,
-                rgba(170, 0, 255, 0.03) 60%,
-                transparent 100%);
-            animation: auroraShift 30s ease-in-out infinite;
-            filter: blur(60px);
-            mix-blend-mode: screen;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 50%;
+            background: linear-gradient(to bottom, var(--accent-blue), transparent);
+            transform-origin: bottom;
+            transform: translate(-50%, -50%) rotate(0deg);
+            animation: radar-spin 4s linear infinite;
         }
 
-        .cosmic-dust {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.3), transparent),
-                radial-gradient(2px 2px at 60% 70%, rgba(255, 255, 255, 0.2), transparent),
-                radial-gradient(1px 1px at 50% 50%, rgba(255, 255, 255, 0.1), transparent);
-            background-size: 500px 500px;
-            animation: drift 100s linear infinite;
-            opacity: 0.5;
+        @keyframes radar-spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        .shooting-star {
+        .radar-dot {
             position: absolute;
             width: 4px;
             height: 4px;
-            background: white;
-            box-shadow: 
-                0 0 10px 2px rgba(255, 255, 255, 0.8),
-                0 0 20px 4px rgba(255, 255, 255, 0.5),
-                0 0 40px 8px rgba(100, 200, 255, 0.3);
+            background: var(--accent-green);
             border-radius: 50%;
-            animation: shoot 3s linear;
+            box-shadow: var(--glow-green);
         }
 
-        .shooting-star::before {
+        /* Navigation Display */
+        .nav-coords {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .coord-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        /* System Status Bars */
+        .system-status {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+
+        .bar-container {
+            width: 100px;
+            height: 8px;
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: var(--accent-green);
+            box-shadow: inset 0 0 5px var(--accent-green);
+            transition: width 0.3s;
+        }
+
+        .bar-fill.warning {
+            background: var(--accent-orange);
+            box-shadow: inset 0 0 5px var(--accent-orange);
+        }
+
+        .bar-fill.critical {
+            background: var(--accent-red);
+            box-shadow: inset 0 0 5px var(--accent-red);
+        }
+
+        /* Main Display Area */
+        .main-display {
+            grid-area: main-display;
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .display-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .display-title {
+            font-size: 36px;
+            color: var(--accent-blue);
+            text-shadow: var(--glow-blue);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .display-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Game Grid */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        .game-card {
+            background: linear-gradient(135deg, rgba(0, 68, 102, 0.3), rgba(0, 34, 68, 0.3));
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .game-card:hover {
+            border-color: var(--accent-blue);
+            box-shadow: var(--glow-blue);
+            background: linear-gradient(135deg, rgba(0, 68, 102, 0.5), rgba(0, 34, 68, 0.5));
+        }
+
+        .game-icon {
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .game-title {
+            font-size: 18px;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .game-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        .game-card::before {
             content: '';
             position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 300px;
+            top: 0;
+            left: 0;
+            right: 0;
             height: 2px;
-            background: linear-gradient(90deg, white, transparent);
-            animation: tail 3s linear;
+            background: var(--accent-blue);
+            transform: scaleX(0);
+            transition: transform 0.3s;
         }
 
-        @keyframes rotateNebula {
-            0% { transform: rotate(0deg) scale(1); }
-            50% { transform: rotate(180deg) scale(1.1); }
-            100% { transform: rotate(360deg) scale(1); }
+        .game-card:hover::before {
+            transform: scaleX(1);
         }
 
-        @keyframes auroraShift {
-            0%, 100% { transform: translateY(0) scaleY(1); opacity: 0.3; }
-            50% { transform: translateY(-10%) scaleY(1.2); opacity: 0.6; }
+        /* Console */
+        .console {
+            grid-area: console;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 30px;
         }
 
-        @keyframes drift {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(-100px, -100px); }
+        .console-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
-        @keyframes shoot {
-            0% { transform: translateX(0) translateY(0); opacity: 1; }
-            100% { transform: translateX(-1200px) translateY(400px); opacity: 0; }
+        .control-button {
+            width: 50px;
+            height: 50px;
+            border: 2px solid var(--border-color);
+            background: var(--primary-bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 18px;
         }
 
-        @keyframes tail {
-            0% { width: 0; opacity: 1; }
-            50% { width: 300px; opacity: 1; }
-            100% { width: 0; opacity: 0; }
+        .control-button:hover {
+            border-color: var(--accent-blue);
+            box-shadow: var(--glow-blue);
         }
 
-        #main-canvas {
-            position: absolute;
+        .control-button.active {
+            border-color: var(--accent-green);
+            box-shadow: var(--glow-green);
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .control-button.warning {
+            border-color: var(--accent-orange);
+            box-shadow: var(--glow-orange);
+            background: rgba(255, 102, 0, 0.1);
+            animation: warning-blink 1s infinite;
+        }
+
+        @keyframes warning-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .command-center {
+                grid-template-columns: 250px 1fr 250px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .command-center {
+                grid-template-areas:
+                    "header"
+                    "main-display"
+                    "console";
+                grid-template-columns: 1fr;
+                grid-template-rows: 80px 1fr 100px;
+            }
+            
+            .side-panel {
+                display: none;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .games-grid::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .games-grid::-webkit-scrollbar-track {
+            background: var(--primary-bg);
+        }
+
+        .games-grid::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .games-grid::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
+        }
+
+        /* Loading Animation */
+        .loading {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 10;
-        }
-
-        header {
-            text-align: center;
-            color: white;
-            margin-bottom: 50px;
-        }
-
-        h1 {
-            font-size: 3.5em;
-            margin-bottom: 10px;
-            text-shadow: 
-                0 0 20px rgba(255, 255, 255, 0.5),
-                0 0 40px rgba(100, 200, 255, 0.3),
-                0 0 80px rgba(138, 43, 226, 0.2);
-            animation: titlePulse 4s ease-in-out infinite;
-            overflow: hidden;
-        }
-
-        .title-char {
-            display: inline-block;
-            opacity: 0;
-            transform: translateY(50px) rotateX(-90deg);
-            animation: charAppear 0.8s ease-out forwards;
-        }
-
-        @keyframes titlePulse {
-            0%, 100% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(100, 200, 255, 0.3), 0 0 80px rgba(138, 43, 226, 0.2); }
-            50% { text-shadow: 0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px rgba(100, 200, 255, 0.5), 0 0 120px rgba(138, 43, 226, 0.4); }
-        }
-
-        @keyframes charAppear {
-            0% {
-                opacity: 0;
-                transform: translateY(50px) rotateX(-90deg);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0) rotateX(0deg);
-            }
-        }
-
-        .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-            margin-top: 40px;
-        }
-        .game-card {
-            background: rgba(255, 255, 255, 0.25);
-            border: 2px solid rgba(255, 255, 255, 0.6);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            aspect-ratio: 1;
-        }
-        
-        .game-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 45px rgba(0,0,0,0.5);
-        }
-        
-        .game-thumbnail {
-            width: 100%;
-            height: 60%;
-            background: linear-gradient(135deg, 
-                rgba(138, 43, 226, 0.6) 0%,
-                rgba(30, 144, 255, 0.6) 50%,
-                rgba(255, 20, 147, 0.6) 100%);
+            background: var(--primary-bg);
+            z-index: 1000;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 2.5em;
-        }
-        
-        .game-info {
-            padding: 20px;
-            height: 40%;
-            display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 20px;
         }
-        
-        .game-title {
-            font-size: 1.3em;
-            color: white;
-            font-weight: 700;
-            margin-bottom: 8px;
+
+        .loading-text {
+            color: var(--accent-blue);
+            font-size: 18px;
+            text-shadow: var(--glow-blue);
         }
-        
-        .game-description {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9em;
-            line-height: 1.4;
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loaded .loading {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="canvas-container">
-        <div class="nebula"></div>
-        <div class="aurora"></div>
-        <div class="cosmic-dust"></div>
-        <canvas id="main-canvas"></canvas>
+    <div class="loading" id="loading">
+        <div class="loading-text">INITIALIZING COMMAND CENTER...</div>
+        <div class="loading-spinner"></div>
     </div>
 
+    <div class="starfield" id="starfield"></div>
 
-    <div class="container">
-        <header>
-            <h1 id="mainTitle">KI Game Collection</h1>
-            <p class="subtitle">Eine Sammlung von KI-generierten HTML-Spielen</p>
-        </header>
-        
-        <div class="games-grid" id="gamesGrid">
-            <!-- Spiele werden hier dynamisch geladen -->
+    <div class="command-center">
+        <!-- Header -->
+        <div class="header">
+            <div class="ship-title">STARSHIP COMMAND</div>
+            <div class="ship-status">
+                <div class="status-item">
+                    <div class="status-light"></div>
+                    <span>SYSTEMS</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-light"></div>
+                    <span>NAVIGATION</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-light warning"></div>
+                    <span>DEFENSE</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-light"></div>
+                    <span>COMMS</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Panel -->
+        <div class="side-panel left-panel">
+            <div class="panel-section">
+                <div class="panel-title">Navigation</div>
+                <div class="radar">
+                    <div class="radar-sweep"></div>
+                    <div class="radar-dot" style="top: 30%; left: 60%;"></div>
+                    <div class="radar-dot" style="top: 70%; left: 40%;"></div>
+                    <div class="radar-dot" style="top: 50%; left: 80%;"></div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">Coordinates</div>
+                <div class="nav-coords">
+                    <div class="coord-line"><span>X:</span><span>127.854</span></div>
+                    <div class="coord-line"><span>Y:</span><span>-89.231</span></div>
+                    <div class="coord-line"><span>Z:</span><span>456.789</span></div>
+                    <div class="coord-line"><span>SECTOR:</span><span>ALPHA-7</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Display -->
+        <div class="main-display">
+            <div class="display-header">
+                <div class="display-title">ENTERTAINMENT DATABASE</div>
+                <div class="display-subtitle">Select Mission Parameters</div>
+            </div>
+            
+            <div class="games-grid" id="gamesGrid">
+                <!-- Games will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="side-panel right-panel">
+            <div class="panel-section">
+                <div class="panel-title">Ship Systems</div>
+                <div class="system-status">
+                    <div class="status-bar">
+                        <span>POWER</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 85%;"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <span>SHIELDS</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 92%;"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <span>ENGINES</span>
+                        <div class="bar-container">
+                            <div class="bar-fill warning" style="width: 76%;"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <span>WEAPONS</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <span>HULL</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 94%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">Tactical</div>
+                <div class="system-status">
+                    <div class="status-bar">
+                        <span>SENSORS</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 88%;"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <span>COMMS</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 95%;"></div>
+                        </div>
+                    </div>
+                    <div class="status-bar">
+                        <span>DEFENSE</span>
+                        <div class="bar-container">
+                            <div class="bar-fill warning" style="width: 67%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console -->
+        <div class="console">
+            <div class="console-section">
+                <div class="control-button active">⚡</div>
+                <div class="control-button">🛡️</div>
+                <div class="control-button warning">⚠️</div>
+            </div>
+            
+            <div class="console-section">
+                <div class="control-button">🎯</div>
+                <div class="control-button active">📡</div>
+                <div class="control-button">🚀</div>
+            </div>
+            
+            <div class="console-section">
+                <div class="control-button">🔧</div>
+                <div class="control-button active">💾</div>
+                <div class="control-button">🌐</div>
+            </div>
         </div>
     </div>
-    
+
     <script>
-        // Simple star animation
-        const canvas = document.getElementById('main-canvas');
-        const ctx = canvas.getContext('2d');
-        let width = window.innerWidth;
-        let height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-
-        class Star {
-            constructor(layer = 0) {
-                this.layer = layer;
-                this.reset();
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
+        // Optimized Star System
+        class StarSystem {
+            constructor() {
+                this.stars = [];
+                this.container = document.getElementById('starfield');
+                this.createStars();
             }
 
-            reset() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.z = Math.random() * 1000 + this.layer * 500;
-                this.originalZ = this.z;
-                
-                const brightness = Math.random();
-                this.size = (3 - this.layer) * (0.5 + brightness);
-                this.opacity = 0.3 + brightness * 0.7;
-                
-                const colorType = Math.random();
-                if (colorType < 0.6) {
-                    this.color = `rgba(255, 255, 255, ${this.opacity})`;
-                } else if (colorType < 0.8) {
-                    this.color = `rgba(255, 230, 200, ${this.opacity})`;
-                } else if (colorType < 0.95) {
-                    this.color = `rgba(200, 230, 255, ${this.opacity})`;
-                } else {
-                    this.color = `rgba(255, 200, 200, ${this.opacity})`;
-                }
-                
-                this.twinkle = Math.random() * Math.PI * 2;
-                this.twinkleSpeed = 0.01 + Math.random() * 0.02;
-                this.pulsePhase = Math.random() * Math.PI * 2;
-                this.pulseSpeed = 0.005 + Math.random() * 0.01;
-            }
-
-            update(mouseX, mouseY) {
-                this.z -= 1 + this.layer * 0.5;
-
-                if (this.z <= 0) {
-                    this.reset();
-                    this.z = 1000 + this.layer * 500;
-                }
-
-                const mouseFactorX = (mouseX - width / 2) / width;
-                const mouseFactorY = (mouseY - height / 2) / height;
-                const parallaxStrength = (3 - this.layer) * 30;
-                
-                this.screenX = ((this.x - width / 2) / (this.z / 1000)) + width / 2 + mouseFactorX * parallaxStrength;
-                this.screenY = ((this.y - height / 2) / (this.z / 1000)) + height / 2 + mouseFactorY * parallaxStrength;
-                
-                this.twinkle += this.twinkleSpeed;
-                this.pulsePhase += this.pulseSpeed;
-                
-                const twinkleFactor = 0.7 + Math.sin(this.twinkle) * 0.3;
-                const pulseFactor = 0.9 + Math.sin(this.pulsePhase) * 0.1;
-                
-                this.currentSize = this.size * (2000 / (this.z + 1)) * twinkleFactor * pulseFactor;
-                this.currentOpacity = this.opacity * (1 - this.z / 1500) * twinkleFactor;
-            }
-
-            draw(ctx) {
-                ctx.save();
-                
-                const gradient = ctx.createRadialGradient(
-                    this.screenX, this.screenY, 0,
-                    this.screenX, this.screenY, this.currentSize * 3
-                );
-                
-                gradient.addColorStop(0, this.color.replace(/[\d.]+\)/, `${this.currentOpacity})`));
-                gradient.addColorStop(0.4, this.color.replace(/[\d.]+\)/, `${this.currentOpacity * 0.5})`));
-                gradient.addColorStop(1, 'transparent');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(this.screenX, this.screenY, this.currentSize * 3, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.fillStyle = this.color.replace(/[\d.]+\)/, `${Math.min(1, this.currentOpacity * 1.5)})`);
-                ctx.beginPath();
-                ctx.arc(this.screenX, this.screenY, this.currentSize, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.restore();
-            }
-        }
-
-        const stars = [];
-        const starCounts = [200, 150, 100];
-        
-        for (let layer = 0; layer < 3; layer++) {
-            for (let i = 0; i < starCounts[layer]; i++) {
-                stars.push(new Star(layer));
-            }
-        }
-
-        // Mouse tracking for parallax
-        let mouseX = width / 2;
-        let mouseY = height / 2;
-        let targetMouseX = width / 2;
-        let targetMouseY = height / 2;
-
-        document.addEventListener('mousemove', (e) => {
-            targetMouseX = e.clientX;
-            targetMouseY = e.clientY;
-        });
-
-        function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-            ctx.fillRect(0, 0, width, height);
-            
-            mouseX += (targetMouseX - mouseX) * 0.05;
-            mouseY += (targetMouseY - mouseY) * 0.05;
-            
-            stars.forEach(star => {
-                star.update(mouseX, mouseY);
-                star.draw(ctx);
-            });
-            
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-
-        // Shooting stars
-        function createShootingStar() {
-            const shootingStar = document.createElement('div');
-            shootingStar.className = 'shooting-star';
-            shootingStar.style.left = (width + 50) + 'px';
-            shootingStar.style.top = Math.random() * height * 0.4 + 'px';
-            document.getElementById('canvas-container').appendChild(shootingStar);
-            
-            setTimeout(() => shootingStar.remove(), 2500);
-        }
-
-        setInterval(createShootingStar, 4000);
-        
-        // Add more shooting stars variety
-        function createRandomShootingStar() {
-            const shootingStar = document.createElement('div');
-            shootingStar.className = 'shooting-star';
-            shootingStar.style.left = (width + 50) + 'px';
-            shootingStar.style.top = Math.random() * height * 0.6 + 'px';
-            shootingStar.style.animationDuration = (2 + Math.random() * 2) + 's';
-            document.getElementById('canvas-container').appendChild(shootingStar);
-            
-            setTimeout(() => shootingStar.remove(), 4000);
-        }
-
-        setInterval(createRandomShootingStar, 6000);
-
-        // Typing animation for title
-        function typeTitle() {
-            const title = document.getElementById('mainTitle');
-            const text = 'KI Game Collection';
-            title.innerHTML = '';
-            
-            text.split('').forEach((char, index) => {
-                const span = document.createElement('span');
-                span.className = 'title-char';
-                span.textContent = char === ' ' ? '\u00A0' : char;
-                span.style.animationDelay = `${index * 0.1}s`;
-                title.appendChild(span);
-            });
-        }
-
-        setTimeout(typeTitle, 800);
-
-        // Mouse trail particles
-        const mouseTrails = [];
-        let lastMousePos = { x: 0, y: 0 };
-
-        class MouseTrail {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.size = 3 + Math.random() * 5;
-                this.life = 1;
-                this.decay = 0.03 + Math.random() * 0.02;
-                this.vx = (Math.random() - 0.5) * 1;
-                this.vy = (Math.random() - 0.5) * 1;
-                this.color = Math.random() < 0.5 ? 
-                    `rgba(138, 43, 226, ${this.life})` : 
-                    `rgba(30, 144, 255, ${this.life})`;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= this.decay;
-                this.size *= 0.98;
-                return this.life > 0;
-            }
-
-            draw(ctx) {
-                ctx.save();
-                ctx.globalAlpha = this.life;
-                const gradient = ctx.createRadialGradient(
-                    this.x, this.y, 0,
-                    this.x, this.y, this.size * 2
-                );
-                gradient.addColorStop(0, this.color);
-                gradient.addColorStop(1, 'transparent');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-        }
-
-        // Cosmic cursor tracking
-        const cosmicCursor = document.getElementById('cosmicCursor');
-        let cursorX = 0, cursorY = 0;
-        let targetCursorX = 0, targetCursorY = 0;
-
-        document.addEventListener('mousemove', (e) => {
-            targetCursorX = e.clientX;
-            targetCursorY = e.clientY;
-
-            // Create mouse trail
-            if (Math.abs(e.clientX - lastMousePos.x) > 5 || Math.abs(e.clientY - lastMousePos.y) > 5) {
-                mouseTrails.push(new MouseTrail(e.clientX, e.clientY));
-                lastMousePos = { x: e.clientX, y: e.clientY };
-            }
-        });
-
-        function updateEffects() {
-            // Update and draw mouse trails
-            for (let i = mouseTrails.length - 1; i >= 0; i--) {
-                if (!mouseTrails[i].update()) {
-                    mouseTrails.splice(i, 1);
-                } else {
-                    mouseTrails[i].draw(ctx);
+            createStars() {
+                const starCount = 40; // Reduced from 225
+                for (let i = 0; i < starCount; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    
+                    const size = Math.random() * 3 + 1;
+                    star.style.width = size + 'px';
+                    star.style.height = size + 'px';
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 100 + '%';
+                    star.style.animationDelay = Math.random() * 3 + 's';
+                    
+                    this.container.appendChild(star);
+                    this.stars.push(star);
                 }
             }
-
-            requestAnimationFrame(updateEffects);
         }
 
-        updateEffects();
-
+        // Game Data
         const games = [
             {
                 title: "Snake",
@@ -582,89 +729,46 @@
                 icon: "🛰️"
             }
         ];
-        
-        const gamesGrid = document.getElementById('gamesGrid');
-        
-        games.forEach(game => {
-            const gameCard = document.createElement('div');
-            gameCard.className = 'game-card';
-            gameCard.innerHTML = `
-                <div class="game-thumbnail">
-                    ${game.icon}
-                </div>
-                <div class="game-info">
-                    <h2 class="game-title">${game.title}</h2>
-                    <p class="game-description">${game.description}</p>
-                </div>
-            `;
+
+        // Initialize Games Grid
+        function loadGames() {
+            const gamesGrid = document.getElementById('gamesGrid');
+            gamesGrid.innerHTML = '';
             
-            // Card tilt effect
-            gameCard.addEventListener('mousemove', (e) => {
-                const rect = gameCard.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-                const rotateX = (y - centerY) / 20;
-                const rotateY = (centerX - x) / 20;
+            games.forEach(game => {
+                const gameCard = document.createElement('div');
+                gameCard.className = 'game-card';
+                gameCard.innerHTML = `
+                    <div class="game-icon">${game.icon}</div>
+                    <div class="game-title">${game.title}</div>
+                    <div class="game-description">${game.description}</div>
+                `;
                 
-                gameCard.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-10px) scale(1.02)`;
-                gameCard.style.boxShadow = `0 20px 45px rgba(0,0,0,0.5), 0 0 30px rgba(100, 200, 255, 0.4)`;
-            });
-
-            gameCard.addEventListener('mouseleave', () => {
-                gameCard.style.transform = '';
-                gameCard.style.boxShadow = '0 8px 25px rgba(0,0,0,0.4)';
-            });
-
-            gameCard.addEventListener('click', (e) => {
-                createCardExplosion(e.currentTarget);
-                setTimeout(() => {
+                gameCard.addEventListener('click', () => {
                     window.location.href = game.url;
-                }, 400);
+                });
+                
+                gamesGrid.appendChild(gameCard);
             });
-            
-            gamesGrid.appendChild(gameCard);
-        });
-
-        function createCardExplosion(card) {
-            const rect = card.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            for (let i = 0; i < 15; i++) {
-                const particle = document.createElement('div');
-                particle.style.position = 'fixed';
-                particle.style.left = `${centerX}px`;
-                particle.style.top = `${centerY}px`;
-                particle.style.width = '4px';
-                particle.style.height = '4px';
-                particle.style.background = `rgba(${Math.random() < 0.5 ? '138, 43, 226' : '30, 144, 255'}, 0.9)`;
-                particle.style.borderRadius = '50%';
-                particle.style.pointerEvents = 'none';
-                particle.style.zIndex = '9999';
-                particle.style.boxShadow = '0 0 6px currentColor';
-                
-                const angle = (Math.PI * 2 * i) / 15;
-                const velocity = 40 + Math.random() * 40;
-                const endX = centerX + Math.cos(angle) * velocity;
-                const endY = centerY + Math.sin(angle) * velocity;
-                
-                particle.style.transition = 'all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                particle.style.transform = `translate(-50%, -50%)`;
-                
-                document.body.appendChild(particle);
-                
-                setTimeout(() => {
-                    particle.style.transform = `translate(${endX - centerX}px, ${endY - centerY}px) scale(0)`;
-                    particle.style.opacity = '0';
-                }, 10);
-                
-                setTimeout(() => particle.remove(), 600);
-            }
         }
-        
-        console.log('Cards created:', document.querySelectorAll('.game-card').length);
+
+        // Initialize everything
+        function init() {
+            new StarSystem();
+            loadGames();
+            
+            // Remove loading screen
+            setTimeout(() => {
+                document.body.classList.add('loaded');
+            }, 1500);
+        }
+
+        // Start initialization when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
