@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Battle Arena - Ultra Realistic Combat</title>
+    <title>Star Wars: Galactic Battle Arena</title>
     <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48dGV4dCB5PScuOWVtJyBmb250LXNpemU9JzkwJz7wn5qAPC90ZXh0Pjwvc3ZnPg==">
     <style>
         * {
@@ -94,7 +94,7 @@
         .team-red { color: #ff6666; text-shadow: 0 0 5px #ff6666; }
         .team-blue { color: #6666ff; text-shadow: 0 0 5px #6666ff; }
 
-        .game-over {
+        .game-over, .ship-selection {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -107,6 +107,47 @@
             z-index: 200;
             display: none;
             box-shadow: 0 0 50px rgba(255,255,0,0.5);
+        }
+        
+        .ship-selection {
+            display: block;
+            min-width: 500px;
+        }
+        
+        .ship-option {
+            display: inline-block;
+            margin: 20px;
+            padding: 20px;
+            border: 2px solid #ffff00;
+            border-radius: 10px;
+            background: rgba(0, 30, 60, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 180px;
+        }
+        
+        .ship-option:hover {
+            background: rgba(0, 50, 100, 0.9);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #ffff00;
+        }
+        
+        .ship-option h3 {
+            color: #ffff00;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .ship-preview {
+            width: 120px;
+            height: 80px;
+            margin: 10px auto;
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
         .game-over button {
@@ -147,9 +188,9 @@
     <canvas id="gameCanvas"></canvas>
     
     <div class="hud">
-        <div><span class="team-red">█ HOSTILE: <span id="redScore">4</span></span></div>
-        <div><span class="team-blue">█ FRIENDLY: <span id="blueScore">4</span></span></div>
-        <div style="margin-top: 8px; font-size: 10px; color: #aaa;">COMBAT STATUS</div>
+        <div><span class="team-red">█ EMPIRE: <span id="redScore">4</span></span></div>
+        <div><span class="team-blue">█ REBELLION: <span id="blueScore">4</span></span></div>
+        <div style="margin-top: 8px; font-size: 10px; color: #aaa;">BATTLE STATUS</div>
     </div>
     
     <div class="tactical-display">
@@ -185,14 +226,60 @@
     </div>
     
     <div class="controls">
-        <div><strong>FLIGHT CONTROLS:</strong></div>
-        <div>WASD - RCS Thrusters</div>
-        <div>SPACE - Primary Weapons</div>
-        <div>E - Guided Munitions</div>
-        <div>T - Target Lock</div>
-        <div>SHIFT - Afterburner</div>
+        <div><strong>SHIP CONTROLS:</strong></div>
+        <div>WASD - Engines</div>
+        <div>SPACE - Laser Cannons</div>
+        <div>E - Multi-Shot/Torpedoes</div>
+        <div>F - Rapid Deploy TIE Fighters (Star Destroyer only)</div>
+        <div>T - Target Computer</div>
+        <div>SHIFT - Hyperdrive Boost</div>
     </div>
     
+    <div class="ship-selection" id="shipSelection">
+        <h2 style="color: #ffff00; margin-bottom: 30px;">CHOOSE YOUR SIDE</h2>
+        
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: #ffaa00; margin-bottom: 15px;">REBELLION (Good)</h3>
+            
+            <div class="ship-option" onclick="selectShip('xwing', 'rebellion')">
+                <h3>X-WING FIGHTER</h3>
+                <div class="ship-preview">✈️</div>
+                <div style="color: #aaa; font-size: 12px;">
+                    <div>Health: 100</div>
+                    <div>Speed: Fast</div>
+                    <div>Weapons: Laser Cannons</div>
+                    <div>Role: Rebel Pilot</div>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <h3 style="color: #ff6666; margin-bottom: 15px;">EMPIRE (Evil)</h3>
+            
+            <div class="ship-option" onclick="selectShip('tiefighter', 'empire')">
+                <h3>TIE FIGHTER</h3>
+                <div class="ship-preview">⬢</div>
+                <div style="color: #aaa; font-size: 12px;">
+                    <div>Health: 80</div>
+                    <div>Speed: Very Fast</div>
+                    <div>Weapons: Twin Lasers</div>
+                    <div>Role: Imperial Pilot</div>
+                </div>
+            </div>
+            
+            <div class="ship-option" onclick="selectShip('stardestroyer', 'empire')">
+                <h3>STAR DESTROYER</h3>
+                <div class="ship-preview">🚢</div>
+                <div style="color: #aaa; font-size: 12px;">
+                    <div>Health: 500</div>
+                    <div>Speed: Slow</div>
+                    <div>Weapons: Turbolasers</div>
+                    <div>Role: Imperial Admiral</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="game-over" id="gameOver">
         <h2 id="winnerText">MISSION COMPLETE</h2>
         <button onclick="startNewGame()">New Mission</button>
@@ -214,6 +301,10 @@
         let gameTime = 0;
         let starField = [];
         let spaceDebris = [];
+        let bossSpawned = false;
+        let playerShipType = 'xwing'; // 'xwing', 'tiefighter', 'stardestroyer'
+        let playerFaction = 'rebellion'; // 'rebellion' or 'empire'
+        let gameStarted = false;
 
         // Input handling
         const keys = {};
@@ -222,7 +313,7 @@
         // Initialize everything when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
             try {
-                console.log('Initializing Space Battle Arena...');
+                console.log('Initializing Star Wars Battle Arena...');
                 
                 canvas = document.getElementById('gameCanvas');
                 ctx = canvas.getContext('2d');
@@ -243,11 +334,11 @@
                 // Setup input handling
                 setupInputHandlers();
                 
-                // Start the game
-                initGame();
-                gameLoop();
+                // Initialize background but don't start game yet
+                initBackground();
+                drawBackground();
                 
-                console.log('Game started successfully!');
+                console.log('Game initialized, waiting for ship selection...');
                 
             } catch (error) {
                 console.error('Failed to initialize game:', error);
@@ -255,6 +346,34 @@
                 document.body.innerHTML = '<div style="color: red; text-align: center; margin-top: 50px; font-size: 24px;">Game initialization failed. Please refresh the page.</div>';
             }
         });
+        
+        // Ship selection function
+        function selectShip(shipType, faction) {
+            playerShipType = shipType;
+            playerFaction = faction;
+            document.getElementById('shipSelection').style.display = 'none';
+            gameStarted = true;
+            
+            // Start the game with selected ship
+            initGame();
+            gameLoop();
+            
+            console.log('Starting game with ship type:', shipType, 'faction:', faction);
+        }
+        
+        function initBackground() {
+            // Create stars
+            starField = [];
+            for (let i = 0; i < 300; i++) {
+                starField.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random(),
+                    twinkle: Math.random() * 100
+                });
+            }
+        }
 
         function setupInputHandlers() {
             window.addEventListener('keydown', (e) => { 
@@ -271,19 +390,38 @@
 
         // Ship class
         class Ship {
-            constructor(x, y, team, isPlayer = false) {
+            constructor(x, y, team, isPlayer = false, isBoss = false, shipType = 'fighter') {
                 this.x = x;
                 this.y = y;
                 this.team = team;
                 this.isPlayer = isPlayer;
+                this.isBoss = isBoss;
+                this.shipType = shipType; // 'fighter', 'xwing', 'tiefighter', 'stardestroyer'
                 this.angle = 0;
                 this.vx = 0;
                 this.vy = 0;
-                this.health = 100;
-                this.maxHealth = 100;
-                this.shield = 100;
-                this.maxShield = 100;
-                this.size = 25;
+                
+                // Set stats based on ship type
+                if (shipType === 'stardestroyer' || isBoss) {
+                    this.health = 500;
+                    this.maxHealth = 500;
+                    this.shield = 300;
+                    this.maxShield = 300;
+                    this.size = 75;
+                } else if (shipType === 'tiefighter') {
+                    this.health = 80;
+                    this.maxHealth = 80;
+                    this.shield = 60;
+                    this.maxShield = 60;
+                    this.size = 20;
+                } else {
+                    this.health = 100;
+                    this.maxHealth = 100;
+                    this.shield = 100;
+                    this.maxShield = 100;
+                    this.size = 25;
+                }
+                
                 this.shootCooldown = 0;
                 this.rocketCooldown = 0;
                 this.alive = true;
@@ -312,16 +450,30 @@
                 this.aiState = 'hunt'; // hunt, attack, evade, retreat, flank
                 this.evasionTimer = 0;
                 this.lastDamageTime = 0;
-                this.preferredRange = 250 + Math.random() * 150;
-                this.aggressiveness = 0.3 + Math.random() * 0.7;
+                this.preferredRange = isBoss ? 400 + Math.random() * 200 : 250 + Math.random() * 150;
+                this.aggressiveness = isBoss ? 0.9 : 0.3 + Math.random() * 0.7;
                 this.flankDirection = Math.random() < 0.5 ? 1 : -1;
+                
+                // Boss specific properties
+                if (isBoss || shipType === 'stardestroyer') {
+                    this.multiShotCooldown = 0;
+                    this.bossPhase = 1;
+                    this.circleTimer = 0;
+                    this.spawnCooldown = 0; // For TIE Fighter spawning
+                }
             }
 
             update() {
                 if (!this.alive) return;
 
                 if (this.isPlayer) {
-                    this.handlePlayerInput();
+                    if (this.shipType === 'stardestroyer') {
+                        this.handlePlayerBossInput();
+                    } else {
+                        this.handlePlayerInput();
+                    }
+                } else if (this.isBoss) {
+                    this.handleBossAI();
                 } else {
                     this.handleAI();
                 }
@@ -349,6 +501,8 @@
                 // System management
                 if (this.shootCooldown > 0) this.shootCooldown--;
                 if (this.rocketCooldown > 0) this.rocketCooldown--;
+                if ((this.isBoss || this.shipType === 'stardestroyer') && this.multiShotCooldown > 0) this.multiShotCooldown--;
+                if ((this.isBoss || this.shipType === 'stardestroyer') && this.spawnCooldown > 0) this.spawnCooldown--;
                 
                 if (this.weaponHeat > 0) this.weaponHeat -= 0.8;
                 if (this.engineHeat > 0) this.engineHeat -= 0.5;
@@ -428,6 +582,78 @@
                     this.shootRocket();
                 }
                 
+                // F key does nothing for regular ships
+                if (keysPressed['KeyF']) {
+                    keysPressed['KeyF'] = false;
+                }
+                
+                if (keysPressed['KeyT']) {
+                    this.cycleTarget();
+                    keysPressed['KeyT'] = false;
+                }
+            }
+            
+            handlePlayerBossInput() {
+                // Star Destroyer controls (slower but more powerful)
+                if (keys['KeyA']) this.angle -= 0.03; // Slower turning
+                if (keys['KeyD']) this.angle += 0.03;
+
+                let thrust = 0;
+                if (keys['KeyW']) {
+                    thrust = 0.2; // Slower movement
+                    if (this.fuel > 1) {
+                        this.engineHeat += 1.5;
+                        this.thrustPower = Math.max(this.thrustPower, thrust);
+                        this.fuel -= 0.03;
+                    } else {
+                        thrust = 0.08;
+                        this.thrustPower = Math.max(this.thrustPower, thrust);
+                    }
+                }
+                if (keys['KeyS']) {
+                    thrust = -0.1;
+                    if (this.fuel > 1) {
+                        this.engineHeat += 1.0;
+                        this.thrustPower = Math.max(this.thrustPower, Math.abs(thrust));
+                        this.fuel -= 0.02;
+                    } else {
+                        thrust = -0.04;
+                        this.thrustPower = Math.max(this.thrustPower, Math.abs(thrust));
+                    }
+                }
+
+                if (thrust !== 0) {
+                    this.vx += Math.cos(this.angle) * thrust;
+                    this.vy += Math.sin(this.angle) * thrust;
+                    this.createEngineExhaust(thrust);
+                }
+
+                // Heavy weapons
+                if (keys['Space'] && this.shootCooldown <= 0) {
+                    if (this.weaponHeat < this.maxWeaponHeat * 0.8) {
+                        this.shoot();
+                    }
+                }
+                
+                // Multi-shot ability for player Star Destroyer
+                if (keys['KeyE'] && this.multiShotCooldown <= 0) {
+                    this.bossMultiShot();
+                    this.multiShotCooldown = 45;
+                }
+                
+                // Spawn TIE Fighter ability for player Star Destroyer - RAPID DEPLOYMENT
+                if (keysPressed['KeyF'] && this.spawnCooldown <= 0) {
+                    this.spawnTIEFighter();
+                    this.spawnCooldown = 30; // 0.5 second cooldown - MUCH FASTER!
+                    keysPressed['KeyF'] = false;
+                }
+                
+                // Continuous spawning while holding F
+                if (keys['KeyF'] && this.spawnCooldown <= 0) {
+                    this.spawnTIEFighter();
+                    this.spawnCooldown = 15; // Even faster when holding F
+                }
+                
                 if (keysPressed['KeyT']) {
                     this.cycleTarget();
                     keysPressed['KeyT'] = false;
@@ -449,6 +675,152 @@
                         20 + Math.random() * 10
                     ));
                 }
+            }
+
+            handleBossAI() {
+                this.aiTimer++;
+                this.circleTimer++;
+                
+                // Find targets periodically - boss always targets player first
+                if (this.aiTimer % 30 === 0) {
+                    this.target = player && player.alive ? player : this.findBestTarget();
+                }
+
+                if (this.target && this.target.alive) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Boss behavior phases based on health
+                    const healthPercent = this.health / this.maxHealth;
+                    
+                    if (healthPercent > 0.7) {
+                        // Phase 1: Aggressive pursuit
+                        this.bossPhase1(dx, dy, distance);
+                    } else if (healthPercent > 0.3) {
+                        // Phase 2: Circle strafe with multi-shot
+                        this.bossPhase2(dx, dy, distance);
+                    } else {
+                        // Phase 3: Desperate barrage
+                        this.bossPhase3(dx, dy, distance);
+                    }
+                }
+            }
+            
+            bossPhase1(dx, dy, distance) {
+                // Direct aggressive pursuit
+                const targetAngle = Math.atan2(dy, dx);
+                this.turnTowards(targetAngle);
+                
+                if (distance > 350) {
+                    this.moveForward(0.3);
+                } else if (distance < 250) {
+                    this.moveForward(-0.1);
+                }
+                
+                // Frequent shooting
+                if (this.shootCooldown <= 0) {
+                    this.shoot();
+                }
+                
+                if (this.rocketCooldown <= 0 && distance > 200) {
+                    this.shootRocket();
+                }
+            }
+            
+            bossPhase2(dx, dy, distance) {
+                // Circle strafe pattern
+                const targetAngle = Math.atan2(dy, dx);
+                const circleAngle = targetAngle + Math.PI * 0.5 * Math.sin(this.circleTimer * 0.02);
+                this.turnTowards(circleAngle);
+                
+                const idealDistance = 300;
+                if (distance < idealDistance - 50) {
+                    this.moveForward(-0.2);
+                } else if (distance > idealDistance + 50) {
+                    this.moveForward(0.25);
+                } else {
+                    this.moveForward(0.15);
+                }
+                
+                // Multi-shot burst
+                if (this.multiShotCooldown <= 0) {
+                    this.bossMultiShot();
+                    this.multiShotCooldown = 60;
+                }
+                
+                if (this.rocketCooldown <= 0) {
+                    this.shootRocket();
+                }
+            }
+            
+            bossPhase3(dx, dy, distance) {
+                // Desperate all-out attack
+                const targetAngle = Math.atan2(dy, dx);
+                this.turnTowards(targetAngle);
+                
+                this.moveForward(0.4); // Full speed
+                
+                // Constant firing
+                if (this.shootCooldown <= 0) {
+                    this.shoot();
+                }
+                
+                if (this.multiShotCooldown <= 0) {
+                    this.bossMultiShot();
+                    this.multiShotCooldown = 30; // Faster multishot
+                }
+                
+                if (this.rocketCooldown <= 0 && Math.random() < 0.7) {
+                    this.shootRocket();
+                }
+            }
+            
+            bossMultiShot() {
+                // Fire 5 bullets in a spread pattern
+                for (let i = 0; i < 5; i++) {
+                    const spreadAngle = this.angle + (i - 2) * 0.3;
+                    const muzzleX = this.x + Math.cos(spreadAngle) * this.size;
+                    const muzzleY = this.y + Math.sin(spreadAngle) * this.size;
+                    
+                    bullets.push(new Bullet(muzzleX, muzzleY, spreadAngle, this.team));
+                    
+                    // Muzzle flash
+                    for (let j = 0; j < 3; j++) {
+                        particles.push(new Particle(
+                            muzzleX, muzzleY,
+                            Math.cos(spreadAngle) * 2 + (Math.random() - 0.5) * 3,
+                            Math.sin(spreadAngle) * 2 + (Math.random() - 0.5) * 3,
+                            '#ffff00',
+                            12
+                        ));
+                    }
+                }
+                this.weaponHeat += 25;
+            }
+            
+            spawnTIEFighter() {
+                // Spawn TIE Fighter next to Star Destroyer
+                const spawnDistance = this.size + 50;
+                const spawnAngle = this.angle + (Math.random() - 0.5) * Math.PI;
+                const spawnX = this.x + Math.cos(spawnAngle) * spawnDistance;
+                const spawnY = this.y + Math.sin(spawnAngle) * spawnDistance;
+                
+                const tieShip = new Ship(spawnX, spawnY, this.team, false, false, 'tiefighter');
+                ships.push(tieShip);
+                
+                // Spawn effect
+                for (let i = 0; i < 20; i++) {
+                    particles.push(new Particle(
+                        spawnX, spawnY,
+                        (Math.random() - 0.5) * 6,
+                        (Math.random() - 0.5) * 6,
+                        '#00ff00',
+                        30
+                    ));
+                }
+                
+                console.log('TIE Fighter spawned!');
             }
 
             handleAI() {
@@ -889,13 +1261,27 @@
             draw() {
                 if (!this.alive) return;
 
+                // Boss aura effect
+                if (this.isBoss) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.3 + Math.sin(this.aiTimer * 0.1) * 0.2;
+                    const gradient = ctx.createRadialGradient(this.x, this.y, this.size, this.x, this.y, this.size + 50);
+                    gradient.addColorStop(0, 'rgba(255, 0, 0, 0.5)');
+                    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size + 50, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
                 // Shield effect
                 if (this.shield > 0) {
                     ctx.save();
                     const shieldIntensity = this.shield / this.maxShield;
                     ctx.globalAlpha = 0.2 + shieldIntensity * 0.3;
-                    ctx.strokeStyle = '#00ffff';
-                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = this.isBoss ? '#ff0000' : '#00ffff';
+                    ctx.lineWidth = this.isBoss ? 4 : 2;
                     ctx.setLineDash([3, 3]);
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size + 15, 0, Math.PI * 2);
@@ -908,102 +1294,201 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
 
-                // Mini Fighter Jet Design
+                // Star Wars Ship Design
                 const gradient = ctx.createLinearGradient(-this.size, -this.size, this.size, this.size);
-                if (this.team === 'red') {
-                    gradient.addColorStop(0, '#ff6666');
-                    gradient.addColorStop(0.5, '#ff3333');
-                    gradient.addColorStop(1, '#cc1111');
+                
+                if (this.shipType === 'stardestroyer' || this.isBoss) {
+                    // Star Destroyer - Imperial Grey
+                    gradient.addColorStop(0, '#cccccc');
+                    gradient.addColorStop(0.3, '#999999');
+                    gradient.addColorStop(0.6, '#666666');
+                    gradient.addColorStop(1, '#444444');
+                } else if (this.shipType === 'tiefighter' || (this.team === 'red' && this.shipType !== 'xwing')) {
+                    // TIE Fighter - Dark Imperial
+                    gradient.addColorStop(0, '#444444');
+                    gradient.addColorStop(0.5, '#333333');
+                    gradient.addColorStop(1, '#222222');
                 } else {
-                    gradient.addColorStop(0, '#6666ff');
-                    gradient.addColorStop(0.5, '#3333ff');
-                    gradient.addColorStop(1, '#1111cc');
+                    // X-Wing - Rebel Orange/White
+                    gradient.addColorStop(0, '#ffaa44');
+                    gradient.addColorStop(0.3, '#ff8822');
+                    gradient.addColorStop(0.6, '#ffffff');
+                    gradient.addColorStop(1, '#eeeeee');
                 }
 
-                // Main fuselage (sleek fighter body)
+                // Ship body based on type
                 ctx.fillStyle = gradient;
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1.5;
                 
-                ctx.beginPath();
-                // Pointed nose
-                ctx.moveTo(this.size * 0.9, 0);
-                // Top of fuselage
-                ctx.lineTo(this.size * 0.2, -this.size * 0.25);
-                ctx.lineTo(-this.size * 0.4, -this.size * 0.2);
-                // Back top
-                ctx.lineTo(-this.size * 0.7, -this.size * 0.15);
-                // Engine exhaust top
-                ctx.lineTo(-this.size * 0.8, -this.size * 0.1);
-                ctx.lineTo(-this.size * 0.8, this.size * 0.1);
-                // Engine exhaust bottom
-                ctx.lineTo(-this.size * 0.7, this.size * 0.15);
-                // Back bottom
-                ctx.lineTo(-this.size * 0.4, this.size * 0.2);
-                // Bottom of fuselage
-                ctx.lineTo(this.size * 0.2, this.size * 0.25);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                if (this.shipType === 'stardestroyer' || this.isBoss) {
+                    // Star Destroyer - triangle shape
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.9, 0);
+                    ctx.lineTo(-this.size * 0.8, -this.size * 0.6);
+                    ctx.lineTo(-this.size * 0.8, this.size * 0.6);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Command bridge
+                    ctx.fillStyle = '#888888';
+                    ctx.fillRect(-this.size * 0.6, -this.size * 0.1, this.size * 0.3, this.size * 0.2);
+                    
+                } else if (this.shipType === 'tiefighter') {
+                    // TIE Fighter - hexagonal cockpit with panels
+                    ctx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI) / 3;
+                        const x = Math.cos(angle) * this.size * 0.3;
+                        const y = Math.sin(angle) * this.size * 0.3;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Solar panels
+                    ctx.fillStyle = '#666666';
+                    ctx.fillRect(-this.size * 0.2, -this.size * 0.8, this.size * 0.1, this.size * 1.6);
+                    ctx.fillRect(this.size * 0.1, -this.size * 0.8, this.size * 0.1, this.size * 1.6);
+                    
+                } else {
+                    // X-Wing
+                    ctx.beginPath();
+                    // Main body
+                    ctx.moveTo(this.size * 0.9, 0);
+                    ctx.lineTo(this.size * 0.2, -this.size * 0.15);
+                    ctx.lineTo(-this.size * 0.8, -this.size * 0.1);
+                    ctx.lineTo(-this.size * 0.8, this.size * 0.1);
+                    ctx.lineTo(this.size * 0.2, this.size * 0.15);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
-                // Wings
-                ctx.fillStyle = gradient;
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1;
-                
-                // Top wing
-                ctx.beginPath();
-                ctx.moveTo(this.size * 0.1, -this.size * 0.25);
-                ctx.lineTo(-this.size * 0.2, -this.size * 0.6);
-                ctx.lineTo(-this.size * 0.4, -this.size * 0.55);
-                ctx.lineTo(-this.size * 0.3, -this.size * 0.2);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                
-                // Bottom wing
-                ctx.beginPath();
-                ctx.moveTo(this.size * 0.1, this.size * 0.25);
-                ctx.lineTo(-this.size * 0.2, this.size * 0.6);
-                ctx.lineTo(-this.size * 0.4, this.size * 0.55);
-                ctx.lineTo(-this.size * 0.3, this.size * 0.2);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                // Wings (only for X-Wing)
+                if (this.shipType === 'xwing' || (this.team === 'blue' && this.shipType !== 'tiefighter' && this.shipType !== 'stardestroyer')) {
+                    ctx.fillStyle = gradient;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    
+                    // X-Wing wings in X formation
+                    // Top-right wing
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.1, -this.size * 0.15);
+                    ctx.lineTo(this.size * 0.3, -this.size * 0.5);
+                    ctx.lineTo(this.size * 0.1, -this.size * 0.7);
+                    ctx.lineTo(-this.size * 0.1, -this.size * 0.35);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Bottom-right wing
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.1, this.size * 0.15);
+                    ctx.lineTo(this.size * 0.3, this.size * 0.5);
+                    ctx.lineTo(this.size * 0.1, this.size * 0.7);
+                    ctx.lineTo(-this.size * 0.1, this.size * 0.35);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Top-left wing
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.1, -this.size * 0.15);
+                    ctx.lineTo(-this.size * 0.3, -this.size * 0.5);
+                    ctx.lineTo(-this.size * 0.5, -this.size * 0.4);
+                    ctx.lineTo(-this.size * 0.3, -this.size * 0.05);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Bottom-left wing
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.1, this.size * 0.15);
+                    ctx.lineTo(-this.size * 0.3, this.size * 0.5);
+                    ctx.lineTo(-this.size * 0.5, this.size * 0.4);
+                    ctx.lineTo(-this.size * 0.3, this.size * 0.05);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
-                // Cockpit canopy
-                ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
-                ctx.strokeStyle = '#cccccc';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.ellipse(this.size * 0.3, 0, this.size * 0.15, this.size * 0.12, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                // Cockpit/Details
+                if (this.shipType !== 'tiefighter') {
+                    ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
+                    ctx.strokeStyle = '#cccccc';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    if (this.shipType === 'stardestroyer') {
+                        // Bridge windows
+                        ctx.fillRect(-this.size * 0.5, -this.size * 0.05, this.size * 0.2, this.size * 0.1);
+                    } else {
+                        // X-Wing cockpit
+                        ctx.ellipse(this.size * 0.3, 0, this.size * 0.15, this.size * 0.12, 0, 0, Math.PI * 2);
+                    }
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
-                // Engine exhausts
+                // Engine exhausts based on ship type
                 const exhaustColor = this.thrustPower > 0 ? '#00aaff' : '#333333';
                 ctx.fillStyle = exhaustColor;
                 
-                // Left engine
-                ctx.beginPath();
-                ctx.arc(-this.size * 0.75, -this.size * 0.08, this.size * 0.08, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Right engine
-                ctx.beginPath();
-                ctx.arc(-this.size * 0.75, this.size * 0.08, this.size * 0.08, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Wing tips (weapon hardpoints)
-                if (this.team === 'red') {
-                    ctx.fillStyle = '#ff8800';
+                if (this.shipType === 'stardestroyer') {
+                    // Multiple large engines
+                    for (let i = 0; i < 6; i++) {
+                        const y = (i - 2.5) * this.size * 0.15;
+                        ctx.beginPath();
+                        ctx.arc(-this.size * 0.75, y, this.size * 0.06, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else if (this.shipType === 'tiefighter') {
+                    // Single central engine
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.3, 0, this.size * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
                 } else {
-                    ctx.fillStyle = '#0088ff';
+                    // X-Wing: 4 engines on wing tips
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.4, -this.size * 0.3, this.size * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.4, this.size * 0.3, this.size * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.05, -this.size * 0.6, this.size * 0.04, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.05, this.size * 0.6, this.size * 0.04, 0, Math.PI * 2);
+                    ctx.fill();
                 }
+
+                // Weapon hardpoints based on ship type
+                ctx.fillStyle = this.team === 'red' ? '#ff4444' : '#4488ff';
                 
-                // Weapon hardpoints
-                ctx.fillRect(-this.size * 0.25, -this.size * 0.6, this.size * 0.08, this.size * 0.04);
-                ctx.fillRect(-this.size * 0.25, this.size * 0.56, this.size * 0.08, this.size * 0.04);
+                if (this.shipType === 'stardestroyer' || this.isBoss) {
+                    // Star Destroyer: Multiple turbolaser batteries
+                    for (let i = 0; i < 8; i++) {
+                        const y = (i - 3.5) * this.size * 0.12;
+                        ctx.fillRect(-this.size * 0.3, y - this.size * 0.02, this.size * 0.08, this.size * 0.04);
+                    }
+                } else if (this.shipType === 'xwing') {
+                    // X-Wing: Laser cannons on wing tips
+                    ctx.fillRect(this.size * 0.25, -this.size * 0.65, this.size * 0.04, this.size * 0.06);
+                    ctx.fillRect(this.size * 0.25, this.size * 0.59, this.size * 0.04, this.size * 0.06);
+                    ctx.fillRect(-this.size * 0.35, -this.size * 0.45, this.size * 0.04, this.size * 0.06);
+                    ctx.fillRect(-this.size * 0.35, this.size * 0.39, this.size * 0.04, this.size * 0.06);
+                } else if (this.shipType === 'tiefighter') {
+                    // TIE Fighter: Laser cannons
+                    ctx.fillRect(this.size * 0.3, -this.size * 0.08, this.size * 0.06, this.size * 0.03);
+                    ctx.fillRect(this.size * 0.3, this.size * 0.05, this.size * 0.06, this.size * 0.03);
+                }
 
                 ctx.restore();
 
@@ -1030,14 +1515,21 @@
             }
             
             drawTargetingSystem() {
-                if (!player || this.team === 'red') return;
+                if (!player || this.team === player.team) return;
                 
                 ctx.save();
                 const isTarget = currentTarget === this;
                 
-                ctx.strokeStyle = isTarget ? '#00ff00' : '#666666';
-                ctx.lineWidth = isTarget ? 3 : 1;
-                ctx.setLineDash(isTarget ? [] : [3, 3]);
+                // Special targeting for boss
+                if (this.isBoss) {
+                    ctx.strokeStyle = isTarget ? '#ff0000' : '#ff6666';
+                    ctx.lineWidth = isTarget ? 5 : 3;
+                    ctx.setLineDash(isTarget ? [] : [5, 5]);
+                } else {
+                    ctx.strokeStyle = isTarget ? '#00ff00' : '#666666';
+                    ctx.lineWidth = isTarget ? 3 : 1;
+                    ctx.setLineDash(isTarget ? [] : [3, 3]);
+                }
                 
                 const size = this.size + 18;
                 ctx.strokeRect(this.x - size, this.y - size, size * 2, size * 2);
@@ -1309,6 +1801,7 @@
                 debris = [];
                 currentTarget = null;
                 gameRunning = true;
+                bossSpawned = false;
                 
                 // Create stars
                 starField = [];
@@ -1321,30 +1814,72 @@
                     });
                 }
                 
-                // Create player
-                player = new Ship(canvas.width * 0.1, canvas.height / 2, 'red', true);
+                // Create player with selected ship type and faction
+                const team = playerFaction === 'empire' ? 'red' : 'blue';
+                const enemyTeam = playerFaction === 'empire' ? 'blue' : 'red';
+                
+                player = new Ship(canvas.width * 0.1, canvas.height / 2, team, true, false, playerShipType);
                 ships.push(player);
                 
-                // Create teams
-                for (let i = 0; i < 3; i++) {
-                    ships.push(new Ship(
-                        Math.random() * canvas.width * 0.25,
-                        100 + Math.random() * (canvas.height - 200),
-                        'red'
-                    ));
-                }
-                
-                for (let i = 0; i < 4; i++) {
-                    ships.push(new Ship(
-                        canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
-                        100 + Math.random() * (canvas.height - 200),
-                        'blue'
-                    ));
+                // Create teams based on player faction
+                if (playerFaction === 'empire') {
+                    // Player is Empire, allies are Empire, enemies are Rebellion
+                    
+                    // Create allied Empire ships
+                    const allyCount = playerShipType === 'stardestroyer' ? 2 : 3;
+                    for (let i = 0; i < allyCount; i++) {
+                        ships.push(new Ship(
+                            Math.random() * canvas.width * 0.25,
+                            100 + Math.random() * (canvas.height - 200),
+                            'red',
+                            false,
+                            false,
+                            'tiefighter'
+                        ));
+                    }
+                    
+                    // Create enemy Rebellion ships
+                    for (let i = 0; i < 5; i++) {
+                        ships.push(new Ship(
+                            canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
+                            100 + Math.random() * (canvas.height - 200),
+                            'blue',
+                            false,
+                            false,
+                            'xwing'
+                        ));
+                    }
+                } else {
+                    // Player is Rebellion, allies are Rebellion, enemies are Empire
+                    
+                    // Create allied Rebellion ships
+                    for (let i = 0; i < 3; i++) {
+                        ships.push(new Ship(
+                            Math.random() * canvas.width * 0.25,
+                            100 + Math.random() * (canvas.height - 200),
+                            'blue',
+                            false,
+                            false,
+                            'xwing'
+                        ));
+                    }
+                    
+                    // Create enemy Empire ships
+                    for (let i = 0; i < 4; i++) {
+                        ships.push(new Ship(
+                            canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
+                            100 + Math.random() * (canvas.height - 200),
+                            'red',
+                            false,
+                            false,
+                            'tiefighter'
+                        ));
+                    }
                 }
                 
                 // Auto-target
                 setTimeout(() => {
-                    const enemies = ships.filter(ship => ship && ship.team !== 'red' && ship.alive);
+                    const enemies = ships.filter(ship => ship && ship.team !== player.team && ship.alive);
                     if (enemies.length > 0) {
                         currentTarget = enemies[0];
                     }
@@ -1414,6 +1949,11 @@
                 if (redEl) redEl.textContent = redAlive;
                 if (blueEl) blueEl.textContent = blueAlive;
                 
+                // Check if boss should spawn
+                if (!bossSpawned && blueAlive === 1 && !ships.some(s => s && s.isBoss && s.alive)) {
+                    spawnBoss();
+                }
+                
                 if (player && player.alive) {
                     const shieldEl = document.getElementById('shieldPercent');
                     const shieldBarEl = document.getElementById('shieldBar');
@@ -1445,25 +1985,75 @@
                 console.error('HUD update error:', error);
             }
         }
+        
+        function spawnBoss() {
+            try {
+                console.log('Spawning boss!');
+                bossSpawned = true;
+                
+                // Spawn boss at edge of screen
+                const side = Math.floor(Math.random() * 4);
+                let x, y;
+                
+                switch(side) {
+                    case 0: // Top
+                        x = Math.random() * canvas.width;
+                        y = -100;
+                        break;
+                    case 1: // Right
+                        x = canvas.width + 100;
+                        y = Math.random() * canvas.height;
+                        break;
+                    case 2: // Bottom
+                        x = Math.random() * canvas.width;
+                        y = canvas.height + 100;
+                        break;
+                    case 3: // Left
+                        x = -100;
+                        y = Math.random() * canvas.height;
+                        break;
+                }
+                
+                const boss = new Ship(x, y, 'blue', false, true);
+                ships.push(boss);
+                
+                // Auto-target boss if no current target
+                if (!currentTarget || !currentTarget.alive) {
+                    currentTarget = boss;
+                }
+                
+                console.log('Boss spawned at', x, y);
+            } catch (error) {
+                console.error('Boss spawn error:', error);
+            }
+        }
 
         function drawBackground() {
             try {
-                // Space gradient
+                // Deep space gradient
                 const gradient = ctx.createRadialGradient(
                     canvas.width/2, canvas.height/2, 0,
                     canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)
                 );
-                gradient.addColorStop(0, '#002244');
-                gradient.addColorStop(0.5, '#001122');
+                gradient.addColorStop(0, '#001133');
+                gradient.addColorStop(0.5, '#000822');
                 gradient.addColorStop(1, '#000000');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Stars
+                // Twinkling stars
                 ctx.fillStyle = 'white';
                 for (let star of starField) {
                     ctx.save();
-                    ctx.globalAlpha = star.brightness;
+                    // Twinkling effect
+                    star.twinkle += 0.1;
+                    const twinkleAlpha = star.brightness * (0.7 + 0.3 * Math.sin(star.twinkle));
+                    ctx.globalAlpha = twinkleAlpha;
+                    
+                    // Larger, more visible stars
+                    ctx.shadowBlur = star.size * 2;
+                    ctx.shadowColor = 'white';
+                    
                     ctx.beginPath();
                     ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
                     ctx.fill();
@@ -1548,12 +2138,20 @@
         // Global function for restart button
         function startNewGame() {
             try {
-                console.log('Starting new game...');
-                gameRunning = true;
+                console.log('Restarting game...');
+                gameRunning = false;
+                gameStarted = false;
+                
                 const gameOverEl = document.getElementById('gameOver');
+                const shipSelectionEl = document.getElementById('shipSelection');
+                
                 if (gameOverEl) gameOverEl.style.display = 'none';
-                initGame();
-                gameLoop();
+                if (shipSelectionEl) shipSelectionEl.style.display = 'block';
+                
+                // Reset background
+                initBackground();
+                drawBackground();
+                
             } catch (error) {
                 console.error('New game start error:', error);
             }
