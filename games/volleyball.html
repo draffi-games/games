@@ -28,6 +28,7 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             position: relative;
+            display: none; /* Hidden until mode is selected */
         }
         
         #gameInfo {
@@ -191,9 +192,120 @@
             border-radius: 20px;
             display: none;
         }
+        
+        #gameMenu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0D47A1 0%, #1B5E20 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+        }
+        
+        .menu-title {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        
+        .menu-subtitle {
+            font-size: 1.2em;
+            margin-bottom: 40px;
+            text-align: center;
+            opacity: 0.9;
+        }
+        
+        .mode-selection {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .mode-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            width: 300px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .mode-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #FFD700;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        .mode-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        .mode-title {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .mode-description {
+            font-size: 1em;
+            line-height: 1.4;
+            opacity: 0.9;
+        }
+        
+        .democracy-footer {
+            margin-top: 40px;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
+    <!-- Game Mode Selection Menu -->
+    <div id="gameMenu">
+        <div class="menu-title">🏐 HELLDIVERS VOLLEYBALL 🏐</div>
+        <div class="menu-subtitle">Choose Your Battle Mode, Helldiver!</div>
+        
+        <div class="mode-selection">
+            <div class="mode-card" onclick="startGame('classic')">
+                <div class="mode-icon">🎯</div>
+                <div class="mode-title">CLASSIC MODE</div>
+                <div class="mode-description">
+                    Pure volleyball action<br>
+                    • Clean gameplay<br>
+                    • No special events<br>
+                    • Focus on skill
+                </div>
+            </div>
+            
+            <div class="mode-card" onclick="startGame('extreme')">
+                <div class="mode-icon">💥</div>
+                <div class="mode-title">EXTREME MODE</div>
+                <div class="mode-description">
+                    Chaotic battlefield<br>
+                    • Orbital strikes<br>
+                    • Special events<br>
+                    • Democratic mayhem
+                </div>
+            </div>
+        </div>
+        
+        <div class="democracy-footer">🦅 FOR DEMOCRACY! 🦅</div>
+    </div>
+
     <div id="gameContainer">
         <h1>🏐 Volleyball Extreme 🏐</h1>
         <div class="special-mode" id="specialMode"></div>
@@ -244,9 +356,10 @@
         const NET_HEIGHT = 150;
         const WINNING_SCORE = 10;
         
-        let gameRunning = true;
+        let gameRunning = false;  // Start paused until mode selected
         let player1Score = 0;
         let player2Score = 0;
+        let gameMode = 'classic';  // 'classic' or 'extreme'
         let particles = [];
         let powerUps = [];
         let specialModeActive = false;
@@ -713,9 +826,13 @@
             const isPlayer1 = player === player1;
             const direction = isPlayer1 ? 1 : -1;
             
-            // Check for smash (hitting ball while jumping down or pressing smash key)
-            const isSmashing = (player.velocityY > 2 && ball.y < player.y + 20) || 
-                              (keys[player.controls.smash] && !player.isJumping);
+            // Check for smash (balanced smash conditions)
+            const playerCenterX = player.x + player.width/2;
+            const ballAbovePlayer = Math.abs(ball.x - playerCenterX) < 20;
+            
+            const isSmashing = (player.velocityY > 1.5 && ball.y < player.y + 30) || 
+                              (keys[player.controls.smash] && !player.isJumping) ||
+                              (ballAbovePlayer && ball.y < player.y + 35 && player.velocityY > 0);
             
             let speedMultiplier = 1;
             let angleMultiplier = 1;
@@ -813,7 +930,8 @@
         }
         
         function spawnPowerUp() {
-            if (Math.random() < 0.003 && powerUps.length < 2) {
+            // Only spawn power-ups in extreme mode
+            if (gameMode === 'extreme' && Math.random() < 0.003 && powerUps.length < 2) {
                 powerUps.push(new PowerUp());
             }
         }
@@ -1091,6 +1209,11 @@
         }
         
         function activateSpecialMode() {
+            // Only activate special events in extreme mode
+            if (gameMode !== 'extreme') {
+                return;
+            }
+            
             eventCounter++;
             
             // Increase frequency over time
@@ -1351,6 +1474,22 @@
             }
             
             gameOverDiv.style.display = 'block';
+        }
+        
+        function startGame(mode) {
+            gameMode = mode;
+            document.getElementById('gameMenu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            
+            // Update title based on mode
+            const title = document.querySelector('#gameContainer h1');
+            if (mode === 'classic') {
+                title.textContent = '🏐 Volleyball Classic 🏐';
+            } else {
+                title.textContent = '🏐 Volleyball Extreme 🏐';
+            }
+            
+            resetGame();
         }
         
         function resetGame() {

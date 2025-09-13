@@ -393,6 +393,267 @@
             50% { opacity: 0.5; }
         }
 
+        /* Icon Animations */
+        @keyframes spin-icon {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes bounce-icon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes shake-icon {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        @keyframes pulse-icon {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes float-icon {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            33% { transform: translateY(-3px) rotate(2deg); }
+            66% { transform: translateY(3px) rotate(-2deg); }
+        }
+
+        .control-button.animate-spin {
+            animation: spin-icon 2s linear infinite;
+        }
+
+        .control-button.animate-bounce {
+            animation: bounce-icon 1s ease-in-out infinite;
+        }
+
+        .control-button.animate-shake {
+            animation: shake-icon 0.5s ease-in-out infinite;
+        }
+
+        .control-button.animate-pulse {
+            animation: pulse-icon 1.5s ease-in-out infinite;
+        }
+
+        .control-button.animate-float {
+            animation: float-icon 3s ease-in-out infinite;
+        }
+
+        /* Easter Egg Effects */
+        .screen-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-blue);
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            animation: flash-effect 0.5s ease-out;
+        }
+
+        .screen-flash.lightning {
+            background: #ffffff;
+            animation: lightning-flash 0.8s ease-out;
+        }
+
+        .screen-flash.red-alert {
+            background: var(--accent-red);
+            animation: red-alert-flash 2s ease-out;
+        }
+
+        @keyframes flash-effect {
+            0% { opacity: 0; }
+            50% { opacity: 0.3; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes lightning-flash {
+            0% { opacity: 0; }
+            10% { opacity: 0.8; }
+            20% { opacity: 0; }
+            30% { opacity: 0.6; }
+            40% { opacity: 0; }
+            50% { opacity: 0.9; }
+            60% { opacity: 0; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes red-alert-flash {
+            0%, 100% { opacity: 0; }
+            25%, 75% { opacity: 0.2; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Matrix Rain Effect */
+        .matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9998;
+            pointer-events: none;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: var(--accent-green);
+            overflow: hidden;
+        }
+
+        .matrix-char {
+            position: absolute;
+            animation: matrix-fall 3s linear infinite;
+            text-shadow: 0 0 5px var(--accent-green);
+        }
+
+        @keyframes matrix-fall {
+            0% { transform: translateY(-100vh); opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        /* Shield Barrier Effect */
+        .shield-barrier {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 200px;
+            height: 200px;
+            border: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9997;
+            pointer-events: none;
+            animation: shield-expand 1.5s ease-out forwards;
+        }
+
+        @keyframes shield-expand {
+            0% { 
+                width: 200px; 
+                height: 200px; 
+                opacity: 1;
+                box-shadow: 0 0 20px var(--accent-blue);
+            }
+            100% { 
+                width: 120vw; 
+                height: 120vh; 
+                opacity: 0;
+                box-shadow: 0 0 50px var(--accent-blue);
+            }
+        }
+
+        /* Scanning Effect */
+        .scanning-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9996;
+            pointer-events: none;
+            background-image: 
+                linear-gradient(0deg, transparent 24%, rgba(0, 255, 255, 0.05) 25%, rgba(0, 255, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 255, 255, 0.05) 75%, rgba(0, 255, 255, 0.05) 76%, transparent 77%, transparent),
+                linear-gradient(90deg, transparent 24%, rgba(0, 255, 255, 0.05) 25%, rgba(0, 255, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 255, 255, 0.05) 75%, rgba(0, 255, 255, 0.05) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+            animation: scanning-sweep 2s ease-in-out;
+        }
+
+        @keyframes scanning-sweep {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Rocket Trail Effect */
+        .rocket-trail {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            font-size: 30px;
+            z-index: 9995;
+            pointer-events: none;
+            text-shadow: 0 0 10px var(--accent-orange);
+        }
+
+        .rocket-trail.rocket1 {
+            animation: rocket-flight1 3s ease-in-out;
+        }
+
+        .rocket-trail.rocket2 {
+            animation: rocket-flight2 3s ease-in-out 0.5s;
+        }
+
+        .rocket-trail.rocket3 {
+            animation: rocket-flight3 3s ease-in-out 1s;
+        }
+
+        @keyframes rocket-flight1 {
+            0% { top: 100vh; left: -50px; transform: rotate(-45deg); }
+            100% { top: -50px; left: 100vw; transform: rotate(-45deg); }
+        }
+
+        @keyframes rocket-flight2 {
+            0% { top: 100vh; left: 50%; transform: rotate(-90deg); }
+            100% { top: -50px; left: 50%; transform: rotate(-90deg); }
+        }
+
+        @keyframes rocket-flight3 {
+            0% { top: 100vh; right: -50px; transform: rotate(-135deg); }
+            100% { top: -50px; right: 100vw; transform: rotate(-135deg); }
+        }
+
+        /* Diagnostic Overlay */
+        .diagnostic-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9994;
+            pointer-events: none;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--accent-green);
+            animation: diagnostic-fade 3s ease-out;
+        }
+
+        .diagnostic-text {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 5px;
+            border: 1px solid var(--accent-green);
+        }
+
+        @keyframes diagnostic-fade {
+            0%, 80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Network Lines Effect */
+        .network-lines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9993;
+            pointer-events: none;
+        }
+
+        .network-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+            animation: network-pulse 2s ease-in-out;
+        }
+
+        @keyframes network-pulse {
+            0%, 100% { opacity: 0; transform: scaleX(0); }
+            50% { opacity: 1; transform: scaleX(1); }
+        }
+
         /* Responsive Design */
         @media (max-width: 1200px) {
             .command-center {
@@ -727,6 +988,12 @@
                 description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten gegen die KI. Komplettes Echtzeitstrategie-Erlebnis im Browser!",
                 url: "games/space-command.html",
                 icon: "🛰️"
+            },
+            {
+                title: "Flappy Bird",
+                description: "Das süchtig machende Flugspiel! Steuere den Vogel durch die Röhren, sammle Punkte und vermeide Kollisionen. Einfach zu lernen, schwer zu meistern!",
+                url: "games/flappy-bird.html",
+                icon: "🐦"
             }
         ];
 
@@ -752,10 +1019,343 @@
             });
         }
 
+        // Easter Egg Effects System
+        class EasterEggSystem {
+            constructor() {
+                this.audioContext = null;
+                this.setupAudio();
+            }
+
+            setupAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                }
+            }
+
+            playTone(frequency, duration, type = 'sine') {
+                if (!this.audioContext) return;
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + duration);
+            }
+
+            createScreenFlash(type = 'normal') {
+                const flash = document.createElement('div');
+                flash.className = `screen-flash ${type}`;
+                document.body.appendChild(flash);
+                
+                setTimeout(() => {
+                    flash.remove();
+                }, type === 'red-alert' ? 2000 : 800);
+            }
+
+            createMatrixRain() {
+                const matrix = document.createElement('div');
+                matrix.className = 'matrix-rain';
+                document.body.appendChild(matrix);
+
+                const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+                for (let i = 0; i < 50; i++) {
+                    const char = document.createElement('div');
+                    char.className = 'matrix-char';
+                    char.textContent = chars[Math.floor(Math.random() * chars.length)];
+                    char.style.left = Math.random() * 100 + '%';
+                    char.style.animationDelay = Math.random() * 2 + 's';
+                    matrix.appendChild(char);
+                }
+
+                setTimeout(() => {
+                    matrix.remove();
+                }, 3000);
+            }
+
+            createShieldBarrier() {
+                const shield = document.createElement('div');
+                shield.className = 'shield-barrier';
+                document.body.appendChild(shield);
+
+                setTimeout(() => {
+                    shield.remove();
+                }, 1500);
+            }
+
+            createScanningGrid() {
+                const scanning = document.createElement('div');
+                scanning.className = 'scanning-grid';
+                document.body.appendChild(scanning);
+
+                setTimeout(() => {
+                    scanning.remove();
+                }, 2000);
+            }
+
+            createRocketTrail() {
+                for (let i = 1; i <= 3; i++) {
+                    const rocket = document.createElement('div');
+                    rocket.className = `rocket-trail rocket${i}`;
+                    rocket.textContent = '🚀';
+                    document.body.appendChild(rocket);
+
+                    setTimeout(() => {
+                        rocket.remove();
+                    }, 3500);
+                }
+            }
+
+            createDiagnosticOverlay() {
+                const overlay = document.createElement('div');
+                overlay.className = 'diagnostic-overlay';
+                
+                const diagnostics = [
+                    'SYSTEM CHECK: ALL SYSTEMS NOMINAL',
+                    'POWER CORE: 98.7% EFFICIENCY',
+                    'SHIELD GENERATORS: ONLINE',
+                    'WEAPON SYSTEMS: ARMED',
+                    'NAVIGATION: LOCKED',
+                    'COMMUNICATIONS: ACTIVE',
+                    'LIFE SUPPORT: OPTIMAL',
+                    'ENGINE STATUS: READY'
+                ];
+
+                diagnostics.forEach((text, index) => {
+                    const diagnostic = document.createElement('div');
+                    diagnostic.className = 'diagnostic-text';
+                    diagnostic.textContent = text;
+                    diagnostic.style.top = (10 + index * 30) + 'px';
+                    diagnostic.style.left = '20px';
+                    overlay.appendChild(diagnostic);
+                });
+
+                document.body.appendChild(overlay);
+
+                setTimeout(() => {
+                    overlay.remove();
+                }, 3000);
+            }
+
+            createNetworkLines() {
+                const network = document.createElement('div');
+                network.className = 'network-lines';
+                
+                for (let i = 0; i < 10; i++) {
+                    const line = document.createElement('div');
+                    line.className = 'network-line';
+                    line.style.top = Math.random() * 100 + '%';
+                    line.style.left = '0';
+                    line.style.width = '100%';
+                    line.style.animationDelay = Math.random() * 2 + 's';
+                    network.appendChild(line);
+                }
+
+                document.body.appendChild(network);
+
+                setTimeout(() => {
+                    network.remove();
+                }, 2000);
+            }
+
+            activateRedAlert() {
+                // Change all status lights to warning
+                const statusLights = document.querySelectorAll('.status-light');
+                statusLights.forEach(light => {
+                    light.classList.add('warning');
+                });
+
+                // Create red alert flash
+                this.createScreenFlash('red-alert');
+
+                // Play alarm sound
+                this.playTone(800, 0.2);
+                setTimeout(() => this.playTone(600, 0.2), 300);
+                setTimeout(() => this.playTone(800, 0.2), 600);
+
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    statusLights.forEach((light, index) => {
+                        if (index !== 2) { // Keep defense warning as original
+                            light.classList.remove('warning');
+                        }
+                    });
+                }, 3000);
+            }
+
+            enhanceRadar() {
+                const radar = document.querySelector('.radar');
+                const originalBorder = radar.style.border;
+                
+                // Add pulsing effect
+                radar.style.animation = 'pulse-icon 0.5s ease-in-out 6';
+                radar.style.borderColor = 'var(--accent-green)';
+                radar.style.boxShadow = 'var(--glow-green)';
+
+                // Add extra radar dots
+                for (let i = 0; i < 5; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'radar-dot';
+                    dot.style.top = Math.random() * 80 + 10 + '%';
+                    dot.style.left = Math.random() * 80 + 10 + '%';
+                    radar.appendChild(dot);
+
+                    setTimeout(() => {
+                        dot.remove();
+                    }, 3000);
+                }
+
+                setTimeout(() => {
+                    radar.style.animation = '';
+                    radar.style.borderColor = '';
+                    radar.style.boxShadow = '';
+                }, 3000);
+            }
+        }
+
+        // Console Button Animation System
+        class ButtonAnimator {
+            constructor() {
+                this.buttons = document.querySelectorAll('.control-button');
+                this.animations = ['animate-spin', 'animate-bounce', 'animate-shake', 'animate-pulse', 'animate-float'];
+                this.easterEggs = new EasterEggSystem();
+                this.initializeButtons();
+            }
+
+            initializeButtons() {
+                this.buttons.forEach((button, index) => {
+                    // Add click event for Easter eggs
+                    button.addEventListener('click', () => {
+                        this.triggerEasterEgg(button);
+                    });
+                    
+                    // Add hover effect for preview
+                    button.addEventListener('mouseenter', () => {
+                        if (!button.classList.contains('animating')) {
+                            this.previewAnimation(button);
+                        }
+                    });
+                    
+                    button.addEventListener('mouseleave', () => {
+                        if (!button.classList.contains('animating')) {
+                            this.clearPreviewAnimation(button);
+                        }
+                    });
+                });
+            }
+
+            triggerEasterEgg(button) {
+                const icon = button.textContent.trim();
+                
+                // Add button animation
+                this.startRandomAnimation(button);
+                
+                // Trigger specific Easter egg based on icon
+                switch(icon) {
+                    case '⚡':
+                        this.easterEggs.createScreenFlash('lightning');
+                        this.easterEggs.playTone(1000, 0.3, 'sawtooth');
+                        break;
+                    case '🛡️':
+                        this.easterEggs.createShieldBarrier();
+                        this.easterEggs.playTone(400, 0.8, 'triangle');
+                        break;
+                    case '⚠️':
+                        this.easterEggs.activateRedAlert();
+                        break;
+                    case '🎯':
+                        this.easterEggs.createScanningGrid();
+                        this.easterEggs.playTone(2000, 0.1);
+                        setTimeout(() => this.easterEggs.playTone(2200, 0.1), 200);
+                        break;
+                    case '📡':
+                        this.easterEggs.enhanceRadar();
+                        this.easterEggs.playTone(600, 0.5, 'sine');
+                        break;
+                    case '🚀':
+                        this.easterEggs.createRocketTrail();
+                        this.easterEggs.playTone(1500, 0.3);
+                        setTimeout(() => this.easterEggs.playTone(1800, 0.2), 500);
+                        setTimeout(() => this.easterEggs.playTone(2000, 0.2), 1000);
+                        break;
+                    case '🔧':
+                        this.easterEggs.createDiagnosticOverlay();
+                        this.easterEggs.playTone(800, 0.2);
+                        break;
+                    case '💾':
+                        this.easterEggs.createMatrixRain();
+                        this.easterEggs.playTone(300, 1.0, 'square');
+                        break;
+                    case '🌐':
+                        this.easterEggs.createNetworkLines();
+                        this.easterEggs.playTone(1200, 0.4);
+                        break;
+                    default:
+                        this.easterEggs.createScreenFlash();
+                        this.easterEggs.playTone(800, 0.3);
+                }
+
+                // Clear button animation after effect
+                setTimeout(() => {
+                    this.clearAnimation(button);
+                }, 2000);
+            }
+
+            startRandomAnimation(button) {
+                const randomAnimation = this.animations[Math.floor(Math.random() * this.animations.length)];
+                button.classList.add('animating', randomAnimation);
+            }
+
+            previewAnimation(button) {
+                button.classList.add('animate-pulse');
+            }
+
+            clearPreviewAnimation(button) {
+                button.classList.remove('animate-pulse');
+            }
+
+            clearAnimation(button) {
+                button.classList.remove('animating', ...this.animations);
+            }
+
+            // Auto-animate some buttons periodically
+            startAutoAnimation() {
+                setInterval(() => {
+                    const randomButton = this.buttons[Math.floor(Math.random() * this.buttons.length)];
+                    if (!randomButton.classList.contains('animating')) {
+                        this.startRandomAnimation(randomButton);
+                        
+                        // Stop after 3 seconds
+                        setTimeout(() => {
+                            this.clearAnimation(randomButton);
+                        }, 3000);
+                    }
+                }, 12000); // Every 12 seconds (longer interval since we have Easter eggs now)
+            }
+        }
+
         // Initialize everything
         function init() {
             new StarSystem();
             loadGames();
+            
+            // Initialize button animations
+            const animator = new ButtonAnimator();
+            
+            // Start auto-animation after a delay
+            setTimeout(() => {
+                animator.startAutoAnimation();
+            }, 3000);
             
             // Remove loading screen
             setTimeout(() => {

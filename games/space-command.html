@@ -184,7 +184,7 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.9);
-            display: flex;
+            display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
@@ -424,16 +424,16 @@
             MAP_HEIGHT: 1600,
             GRID_SIZE: 40,
             UNIT_TYPES: {
-                WORKER: { cost: 50, buildTime: 3000, health: 50, speed: 60, damage: 5, range: 50 },
-                FIGHTER: { cost: 50, buildTime: 3000, health: 80, speed: 120, damage: 15, range: 120 },
-                CRUISER: { cost: 150, buildTime: 8000, health: 200, speed: 80, damage: 30, range: 150 },
-                CARRIER: { cost: 400, buildTime: 20000, health: 500, speed: 40, damage: 50, range: 200 }
+                WORKER: { cost: 50, buildTime: 3000, health: 50, speed: 60, damage: 8, range: 50 },
+                FIGHTER: { cost: 50, buildTime: 3000, health: 80, speed: 120, damage: 22, range: 120 },
+                CRUISER: { cost: 150, buildTime: 8000, health: 200, speed: 80, damage: 45, range: 150 },
+                CARRIER: { cost: 400, buildTime: 20000, health: 500, speed: 40, damage: 75, range: 200 }
             },
             BUILDING_TYPES: {
                 COMMAND_CENTER: { cost: 0, buildTime: 0, health: 1000 },
                 SHIPYARD: { cost: 200, buildTime: 15000, health: 400 },
                 EXTRACTOR: { cost: 150, buildTime: 10000, health: 200 },
-                TURRET: { cost: 100, buildTime: 8000, health: 300, damage: 25, range: 180 }
+                TURRET: { cost: 100, buildTime: 8000, health: 300, damage: 38, range: 180 }
             }
         };
 
@@ -530,6 +530,8 @@
                 if (owner === 'player') this.player.population++;
                 else this.enemy.population++;
                 
+                console.log(`Created ${type} unit for ${owner} at (${x}, ${y})`, unit);
+                
                 return unit;
             }
 
@@ -598,11 +600,15 @@
                         
                         if (distance > 5) {
                             const moveDistance = unit.speed * deltaTime;
+                            const oldX = unit.x;
+                            const oldY = unit.y;
                             unit.x += (dx / distance) * moveDistance;
                             unit.y += (dy / distance) * moveDistance;
                             unit.angle = Math.atan2(dy, dx);
                             unit.state = 'moving';
+                            console.log(`Unit ${unit.id} moving from (${oldX.toFixed(1)}, ${oldY.toFixed(1)}) to (${unit.x.toFixed(1)}, ${unit.y.toFixed(1)}), distance: ${distance.toFixed(1)}, deltaTime: ${deltaTime.toFixed(3)}`);
                         } else {
+                            console.log(`Unit ${unit.id} reached destination (${unit.destination.x}, ${unit.destination.y})`);
                             unit.destination = null;
                             unit.state = 'idle';
                         }
@@ -615,7 +621,7 @@
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         
                         if (distance <= unit.range) {
-                            if (Date.now() - unit.lastAttack > 1000) {
+                            if (Date.now() - unit.lastAttack > 600) {
                                 this.addProjectile(unit.x, unit.y, unit.target.x, unit.target.y, unit.damage, unit.owner);
                                 if (this.soundManager) this.soundManager.play('laser');
                                 unit.lastAttack = Date.now();
@@ -691,7 +697,7 @@
                             return Math.sqrt(dx * dx + dy * dy) <= GAME_CONFIG.BUILDING_TYPES.TURRET.range;
                         });
 
-                        if (target && (!building.lastAttack || Date.now() - building.lastAttack > 800)) {
+                        if (target && (!building.lastAttack || Date.now() - building.lastAttack > 500)) {
                             this.addProjectile(building.x, building.y, target.x, target.y, GAME_CONFIG.BUILDING_TYPES.TURRET.damage, building.owner);
                             if (this.soundManager) this.soundManager.play('laser');
                             building.lastAttack = Date.now();
@@ -855,7 +861,7 @@
                 if (!this.isRunning) return;
 
                 const currentTime = performance.now();
-                const deltaTime = (currentTime - this.lastTime) / 1000;
+                const deltaTime = this.lastTime === 0 ? 0 : (currentTime - this.lastTime) / 1000;
                 this.lastTime = currentTime;
 
                 this.update(deltaTime);
@@ -871,6 +877,7 @@
                 this.game = game;
                 this.keys = {};
                 this.mouse = { x: 0, y: 0, down: false };
+                this.mouseListenersAttached = false;
                 this.setupEventListeners();
             }
 
@@ -879,10 +886,8 @@
                 window.addEventListener('keydown', e => this.keys[e.key.toLowerCase()] = true);
                 window.addEventListener('keyup', e => this.keys[e.key.toLowerCase()] = false);
 
-                // Mouse
-                canvas.addEventListener('mousedown', e => this.onMouseDown(e));
-                canvas.addEventListener('mouseup', e => this.onMouseUp(e));
-                canvas.addEventListener('mousemove', e => this.onMouseMove(e));
+                // Mouse - only if canvas exists
+                this.setupMouseListeners();
 
                 // UI Buttons
                 this.setupUIListeners();
@@ -891,10 +896,22 @@
                 this.updateCamera();
             }
 
+            setupMouseListeners() {
+                if (canvas && !this.mouseListenersAttached) {
+                    canvas.addEventListener('mousedown', e => this.onMouseDown(e));
+                    canvas.addEventListener('mouseup', e => this.onMouseUp(e));
+                    canvas.addEventListener('mousemove', e => this.onMouseMove(e));
+                    this.mouseListenersAttached = true;
+                }
+            }
+
             onMouseDown(e) {
+                if (!canvas) return; // Safety check
+                console.log(`Mouse ${e.button === 0 ? 'left' : 'right'} click detected`);
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left + this.game.camera.x;
                 const y = e.clientY - rect.top + this.game.camera.y;
+                console.log(`Click at screen (${e.clientX - rect.left}, ${e.clientY - rect.top}) -> world (${x}, ${y})`);
 
                 if (e.button === 0) { // Left click
                     if (this.game.buildMode) {
@@ -914,6 +931,7 @@
             }
 
             onMouseMove(e) {
+                if (!canvas) return; // Safety check
                 const rect = canvas.getBoundingClientRect();
                 this.mouse.x = e.clientX - rect.left;
                 this.mouse.y = e.clientY - rect.top;
@@ -961,15 +979,17 @@
                 this.game.selectedUnits.forEach(u => u.selected = false);
                 this.game.selectedUnits = [];
 
-                [...this.game.units, ...this.game.buildings]
-                    .filter(entity => entity.owner === 'player')
-                    .forEach(entity => {
-                        if (entity.x >= selectionBounds.left && entity.x <= selectionBounds.right &&
-                            entity.y >= selectionBounds.top && entity.y <= selectionBounds.bottom) {
-                            entity.selected = true;
-                            this.game.selectedUnits.push(entity);
-                        }
-                    });
+                const availableEntities = [...this.game.units, ...this.game.buildings].filter(entity => entity.owner === 'player');
+                console.log(`Available player entities for selection: ${availableEntities.length}`, availableEntities);
+
+                availableEntities.forEach(entity => {
+                    if (entity.x >= selectionBounds.left && entity.x <= selectionBounds.right &&
+                        entity.y >= selectionBounds.top && entity.y <= selectionBounds.bottom) {
+                        entity.selected = true;
+                        this.game.selectedUnits.push(entity);
+                        console.log(`Selected entity: ${entity.type} at (${entity.x}, ${entity.y})`);
+                    }
+                });
 
                 // Single click selection
                 if (Math.abs(endX - this.game.selectionStart.x) < 5 && Math.abs(endY - this.game.selectionStart.y) < 5) {
@@ -986,13 +1006,22 @@
                     if (clicked) {
                         this.game.selectedUnits = [clicked];
                         clicked.selected = true;
+                        console.log(`Single-clicked and selected: ${clicked.type} at (${clicked.x}, ${clicked.y})`);
                         if (this.game.soundManager) this.game.soundManager.play('select');
+                    } else {
+                        console.log(`Single-click at (${clickX}, ${clickY}) - no entity found`);
                     }
                 }
+                
+                console.log(`Selection complete: ${this.game.selectedUnits.length} units selected`, this.game.selectedUnits);
             }
 
             rightClickCommand(x, y) {
-                if (this.game.selectedUnits.length === 0) return;
+                console.log(`Right-click command at (${x}, ${y}), selected units:`, this.game.selectedUnits.length);
+                if (this.game.selectedUnits.length === 0) {
+                    console.log("No units selected for movement command");
+                    return;
+                }
 
                 // Check if clicking on enemy
                 const target = [...this.game.units, ...this.game.buildings]
@@ -1021,6 +1050,7 @@
                         unit.destination = { x, y };
                         unit.target = null;
                         unit.state = 'idle';
+                        console.log(`Unit ${unit.id} given move command to (${x}, ${y})`);
                     }
                 });
             }
@@ -1119,6 +1149,7 @@
             }
 
             render() {
+                if (!ctx || !canvas) return; // Safety check
                 this.clearCanvas();
                 this.drawBackground();
                 this.drawResources();
@@ -1227,13 +1258,47 @@
                         ctx.translate(screenX, screenY);
                         ctx.rotate(unit.angle);
                         
+                        // Mini fighter jet design for RTS
                         ctx.fillStyle = color;
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 0.8;
+                        
+                        // Main fuselage
                         ctx.beginPath();
-                        ctx.moveTo(10, 0);
-                        ctx.lineTo(-8, -6);
-                        ctx.lineTo(-5, 0);
-                        ctx.lineTo(-8, 6);
+                        ctx.moveTo(10, 0);  // Nose
+                        ctx.lineTo(2, -2);   // Top fuselage
+                        ctx.lineTo(-6, -1.5); // Back top
+                        ctx.lineTo(-8, -0.5);  // Engine top
+                        ctx.lineTo(-8, 0.5);   // Engine bottom
+                        ctx.lineTo(-6, 1.5);   // Back bottom
+                        ctx.lineTo(2, 2);      // Bottom fuselage
                         ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        
+                        // Wings
+                        ctx.beginPath();
+                        ctx.moveTo(1, -2);
+                        ctx.lineTo(-2, -5);
+                        ctx.lineTo(-4, -4.5);
+                        ctx.lineTo(-3, -1.5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(1, 2);
+                        ctx.lineTo(-2, 5);
+                        ctx.lineTo(-4, 4.5);
+                        ctx.lineTo(-3, 1.5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        
+                        // Cockpit
+                        ctx.fillStyle = 'rgba(200, 220, 255, 0.8)';
+                        ctx.beginPath();
+                        ctx.ellipse(3, 0, 1.5, 1, 0, 0, Math.PI * 2);
                         ctx.fill();
                         
                         // Engine trail
@@ -1690,6 +1755,7 @@
         let soundManager = null;
 
         function resizeCanvas() {
+            if (!canvas || !minimapCanvas) return; // Safety check
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             minimapCanvas.width = 180;
@@ -1725,10 +1791,20 @@
         }
 
         function initializeGame() {
+            console.log("Initializing Space Command game...");
             soundManager = new SoundManager();
             game = new GameEngine();
+            console.log("Game engine created, units:", game.units.length, "buildings:", game.buildings.length);
+            console.log("Camera position:", game.camera);
+            console.log("Canvas size:", canvas.width, "x", canvas.height);
+            
+            // Ensure mouse listeners are set up now that canvas exists
+            if (game.inputHandler) {
+                game.inputHandler.setupMouseListeners();
+            }
+            
             game.start();
-            console.log("Space Command initialized successfully!");
+            console.log("Space Command initialized successfully! Game running:", game.isRunning);
         }
 
         // Initialize resize listener
@@ -1736,6 +1812,8 @@
 
         // Menu starfield animation
         function drawStarfield() {
+            if (!ctx || !canvas) return; // Safety check
+            
             ctx.fillStyle = '#000011';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             

@@ -360,9 +360,9 @@
             
             <div class="controls">
                 <h3>Steuerung</h3>
-                <p>← → : Bewegen</p>
-                <p>↓ : Schneller fallen</p>
-                <p>↑ : Drehen</p>
+                <p>A D : Bewegen</p>
+                <p>S : Schneller fallen</p>
+                <p>W : Drehen</p>
                 <p>Leertaste : Sofort fallen</p>
                 <p>P : Pause</p>
             </div>
@@ -761,28 +761,28 @@
             if (!gameRunning || isPaused) return;
             
             switch(e.code) {
-                case 'ArrowLeft':
+                case 'KeyA':
                     e.preventDefault();
                     if (isValidPosition(currentPiece, -1, 0)) {
                         currentPiece.x--;
                     }
                     break;
                     
-                case 'ArrowRight':
+                case 'KeyD':
                     e.preventDefault();
                     if (isValidPosition(currentPiece, 1, 0)) {
                         currentPiece.x++;
                     }
                     break;
                     
-                case 'ArrowDown':
+                case 'KeyS':
                     e.preventDefault();
                     if (isValidPosition(currentPiece, 0, 1)) {
                         currentPiece.y++;
                     }
                     break;
                     
-                case 'ArrowUp':
+                case 'KeyW':
                     e.preventDefault();
                     const rotated = rotatePiece(currentPiece);
                     if (isValidPosition(rotated)) {

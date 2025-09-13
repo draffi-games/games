@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Battle Arena - 4v4 Weltraumkampf</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <title>Space Battle Arena - Ultra Realistic Combat</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48dGV4dCB5PScuOWVtJyBmb250LXNpemU9JzkwJz7wn5qAPC90ZXh0Pjwvc3ZnPg==">
     <style>
         * {
             margin: 0;
@@ -15,37 +15,55 @@
         body {
             background: #000;
             color: white;
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
             overflow: hidden;
             height: 100vh;
         }
 
         #gameCanvas {
             display: block;
-            background: #001122;
+            background: #000;
             cursor: crosshair;
         }
 
-        .ui {
+        .hud {
             position: fixed;
             top: 20px;
             left: 20px;
             z-index: 100;
-            background: rgba(0,0,0,0.7);
+            background: linear-gradient(135deg, rgba(0,40,80,0.9), rgba(0,20,40,0.8));
             padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #00ffff;
+            border-radius: 8px;
+            border: 1px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0,255,255,0.3);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
         }
 
-        .shield-info {
+        .tactical-display {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 100;
-            background: rgba(0,0,0,0.7);
+            background: linear-gradient(135deg, rgba(80,40,0,0.9), rgba(40,20,0,0.8));
             padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #00ffff;
+            border-radius: 8px;
+            border: 1px solid #ffaa00;
+            box-shadow: 0 0 20px rgba(255,170,0,0.3);
+            min-width: 200px;
+        }
+
+        .system-status {
+            position: fixed;
+            bottom: 100px;
+            left: 20px;
+            z-index: 100;
+            background: linear-gradient(135deg, rgba(40,80,0,0.9), rgba(20,40,0,0.8));
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0,255,0,0.3);
+            font-size: 11px;
         }
 
         .controls {
@@ -53,11 +71,11 @@
             bottom: 20px;
             left: 20px;
             z-index: 100;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             padding: 10px;
-            border-radius: 10px;
-            border: 2px solid #ffffff;
-            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid #ffffff;
+            font-size: 11px;
         }
 
         .back-btn {
@@ -73,132 +91,183 @@
             border: 2px solid white;
         }
 
-        .back-btn:hover {
-            background: rgba(150,150,150,0.9);
-        }
-
-        .team-red { color: #ff4444; }
-        .team-blue { color: #4444ff; }
+        .team-red { color: #ff6666; text-shadow: 0 0 5px #ff6666; }
+        .team-blue { color: #6666ff; text-shadow: 0 0 5px #6666ff; }
 
         .game-over {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.9);
-            padding: 30px;
+            background: rgba(0,0,0,0.95);
+            padding: 40px;
             border: 3px solid #ffff00;
             border-radius: 15px;
             text-align: center;
             z-index: 200;
             display: none;
+            box-shadow: 0 0 50px rgba(255,255,0,0.5);
         }
 
         .game-over button {
-            margin: 10px;
-            padding: 10px 20px;
+            margin: 15px;
+            padding: 12px 25px;
             font-size: 16px;
-            background: #0066cc;
+            background: linear-gradient(45deg, #0066cc, #0088ff);
             border: 2px solid #00ffff;
             color: white;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            pointer-events: auto;
             transition: all 0.3s ease;
         }
         
         .game-over button:hover {
-            background: #0088ff;
-            box-shadow: 0 0 10px #00ffff;
+            background: linear-gradient(45deg, #0088ff, #00aaff);
+            box-shadow: 0 0 20px #00ffff;
             transform: scale(1.05);
+        }
+
+        .status-bar {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin: 3px 0;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: all 0.2s ease;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     
-    <div class="ui">
-        <div>🔴 <span class="team-red">Rot: <span id="redScore">4</span></span></div>
-        <div>🔵 <span class="team-blue">Blau: <span id="blueScore">4</span></span></div>
+    <div class="hud">
+        <div><span class="team-red">█ HOSTILE: <span id="redScore">4</span></span></div>
+        <div><span class="team-blue">█ FRIENDLY: <span id="blueScore">4</span></span></div>
+        <div style="margin-top: 8px; font-size: 10px; color: #aaa;">COMBAT STATUS</div>
     </div>
     
-    <div class="shield-info">
-        <div>🛡️ Schild: <span id="shieldPercent">100</span>%</div>
-        <div style="width: 100px; height: 10px; background: #333; border-radius: 5px; margin-top: 5px;">
-            <div id="shieldBar" style="width: 100%; height: 100%; background: #00ff00; border-radius: 5px; transition: all 0.3s;"></div>
+    <div class="tactical-display">
+        <div style="color: #ffaa00; font-weight: bold;">TACTICAL DATA</div>
+        <div style="margin-top: 8px;">
+            <div>SHIELD: <span id="shieldPercent">100</span>%</div>
+            <div class="status-bar">
+                <div id="shieldBar" class="bar-fill" style="width: 100%; background: linear-gradient(90deg, #00ff00, #ffff00);"></div>
+            </div>
+        </div>
+        <div style="margin-top: 6px;">
+            <div>HEAT: <span id="heatLevel">0</span>%</div>
+            <div class="status-bar">
+                <div id="heatBar" class="bar-fill" style="width: 0%; background: linear-gradient(90deg, #ff6600, #ff0000);"></div>
+            </div>
+        </div>
+        <div style="margin-top: 6px;">
+            <div>FUEL: <span id="fuelLevel">100</span>%</div>
+            <div class="status-bar">
+                <div id="fuelBar" class="bar-fill" style="width: 100%; background: linear-gradient(90deg, #0066ff, #00aaff);"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="system-status">
+        <div style="color: #00ff00; font-weight: bold;">SYSTEM STATUS</div>
+        <div style="margin-top: 8px; font-size: 10px;">
+            <div>ENG: <span id="engineStatus">NOMINAL</span></div>
+            <div>WPN: <span id="weaponStatus">READY</span></div>
+            <div>SLD: <span id="shieldStatus">ACTIVE</span></div>
+            <div>NAV: <span id="navStatus">ONLINE</span></div>
         </div>
     </div>
     
     <div class="controls">
-        <div><strong>Steuerung:</strong></div>
-        <div>WASD - Bewegung</div>
-        <div>SPACE - Schießen</div>
-        <div>E - Rakete</div>
-        <div>T - Ziel wechseln</div>
-        <div>SHIFT - Boost</div>
+        <div><strong>FLIGHT CONTROLS:</strong></div>
+        <div>WASD - RCS Thrusters</div>
+        <div>SPACE - Primary Weapons</div>
+        <div>E - Guided Munitions</div>
+        <div>T - Target Lock</div>
+        <div>SHIFT - Afterburner</div>
     </div>
     
     <div class="game-over" id="gameOver">
-        <h2 id="winnerText">Team Rot gewinnt!</h2>
-        <button onclick="startNewGame()">Neues Spiel</button>
+        <h2 id="winnerText">MISSION COMPLETE</h2>
+        <button onclick="startNewGame()">New Mission</button>
     </div>
     
-    <a href="../index.html" class="back-btn">← Zurück</a>
+    <a href="../index.html" class="back-btn">← Exit to Hangar</a>
 
     <script>
-        // Ensure DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-            
-            if (!canvas || !ctx) {
-                console.error('Canvas oder Context nicht verfügbar!');
-                return;
-            }
-            
-            // Setup canvas
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                console.log('Canvas Größe:', canvas.width, 'x', canvas.height);
-            }
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            
-            // Test if canvas works
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(10, 10, 50, 50);
-            console.log('Canvas Test-Rechteck gezeichnet');
-            
-            startGame();
-        });
-        
-        function startGame() {
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-
-        // Game variables
-        let gameRunning = true;
+        // Global game variables (moved outside functions to fix scoping)
+        let canvas, ctx;
+        let gameRunning = false;
         let ships = [];
         let bullets = [];
         let rockets = [];
         let particles = [];
+        let debris = [];
         let player = null;
         let currentTarget = null;
-        
+        let gameTime = 0;
+        let starField = [];
+        let spaceDebris = [];
+
         // Input handling
         const keys = {};
         const keysPressed = {};
-        window.addEventListener('keydown', (e) => { 
-            if (!keys[e.code]) keysPressed[e.code] = true;
-            keys[e.code] = true; 
-            e.preventDefault(); 
+
+        // Initialize everything when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                console.log('Initializing Space Battle Arena...');
+                
+                canvas = document.getElementById('gameCanvas');
+                ctx = canvas.getContext('2d');
+                
+                if (!canvas || !ctx) {
+                    throw new Error('Canvas initialization failed');
+                }
+                
+                // Setup canvas
+                function resizeCanvas() {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
+                }
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                
+                // Setup input handling
+                setupInputHandlers();
+                
+                // Start the game
+                initGame();
+                gameLoop();
+                
+                console.log('Game started successfully!');
+                
+            } catch (error) {
+                console.error('Failed to initialize game:', error);
+                // Show error message to user
+                document.body.innerHTML = '<div style="color: red; text-align: center; margin-top: 50px; font-size: 24px;">Game initialization failed. Please refresh the page.</div>';
+            }
         });
-        window.addEventListener('keyup', (e) => { 
-            keys[e.code] = false; 
-            keysPressed[e.code] = false;
-            e.preventDefault(); 
-        });
+
+        function setupInputHandlers() {
+            window.addEventListener('keydown', (e) => { 
+                if (!keys[e.code]) keysPressed[e.code] = true;
+                keys[e.code] = true; 
+                e.preventDefault(); 
+            });
+            window.addEventListener('keyup', (e) => { 
+                keys[e.code] = false; 
+                keysPressed[e.code] = false;
+                e.preventDefault(); 
+            });
+        }
 
         // Ship class
         class Ship {
@@ -214,15 +283,38 @@
                 this.maxHealth = 100;
                 this.shield = 100;
                 this.maxShield = 100;
-                this.size = 22;
+                this.size = 25;
                 this.shootCooldown = 0;
                 this.rocketCooldown = 0;
                 this.alive = true;
                 this.lastDamageTime = 0;
                 
-                // AI properties
+                // Realistic systems
+                this.fuel = 100;
+                this.maxFuel = 100;
+                this.weaponHeat = 0;
+                this.maxWeaponHeat = 100;
+                this.engineHeat = 0;
+                this.thrustPower = 0;
+                this.systemDamage = {
+                    engines: 1.0,
+                    weapons: 1.0,
+                    shields: 1.0,
+                    navigation: 1.0
+                };
+                
+                this.heatSignature = 20;
                 this.target = null;
                 this.aiTimer = 0;
+                this.lastShotTime = 0;
+                
+                // Smart AI properties
+                this.aiState = 'hunt'; // hunt, attack, evade, retreat, flank
+                this.evasionTimer = 0;
+                this.lastDamageTime = 0;
+                this.preferredRange = 250 + Math.random() * 150;
+                this.aggressiveness = 0.3 + Math.random() * 0.7;
+                this.flankDirection = Math.random() < 0.5 ? 1 : -1;
             }
 
             update() {
@@ -234,12 +326,19 @@
                     this.handleAI();
                 }
 
-                // Apply movement
+                // Physics
                 this.x += this.vx;
                 this.y += this.vy;
-                // Reduced drifting - more responsive movement
-                this.vx *= 0.85;
-                this.vy *= 0.85;
+                
+                // Fuel consumption
+                if (this.thrustPower > 0) {
+                    this.fuel -= this.thrustPower * 0.02;
+                    this.fuel = Math.max(0, this.fuel);
+                }
+                
+                // High friction to prevent sliding
+                this.vx *= 0.88;
+                this.vy *= 0.88;
 
                 // Screen wrapping
                 if (this.x < 0) this.x = canvas.width;
@@ -247,205 +346,456 @@
                 if (this.y < 0) this.y = canvas.height;
                 if (this.y > canvas.height) this.y = 0;
 
-                // Update cooldowns
+                // System management
                 if (this.shootCooldown > 0) this.shootCooldown--;
                 if (this.rocketCooldown > 0) this.rocketCooldown--;
-
-                // Shield regeneration (only when not taking damage recently)
+                
+                if (this.weaponHeat > 0) this.weaponHeat -= 0.8;
+                if (this.engineHeat > 0) this.engineHeat -= 0.5;
+                
+                this.heatSignature = 20 + (this.engineHeat * 0.3) + (this.weaponHeat * 0.2);
+                
+                // Shield regeneration
                 const now = Date.now();
-                if (now - this.lastDamageTime > 3000) { // 3 seconds after last damage
+                if (now - this.lastDamageTime > 5000) {
                     if (this.shield < this.maxShield) {
-                        this.shield += 0.5;
+                        this.shield += 0.3;
                         this.shield = Math.min(this.shield, this.maxShield);
                     }
                 }
 
-                // Health regeneration (slower than shields)
-                if (this.health < this.maxHealth && this.shield >= this.maxShield) {
-                    this.health += 0.1;
+                if (this.health < this.maxHealth && this.shield >= this.maxShield * 0.8) {
+                    this.health += 0.02;
                     this.health = Math.min(this.health, this.maxHealth);
                 }
+                
+                this.thrustPower *= 0.85;
             }
 
             handlePlayerInput() {
-                // Rotation - slower turning
+                // Rotation (always works)
                 if (keys['KeyA']) this.angle -= 0.06;
                 if (keys['KeyD']) this.angle += 0.06;
 
-                // Movement - more responsive
+                // Movement (basic movement always works, fuel only affects efficiency)
                 let thrust = 0;
-                if (keys['KeyW']) thrust = 0.5;
-                if (keys['KeyS']) thrust = -0.25;
+                if (keys['KeyW']) {
+                    thrust = 0.4;
+                    if (this.fuel > 1) {
+                        this.engineHeat += 1.1;
+                        this.thrustPower = Math.max(this.thrustPower, thrust);
+                        this.fuel -= 0.02;
+                    } else {
+                        // Emergency movement with reduced power when out of fuel
+                        thrust = 0.15;
+                        this.thrustPower = Math.max(this.thrustPower, thrust);
+                    }
+                }
+                if (keys['KeyS']) {
+                    thrust = -0.2;
+                    if (this.fuel > 1) {
+                        this.engineHeat += 0.7;
+                        this.thrustPower = Math.max(this.thrustPower, Math.abs(thrust));
+                        this.fuel -= 0.015;
+                    } else {
+                        // Emergency movement with reduced power when out of fuel
+                        thrust = -0.08;
+                        this.thrustPower = Math.max(this.thrustPower, Math.abs(thrust));
+                    }
+                }
                 
-                // Boost
-                if (keys['ShiftLeft']) thrust *= 1.8;
+                // Afterburner (requires fuel)
+                if (keys['ShiftLeft'] && this.fuel > 5) {
+                    thrust *= 2.5;
+                    this.engineHeat += 3;
+                    this.fuel -= 0.1;
+                }
 
                 if (thrust !== 0) {
                     this.vx += Math.cos(this.angle) * thrust;
                     this.vy += Math.sin(this.angle) * thrust;
+                    this.createEngineExhaust(thrust);
                 }
 
-                // Shooting - more responsive
+                // Weapons
                 if (keys['Space'] && this.shootCooldown <= 0) {
-                    this.shoot();
+                    if (this.weaponHeat < this.maxWeaponHeat * 0.9) {
+                        this.shoot();
+                    }
                 }
                 
-                // Rocket firing
                 if (keys['KeyE'] && this.rocketCooldown <= 0) {
                     this.shootRocket();
                 }
                 
-                // Target cycling - only on key press, not hold
-                if (keysPressed['KeyT'] && this.isPlayer) {
+                if (keysPressed['KeyT']) {
                     this.cycleTarget();
-                    keysPressed['KeyT'] = false; // Prevent multiple triggers
+                    keysPressed['KeyT'] = false;
+                }
+            }
+            
+            createEngineExhaust(thrustLevel) {
+                const exhaustCount = Math.floor(Math.abs(thrustLevel) * 6);
+                for (let i = 0; i < exhaustCount; i++) {
+                    const exhaustX = this.x - Math.cos(this.angle) * (this.size + 5);
+                    const exhaustY = this.y - Math.sin(this.angle) * (this.size + 5);
+                    
+                    particles.push(new Particle(
+                        exhaustX + (Math.random() - 0.5) * 6,
+                        exhaustY + (Math.random() - 0.5) * 6,
+                        -Math.cos(this.angle) * (2 + Math.random() * 3),
+                        -Math.sin(this.angle) * (2 + Math.random() * 3),
+                        '#0088ff',
+                        20 + Math.random() * 10
+                    ));
                 }
             }
 
             handleAI() {
                 this.aiTimer++;
+                this.evasionTimer++;
                 
-                // Find target
-                if (this.aiTimer % 60 === 0) {
-                    this.target = this.findNearestEnemy();
+                // Update AI state based on situation
+                this.updateAIState();
+                
+                // Find targets periodically
+                if (this.aiTimer % 30 === 0) {
+                    this.target = this.findBestTarget();
                 }
 
-                if (this.target) {
+                if (this.target && this.target.alive) {
                     const dx = this.target.x - this.x;
                     const dy = this.target.y - this.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const targetAngle = Math.atan2(dy, dx);
                     
-                    // Turn towards target
-                    let angleDiff = targetAngle - this.angle;
-                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                    
-                    if (Math.abs(angleDiff) > 0.1) {
-                        this.angle += Math.sign(angleDiff) * 0.03;
-                    }
-                    
-                    // Move towards target
-                    if (distance > 150) {
-                        this.vx += Math.cos(this.angle) * 0.2;
-                        this.vy += Math.sin(this.angle) * 0.2;
-                    }
-                    
-                    // Shoot
-                    if (distance < 300 && Math.abs(angleDiff) < 0.5 && this.shootCooldown <= 0) {
-                        this.shoot();
+                    // Execute behavior based on AI state
+                    switch (this.aiState) {
+                        case 'hunt':
+                            this.huntBehavior(dx, dy, distance);
+                            break;
+                        case 'attack':
+                            this.attackBehavior(dx, dy, distance);
+                            break;
+                        case 'evade':
+                            this.evadeBehavior(dx, dy, distance);
+                            break;
+                        case 'retreat':
+                            this.retreatBehavior(dx, dy, distance);
+                            break;
+                        case 'flank':
+                            this.flankBehavior(dx, dy, distance);
+                            break;
                     }
                 }
             }
-
-            findNearestEnemy() {
-                let nearest = null;
-                let minDist = Infinity;
+            
+            updateAIState() {
+                const healthPercent = this.health / this.maxHealth;
+                const shieldPercent = this.shield / this.maxShield;
+                const recentDamage = Date.now() - this.lastDamageTime < 3000;
                 
-                for (let ship of ships) {
-                    if (ship.team !== this.team && ship.alive) {
-                        const dx = ship.x - this.x;
-                        const dy = ship.y - this.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            nearest = ship;
+                // State transitions based on situation
+                if (healthPercent < 0.3 || (healthPercent < 0.6 && shieldPercent < 0.2)) {
+                    this.aiState = 'retreat';
+                } else if (recentDamage && this.evasionTimer % 120 < 60) {
+                    this.aiState = 'evade';
+                } else if (this.target && this.aggressiveness > 0.6) {
+                    const distance = Math.sqrt((this.target.x - this.x)**2 + (this.target.y - this.y)**2);
+                    if (distance < this.preferredRange * 0.8) {
+                        this.aiState = 'attack';
+                    } else if (distance > this.preferredRange * 1.5) {
+                        this.aiState = 'hunt';
+                    } else {
+                        this.aiState = 'flank';
+                    }
+                } else {
+                    this.aiState = 'hunt';
+                }
+            }
+            
+            huntBehavior(dx, dy, distance) {
+                // Approach target with some unpredictability
+                const targetAngle = Math.atan2(dy, dx);
+                const wobble = Math.sin(this.aiTimer * 0.02) * 0.3;
+                this.turnTowards(targetAngle + wobble);
+                
+                if (distance > this.preferredRange) {
+                    this.moveForward(0.25);
+                }
+                
+                this.tryShoot(distance);
+            }
+            
+            attackBehavior(dx, dy, distance) {
+                // Aggressive direct attack
+                const targetAngle = Math.atan2(dy, dx);
+                this.turnTowards(targetAngle);
+                
+                if (distance > 150) {
+                    this.moveForward(0.3);
+                } else if (distance < 100) {
+                    this.moveForward(-0.15); // Back away if too close
+                }
+                
+                this.tryShoot(distance);
+                this.tryRockets(distance);
+            }
+            
+            evadeBehavior(dx, dy, distance) {
+                // Evasive maneuvers - spiral or zigzag
+                const evasionPattern = this.evasionTimer % 180;
+                let evasionAngle;
+                
+                if (evasionPattern < 60) {
+                    // Spiral out
+                    evasionAngle = Math.atan2(dy, dx) + Math.PI * 0.5 * this.flankDirection;
+                } else if (evasionPattern < 120) {
+                    // Zigzag
+                    evasionAngle = Math.atan2(dy, dx) + Math.PI * 0.3 * (evasionPattern % 20 > 10 ? 1 : -1);
+                } else {
+                    // Break away
+                    evasionAngle = Math.atan2(dy, dx) + Math.PI;
+                }
+                
+                this.turnTowards(evasionAngle);
+                this.moveForward(0.35);
+                
+                // Still try to shoot if opportunity arises
+                if (Math.random() < 0.3) {
+                    this.tryShoot(distance);
+                }
+            }
+            
+            retreatBehavior(dx, dy, distance) {
+                // Retreat while trying to maintain some offensive capability
+                const retreatAngle = Math.atan2(dy, dx) + Math.PI; // Opposite direction
+                const variance = (Math.random() - 0.5) * 0.5;
+                this.turnTowards(retreatAngle + variance);
+                this.moveForward(0.3);
+                
+                // Defensive shooting
+                if (distance < 400 && Math.random() < 0.4) {
+                    this.tryRockets(distance);
+                }
+            }
+            
+            flankBehavior(dx, dy, distance) {
+                // Circle around target to attack from the side
+                const targetAngle = Math.atan2(dy, dx);
+                const flankAngle = targetAngle + (Math.PI * 0.5 * this.flankDirection);
+                this.turnTowards(flankAngle);
+                
+                const idealDistance = this.preferredRange;
+                if (distance < idealDistance * 0.8) {
+                    this.moveForward(-0.1); // Move away
+                } else if (distance > idealDistance * 1.2) {
+                    this.moveForward(0.2); // Move closer
+                } else {
+                    this.moveForward(0.15); // Maintain flanking
+                }
+                
+                this.tryShoot(distance);
+                
+                // Change flanking direction occasionally
+                if (this.aiTimer % 300 === 0) {
+                    this.flankDirection *= -1;
+                }
+            }
+            
+            turnTowards(targetAngle) {
+                let angleDiff = targetAngle - this.angle;
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                
+                const turnRate = 0.05 + this.aggressiveness * 0.02;
+                if (Math.abs(angleDiff) > 0.1) {
+                    this.angle += Math.sign(angleDiff) * turnRate;
+                }
+            }
+            
+            moveForward(thrust) {
+                if (Math.abs(thrust) < 0.01) return;
+                
+                let actualThrust = thrust;
+                if (this.fuel < 10) {
+                    actualThrust *= 0.4;
+                }
+                
+                this.vx += Math.cos(this.angle) * actualThrust;
+                this.vy += Math.sin(this.angle) * actualThrust;
+                
+                if (this.fuel > 1) {
+                    this.engineHeat += Math.abs(actualThrust) * 2;
+                    this.fuel -= Math.abs(actualThrust) * 0.02;
+                }
+                this.thrustPower = Math.abs(actualThrust);
+                
+                if (Math.random() < 0.4) {
+                    this.createEngineExhaust(actualThrust);
+                }
+            }
+            
+            tryShoot(distance) {
+                if (distance < 350 && this.shootCooldown <= 0 && this.weaponHeat < this.maxWeaponHeat * 0.8) {
+                    // Predictive aiming
+                    const targetAngle = this.predictiveAim();
+                    if (targetAngle !== null) {
+                        let angleDiff = targetAngle - this.angle;
+                        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                        
+                        if (Math.abs(angleDiff) < 0.3) {
+                            this.shoot();
                         }
                     }
                 }
-                return nearest;
+            }
+            
+            tryRockets(distance) {
+                if (distance < 500 && distance > 200 && this.rocketCooldown <= 0 && this.weaponHeat < this.maxWeaponHeat * 0.7) {
+                    const targetAngle = this.predictiveAim();
+                    if (targetAngle !== null) {
+                        let angleDiff = targetAngle - this.angle;
+                        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                        
+                        if (Math.abs(angleDiff) < 0.4 && Math.random() < 0.4) {
+                            this.shootRocket();
+                        }
+                    }
+                }
+            }
+            
+            predictiveAim() {
+                if (!this.target) return null;
+                
+                // Predict where target will be
+                const bulletSpeed = 8; // Bullet speed from Bullet class
+                const distance = Math.sqrt((this.target.x - this.x)**2 + (this.target.y - this.y)**2);
+                const timeToHit = distance / bulletSpeed;
+                
+                const predictedX = this.target.x + this.target.vx * timeToHit;
+                const predictedY = this.target.y + this.target.vy * timeToHit;
+                
+                return Math.atan2(predictedY - this.y, predictedX - this.x);
+            }
+
+            findBestTarget() {
+                let bestTarget = null;
+                let bestScore = -1;
+                
+                for (let ship of ships) {
+                    if (ship && ship.team !== this.team && ship.alive) {
+                        const dx = ship.x - this.x;
+                        const dy = ship.y - this.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Scoring factors for target selection
+                        let score = 0;
+                        
+                        // Prefer closer targets
+                        score += (1000 - Math.min(distance, 1000)) / 1000 * 40;
+                        
+                        // Prefer damaged enemies (easier kills)
+                        const enemyHealthPercent = ship.health / ship.maxHealth;
+                        score += (1 - enemyHealthPercent) * 30;
+                        
+                        // Prefer targets facing away (easier to hit)
+                        const angleToTarget = Math.atan2(dy, dx);
+                        const enemyFacingAngle = ship.angle;
+                        let angleDiff = Math.abs(angleToTarget - enemyFacingAngle);
+                        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                        if (Math.abs(angleDiff) > Math.PI * 0.5) {
+                            score += 20; // Target is facing away
+                        }
+                        
+                        // Prefer player ship if aggressive
+                        if (ship.isPlayer && this.aggressiveness > 0.7) {
+                            score += 25;
+                        }
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestTarget = ship;
+                        }
+                    }
+                }
+                return bestTarget;
+            }
+            
+            findNearestEnemy() {
+                // Fallback for compatibility
+                return this.findBestTarget();
             }
 
             shoot() {
-                const bulletX = this.x + Math.cos(this.angle) * this.size;
-                const bulletY = this.y + Math.sin(this.angle) * this.size;
+                if (this.weaponHeat >= this.maxWeaponHeat * 0.9) return;
                 
-                bullets.push(new Bullet(
-                    bulletX, bulletY, 
-                    this.angle, this.team
-                ));
-                this.shootCooldown = 8; // Faster shooting
-
+                const muzzleX = this.x + Math.cos(this.angle) * this.size;
+                const muzzleY = this.y + Math.sin(this.angle) * this.size;
+                
+                bullets.push(new Bullet(muzzleX, muzzleY, this.angle, this.team));
+                this.shootCooldown = 7;
+                this.weaponHeat += 8;
+                
                 // Muzzle flash
                 for (let i = 0; i < 5; i++) {
                     particles.push(new Particle(
-                        bulletX, bulletY,
+                        muzzleX, muzzleY,
                         Math.cos(this.angle) * 2 + (Math.random() - 0.5) * 3,
                         Math.sin(this.angle) * 2 + (Math.random() - 0.5) * 3,
-                        '#ffff00', 15
+                        '#ffff00',
+                        12
                     ));
                 }
             }
             
             shootRocket() {
-                const rocketX = this.x + Math.cos(this.angle) * this.size;
-                const rocketY = this.y + Math.sin(this.angle) * this.size;
+                const rocketTarget = this.isPlayer ? currentTarget : this.target;
+                if (!rocketTarget || this.weaponHeat >= this.maxWeaponHeat * 0.7) return;
                 
-                rockets.push(new Rocket(
-                    rocketX, rocketY, 
-                    this.angle, this.team, currentTarget
-                ));
-                this.rocketCooldown = 60; // Much slower firing rate
+                const launchX = this.x + Math.cos(this.angle) * this.size;
+                const launchY = this.y + Math.sin(this.angle) * this.size;
+                
+                rockets.push(new Rocket(launchX, launchY, this.angle, this.team, rocketTarget));
+                this.rocketCooldown = 0;
+                this.weaponHeat += 25;
 
-                // Rocket launch effect
+                // Launch effect
                 for (let i = 0; i < 15; i++) {
                     particles.push(new Particle(
-                        rocketX, rocketY,
+                        launchX, launchY,
                         Math.cos(this.angle) * 3 + (Math.random() - 0.5) * 5,
                         Math.sin(this.angle) * 3 + (Math.random() - 0.5) * 5,
-                        ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)], 25
+                        ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)],
+                        25
                     ));
                 }
             }
             
             cycleTarget() {
-                const enemies = ships.filter(ship => ship.team !== this.team && ship.alive);
-                console.log(`Found ${enemies.length} enemy targets`);
-                
+                const enemies = ships.filter(ship => ship && ship.team !== this.team && ship.alive);
                 if (enemies.length === 0) {
                     currentTarget = null;
-                    console.log('No targets available');
                     return;
                 }
                 
-                // Find current target index
                 let currentIndex = currentTarget ? enemies.indexOf(currentTarget) : -1;
-                
-                // Cycle to next target
                 currentIndex = (currentIndex + 1) % enemies.length;
                 currentTarget = enemies[currentIndex];
-                
-                console.log(`Target switched to enemy at (${Math.round(currentTarget.x)}, ${Math.round(currentTarget.y)})`);
-                
-                // Ensure we have a valid target
-                if (!currentTarget || !currentTarget.alive) {
-                    let nearest = null;
-                    let minDist = Infinity;
-                    
-                    for (let enemy of enemies) {
-                        const dx = enemy.x - this.x;
-                        const dy = enemy.y - this.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            nearest = enemy;
-                        }
-                    }
-                    currentTarget = nearest;
-                    console.log('Auto-selected nearest target');
-                }
+                console.log('Target switched');
             }
 
             takeDamage(amount) {
                 this.lastDamageTime = Date.now();
                 
-                // Shields absorb damage first
+                // Shields first
                 if (this.shield > 0) {
                     const shieldDamage = Math.min(this.shield, amount);
                     this.shield -= shieldDamage;
                     amount -= shieldDamage;
                     
-                    // Create shield hit effect
+                    // Shield effects
                     for (let i = 0; i < 8; i++) {
                         const angle = Math.random() * Math.PI * 2;
                         const speed = 2 + Math.random() * 3;
@@ -454,82 +804,103 @@
                             this.y + Math.sin(angle) * this.size,
                             Math.cos(angle) * speed,
                             Math.sin(angle) * speed,
-                            '#00ffff', 20
+                            '#00ffff',
+                            20
                         ));
                     }
                 }
                 
-                // Remaining damage goes to health
+                // Hull damage
                 if (amount > 0) {
                     this.health -= amount;
+                    
+                    // System damage chance
+                    if (Math.random() < 0.15) {
+                        this.damageRandomSystem();
+                    }
+                    
                     if (this.health <= 0) {
                         this.die();
                     }
                 }
             }
+            
+            damageRandomSystem() {
+                const systems = ['engines', 'weapons', 'shields', 'navigation'];
+                const system = systems[Math.floor(Math.random() * systems.length)];
+                this.systemDamage[system] *= 0.9;
+            }
 
             die() {
                 this.alive = false;
                 
-                // Massive explosion effect - Helldivers style
-                for (let i = 0; i < 40; i++) {
+                // Clear ALL references to this ship
+                if (this === currentTarget) {
+                    currentTarget = null;
+                }
+                
+                // Clear any rockets targeting this ship
+                rockets.forEach(rocket => {
+                    if (rocket && rocket.target === this) {
+                        rocket.target = null;
+                        rocket.hasTarget = false;
+                    }
+                });
+                
+                // Clear AI ship targets
+                ships.forEach(ship => {
+                    if (ship && ship.target === this) {
+                        ship.target = null;
+                    }
+                });
+                
+                // Explosion
+                for (let i = 0; i < 30; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = 3 + Math.random() * 8;
-                    const color = ['#ff6600', '#ffaa00', '#ff0000', '#ffffff'][Math.floor(Math.random() * 4)];
+                    const speed = 2 + Math.random() * 6;
                     particles.push(new Particle(
                         this.x, this.y,
                         Math.cos(angle) * speed,
                         Math.sin(angle) * speed,
-                        color, 60 + Math.random() * 40
+                        ['#ff6600', '#ff0000', '#ffaa00'][Math.floor(Math.random() * 3)],
+                        40 + Math.random() * 20
                     ));
                 }
                 
-                // Secondary explosion wave
-                for (let i = 0; i < 15; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 1 + Math.random() * 3;
-                    particles.push(new Particle(
-                        this.x + Math.cos(angle) * 20, 
-                        this.y + Math.sin(angle) * 20,
-                        Math.cos(angle) * speed,
-                        Math.sin(angle) * speed,
-                        this.team === 'red' ? '#ff4400' : '#0044ff', 
-                        80 + Math.random() * 30
-                    ));
+                // Debris
+                for (let i = 0; i < 8; i++) {
+                    debris.push({
+                        x: this.x + (Math.random() - 0.5) * 20,
+                        y: this.y + (Math.random() - 0.5) * 20,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: (Math.random() - 0.5) * 4,
+                        size: 2 + Math.random() * 4,
+                        life: 300,
+                        rotation: Math.random() * Math.PI * 2
+                    });
                 }
                 
-                // Debris particles
-                for (let i = 0; i < 10; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 1 + Math.random() * 4;
-                    particles.push(new Particle(
-                        this.x, this.y,
-                        Math.cos(angle) * speed,
-                        Math.sin(angle) * speed,
-                        '#888888', 120 + Math.random() * 60
-                    ));
-                }
-                
-                updateScore();
+                // Delayed HUD update to avoid race conditions
+                setTimeout(() => {
+                    updateHUD();
+                }, 10);
             }
 
             draw() {
                 if (!this.alive) return;
 
-                // Draw shield effect if shields are active
+                // Shield effect
                 if (this.shield > 0) {
                     ctx.save();
-                    ctx.globalAlpha = 0.3 + (this.shield / this.maxShield) * 0.4;
+                    const shieldIntensity = this.shield / this.maxShield;
+                    ctx.globalAlpha = 0.2 + shieldIntensity * 0.3;
                     ctx.strokeStyle = '#00ffff';
-                    ctx.lineWidth = 3;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([3, 3]);
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size + 12, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, this.size + 15, 0, Math.PI * 2);
                     ctx.stroke();
-                    
-                    // Shield glow effect
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = '#00ffff';
-                    ctx.stroke();
+                    ctx.setLineDash([]);
                     ctx.restore();
                 }
 
@@ -537,223 +908,164 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
 
-                // Engine trails/fire effect
-                if (this.vx !== 0 || this.vy !== 0) {
-                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                    if (speed > 1) {
-                        ctx.save();
-                        ctx.globalAlpha = 0.8;
-                        
-                        // Left engine trail
-                        ctx.fillStyle = this.team === 'red' ? '#ff8800' : '#0088ff';
-                        ctx.beginPath();
-                        ctx.ellipse(-this.size * 0.7, -this.size * 0.3, speed * 2, 3, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                        
-                        // Right engine trail  
-                        ctx.beginPath();
-                        ctx.ellipse(-this.size * 0.7, this.size * 0.3, speed * 2, 3, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                        
-                        // Center engine trail
-                        ctx.fillStyle = this.team === 'red' ? '#ffaa00' : '#00aaff';
-                        ctx.beginPath();
-                        ctx.ellipse(-this.size * 0.8, 0, speed * 1.5, 2, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    }
+                // Mini Fighter Jet Design
+                const gradient = ctx.createLinearGradient(-this.size, -this.size, this.size, this.size);
+                if (this.team === 'red') {
+                    gradient.addColorStop(0, '#ff6666');
+                    gradient.addColorStop(0.5, '#ff3333');
+                    gradient.addColorStop(1, '#cc1111');
+                } else {
+                    gradient.addColorStop(0, '#6666ff');
+                    gradient.addColorStop(0.5, '#3333ff');
+                    gradient.addColorStop(1, '#1111cc');
                 }
 
-                // Main hull - Helldivers style
-                const mainColor = this.team === 'red' ? '#cc3333' : '#3333cc';
-                const accentColor = this.team === 'red' ? '#ff6666' : '#6666ff';
-                const metalColor = this.team === 'red' ? '#aa2222' : '#2222aa';
-                
-                // Main body (elongated hexagon)
-                ctx.fillStyle = mainColor;
+                // Main fuselage (sleek fighter body)
+                ctx.fillStyle = gradient;
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 1.5;
+                
                 ctx.beginPath();
+                // Pointed nose
                 ctx.moveTo(this.size * 0.9, 0);
-                ctx.lineTo(this.size * 0.3, -this.size * 0.4);
-                ctx.lineTo(-this.size * 0.4, -this.size * 0.5);
-                ctx.lineTo(-this.size * 0.7, -this.size * 0.3);
-                ctx.lineTo(-this.size * 0.7, this.size * 0.3);
-                ctx.lineTo(-this.size * 0.4, this.size * 0.5);
-                ctx.lineTo(this.size * 0.3, this.size * 0.4);
+                // Top of fuselage
+                ctx.lineTo(this.size * 0.2, -this.size * 0.25);
+                ctx.lineTo(-this.size * 0.4, -this.size * 0.2);
+                // Back top
+                ctx.lineTo(-this.size * 0.7, -this.size * 0.15);
+                // Engine exhaust top
+                ctx.lineTo(-this.size * 0.8, -this.size * 0.1);
+                ctx.lineTo(-this.size * 0.8, this.size * 0.1);
+                // Engine exhaust bottom
+                ctx.lineTo(-this.size * 0.7, this.size * 0.15);
+                // Back bottom
+                ctx.lineTo(-this.size * 0.4, this.size * 0.2);
+                // Bottom of fuselage
+                ctx.lineTo(this.size * 0.2, this.size * 0.25);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // Cockpit/Command center
-                ctx.fillStyle = '#ffffff';
-                ctx.strokeStyle = accentColor;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.ellipse(this.size * 0.4, 0, this.size * 0.15, this.size * 0.1, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-
-                // Wing details
-                ctx.fillStyle = metalColor;
+                // Wings
+                ctx.fillStyle = gradient;
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1;
                 
-                // Upper wing
+                // Top wing
                 ctx.beginPath();
-                ctx.moveTo(this.size * 0.2, -this.size * 0.4);
-                ctx.lineTo(-this.size * 0.1, -this.size * 0.8);
-                ctx.lineTo(-this.size * 0.3, -this.size * 0.6);
-                ctx.lineTo(-this.size * 0.2, -this.size * 0.4);
+                ctx.moveTo(this.size * 0.1, -this.size * 0.25);
+                ctx.lineTo(-this.size * 0.2, -this.size * 0.6);
+                ctx.lineTo(-this.size * 0.4, -this.size * 0.55);
+                ctx.lineTo(-this.size * 0.3, -this.size * 0.2);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
                 
-                // Lower wing
+                // Bottom wing
                 ctx.beginPath();
-                ctx.moveTo(this.size * 0.2, this.size * 0.4);
-                ctx.lineTo(-this.size * 0.1, this.size * 0.8);
-                ctx.lineTo(-this.size * 0.3, this.size * 0.6);
-                ctx.lineTo(-this.size * 0.2, this.size * 0.4);
+                ctx.moveTo(this.size * 0.1, this.size * 0.25);
+                ctx.lineTo(-this.size * 0.2, this.size * 0.6);
+                ctx.lineTo(-this.size * 0.4, this.size * 0.55);
+                ctx.lineTo(-this.size * 0.3, this.size * 0.2);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // Weapon mounts/details
-                ctx.fillStyle = '#666666';
-                ctx.strokeStyle = '#888888';
+                // Cockpit canopy
+                ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
+                ctx.strokeStyle = '#cccccc';
                 ctx.lineWidth = 1;
-                
-                // Top weapon mount
                 ctx.beginPath();
-                ctx.rect(this.size * 0.1, -this.size * 0.15, this.size * 0.3, this.size * 0.1);
-                ctx.fill();
-                ctx.stroke();
-                
-                // Bottom weapon mount
-                ctx.beginPath();
-                ctx.rect(this.size * 0.1, this.size * 0.05, this.size * 0.3, this.size * 0.1);
+                ctx.ellipse(this.size * 0.3, 0, this.size * 0.15, this.size * 0.12, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
 
-                // Engine details
-                ctx.fillStyle = this.team === 'red' ? '#ff0000' : '#0000ff';
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1;
+                // Engine exhausts
+                const exhaustColor = this.thrustPower > 0 ? '#00aaff' : '#333333';
+                ctx.fillStyle = exhaustColor;
                 
                 // Left engine
                 ctx.beginPath();
-                ctx.ellipse(-this.size * 0.6, -this.size * 0.25, this.size * 0.1, this.size * 0.08, 0, 0, Math.PI * 2);
+                ctx.arc(-this.size * 0.75, -this.size * 0.08, this.size * 0.08, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
                 
                 // Right engine
                 ctx.beginPath();
-                ctx.ellipse(-this.size * 0.6, this.size * 0.25, this.size * 0.1, this.size * 0.08, 0, 0, Math.PI * 2);
+                ctx.arc(-this.size * 0.75, this.size * 0.08, this.size * 0.08, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.stroke();
 
-                // Hull details/panels
-                ctx.strokeStyle = accentColor;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(this.size * 0.1, -this.size * 0.3);
-                ctx.lineTo(this.size * 0.1, this.size * 0.3);
-                ctx.stroke();
+                // Wing tips (weapon hardpoints)
+                if (this.team === 'red') {
+                    ctx.fillStyle = '#ff8800';
+                } else {
+                    ctx.fillStyle = '#0088ff';
+                }
                 
-                ctx.beginPath();
-                ctx.moveTo(-this.size * 0.1, -this.size * 0.2);
-                ctx.lineTo(-this.size * 0.1, this.size * 0.2);
-                ctx.stroke();
+                // Weapon hardpoints
+                ctx.fillRect(-this.size * 0.25, -this.size * 0.6, this.size * 0.08, this.size * 0.04);
+                ctx.fillRect(-this.size * 0.25, this.size * 0.56, this.size * 0.08, this.size * 0.04);
 
                 ctx.restore();
 
-                // Draw targeting indicators
-                this.drawTargetingIndicators();
+                // Targeting
+                this.drawTargetingSystem();
 
-                // Health and shield bars
+                // Status bars
                 if (this.health < this.maxHealth || this.shield < this.maxShield) {
                     const barWidth = 35;
-                    const barHeight = 5;
-                    const healthPercent = this.health / this.maxHealth;
-                    const shieldPercent = this.shield / this.maxShield;
+                    const barHeight = 4;
                     
-                    // Health bar (bottom)
+                    // Health
                     ctx.fillStyle = '#333';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 15, barWidth, barHeight);
-                    ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 15, barWidth * healthPercent, barHeight);
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth, barHeight);
+                    ctx.fillStyle = this.health > 60 ? '#00ff00' : this.health > 30 ? '#ffff00' : '#ff0000';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth * (this.health/100), barHeight);
                     
-                    // Shield bar (top)
+                    // Shield
                     ctx.fillStyle = '#333';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth, barHeight);
-                    ctx.fillStyle = '#00ffff';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 22, barWidth * shieldPercent, barHeight);
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth, barHeight);
+                    ctx.fillStyle = '#00aaff';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth * (this.shield/100), barHeight);
                 }
             }
             
-            drawTargetingIndicators() {
-                // Only draw indicators for enemy ships when there's a player
+            drawTargetingSystem() {
                 if (!player || this.team === 'red') return;
                 
                 ctx.save();
+                const isTarget = currentTarget === this;
                 
-                // Determine if this ship is the current target
-                const isCurrentTarget = currentTarget === this;
+                ctx.strokeStyle = isTarget ? '#00ff00' : '#666666';
+                ctx.lineWidth = isTarget ? 3 : 1;
+                ctx.setLineDash(isTarget ? [] : [3, 3]);
                 
-                // Set color based on targeting status
-                ctx.strokeStyle = isCurrentTarget ? '#00ff00' : '#666666'; // Green for target, gray for others
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]); // Dashed line
+                const size = this.size + 18;
+                ctx.strokeRect(this.x - size, this.y - size, size * 2, size * 2);
                 
-                // Draw targeting rectangle
-                const padding = 10;
-                ctx.strokeRect(
-                    this.x - this.size - padding,
-                    this.y - this.size - padding,
-                    (this.size + padding) * 2,
-                    (this.size + padding) * 2
-                );
-                
-                // If this is the current target, add corner indicators
-                if (isCurrentTarget) {
-                    ctx.strokeStyle = '#00ff00';
-                    ctx.lineWidth = 3;
-                    ctx.setLineDash([]); // Solid line
-                    
-                    const cornerSize = 8;
-                    const rectSize = this.size + padding;
-                    
-                    // Top-left corner
+                if (isTarget) {
+                    // Corner brackets
+                    const corner = 8;
                     ctx.beginPath();
-                    ctx.moveTo(this.x - rectSize, this.y - rectSize);
-                    ctx.lineTo(this.x - rectSize + cornerSize, this.y - rectSize);
-                    ctx.moveTo(this.x - rectSize, this.y - rectSize);
-                    ctx.lineTo(this.x - rectSize, this.y - rectSize + cornerSize);
-                    ctx.stroke();
-                    
-                    // Top-right corner
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + rectSize, this.y - rectSize);
-                    ctx.lineTo(this.x + rectSize - cornerSize, this.y - rectSize);
-                    ctx.moveTo(this.x + rectSize, this.y - rectSize);
-                    ctx.lineTo(this.x + rectSize, this.y - rectSize + cornerSize);
-                    ctx.stroke();
-                    
-                    // Bottom-left corner
-                    ctx.beginPath();
-                    ctx.moveTo(this.x - rectSize, this.y + rectSize);
-                    ctx.lineTo(this.x - rectSize + cornerSize, this.y + rectSize);
-                    ctx.moveTo(this.x - rectSize, this.y + rectSize);
-                    ctx.lineTo(this.x - rectSize, this.y + rectSize - cornerSize);
-                    ctx.stroke();
-                    
-                    // Bottom-right corner
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + rectSize, this.y + rectSize);
-                    ctx.lineTo(this.x + rectSize - cornerSize, this.y + rectSize);
-                    ctx.moveTo(this.x + rectSize, this.y + rectSize);
-                    ctx.lineTo(this.x + rectSize, this.y + rectSize - cornerSize);
+                    // Top-left
+                    ctx.moveTo(this.x - size, this.y - size);
+                    ctx.lineTo(this.x - size + corner, this.y - size);
+                    ctx.moveTo(this.x - size, this.y - size);
+                    ctx.lineTo(this.x - size, this.y - size + corner);
+                    // Top-right  
+                    ctx.moveTo(this.x + size, this.y - size);
+                    ctx.lineTo(this.x + size - corner, this.y - size);
+                    ctx.moveTo(this.x + size, this.y - size);
+                    ctx.lineTo(this.x + size, this.y - size + corner);
+                    // Bottom-left
+                    ctx.moveTo(this.x - size, this.y + size);
+                    ctx.lineTo(this.x - size + corner, this.y + size);
+                    ctx.moveTo(this.x - size, this.y + size);
+                    ctx.lineTo(this.x - size, this.y + size - corner);
+                    // Bottom-right
+                    ctx.moveTo(this.x + size, this.y + size);
+                    ctx.lineTo(this.x + size - corner, this.y + size);
+                    ctx.moveTo(this.x + size, this.y + size);
+                    ctx.lineTo(this.x + size, this.y + size - corner);
                     ctx.stroke();
                 }
                 
@@ -766,11 +1078,11 @@
             constructor(x, y, angle, team) {
                 this.x = x;
                 this.y = y;
-                this.vx = Math.cos(angle) * 10; // Faster bullets
-                this.vy = Math.sin(angle) * 10;
+                this.vx = Math.cos(angle) * 12;
+                this.vy = Math.sin(angle) * 12;
                 this.team = team;
-                this.life = 120; // Longer range
-                this.size = 4; // Slightly bigger
+                this.life = 150;
+                this.size = 3;
             }
 
             update() {
@@ -778,7 +1090,6 @@
                 this.y += this.vy;
                 this.life--;
 
-                // Screen wrapping
                 if (this.x < 0) this.x = canvas.width;
                 if (this.x > canvas.width) this.x = 0;
                 if (this.y < 0) this.y = canvas.height;
@@ -789,154 +1100,130 @@
 
             draw() {
                 ctx.save();
-                
-                // Bullet trail effect
-                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                const angle = Math.atan2(this.vy, this.vx);
-                
-                // Trail
-                ctx.globalAlpha = 0.6;
-                ctx.fillStyle = this.team === 'red' ? '#ff8800' : '#0088ff';
-                ctx.beginPath();
-                ctx.ellipse(
-                    this.x - Math.cos(angle) * speed * 2, 
-                    this.y - Math.sin(angle) * speed * 2,
-                    speed * 1.5, 2, angle, 0, Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Main bullet body (energy core)
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = this.team === 'red' ? '#ffff00' : '#00ffff';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = this.team === 'red' ? '#ffff00' : '#00ffff';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Outer energy ring
-                ctx.fillStyle = this.team === 'red' ? '#ff6666' : '#6666ff';
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = this.team === 'red' ? '#ff6666' : '#6666ff';
+                ctx.fillStyle = this.team === 'red' ? '#ff4444' : '#4444ff';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.team === 'red' ? '#ff4444' : '#4444ff';
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Energy sparks
-                const sparkCount = 3;
-                for (let i = 0; i < sparkCount; i++) {
-                    const sparkAngle = (Date.now() * 0.01 + i * Math.PI * 2 / sparkCount) % (Math.PI * 2);
-                    const sparkDist = this.size * 1.5;
-                    const sparkX = this.x + Math.cos(sparkAngle) * sparkDist;
-                    const sparkY = this.y + Math.sin(sparkAngle) * sparkDist;
-                    
-                    ctx.fillStyle = this.team === 'red' ? '#ffaa00' : '#00aaff';
-                    ctx.globalAlpha = 0.8;
-                    ctx.beginPath();
-                    ctx.arc(sparkX, sparkY, 1, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
                 ctx.restore();
             }
         }
 
-        // Rocket class (Guided Missile)
+        // Rocket class
         class Rocket {
             constructor(x, y, angle, team, target) {
                 this.x = x;
                 this.y = y;
                 this.angle = angle;
-                this.speed = 6; // Base speed
+                this.team = team;
+                this.target = target;
+                this.speed = 6;
                 this.vx = Math.cos(angle) * this.speed;
                 this.vy = Math.sin(angle) * this.speed;
-                this.team = team;
-                this.target = target; // Homing target
-                this.life = 180; // Longer range than bullets
-                this.size = 8; // Bigger than bullets
-                this.turnSpeed = 0.05; // How fast it can turn
+                this.life = 300;
+                this.size = 6;
+                this.turnSpeed = 0.04;
                 this.hasTarget = target && target.alive;
             }
 
             update() {
-                // Homing behavior - steer toward target
+                // Homing
                 if (this.target && this.target.alive) {
                     const dx = this.target.x - this.x;
                     const dy = this.target.y - this.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     const targetAngle = Math.atan2(dy, dx);
                     
-                    // Calculate angle difference
+                    // Proximity detonation
+                    if (distance < 35) {
+                        this.explode();
+                        return false;
+                    }
+                    
                     let angleDiff = targetAngle - this.angle;
                     while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                     while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
                     
-                    // More aggressive turning when close to target
-                    let currentTurnSpeed = this.turnSpeed;
-                    if (distance < 100) {
-                        currentTurnSpeed = this.turnSpeed * 2;
-                    }
-                    
-                    // Turn toward target
                     if (Math.abs(angleDiff) > 0.05) {
-                        this.angle += Math.sign(angleDiff) * Math.min(currentTurnSpeed, Math.abs(angleDiff));
+                        this.angle += Math.sign(angleDiff) * this.turnSpeed;
                     }
                     
-                    // Update velocity based on new angle
                     this.vx = Math.cos(this.angle) * this.speed;
                     this.vy = Math.sin(this.angle) * this.speed;
                     this.hasTarget = true;
                 } else {
-                    // No target - fly straight
                     this.hasTarget = false;
                 }
 
-                // Apply movement
                 this.x += this.vx;
                 this.y += this.vy;
                 this.life--;
 
-                // Screen wrapping
                 if (this.x < 0) this.x = canvas.width;
                 if (this.x > canvas.width) this.x = 0;
                 if (this.y < 0) this.y = canvas.height;
                 if (this.y > canvas.height) this.y = 0;
 
-                // Create exhaust trail
-                if (Math.random() < 0.8) {
+                // Exhaust
+                if (Math.random() < 0.7) {
                     particles.push(new Particle(
                         this.x - Math.cos(this.angle) * this.size,
                         this.y - Math.sin(this.angle) * this.size,
-                        -Math.cos(this.angle) * 3 + (Math.random() - 0.5) * 2,
-                        -Math.sin(this.angle) * 3 + (Math.random() - 0.5) * 2,
-                        this.hasTarget ? '#00ff00' : ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)],
-                        20 + Math.random() * 10
+                        -Math.cos(this.angle) * 3,
+                        -Math.sin(this.angle) * 3,
+                        this.hasTarget ? '#00ff00' : '#ff6600',
+                        20
                     ));
                 }
 
                 return this.life > 0;
             }
+            
+            explode() {
+                // Explosion
+                for (let i = 0; i < 25; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 3 + Math.random() * 6;
+                    particles.push(new Particle(
+                        this.x, this.y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)],
+                        35
+                    ));
+                }
+                
+                // Damage nearby ships
+                for (let ship of ships) {
+                    if (ship && ship.alive && ship.team !== this.team) {
+                        const dx = ship.x - this.x;
+                        const dy = ship.y - this.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < 50) {
+                            const damage = 80 * (1 - distance / 50);
+                            ship.takeDamage(damage);
+                        }
+                    }
+                }
+            }
 
             draw() {
                 ctx.save();
-                
-                // Rocket body
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
                 
-                // Main rocket body - color changes if homing
-                const bodyColor = this.hasTarget ? 
-                    (this.team === 'red' ? '#ff6600' : '#0066ff') : 
-                    (this.team === 'red' ? '#ff4444' : '#4444ff');
-                ctx.fillStyle = bodyColor;
+                // Rocket body
+                ctx.fillStyle = this.hasTarget ? '#ff6600' : (this.team === 'red' ? '#ff4444' : '#4444ff');
                 ctx.strokeStyle = this.hasTarget ? '#00ff00' : '#ffffff';
                 ctx.lineWidth = 2;
+                
                 ctx.beginPath();
                 ctx.ellipse(0, 0, this.size, this.size * 0.4, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
                 
-                // Rocket tip
+                // Nose
                 ctx.fillStyle = '#ffffff';
                 ctx.beginPath();
                 ctx.moveTo(this.size, 0);
@@ -945,35 +1232,36 @@
                 ctx.closePath();
                 ctx.fill();
                 
-                // Rocket fins
-                ctx.fillStyle = this.team === 'red' ? '#aa2222' : '#2222aa';
+                // Fins
+                ctx.fillStyle = '#555555';
                 ctx.beginPath();
-                ctx.moveTo(-this.size * 0.8, 0);
-                ctx.lineTo(-this.size * 0.4, -this.size * 0.6);
+                ctx.moveTo(-this.size * 0.7, 0);
+                ctx.lineTo(-this.size * 0.4, -this.size * 0.5);
                 ctx.lineTo(-this.size * 0.2, -this.size * 0.3);
                 ctx.closePath();
                 ctx.fill();
                 
                 ctx.beginPath();
-                ctx.moveTo(-this.size * 0.8, 0);
-                ctx.lineTo(-this.size * 0.4, this.size * 0.6);
+                ctx.moveTo(-this.size * 0.7, 0);
+                ctx.lineTo(-this.size * 0.4, this.size * 0.5);
                 ctx.lineTo(-this.size * 0.2, this.size * 0.3);
                 ctx.closePath();
                 ctx.fill();
                 
                 ctx.restore();
-                
-                // Glow effect - green if homing
-                ctx.save();
-                ctx.globalAlpha = 0.5;
-                const glowColor = this.hasTarget ? '#00ff00' : (this.team === 'red' ? '#ff6666' : '#6666ff');
-                ctx.fillStyle = glowColor;
-                ctx.shadowBlur = this.hasTarget ? 25 : 20;
-                ctx.shadowColor = glowColor;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * 1.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
+
+                // Guidance laser
+                if (this.hasTarget && this.target && this.target.alive) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.target.x, this.target.y);
+                    ctx.stroke();
+                    ctx.restore();
+                }
             }
         }
 
@@ -987,7 +1275,7 @@
                 this.color = color;
                 this.life = life;
                 this.maxLife = life;
-                this.size = 2 + Math.random() * 3;
+                this.size = 2 + Math.random() * 2;
             }
 
             update() {
@@ -1011,279 +1299,194 @@
             }
         }
 
-        // Initialize game
+        // Game functions
         function initGame() {
-            ships = [];
-            bullets = [];
-            rockets = [];
-            particles = [];
-            currentTarget = null;
-            
-            // Create player (red team)
-            player = new Ship(100, canvas.height / 2, 'red', true);
-            ships.push(player);
-            
-            // Create red team AI
-            for (let i = 0; i < 3; i++) {
-                ships.push(new Ship(
-                    Math.random() * canvas.width * 0.3,
-                    Math.random() * canvas.height,
-                    'red'
-                ));
-            }
-            
-            // Create blue team
-            for (let i = 0; i < 4; i++) {
-                ships.push(new Ship(
-                    canvas.width * 0.7 + Math.random() * canvas.width * 0.3,
-                    Math.random() * canvas.height,
-                    'blue'
-                ));
-            }
-            
-            // Auto-target first enemy for easier testing
-            setTimeout(() => {
-                if (player) {
-                    const enemies = ships.filter(ship => ship.team !== player.team && ship.alive);
+            try {
+                ships = [];
+                bullets = [];
+                rockets = [];
+                particles = [];
+                debris = [];
+                currentTarget = null;
+                gameRunning = true;
+                
+                // Create stars
+                starField = [];
+                for (let i = 0; i < 200; i++) {
+                    starField.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 2 + 0.5,
+                        brightness: Math.random()
+                    });
+                }
+                
+                // Create player
+                player = new Ship(canvas.width * 0.1, canvas.height / 2, 'red', true);
+                ships.push(player);
+                
+                // Create teams
+                for (let i = 0; i < 3; i++) {
+                    ships.push(new Ship(
+                        Math.random() * canvas.width * 0.25,
+                        100 + Math.random() * (canvas.height - 200),
+                        'red'
+                    ));
+                }
+                
+                for (let i = 0; i < 4; i++) {
+                    ships.push(new Ship(
+                        canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
+                        100 + Math.random() * (canvas.height - 200),
+                        'blue'
+                    ));
+                }
+                
+                // Auto-target
+                setTimeout(() => {
+                    const enemies = ships.filter(ship => ship && ship.team !== 'red' && ship.alive);
                     if (enemies.length > 0) {
                         currentTarget = enemies[0];
-                        console.log('Auto-selected first target for testing');
                     }
-                }
-            }, 100);
-            
-            updateScore();
+                }, 100);
+                
+                updateHUD();
+                console.log('Game initialized with', ships.length, 'ships');
+                
+            } catch (error) {
+                console.error('Game initialization error:', error);
+            }
         }
 
-        // Collision detection
         function checkCollisions() {
-            // Bullet collisions
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                const bullet = bullets[i];
-                
-                for (let ship of ships) {
-                    if (ship.alive && ship.team !== bullet.team) {
-                        const dx = ship.x - bullet.x;
-                        const dy = ship.y - bullet.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (dist < ship.size) {
-                            ship.takeDamage(25);
-                            bullets.splice(i, 1);
+            try {
+                // Bullet collisions
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const bullet = bullets[i];
+                    if (!bullet) continue;
+                    
+                    for (let ship of ships) {
+                        if (ship && ship.alive && ship.team !== bullet.team) {
+                            const dx = ship.x - bullet.x;
+                            const dy = ship.y - bullet.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
                             
-                            // Hit particles
-                            for (let j = 0; j < 5; j++) {
-                                particles.push(new Particle(
-                                    bullet.x, bullet.y,
-                                    (Math.random() - 0.5) * 4,
-                                    (Math.random() - 0.5) * 4,
-                                    '#ffff00', 20
-                                ));
+                            if (dist < ship.size) {
+                                ship.takeDamage(35);
+                                bullets.splice(i, 1);
+                                break;
                             }
-                            break;
                         }
                     }
                 }
-            }
-            
-            // Rocket collisions
-            for (let i = rockets.length - 1; i >= 0; i--) {
-                const rocket = rockets[i];
                 
-                for (let ship of ships) {
-                    if (ship.alive && ship.team !== rocket.team) {
-                        const dx = ship.x - rocket.x;
-                        const dy = ship.y - rocket.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (dist < ship.size + rocket.size) {
-                            ship.takeDamage(50); // More damage than bullets
-                            rockets.splice(i, 1);
+                // Rocket collisions
+                for (let i = rockets.length - 1; i >= 0; i--) {
+                    const rocket = rockets[i];
+                    if (!rocket) continue;
+                    
+                    for (let ship of ships) {
+                        if (ship && ship.alive && ship.team !== rocket.team) {
+                            const dx = ship.x - rocket.x;
+                            const dy = ship.y - rocket.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
                             
-                            // Rocket explosion effect
-                            for (let j = 0; j < 20; j++) {
-                                const angle = Math.random() * Math.PI * 2;
-                                const speed = 2 + Math.random() * 6;
-                                particles.push(new Particle(
-                                    rocket.x, rocket.y,
-                                    Math.cos(angle) * speed,
-                                    Math.sin(angle) * speed,
-                                    ['#ff6600', '#ffaa00', '#ff0000', '#ffffff'][Math.floor(Math.random() * 4)],
-                                    30 + Math.random() * 20
-                                ));
+                            if (dist < ship.size + rocket.size) {
+                                rocket.explode();
+                                rockets.splice(i, 1);
+                                break;
                             }
-                            
-                            // Clear target if it was destroyed
-                            if (ship === currentTarget && !ship.alive) {
-                                currentTarget = null;
-                            }
-                            break;
                         }
                     }
                 }
+            } catch (error) {
+                console.error('Collision detection error:', error);
             }
         }
 
-        // Update score display
-        function updateScore() {
-            const redAlive = ships.filter(s => s.team === 'red' && s.alive).length;
-            const blueAlive = ships.filter(s => s.team === 'blue' && s.alive).length;
-            
-            document.getElementById('redScore').textContent = redAlive;
-            document.getElementById('blueScore').textContent = blueAlive;
-            
-            // Update player shield display
-            if (player && player.alive) {
-                const shieldPercent = Math.max(0, Math.round(player.shield));
-                document.getElementById('shieldPercent').textContent = shieldPercent;
-                document.getElementById('shieldBar').style.width = shieldPercent + '%';
-                document.getElementById('shieldBar').style.background = '#00ffff';
-            }
-            
-            // Check for game over
-            if (redAlive === 0 || blueAlive === 0) {
-                gameRunning = false;
-                document.getElementById('winnerText').textContent = 
-                    redAlive > 0 ? 'Team Rot gewinnt!' : 'Team Blau gewinnt!';
-                document.getElementById('gameOver').style.display = 'block';
-            }
-        }
-
-            // Start new game
-            function startNewGame() {
-                gameRunning = true;
-                document.getElementById('gameOver').style.display = 'none';
-                initGame();
-                gameLoop(); // Restart the game loop
-                console.log('New game started!');
-            }
-            
-            // Make function globally available
-            window.startNewGame = startNewGame;
-
-            // Enhanced background
-            let backgroundTime = 0;
-            function drawBackground() {
-                backgroundTime += 0.01;
+        function updateHUD() {
+            try {
+                const redAlive = ships.filter(s => s && s.team === 'red' && s.alive).length;
+                const blueAlive = ships.filter(s => s && s.team === 'blue' && s.alive).length;
                 
-                // Deep space gradient base
+                const redEl = document.getElementById('redScore');
+                const blueEl = document.getElementById('blueScore');
+                if (redEl) redEl.textContent = redAlive;
+                if (blueEl) blueEl.textContent = blueAlive;
+                
+                if (player && player.alive) {
+                    const shieldEl = document.getElementById('shieldPercent');
+                    const shieldBarEl = document.getElementById('shieldBar');
+                    const heatEl = document.getElementById('heatLevel');
+                    const heatBarEl = document.getElementById('heatBar');
+                    const fuelEl = document.getElementById('fuelLevel');
+                    const fuelBarEl = document.getElementById('fuelBar');
+                    
+                    if (shieldEl) shieldEl.textContent = Math.round(player.shield);
+                    if (shieldBarEl) shieldBarEl.style.width = player.shield + '%';
+                    
+                    const heat = Math.round(player.weaponHeat + player.engineHeat);
+                    if (heatEl) heatEl.textContent = heat;
+                    if (heatBarEl) heatBarEl.style.width = Math.min(heat, 100) + '%';
+                    
+                    if (fuelEl) fuelEl.textContent = Math.round(player.fuel);
+                    if (fuelBarEl) fuelBarEl.style.width = player.fuel + '%';
+                }
+                
+                // Game over
+                if (redAlive === 0 || blueAlive === 0) {
+                    gameRunning = false;
+                    const winnerEl = document.getElementById('winnerText');
+                    const gameOverEl = document.getElementById('gameOver');
+                    if (winnerEl) winnerEl.textContent = redAlive > 0 ? 'MISSION SUCCESS' : 'MISSION FAILED';
+                    if (gameOverEl) gameOverEl.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('HUD update error:', error);
+            }
+        }
+
+        function drawBackground() {
+            try {
+                // Space gradient
                 const gradient = ctx.createRadialGradient(
                     canvas.width/2, canvas.height/2, 0,
                     canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)
                 );
-                gradient.addColorStop(0, '#001a33');
-                gradient.addColorStop(0.3, '#001122');
-                gradient.addColorStop(0.7, '#000814');
+                gradient.addColorStop(0, '#002244');
+                gradient.addColorStop(0.5, '#001122');
                 gradient.addColorStop(1, '#000000');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Nebula clouds
-                ctx.save();
-                for (let i = 0; i < 3; i++) {
-                    ctx.globalAlpha = 0.1 + Math.sin(backgroundTime + i) * 0.05;
-                    const nebulaGradient = ctx.createRadialGradient(
-                        canvas.width * (0.3 + i * 0.2), canvas.height * (0.4 + i * 0.3), 50,
-                        canvas.width * (0.3 + i * 0.2), canvas.height * (0.4 + i * 0.3), 300
-                    );
-                    const colors = ['#ff4400', '#4400ff', '#00ff44'];
-                    nebulaGradient.addColorStop(0, colors[i]);
-                    nebulaGradient.addColorStop(1, 'transparent');
-                    ctx.fillStyle = nebulaGradient;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-                ctx.restore();
-
-                // Animated stars - different layers for parallax effect
-                ctx.save();
-                // Layer 1 - distant stars
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                for (let i = 0; i < 200; i++) {
-                    const x = ((i * 137.508 + backgroundTime * 10) % canvas.width);
-                    const y = ((i * 241.111 + backgroundTime * 5) % canvas.height);
-                    const size = Math.abs(Math.sin(i + backgroundTime)) * 1.5 + 0.5;
-                    const twinkle = Math.sin(backgroundTime * 2 + i) * 0.5 + 0.5;
-                    ctx.globalAlpha = twinkle * 0.8;
+                // Stars
+                ctx.fillStyle = 'white';
+                for (let star of starField) {
+                    ctx.save();
+                    ctx.globalAlpha = star.brightness;
                     ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.restore();
                 }
-                
-                // Layer 2 - medium stars
-                ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
-                for (let i = 0; i < 50; i++) {
-                    const x = ((i * 234.567 + backgroundTime * 20) % canvas.width);
-                    const y = ((i * 345.678 + backgroundTime * 15) % canvas.height);
-                    const size = Math.abs(Math.sin(i * 2 + backgroundTime)) * 2 + 1;
-                    const twinkle = Math.sin(backgroundTime * 3 + i * 2) * 0.5 + 0.5;
-                    ctx.globalAlpha = twinkle;
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Layer 3 - bright foreground stars
-                ctx.fillStyle = 'rgba(255, 255, 200, 1)';
-                for (let i = 0; i < 25; i++) {
-                    const x = ((i * 456.789 + backgroundTime * 30) % canvas.width);
-                    const y = ((i * 567.890 + backgroundTime * 25) % canvas.height);
-                    const size = Math.abs(Math.sin(i * 3 + backgroundTime * 2)) * 3 + 1.5;
-                    const twinkle = Math.sin(backgroundTime * 4 + i * 3) * 0.3 + 0.7;
-                    ctx.globalAlpha = twinkle;
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = 'white';
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                }
-                ctx.restore();
-
-                // Cosmic dust particles
-                ctx.save();
-                ctx.globalAlpha = 0.3;
-                ctx.fillStyle = '#444466';
-                for (let i = 0; i < 100; i++) {
-                    const x = ((i * 123.456 + backgroundTime * 50) % (canvas.width + 100)) - 50;
-                    const y = ((i * 789.012 + backgroundTime * 40) % (canvas.height + 100)) - 50;
-                    const size = Math.random() * 2 + 0.5;
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.restore();
-
-                // Distant galaxies
-                ctx.save();
-                ctx.globalAlpha = 0.2;
-                for (let i = 0; i < 5; i++) {
-                    const x = (canvas.width * 0.2) + (i * canvas.width * 0.2);
-                    const y = (canvas.height * 0.3) + (Math.sin(i + backgroundTime * 0.1) * canvas.height * 0.4);
-                    const galaxyGradient = ctx.createRadialGradient(x, y, 5, x, y, 40);
-                    galaxyGradient.addColorStop(0, 'rgba(255, 200, 100, 0.5)');
-                    galaxyGradient.addColorStop(0.5, 'rgba(100, 150, 255, 0.3)');
-                    galaxyGradient.addColorStop(1, 'transparent');
-                    ctx.fillStyle = galaxyGradient;
-                    ctx.fillRect(x-40, y-40, 80, 80);
-                }
-                ctx.restore();
+            } catch (error) {
+                console.error('Background rendering error:', error);
+                // Fallback background
+                ctx.fillStyle = '#001122';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
+        }
 
-            // Main game loop
-            function gameLoop() {
-                if (!gameRunning) {
-                    console.log('Game stopped');
-                    return;
-                }
+        function gameLoop() {
+            try {
+                if (!gameRunning) return;
                 
-                // Clear screen
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 drawBackground();
                 
-                // Update game objects
-                ships.forEach(ship => {
-                    if (ship) ship.update();
-                });
+                // Update all objects and remove dead ships
+                ships = ships.filter(ship => ship && ship.alive);
+                ships.forEach(ship => ship && ship.update());
                 
                 bullets = bullets.filter(bullet => {
                     if (bullet && bullet.update()) {
@@ -1309,25 +1512,57 @@
                     return false;
                 });
                 
-                // Draw ships
-                ships.forEach(ship => {
-                    if (ship && ship.alive) {
-                        ship.draw();
+                debris = debris.filter(d => {
+                    if (d && d.life > 0) {
+                        d.x += d.vx;
+                        d.y += d.vy;
+                        d.life--;
+                        
+                        ctx.save();
+                        ctx.fillStyle = '#666666';
+                        ctx.translate(d.x, d.y);
+                        ctx.rotate(d.rotation);
+                        ctx.fillRect(-d.size/2, -d.size/2, d.size, d.size);
+                        ctx.restore();
+                        return true;
                     }
+                    return false;
                 });
                 
-                // Check collisions
+                ships.forEach(ship => ship && ship.alive && ship.draw());
+                
                 checkCollisions();
+                updateHUD();
                 
                 requestAnimationFrame(gameLoop);
+                
+            } catch (error) {
+                console.error('Game loop error:', error);
+                // Try to continue
+                if (gameRunning) {
+                    setTimeout(() => requestAnimationFrame(gameLoop), 100);
+                }
             }
+        }
 
-            // Start game
-            initGame();
-            gameLoop();
-            
-            console.log('Space Battle Arena gestartet!');
-        } // End of startGame function
+        // Global function for restart button
+        function startNewGame() {
+            try {
+                console.log('Starting new game...');
+                gameRunning = true;
+                const gameOverEl = document.getElementById('gameOver');
+                if (gameOverEl) gameOverEl.style.display = 'none';
+                initGame();
+                gameLoop();
+            } catch (error) {
+                console.error('New game start error:', error);
+            }
+        }
+
+        // Make globally available
+        window.startNewGame = startNewGame;
+
+        console.log('Space Battle Arena script loaded');
     </script>
 </body>
 </html>
