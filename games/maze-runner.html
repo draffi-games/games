@@ -203,7 +203,8 @@
         </div>
 
         <div class="instructions">
-            Erreiche als Erster das grüne Ziel! 🏁
+            Erreiche als Erster das grüne Ziel! 🏁<br>
+            ⚠️ Achtung: Wände bewegen sich und das Labyrinth verändert sich!
         </div>
 
         <a href="../index.html" class="back-link">← Zurück zur Galerie</a>
@@ -219,7 +220,7 @@
         const GRID_SIZE = 21;
 
         // Labyrinth-Definition: 0 = Weg, 1 = Wand, 2 = Ziel
-        const maze = [
+        let maze = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
             [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1],
@@ -242,6 +243,12 @@
             [1,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,1],
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
+
+        // Bewegbare Wände
+        let movingWalls = [];
+
+        // Wand-Animationen (für erscheinende/verschwindende Wände)
+        let wallAnimations = [];
 
         // Spieler-Objekte
         let player1 = {
@@ -347,6 +354,140 @@
             player2.y = 1;
             gameRunning = true;
             lastMoveTime = { player1: 0, player2: 0 };
+            initializeMovingWalls();
+        }
+
+        // Bewegbare Wände initialisieren
+        function initializeMovingWalls() {
+            movingWalls = [];
+            // Erstelle 8-12 bewegbare Wände an zufälligen Positionen
+            const numMovingWalls = Math.floor(Math.random() * 5) + 8;
+
+            for (let i = 0; i < numMovingWalls; i++) {
+                let x, y;
+                let attempts = 0;
+
+                // Finde eine Position mit einer Wand, die nicht am Rand ist
+                do {
+                    x = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+                    y = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+                    attempts++;
+                } while ((maze[y][x] !== 1 || (x === 1 && y === 1) || (x === 19 && y === 1) || (x === 10 && y === 19)) && attempts < 100);
+
+                if (attempts < 100 && maze[y][x] === 1) {
+                    // Zufällige Bewegungsrichtung
+                    const directions = [
+                        { dx: 1, dy: 0 },  // rechts
+                        { dx: -1, dy: 0 }, // links
+                        { dx: 0, dy: 1 },  // unten
+                        { dx: 0, dy: -1 }  // oben
+                    ];
+                    const dir = directions[Math.floor(Math.random() * directions.length)];
+
+                    movingWalls.push({
+                        x: x,
+                        y: y,
+                        dx: dir.dx,
+                        dy: dir.dy,
+                        moveTimer: 0,
+                        moveInterval: 2000 + Math.random() * 2000 // 2-4 Sekunden
+                    });
+                }
+            }
+        }
+
+        // Bewegbare Wände updaten
+        function updateMovingWalls(deltaTime) {
+            if (!gameRunning) return;
+
+            movingWalls.forEach(wall => {
+                wall.moveTimer += deltaTime;
+
+                if (wall.moveTimer >= wall.moveInterval) {
+                    wall.moveTimer = 0;
+
+                    const newX = wall.x + wall.dx;
+                    const newY = wall.y + wall.dy;
+
+                    // Prüfe ob neue Position gültig ist
+                    if (newX > 0 && newX < GRID_SIZE - 1 && newY > 0 && newY < GRID_SIZE - 1) {
+                        // Prüfe ob dort keine Spieler sind
+                        const playerBlocking = (player1.x === newX && player1.y === newY) ||
+                                              (player2.x === newX && player2.y === newY) ||
+                                              (maze[newY][newX] === 2); // Nicht aufs Ziel
+
+                        if (!playerBlocking && maze[newY][newX] === 0) {
+                            // Bewege die Wand
+                            maze[wall.y][wall.x] = 0; // Alte Position freimachen
+                            maze[newY][newX] = 1;     // Neue Position setzen
+                            wall.x = newX;
+                            wall.y = newY;
+                        } else {
+                            // Richtung umkehren
+                            wall.dx = -wall.dx;
+                            wall.dy = -wall.dy;
+                        }
+                    } else {
+                        // Am Rand - Richtung umkehren
+                        wall.dx = -wall.dx;
+                        wall.dy = -wall.dy;
+                    }
+                }
+            });
+        }
+
+        // Dynamische Labyrinth-Mutation
+        let mutationTimer = 0;
+        const MUTATION_INTERVAL = 3000; // 3 Sekunden
+
+        function mutateMaze(deltaTime) {
+            if (!gameRunning) return;
+
+            mutationTimer += deltaTime;
+
+            if (mutationTimer >= MUTATION_INTERVAL) {
+                mutationTimer = 0;
+
+                // Führe 3-5 Mutationen durch
+                const numMutations = Math.floor(Math.random() * 3) + 3;
+
+                for (let i = 0; i < numMutations; i++) {
+                    const x = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+                    const y = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+
+                    // Prüfe ob Position sicher ist (keine Spieler, kein Ziel)
+                    const isSafe = (player1.x !== x || player1.y !== y) &&
+                                   (player2.x !== x || player2.y !== y) &&
+                                   maze[y][x] !== 2 &&
+                                   !(x === 1 && y === 1) && // Startposition Spieler 1
+                                   !(x === 19 && y === 1);  // Startposition Spieler 2
+
+                    if (isSafe) {
+                        // Toggle: Wand zu Weg oder Weg zu Wand
+                        const currentValue = maze[y][x];
+                        const newValue = currentValue === 1 ? 0 : 1;
+
+                        // Animation hinzufügen
+                        wallAnimations.push({
+                            x: x,
+                            y: y,
+                            progress: 0,
+                            appearing: newValue === 1,
+                            duration: 500
+                        });
+
+                        maze[y][x] = newValue;
+                    }
+                }
+            }
+        }
+
+        // Wand-Animationen updaten
+        function updateWallAnimations(deltaTime) {
+            wallAnimations = wallAnimations.filter(anim => {
+                anim.progress += deltaTime;
+                return anim.progress < anim.duration;
+            });
         }
 
         // Labyrinth zeichnen
@@ -357,12 +498,60 @@
                     const drawX = x * TILE_SIZE;
                     const drawY = y * TILE_SIZE;
 
+                    // Finde Animation für diese Position
+                    const anim = wallAnimations.find(a => a.x === x && a.y === y);
+                    let animScale = 1;
+                    let animAlpha = 1;
+
+                    if (anim) {
+                        const progress = Math.min(1, anim.progress / anim.duration);
+                        if (anim.appearing) {
+                            // Wand erscheint
+                            animScale = progress;
+                            animAlpha = progress;
+                        } else {
+                            // Wand verschwindet
+                            animScale = 1 - progress;
+                            animAlpha = 1 - progress;
+                        }
+                    }
+
                     if (tile === 1) {
                         // Wand
-                        ctx.fillStyle = '#2d3561';
-                        ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
-                        ctx.strokeStyle = '#1a1d3a';
-                        ctx.strokeRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+                        const isMoving = movingWalls.some(w => w.x === x && w.y === y);
+
+                        ctx.save();
+
+                        // Animierte Transformation
+                        if (anim) {
+                            ctx.globalAlpha = animAlpha;
+                            ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
+                            ctx.scale(animScale, animScale);
+                            ctx.translate(-TILE_SIZE / 2, -TILE_SIZE / 2);
+                        } else {
+                            ctx.translate(drawX, drawY);
+                        }
+
+                        // Bewegbare Wände haben andere Farbe
+                        if (isMoving) {
+                            ctx.fillStyle = '#4a5588'; // Hellere Farbe für bewegbare Wände
+                        } else {
+                            ctx.fillStyle = '#2d3561';
+                        }
+
+                        ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+
+                        // Glow für bewegbare Wände
+                        if (isMoving) {
+                            ctx.strokeStyle = '#6a75a8';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(1, 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                        } else {
+                            ctx.strokeStyle = '#1a1d3a';
+                            ctx.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+                        }
+
+                        ctx.restore();
                     } else if (tile === 2) {
                         // Ziel
                         ctx.fillStyle = '#00ff00';
@@ -381,6 +570,20 @@
                         // Weg
                         ctx.fillStyle = '#0f1729';
                         ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+
+                        // Verschwindende Wand (war Wand, ist jetzt Weg)
+                        if (anim && !anim.appearing) {
+                            ctx.save();
+                            ctx.globalAlpha = animAlpha;
+                            ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
+                            ctx.scale(animScale, animScale);
+                            ctx.translate(-TILE_SIZE / 2, -TILE_SIZE / 2);
+
+                            ctx.fillStyle = '#2d3561';
+                            ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+
+                            ctx.restore();
+                        }
                     }
                 }
             }
@@ -429,7 +632,19 @@
         }
 
         // Hauptrender-Funktion
+        let lastFrameTime = Date.now();
+
         function render() {
+            const now = Date.now();
+            const deltaTime = now - lastFrameTime;
+            lastFrameTime = now;
+
+            // Update-Logik
+            updateMovingWalls(deltaTime);
+            mutateMaze(deltaTime);
+            updateWallAnimations(deltaTime);
+
+            // Rendering
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             drawMaze();
@@ -454,6 +669,7 @@
 
         // Initialisierung
         updateScoreDisplay();
+        initializeMovingWalls();
         render();
     </script>
 </body>

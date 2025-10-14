@@ -346,7 +346,7 @@
                 <button class="command-button" id="buildCarrier" title="Träger bauen (400 Energie)">🛰️ Träger (E)</button>
             </div>
             <div id="unitCommands" style="display: none;">
-                <button class="command-button" id="attackCommand" title="Angreifen">⚔️ Angriff (A)</button>
+                <button class="command-button" id="attackCommand" title="Rechtsklick auf Feinde zum Angreifen">⚔️ Angriff (Rechtsklick)</button>
                 <button class="command-button" id="patrolCommand" title="Patrouillieren">🔄 Patrouille (P)</button>
                 <button class="command-button" id="stopCommand" title="Stoppen">⏹️ Stop (S)</button>
             </div>
@@ -372,7 +372,7 @@
         <button class="start-button" onclick="startGame()">Mission beginnen</button>
         <div style="margin-top: 30px; color: #008888; font-size: 14px; text-align: center; max-width: 600px;">
             <p>Befehlige eine Raumflotte, sammle Ressourcen, baue Basen und kämpfe um die Kontrolle des Weltalls!</p>
-            <p style="margin-top: 10px;"><strong>Steuerung:</strong> Linksklick = Auswählen, Rechtsklick = Bewegen/Angreifen, WASD = Kamera</p>
+            <p style="margin-top: 10px;"><strong>Steuerung:</strong> Linksklick auf Einheiten = Auswählen, Linksklick auf Boden = Bewegen, WASD = Kamera</p>
             <p style="margin-top: 10px;"><strong>Taktik:</strong> Baue Arbeiter für Ressourcen, dann Werften für Kampfschiffe. Zerstöre die feindliche Basis!</p>
         </div>
         <div style="margin-top: 20px; color: #006666; font-size: 12px; text-align: center;">
@@ -1009,11 +1009,55 @@
                         console.log(`Single-clicked and selected: ${clicked.type} at (${clicked.x}, ${clicked.y})`);
                         if (this.game.soundManager) this.game.soundManager.play('select');
                     } else {
-                        console.log(`Single-click at (${clickX}, ${clickY}) - no entity found`);
+                        // No entity clicked - if units are selected, move them to this location
+                        if (this.game.selectedUnits.length > 0) {
+                            console.log(`Moving ${this.game.selectedUnits.length} selected units to (${clickX}, ${clickY})`);
+                            this.leftClickMoveCommand(clickX, clickY);
+                        } else {
+                            console.log(`Single-click at (${clickX}, ${clickY}) - no entity found, no units selected`);
+                        }
                     }
                 }
                 
                 console.log(`Selection complete: ${this.game.selectedUnits.length} units selected`, this.game.selectedUnits);
+            }
+
+            leftClickMoveCommand(x, y) {
+                console.log(`Left-click move command at (${x}, ${y}), selected units:`, this.game.selectedUnits.length);
+                if (this.game.selectedUnits.length === 0) return;
+
+                // Check if clicking on enemy
+                const target = [...this.game.units, ...this.game.buildings]
+                    .find(entity => {
+                        const dx = entity.x - x;
+                        const dy = entity.y - y;
+                        return Math.sqrt(dx * dx + dy * dy) < 30 && entity.owner === 'enemy';
+                    });
+
+                // Check if clicking on resource
+                const resource = this.game.resources.find(r => {
+                    const dx = r.x - x;
+                    const dy = r.y - y;
+                    return Math.sqrt(dx * dx + dy * dy) < 40;
+                });
+
+                this.game.selectedUnits.forEach(unit => {
+                    if (target) {
+                        unit.target = target;
+                        unit.destination = null;
+                        console.log(`Unit ${unit.id} targeting enemy at (${target.x}, ${target.y})`);
+                    } else if (resource && unit.type === 'WORKER') {
+                        unit.destination = { x: resource.x, y: resource.y };
+                        unit.state = 'mining';
+                        unit.target = null;
+                        console.log(`Worker ${unit.id} assigned to mine resource at (${resource.x}, ${resource.y})`);
+                    } else {
+                        unit.destination = { x, y };
+                        unit.target = null;
+                        unit.state = 'idle';
+                        console.log(`Unit ${unit.id} given move command to (${x}, ${y})`);
+                    }
+                });
             }
 
             rightClickCommand(x, y) {

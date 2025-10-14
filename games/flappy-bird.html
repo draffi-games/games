@@ -204,6 +204,11 @@
         let highScore = localStorage.getItem('flappyBirdHighScore') || 0;
         let animationId;
 
+        // Game constants
+        const basePipeSpeed = 2;
+        const baseGravity = 0.5;
+        const speedIncrement = 0.1; // Speed increase per 5 points
+
         // Bird properties
         const bird = {
             x: 100,
@@ -220,9 +225,6 @@
         let pipes = [];
         const pipeWidth = 60;
         const pipeGap = 150;
-        const basePipeSpeed = 2;
-        const baseGravity = 0.5;
-        const speedIncrement = 0.1; // Speed increase per 5 points
 
         // Colors
         const colors = {
