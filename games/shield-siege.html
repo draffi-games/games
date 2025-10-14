@@ -76,7 +76,7 @@
         const ROCKET_SIZE = 10;
         const ROCKET_SPEED = 6;
         const MAX_ROCKETS = 10;
-        const MAX_SHIELDS = 5;
+        const MAX_SHIELDS = 10;
         const TOTAL_ROUNDS = 3;
         const SHIELD_SIZE = 60;
 
@@ -457,8 +457,40 @@
                 shield.draw();
             }
 
-            // Instructions
+            // Black out attacker's side so they can't see defender's setup
             const defender = attacker === 1 ? 2 : 1;
+
+            if (defender === 1) {
+                // Defender is player 1 (bottom), black out top (player 2/attacker)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+
+                // Text for attacker (rotated)
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 4);
+                ctx.rotate(Math.PI);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('WAITING FOR OPPONENT...', 0, -20);
+                ctx.font = '18px Arial';
+                ctx.fillText('Setting up defenses', 0, 10);
+                ctx.restore();
+            } else {
+                // Defender is player 2 (top), black out bottom (player 1/attacker)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+                ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+                // Text for attacker (normal)
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('WAITING FOR OPPONENT...', canvas.width / 2, canvas.height * 0.75 - 20);
+                ctx.font = '18px Arial';
+                ctx.fillText('Setting up defenses', canvas.width / 2, canvas.height * 0.75 + 10);
+            }
+
+            // Instructions for defender
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 28px Arial';
             ctx.textAlign = 'center';
