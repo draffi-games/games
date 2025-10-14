@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Blitz Battle - Speed Duel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fff;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 1000;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <a href="../index.html" class="back-button" id="backButton" style="display: none;">← Back to Gallery</a>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        const COLORS = {
+            player1: '#44ff44',
+            player2: '#ff4444',
+            rocket1: '#88ff88',
+            rocket2: '#ff8888',
+            bg: '#000000',
+            line: '#333333',
+            explosion: '#ffaa00',
+            timer: '#ffffff'
+        };
+
+        const SHIP_SIZE = 35;
+        const ROCKET_SIZE = 6;
+        const ROCKET_SPEED = 10;
+        const GAME_DURATION = 60; // seconds
+        const RESPAWN_TIME = 120; // frames
+
+        let gameState = 'menu';
+        let player1, player2;
+        let rockets = [];
+        let particles = [];
+        let timer = 0;
+        let shakeAmount = 0;
+
+        class Ship {
+            constructor(x, y, player) {
+                this.x = x;
+                this.y = y;
+                this.player = player;
+                this.alive = true;
+                this.respawnTimer = 0;
+            }
+
+            update() {
+                if (!this.alive) {
+                    this.respawnTimer--;
+                    if (this.respawnTimer <= 0) {
+                        this.alive = true;
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.alive) {
+                    // Show respawn timer
+                    if (this.respawnTimer > 0) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.font = '20px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(Math.ceil(this.respawnTimer / 60), this.x, this.y + 5);
+                    }
+                    return;
+                }
+
+                ctx.save();
+
+                ctx.fillStyle = this.player === 1 ? COLORS.player1 : COLORS.player2;
+                ctx.beginPath();
+
+                if (this.player === 1) {
+                    // Triangle pointing up
+                    ctx.moveTo(this.x, this.y - SHIP_SIZE/2);
+                    ctx.lineTo(this.x - SHIP_SIZE/2, this.y + SHIP_SIZE/2);
+                    ctx.lineTo(this.x + SHIP_SIZE/2, this.y + SHIP_SIZE/2);
+                } else {
+                    // Triangle pointing down
+                    ctx.moveTo(this.x, this.y + SHIP_SIZE/2);
+                    ctx.lineTo(this.x - SHIP_SIZE/2, this.y - SHIP_SIZE/2);
+                    ctx.lineTo(this.x + SHIP_SIZE/2, this.y - SHIP_SIZE/2);
+                }
+
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            contains(x, y) {
+                const dx = x - this.x;
+                const dy = y - this.y;
+                return Math.sqrt(dx * dx + dy * dy) < SHIP_SIZE/2;
+            }
+
+            hit() {
+                if (this.alive) {
+                    this.alive = false;
+                    this.respawnTimer = RESPAWN_TIME;
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        class Rocket {
+            constructor(x, y, targetX, targetY, player) {
+                this.x = x;
+                this.y = y;
+                this.player = player;
+
+                const angle = Math.atan2(targetY - y, targetX - x);
+                this.vx = Math.cos(angle) * ROCKET_SPEED;
+                this.vy = Math.sin(angle) * ROCKET_SPEED;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            draw() {
+                const color = this.player === 1 ? COLORS.rocket1 : COLORS.rocket2;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, ROCKET_SIZE, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Trail
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - this.vx * 1.5, this.y - this.vy * 1.5);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            isOutOfBounds() {
+                return this.x < 0 || this.x > canvas.width ||
+                       this.y < 0 || this.y > canvas.height;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.life = 30;
+                this.maxLife = 30;
+                this.color = color;
+                this.size = Math.random() * 5 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.life--;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Player {
+            constructor(num) {
+                this.num = num;
+                this.ships = [];
+                this.score = 0;
+                this.initShips();
+            }
+
+            initShips() {
+                const y = this.num === 1 ? canvas.height - 80 : 80;
+                const spacing = canvas.width / 7;
+
+                for (let i = 0; i < 6; i++) {
+                    this.ships.push(new Ship(spacing * (i + 1), y, this.num));
+                }
+            }
+
+            update() {
+                for (let ship of this.ships) {
+                    ship.update();
+                }
+            }
+
+            draw() {
+                for (let ship of this.ships) {
+                    ship.draw();
+                }
+            }
+
+            drawScore() {
+                const y = this.num === 1 ? canvas.height - 30 : 30;
+                const fontSize = 28;
+
+                ctx.save();
+
+                if (this.num === 2) {
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.rotate(Math.PI);
+                    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+                }
+
+                ctx.fillStyle = this.num === 1 ? COLORS.player1 : COLORS.player2;
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.fillText(`P${this.num}: ${this.score}`, 20, y);
+
+                ctx.restore();
+            }
+
+            getAliveShips() {
+                return this.ships.filter(s => s.alive);
+            }
+        }
+
+        function init() {
+            player1 = new Player(1);
+            player2 = new Player(2);
+            rockets = [];
+            particles = [];
+            timer = GAME_DURATION * 60; // Convert to frames
+            shakeAmount = 0;
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 25; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+            shakeAmount = 6;
+        }
+
+        function checkCollisions() {
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const rocket = rockets[i];
+                const targetPlayer = rocket.player === 1 ? player2 : player1;
+                const shooterPlayer = rocket.player === 1 ? player1 : player2;
+
+                for (let ship of targetPlayer.ships) {
+                    if (!ship.alive) continue;
+
+                    const dx = rocket.x - ship.x;
+                    const dy = rocket.y - ship.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < SHIP_SIZE/2 + ROCKET_SIZE) {
+                        ship.hit();
+                        rockets.splice(i, 1);
+                        createExplosion(ship.x, ship.y, COLORS.explosion);
+                        shooterPlayer.score++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+
+            if (gameState === 'menu') {
+                gameState = 'countdown';
+                init();
+                setTimeout(() => {
+                    gameState = 'playing';
+                }, 3000);
+                return;
+            }
+
+            if (gameState === 'gameover') {
+                gameState = 'menu';
+                return;
+            }
+
+            if (gameState !== 'playing') return;
+
+            const touch = e.touches[0] || e.changedTouches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            // Determine which player's side
+            const isPlayer1Side = y > canvas.height / 2;
+            const currentPlayer = isPlayer1Side ? player1 : player2;
+
+            // Simple tap to shoot at target location
+            const aliveShips = currentPlayer.getAliveShips();
+            if (aliveShips.length > 0) {
+                // Find closest alive ship
+                let closestShip = aliveShips[0];
+                let minDist = Infinity;
+
+                for (let ship of aliveShips) {
+                    const dx = ship.x - x;
+                    const dy = ship.y - y;
+                    const dist = dx * dx + dy * dy;
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestShip = ship;
+                    }
+                }
+
+                // Fire rocket from closest ship
+                rockets.push(new Rocket(closestShip.x, closestShip.y, x, y, currentPlayer.num));
+            }
+        }
+
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchend', handleTouch);
+
+        // Mouse support
+        canvas.addEventListener('click', (e) => {
+            const fakeTouch = {
+                touches: [{ clientX: e.clientX, clientY: e.clientY }],
+                changedTouches: [{ clientX: e.clientX, clientY: e.clientY }],
+                preventDefault: () => {}
+            };
+            handleTouch(fakeTouch);
+        });
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            timer--;
+
+            player1.update();
+            player2.update();
+
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                rockets[i].update();
+                if (rockets[i].isOutOfBounds()) {
+                    rockets.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            checkCollisions();
+
+            if (timer <= 0) {
+                gameState = 'gameover';
+            }
+
+            if (shakeAmount > 0) {
+                shakeAmount *= 0.92;
+                if (shakeAmount < 0.1) shakeAmount = 0;
+            }
+        }
+
+        function draw() {
+            ctx.save();
+            if (shakeAmount > 0) {
+                ctx.translate(
+                    (Math.random() - 0.5) * shakeAmount,
+                    (Math.random() - 0.5) * shakeAmount
+                );
+            }
+
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState === 'menu') {
+                drawMenu();
+            } else if (gameState === 'countdown') {
+                drawCountdown();
+            } else if (gameState === 'playing') {
+                drawGame();
+            } else if (gameState === 'gameover') {
+                drawGameOver();
+            }
+
+            ctx.restore();
+        }
+
+        function drawMenu() {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 56px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('BLITZ BATTLE', canvas.width / 2, canvas.height / 2 - 100);
+
+            ctx.font = '24px Arial';
+            ctx.fillText('Ultra-Fast Split-Screen Combat', canvas.width / 2, canvas.height / 2 - 50);
+
+            ctx.font = '20px Arial';
+            ctx.fillText('TAP to fire from nearest ship', canvas.width / 2, canvas.height / 2 + 10);
+            ctx.fillText('Ships respawn after being hit', canvas.width / 2, canvas.height / 2 + 40);
+            ctx.fillText('Most hits in 60 seconds WINS!', canvas.width / 2, canvas.height / 2 + 70);
+
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText('TAP TO START', canvas.width / 2, canvas.height / 2 + 130);
+
+            // Rotated text
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(Math.PI);
+            ctx.font = '24px Arial';
+            ctx.fillStyle = COLORS.player2;
+            ctx.fillText('PLAYER 2', 0, -canvas.height / 2 + 50);
+            ctx.restore();
+
+            ctx.fillStyle = COLORS.player1;
+            ctx.fillText('PLAYER 1', canvas.width / 2, canvas.height - 50);
+        }
+
+        function drawCountdown() {
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const countNum = Math.ceil(timer / 60) - (GAME_DURATION - 3);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 120px Arial';
+            ctx.textAlign = 'center';
+
+            if (countNum > 0) {
+                ctx.fillText(countNum, canvas.width / 2, canvas.height / 2 + 40);
+            } else {
+                ctx.fillText('GO!', canvas.width / 2, canvas.height / 2 + 40);
+            }
+        }
+
+        function drawGame() {
+            // Center line
+            ctx.strokeStyle = COLORS.line;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            player1.draw();
+            player2.draw();
+
+            for (let rocket of rockets) {
+                rocket.draw();
+            }
+
+            for (let particle of particles) {
+                particle.draw();
+            }
+
+            player1.drawScore();
+            player2.drawScore();
+
+            // Timer in center
+            const seconds = Math.ceil(timer / 60);
+            ctx.fillStyle = COLORS.timer;
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(seconds, canvas.width / 2, canvas.height / 2 + 15);
+
+            // Pulsing effect when time is low
+            if (seconds <= 10) {
+                ctx.globalAlpha = 0.3 + Math.sin(timer / 5) * 0.3;
+                ctx.fillStyle = '#ff0000';
+                ctx.fillText(seconds, canvas.width / 2, canvas.height / 2 + 15);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function drawGameOver() {
+            drawGame();
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const winner = player1.score > player2.score ? 1 :
+                          (player2.score > player1.score ? 2 : 0);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 64px Arial';
+            ctx.textAlign = 'center';
+
+            if (winner === 0) {
+                ctx.fillText('TIE GAME!', canvas.width / 2, canvas.height / 2 - 60);
+            } else {
+                const winColor = winner === 1 ? COLORS.player1 : COLORS.player2;
+                ctx.fillStyle = winColor;
+                ctx.fillText(`PLAYER ${winner} WINS!`, canvas.width / 2, canvas.height / 2 - 60);
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '36px Arial';
+            ctx.fillText(`${player1.score} - ${player2.score}`, canvas.width / 2, canvas.height / 2 + 10);
+
+            ctx.font = 'bold 28px Arial';
+            ctx.fillText('TAP TO PLAY AGAIN', canvas.width / 2, canvas.height / 2 + 80);
+
+            // Rotated winner text
+            if (winner === 2) {
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(Math.PI);
+                ctx.font = 'bold 48px Arial';
+                ctx.fillStyle = COLORS.player2;
+                ctx.fillText('YOU WIN!', 0, -120);
+                ctx.restore();
+            } else if (winner === 1) {
+                ctx.fillStyle = COLORS.player1;
+                ctx.font = 'bold 48px Arial';
+                ctx.fillText('YOU WIN!', canvas.width / 2, canvas.height - 80);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>

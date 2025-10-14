@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Circuit - Top-Down Racing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            background: #0a0a0a;
+            border-radius: 15px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            margin: 20px;
+        }
+
+        #gameCanvas {
+            border: 3px solid #ff4444;
+            border-radius: 10px;
+            display: block;
+            background: #1a4d1a;
+            image-rendering: crisp-edges;
+        }
+
+        #ui {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 30px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .ui-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 2px solid #ff4444;
+            min-width: 200px;
+        }
+
+        .ui-label {
+            font-size: 12px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ui-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .ui-value.speed {
+            color: #44ff44;
+        }
+
+        .ui-value.time {
+            color: #ffaa00;
+        }
+
+        #controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 68, 68, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .back-link {
+            color: #ff4444;
+            text-decoration: none;
+            margin: 10px;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover {
+            color: #ff6666;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ff4444;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+
+        #gameOver h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ff4444;
+        }
+
+        #gameOver p {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+
+        .new-record {
+            color: #ffaa00;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .instructions {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .instructions strong {
+            color: #ff4444;
+        }
+
+        #touchControls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 15px;
+        }
+
+        .touch-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 68, 68, 0.7);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+            pointer-events: all;
+            transition: background 0.2s;
+        }
+
+        .touch-btn:active {
+            background: rgba(255, 68, 68, 1);
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            #gameCanvas {
+                width: 100%;
+                height: auto;
+            }
+
+            #touchControls {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .ui-panel {
+                min-width: 120px;
+                padding: 10px;
+            }
+
+            .ui-value {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1000" height="700"></canvas>
+
+        <div id="ui">
+            <div class="ui-panel">
+                <div class="ui-label">Lap Time</div>
+                <div class="ui-value time" id="lapTime">0:00.000</div>
+                <div class="ui-label">Best Lap</div>
+                <div class="ui-value" id="bestLap">--:--</div>
+            </div>
+            <div class="ui-panel">
+                <div class="ui-label">Speed</div>
+                <div class="ui-value speed" id="speed">0</div>
+                <div class="ui-label">km/h</div>
+            </div>
+            <div class="ui-panel">
+                <div class="ui-label">Lap</div>
+                <div class="ui-value" id="lapCount">1 / 5</div>
+            </div>
+        </div>
+
+        <div id="touchControls">
+            <div class="touch-btn" id="btnLeft">◄</div>
+            <div class="touch-btn" id="btnUp">▲</div>
+            <div class="touch-btn" id="btnDown">▼</div>
+            <div class="touch-btn" id="btnRight">►</div>
+        </div>
+
+        <div id="gameOver">
+            <h2>Race Complete!</h2>
+            <p id="finalTime"></p>
+            <p id="bestTimeMsg"></p>
+            <button onclick="restartGame()">Race Again</button>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <strong>Controls:</strong> Arrow Keys - ↑ Accelerate | ↓ Brake | ← → Steer<br>
+        <strong>Goal:</strong> Complete 5 laps as fast as possible!
+    </div>
+
+    <div id="controls">
+        <button onclick="togglePause()">Pause</button>
+        <button onclick="restartGame()">Restart</button>
+        <button onclick="toggleFullscreen()">Fullscreen</button>
+        <br>
+        <a href="../index.html" class="back-link">← Back to Games</a>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameRunning = false;
+        let gamePaused = false;
+        let gameStartTime = 0;
+        let lapStartTime = 0;
+        let currentLap = 1;
+        const totalLaps = 5;
+        let bestLapTime = localStorage.getItem('racingCircuitBestLap') || Infinity;
+
+        // Car object
+        const car = {
+            x: 500,
+            y: 600,
+            angle: -Math.PI / 2,
+            speed: 0,
+            maxSpeed: 8,
+            acceleration: 0.15,
+            friction: 0.03,
+            turnSpeed: 0.04,
+            width: 20,
+            height: 35
+        };
+
+        // Controls
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+
+        // Checkpoints
+        let currentCheckpoint = 0;
+        const checkpoints = [
+            { x: 500, y: 150, radius: 80 },  // Top
+            { x: 750, y: 250, radius: 80 },  // Top right
+            { x: 800, y: 500, radius: 80 },  // Right
+            { x: 500, y: 600, radius: 80 }   // Start/Finish
+        ];
+
+        // Track definition
+        const trackOuter = [
+            { x: 350, y: 650 },
+            { x: 350, y: 100 },
+            { x: 450, y: 50 },
+            { x: 650, y: 50 },
+            { x: 850, y: 150 },
+            { x: 900, y: 250 },
+            { x: 900, y: 450 },
+            { x: 850, y: 550 },
+            { x: 750, y: 650 },
+            { x: 650, y: 650 }
+        ];
+
+        const trackInner = [
+            { x: 450, y: 600 },
+            { x: 450, y: 150 },
+            { x: 500, y: 120 },
+            { x: 600, y: 120 },
+            { x: 750, y: 200 },
+            { x: 800, y: 280 },
+            { x: 800, y: 420 },
+            { x: 750, y: 500 },
+            { x: 650, y: 550 },
+            { x: 550, y: 600 }
+        ];
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+                e.preventDefault();
+            }
+            if (e.key === ' ' || e.key === 'p') {
+                togglePause();
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = false;
+                e.preventDefault();
+            }
+        });
+
+        // Touch controls
+        const setupTouchControls = () => {
+            if ('ontouchstart' in window) {
+                document.getElementById('touchControls').style.display = 'flex';
+
+                ['btnUp', 'btnDown', 'btnLeft', 'btnRight'].forEach(id => {
+                    const btn = document.getElementById(id);
+                    const key = 'Arrow' + id.replace('btn', '');
+
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        keys[key] = true;
+                    });
+
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        keys[key] = false;
+                    });
+                });
+            }
+        };
+
+        // Point in polygon test
+        function pointInPolygon(point, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+
+                const intersect = ((yi > point.y) !== (yj > point.y))
+                    && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // Check if car is on track
+        function isCarOnTrack() {
+            const carCenter = { x: car.x, y: car.y };
+            return pointInPolygon(carCenter, trackOuter) && !pointInPolygon(carCenter, trackInner);
+        }
+
+        // Check checkpoint
+        function checkCheckpoint() {
+            const checkpoint = checkpoints[currentCheckpoint];
+            const dx = car.x - checkpoint.x;
+            const dy = car.y - checkpoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < checkpoint.radius) {
+                currentCheckpoint++;
+
+                if (currentCheckpoint >= checkpoints.length) {
+                    currentCheckpoint = 0;
+                    completeLap();
+                }
+            }
+        }
+
+        // Complete lap
+        function completeLap() {
+            const lapTime = Date.now() - lapStartTime;
+
+            if (lapTime < bestLapTime) {
+                bestLapTime = lapTime;
+                localStorage.setItem('racingCircuitBestLap', bestLapTime);
+                updateBestLap();
+            }
+
+            currentLap++;
+
+            if (currentLap > totalLaps) {
+                endGame();
+            } else {
+                lapStartTime = Date.now();
+            }
+        }
+
+        // Update car physics
+        function updateCar() {
+            if (!gameRunning || gamePaused) return;
+
+            // Acceleration
+            if (keys.ArrowUp) {
+                car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
+            }
+            if (keys.ArrowDown) {
+                car.speed = Math.max(car.speed - car.acceleration * 1.5, -car.maxSpeed * 0.5);
+            }
+
+            // Friction
+            if (!keys.ArrowUp && !keys.ArrowDown) {
+                car.speed *= (1 - car.friction);
+                if (Math.abs(car.speed) < 0.01) car.speed = 0;
+            }
+
+            // Steering (only when moving)
+            if (Math.abs(car.speed) > 0.5) {
+                if (keys.ArrowLeft) {
+                    car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
+                }
+                if (keys.ArrowRight) {
+                    car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
+                }
+            }
+
+            // Movement
+            const oldX = car.x;
+            const oldY = car.y;
+            car.x += Math.cos(car.angle) * car.speed;
+            car.y += Math.sin(car.angle) * car.speed;
+
+            // Collision detection
+            if (!isCarOnTrack()) {
+                car.x = oldX;
+                car.y = oldY;
+                car.speed *= 0.3;
+            }
+
+            // Check checkpoint
+            checkCheckpoint();
+        }
+
+        // Draw track
+        function drawTrack() {
+            // Background grass
+            ctx.fillStyle = '#1a4d1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Track surface
+            ctx.fillStyle = '#404040';
+            ctx.beginPath();
+            ctx.moveTo(trackOuter[0].x, trackOuter[0].y);
+            trackOuter.forEach(point => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Inner grass
+            ctx.fillStyle = '#1a4d1a';
+            ctx.beginPath();
+            ctx.moveTo(trackInner[0].x, trackInner[0].y);
+            trackInner.forEach(point => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
+            ctx.fill();
+
+            // Track lines
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.moveTo(trackOuter[0].x, trackOuter[0].y);
+            trackOuter.forEach(point => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(trackInner[0].x, trackInner[0].y);
+            trackInner.forEach(point => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            // Start/Finish line
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(350, 650);
+            ctx.lineTo(650, 650);
+            ctx.stroke();
+
+            // Checkered pattern on start line
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 10; i++) {
+                if (i % 2 === 0) {
+                    ctx.fillRect(350 + i * 30, 650, 30, 10);
+                }
+            }
+        }
+
+        // Draw car
+        function drawCar() {
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.angle + Math.PI / 2);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 2, car.width, car.height);
+
+            // Car body
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+
+            // Car details
+            ctx.fillStyle = '#8b0000';
+            ctx.fillRect(-car.width / 2, -car.height / 2 + 5, car.width, 8);
+
+            // Windshield
+            ctx.fillStyle = '#4a90e2';
+            ctx.fillRect(-car.width / 2 + 3, -car.height / 2 + 8, car.width - 6, 10);
+
+            ctx.restore();
+        }
+
+        // Update UI
+        function updateUI() {
+            if (!gameRunning) return;
+
+            const currentTime = Date.now() - lapStartTime;
+            document.getElementById('lapTime').textContent = formatTime(currentTime);
+            document.getElementById('speed').textContent = Math.round(Math.abs(car.speed) * 15);
+            document.getElementById('lapCount').textContent = `${currentLap} / ${totalLaps}`;
+        }
+
+        function updateBestLap() {
+            if (bestLapTime === Infinity) {
+                document.getElementById('bestLap').textContent = '--:--';
+            } else {
+                document.getElementById('bestLap').textContent = formatTime(bestLapTime);
+            }
+        }
+
+        // Format time
+        function formatTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const milliseconds = ms % 1000;
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            updateCar();
+            drawTrack();
+            drawCar();
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        function startGame() {
+            gameRunning = true;
+            gamePaused = false;
+            gameStartTime = Date.now();
+            lapStartTime = Date.now();
+            currentLap = 1;
+            currentCheckpoint = 0;
+
+            car.x = 500;
+            car.y = 600;
+            car.angle = -Math.PI / 2;
+            car.speed = 0;
+
+            updateBestLap();
+            document.getElementById('gameOver').style.display = 'none';
+
+            gameLoop();
+        }
+
+        // End game
+        function endGame() {
+            gameRunning = false;
+            const totalTime = Date.now() - gameStartTime;
+
+            document.getElementById('finalTime').textContent = `Total Time: ${formatTime(totalTime)}`;
+
+            if (bestLapTime !== Infinity) {
+                document.getElementById('bestTimeMsg').innerHTML =
+                    `<span class="new-record">Best Lap: ${formatTime(bestLapTime)}</span>`;
+            }
+
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Restart game
+        function restartGame() {
+            startGame();
+        }
+
+        // Toggle pause
+        function togglePause() {
+            if (!gameRunning) return;
+            gamePaused = !gamePaused;
+            if (!gamePaused) {
+                gameLoop();
+            }
+        }
+
+        // Fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // Initialize
+        setupTouchControls();
+        updateBestLap();
+        drawTrack();
+        drawCar();
+
+        // Auto-start
+        setTimeout(startGame, 500);
+    </script>
+</body>
+</html>

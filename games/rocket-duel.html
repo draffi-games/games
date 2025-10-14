@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Rocket Duel - Split Screen Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fff;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 1000;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <a href="../index.html" class="back-button" id="backButton" style="display: none;">← Back to Gallery</a>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const backButton = document.getElementById('backButton');
+
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game constants
+        const COLORS = {
+            player1: '#4488ff',
+            player2: '#4488ff',
+            rocket: '#ff4444',
+            shield: '#ffffff',
+            bg: '#000000',
+            line: '#333333',
+            select: '#44ff44',
+            explosion: '#ffaa00'
+        };
+
+        const SHIP_SIZE = 40;
+        const ROCKET_SIZE = 8;
+        const ROCKET_SPEED = 8;
+        const SHIELD_DURATION = 120; // frames
+        const MAX_SHIELDS = 3;
+
+        // Game state
+        let gameState = 'menu'; // menu, playing, gameover
+        let player1, player2;
+        let rockets = [];
+        let particles = [];
+        let selectedShip = null;
+        let selectedPlayer = null;
+        let shakeAmount = 0;
+
+        // Classes
+        class Ship {
+            constructor(x, y, player) {
+                this.x = x;
+                this.y = y;
+                this.player = player;
+                this.alive = true;
+                this.selected = false;
+            }
+
+            draw() {
+                if (!this.alive) return;
+
+                ctx.save();
+
+                // Selection glow
+                if (this.selected) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = COLORS.select;
+                }
+
+                // Draw ship
+                ctx.fillStyle = this.player === 1 ? COLORS.player1 : COLORS.player2;
+                ctx.beginPath();
+
+                if (this.player === 1) {
+                    // Triangle pointing up
+                    ctx.moveTo(this.x, this.y - SHIP_SIZE/2);
+                    ctx.lineTo(this.x - SHIP_SIZE/2, this.y + SHIP_SIZE/2);
+                    ctx.lineTo(this.x + SHIP_SIZE/2, this.y + SHIP_SIZE/2);
+                } else {
+                    // Triangle pointing down
+                    ctx.moveTo(this.x, this.y + SHIP_SIZE/2);
+                    ctx.lineTo(this.x - SHIP_SIZE/2, this.y - SHIP_SIZE/2);
+                    ctx.lineTo(this.x + SHIP_SIZE/2, this.y - SHIP_SIZE/2);
+                }
+
+                ctx.closePath();
+                ctx.fill();
+
+                // Outline
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            contains(x, y) {
+                const dx = x - this.x;
+                const dy = y - this.y;
+                return Math.sqrt(dx * dx + dy * dy) < SHIP_SIZE/2;
+            }
+        }
+
+        class Rocket {
+            constructor(x, y, targetX, targetY, player) {
+                this.x = x;
+                this.y = y;
+                this.player = player;
+
+                const angle = Math.atan2(targetY - y, targetX - x);
+                this.vx = Math.cos(angle) * ROCKET_SPEED;
+                this.vy = Math.sin(angle) * ROCKET_SPEED;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            draw() {
+                ctx.fillStyle = COLORS.rocket;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, ROCKET_SIZE, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Trail
+                ctx.strokeStyle = COLORS.rocket;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - this.vx * 2, this.y - this.vy * 2);
+                ctx.stroke();
+            }
+
+            isOutOfBounds() {
+                return this.x < 0 || this.x > canvas.width ||
+                       this.y < 0 || this.y > canvas.height;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.life = 60;
+                this.maxLife = 60;
+                this.color = color;
+                this.size = Math.random() * 4 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2; // gravity
+                this.life--;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Player {
+            constructor(num) {
+                this.num = num;
+                this.ships = [];
+                this.shields = MAX_SHIELDS;
+                this.activeShield = 0;
+                this.score = 0;
+
+                this.initShips();
+            }
+
+            initShips() {
+                const y = this.num === 1 ? canvas.height - 100 : 100;
+                const spacing = canvas.width / 5;
+
+                for (let i = 0; i < 4; i++) {
+                    this.ships.push(new Ship(spacing * (i + 1), y, this.num));
+                }
+            }
+
+            activateShield() {
+                if (this.shields > 0 && this.activeShield === 0) {
+                    this.shields--;
+                    this.activeShield = SHIELD_DURATION;
+                    return true;
+                }
+                return false;
+            }
+
+            update() {
+                if (this.activeShield > 0) {
+                    this.activeShield--;
+                }
+            }
+
+            drawShield() {
+                if (this.activeShield > 0) {
+                    const y = this.num === 1 ? canvas.height - 150 : 150;
+                    const alpha = Math.min(this.activeShield / 30, 1);
+
+                    ctx.strokeStyle = COLORS.shield;
+                    ctx.lineWidth = 3;
+                    ctx.globalAlpha = alpha;
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+
+                    ctx.globalAlpha = 1;
+                }
+            }
+
+            drawUI() {
+                const y = this.num === 1 ? canvas.height - 30 : 30;
+                const fontSize = 24;
+
+                ctx.save();
+
+                if (this.num === 2) {
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.rotate(Math.PI);
+                    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+                }
+
+                // Shield counter
+                ctx.fillStyle = '#fff';
+                ctx.font = `${fontSize}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.fillText(`Shields: ${this.shields}`, 20, y);
+
+                // Ship counter
+                const aliveShips = this.ships.filter(s => s.alive).length;
+                ctx.fillText(`Ships: ${aliveShips}`, 150, y);
+
+                ctx.restore();
+            }
+
+            getAliveShips() {
+                return this.ships.filter(s => s.alive);
+            }
+        }
+
+        function init() {
+            player1 = new Player(1);
+            player2 = new Player(2);
+            rockets = [];
+            particles = [];
+            selectedShip = null;
+            selectedPlayer = null;
+            shakeAmount = 0;
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+            shakeAmount = 10;
+        }
+
+        function checkCollisions() {
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const rocket = rockets[i];
+                const targetPlayer = rocket.player === 1 ? player2 : player1;
+
+                // Check shield collision
+                if (targetPlayer.activeShield > 0) {
+                    const shieldY = targetPlayer.num === 1 ? canvas.height - 150 : 150;
+                    const rocketPassedShield = (targetPlayer.num === 1 && rocket.y < shieldY) ||
+                                               (targetPlayer.num === 2 && rocket.y > shieldY);
+
+                    if (rocketPassedShield) {
+                        rockets.splice(i, 1);
+                        createExplosion(rocket.x, rocket.y, COLORS.shield);
+                        continue;
+                    }
+                }
+
+                // Check ship collision
+                for (let ship of targetPlayer.ships) {
+                    if (!ship.alive) continue;
+
+                    const dx = rocket.x - ship.x;
+                    const dy = rocket.y - ship.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < SHIP_SIZE/2 + ROCKET_SIZE) {
+                        ship.alive = false;
+                        rockets.splice(i, 1);
+                        createExplosion(ship.x, ship.y, COLORS.explosion);
+
+                        const attackerPlayer = rocket.player === 1 ? player1 : player2;
+                        attackerPlayer.score++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function checkGameOver() {
+            const p1Ships = player1.getAliveShips().length;
+            const p2Ships = player2.getAliveShips().length;
+
+            if (p1Ships === 0 || p2Ships === 0) {
+                gameState = 'gameover';
+            }
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+
+            if (gameState === 'menu') {
+                gameState = 'playing';
+                init();
+                return;
+            }
+
+            if (gameState === 'gameover') {
+                gameState = 'menu';
+                return;
+            }
+
+            const touch = e.touches[0] || e.changedTouches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            // Determine which player's side was touched
+            const isPlayer1Side = y > canvas.height / 2;
+            const currentPlayer = isPlayer1Side ? player1 : player2;
+
+            // Check if selecting own ship
+            let shipSelected = false;
+            for (let ship of currentPlayer.ships) {
+                if (ship.alive && ship.contains(x, y)) {
+                    // Deselect previous
+                    if (selectedShip) selectedShip.selected = false;
+
+                    ship.selected = true;
+                    selectedShip = ship;
+                    selectedPlayer = currentPlayer;
+                    shipSelected = true;
+                    break;
+                }
+            }
+
+            // If no ship selected and we have a selected ship, fire rocket
+            if (!shipSelected && selectedShip && selectedPlayer === currentPlayer) {
+                rockets.push(new Rocket(selectedShip.x, selectedShip.y, x, y, currentPlayer.num));
+                selectedShip.selected = false;
+                selectedShip = null;
+                selectedPlayer = null;
+            }
+        }
+
+        function handleSwipe(e) {
+            e.preventDefault();
+
+            if (gameState !== 'playing') return;
+
+            const touch = e.touches[0];
+            if (!touch) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const y = touch.clientY - rect.top;
+
+            const isPlayer1Side = y > canvas.height / 2;
+            const currentPlayer = isPlayer1Side ? player1 : player2;
+
+            // Activate shield (swipe detection could be improved)
+            if (e.touches.length >= 2) {
+                currentPlayer.activateShield();
+            }
+        }
+
+        let touchStartY = 0;
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            touchStartY = touch.clientY - rect.top;
+            handleTouch(e);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const touchEndY = touch.clientY - rect.top;
+
+            // Detect vertical swipe for shield
+            if (Math.abs(touchEndY - touchStartY) > 50 && gameState === 'playing') {
+                const isPlayer1Side = touchStartY > canvas.height / 2;
+                const currentPlayer = isPlayer1Side ? player1 : player2;
+                currentPlayer.activateShield();
+                touchStartY = touchEndY;
+            }
+        });
+
+        canvas.addEventListener('touchend', handleTouch);
+
+        // Mouse support for testing
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const fakeTouch = {
+                touches: [{ clientX: e.clientX, clientY: e.clientY }],
+                changedTouches: [{ clientX: e.clientX, clientY: e.clientY }],
+                preventDefault: () => {}
+            };
+
+            handleTouch(fakeTouch);
+        });
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            player1.update();
+            player2.update();
+
+            // Update rockets
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                rockets[i].update();
+                if (rockets[i].isOutOfBounds()) {
+                    rockets.splice(i, 1);
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            checkCollisions();
+            checkGameOver();
+
+            // Reduce shake
+            if (shakeAmount > 0) {
+                shakeAmount *= 0.9;
+                if (shakeAmount < 0.1) shakeAmount = 0;
+            }
+        }
+
+        function draw() {
+            // Apply screen shake
+            ctx.save();
+            if (shakeAmount > 0) {
+                ctx.translate(
+                    (Math.random() - 0.5) * shakeAmount,
+                    (Math.random() - 0.5) * shakeAmount
+                );
+            }
+
+            // Clear screen
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState === 'menu') {
+                drawMenu();
+            } else if (gameState === 'playing') {
+                drawGame();
+            } else if (gameState === 'gameover') {
+                drawGameOver();
+            }
+
+            ctx.restore();
+        }
+
+        function drawMenu() {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('ROCKET DUEL', canvas.width / 2, canvas.height / 2 - 100);
+
+            ctx.font = '24px Arial';
+            ctx.fillText('Face-to-Face Split Screen Battle', canvas.width / 2, canvas.height / 2 - 50);
+
+            ctx.font = '20px Arial';
+            ctx.fillText('TAP your ship, then TAP target to fire', canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText('SWIPE to activate shield (3x per game)', canvas.width / 2, canvas.height / 2 + 50);
+
+            ctx.font = 'bold 32px Arial';
+            ctx.fillText('TAP TO START', canvas.width / 2, canvas.height / 2 + 120);
+
+            // Draw rotated instructions for player 2
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(Math.PI);
+            ctx.font = '20px Arial';
+            ctx.fillText('PLAYER 2', 0, -canvas.height / 2 + 50);
+            ctx.restore();
+
+            ctx.fillText('PLAYER 1', canvas.width / 2, canvas.height - 50);
+        }
+
+        function drawGame() {
+            // Draw center line
+            ctx.strokeStyle = COLORS.line;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw shields
+            player1.drawShield();
+            player2.drawShield();
+
+            // Draw ships
+            for (let ship of [...player1.ships, ...player2.ships]) {
+                ship.draw();
+            }
+
+            // Draw rockets
+            for (let rocket of rockets) {
+                rocket.draw();
+            }
+
+            // Draw particles
+            for (let particle of particles) {
+                particle.draw();
+            }
+
+            // Draw UI
+            player1.drawUI();
+            player2.drawUI();
+        }
+
+        function drawGameOver() {
+            // Draw final game state
+            drawGame();
+
+            // Overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const winner = player1.getAliveShips().length > 0 ? 1 : 2;
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 64px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`PLAYER ${winner} WINS!`, canvas.width / 2, canvas.height / 2 - 40);
+
+            ctx.font = '32px Arial';
+            ctx.fillText('TAP TO PLAY AGAIN', canvas.width / 2, canvas.height / 2 + 40);
+
+            // Show winner's name rotated
+            if (winner === 2) {
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(Math.PI);
+                ctx.font = 'bold 48px Arial';
+                ctx.fillText('YOU WIN!', 0, -60);
+                ctx.restore();
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        init();
+        gameLoop();
+    </script>
+</body>
+</html>
