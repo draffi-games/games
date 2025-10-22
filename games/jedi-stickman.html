@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jedi Stickman Arena</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 100%);
+        }
+
+        .menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .menu-overlay.hidden {
+            display: none;
+        }
+
+        .title {
+            font-size: 72px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            animation: titleGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes titleGlow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+
+        .subtitle {
+            font-size: 24px;
+            color: #00ffff;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .menu-button {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+            border: 2px solid #00ffff;
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .menu-button:hover {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.4), rgba(255, 0, 255, 0.4));
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+            transform: scale(1.05);
+        }
+
+        .controls-info {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            max-width: 800px;
+            text-align: left;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .controls-info h3 {
+            color: #00ffff;
+            margin-bottom: 15px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .control-key {
+            color: #ff00ff;
+            font-weight: bold;
+        }
+
+        .gamepad-status {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #0f0;
+            color: #0f0;
+            font-size: 14px;
+            border-radius: 5px;
+        }
+
+        .gamepad-status.disconnected {
+            background: rgba(255, 0, 0, 0.2);
+            border-color: #f00;
+            color: #f00;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            text-decoration: none;
+            font-size: 18px;
+            padding: 10px 20px;
+            border: 2px solid #00ffff;
+            background: rgba(0, 0, 0, 0.5);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .back-link:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        .hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .player-hud {
+            position: absolute;
+            top: 20px;
+            width: 300px;
+        }
+
+        .player-hud.p1 {
+            left: 20px;
+        }
+
+        .player-hud.p2 {
+            right: 20px;
+        }
+
+        .player-name {
+            font-size: 18px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .health-bar, .stamina-bar, .force-bar {
+            height: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #333;
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            transition: width 0.2s;
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .health-fill {
+            background: linear-gradient(90deg, #ff0000, #ff6600);
+        }
+
+        .stamina-fill {
+            background: linear-gradient(90deg, #00ff00, #00ffff);
+        }
+
+        .force-fill {
+            background: linear-gradient(90deg, #0000ff, #ff00ff);
+        }
+
+        .combo-display {
+            position: absolute;
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 20px currentColor;
+            animation: comboPulse 0.3s;
+            pointer-events: none;
+        }
+
+        @keyframes comboPulse {
+            0% { transform: translateX(-50%) scale(0.5); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+
+        .round-announcement {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 30px #00ffff;
+            animation: announceSlide 0.5s ease-out;
+            z-index: 200;
+            pointer-events: none;
+        }
+
+        @keyframes announceSlide {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Zurück</a>
+
+    <div id="menuOverlay" class="menu-overlay">
+        <div class="title">JEDI STICKMAN<br>ARENA</div>
+        <div class="subtitle">Physics-Based Lightsaber Combat</div>
+
+        <button class="menu-button" onclick="game.startGame(2)">2 SPIELER DUELL</button>
+        <button class="menu-button" onclick="game.startGame(4)">4 SPIELER BRAWL</button>
+
+        <div class="controls-info">
+            <h3>STEUERUNG</h3>
+            <div class="controls-grid">
+                <div>
+                    <h4 style="color: #00ffff; margin-bottom: 10px;">Spieler 1 (Tastatur)</h4>
+                    <div class="control-item"><span>Bewegung</span><span class="control-key">A/D</span></div>
+                    <div class="control-item"><span>Angriff</span><span class="control-key">W</span></div>
+                    <div class="control-item"><span>Block</span><span class="control-key">S</span></div>
+                    <div class="control-item"><span>Springen</span><span class="control-key">SPACE</span></div>
+                    <div class="control-item"><span>Force Push</span><span class="control-key">Q</span></div>
+                    <div class="control-item"><span>Force Pull</span><span class="control-key">E</span></div>
+                </div>
+                <div>
+                    <h4 style="color: #ff00ff; margin-bottom: 10px;">Spieler 2 (Tastatur)</h4>
+                    <div class="control-item"><span>Bewegung</span><span class="control-key">←/→</span></div>
+                    <div class="control-item"><span>Angriff</span><span class="control-key">↑</span></div>
+                    <div class="control-item"><span>Block</span><span class="control-key">↓</span></div>
+                    <div class="control-item"><span>Springen</span><span class="control-key">NUMPAD 0</span></div>
+                    <div class="control-item"><span>Force Push</span><span class="control-key">NUMPAD 1</span></div>
+                    <div class="control-item"><span>Force Pull</span><span class="control-key">NUMPAD 2</span></div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #00ffff;">
+                <h4 style="color: #ffff00; margin-bottom: 10px;">GAMEPAD / BLUETOOTH CONTROLLER</h4>
+                <div class="control-item"><span>Bewegung</span><span class="control-key">Linker Stick (Links/Rechts)</span></div>
+                <div class="control-item"><span>Angriff</span><span class="control-key">RT / R2</span></div>
+                <div class="control-item"><span>Block</span><span class="control-key">LT / L2</span></div>
+                <div class="control-item"><span>Springen</span><span class="control-key">A / X (unten)</span></div>
+                <div class="control-item"><span>Force Push</span><span class="control-key">RB / R1</span></div>
+                <div class="control-item"><span>Force Pull</span><span class="control-key">LB / L1</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud" id="hud" style="display: none;">
+        <div class="player-hud p1">
+            <div class="player-name" style="color: #00ffff;">JEDI 1</div>
+            <div class="health-bar"><div class="bar-fill health-fill" id="p1-health" style="width: 100%;"></div></div>
+            <div class="stamina-bar"><div class="bar-fill stamina-fill" id="p1-stamina" style="width: 100%;"></div></div>
+            <div class="force-bar"><div class="bar-fill force-fill" id="p1-force" style="width: 100%;"></div></div>
+        </div>
+
+        <div class="player-hud p2">
+            <div class="player-name" style="color: #ff00ff;">JEDI 2</div>
+            <div class="health-bar"><div class="bar-fill health-fill" id="p2-health" style="width: 100%;"></div></div>
+            <div class="stamina-bar"><div class="bar-fill stamina-fill" id="p2-stamina" style="width: 100%;"></div></div>
+            <div class="force-bar"><div class="bar-fill force-fill" id="p2-force" style="width: 100%;"></div></div>
+        </div>
+    </div>
+
+    <div class="gamepad-status disconnected" id="gamepadStatus">Controller: Nicht verbunden</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // ==================== CONFIGURATION ====================
+        const CONFIG = {
+            width: 1920,
+            height: 1080,
+            gravity: 0.3,
+            friction: 0.99,
+            groundY: 950,
+            playerColors: ['#00ffff', '#ff00ff', '#ffff00', '#00ff00'],
+            saberColors: ['#00ffff', '#ff00ff', '#00ff00', '#ff0000'],
+        };
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function distance(x1, y1, x2, y2) {
+            return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        }
+
+        function lineIntersectsCircle(x1, y1, x2, y2, cx, cy, r) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const fx = x1 - cx;
+            const fy = y1 - cy;
+            const a = dx * dx + dy * dy;
+            const b = 2 * (fx * dx + fy * dy);
+            const c = fx * fx + fy * fy - r * r;
+            const discriminant = b * b - 4 * a * c;
+            return discriminant >= 0;
+        }
+
+        // ==================== POINT CLASS (for Verlet Physics) ====================
+        class Point {
+            constructor(x, y, pinned = false) {
+                this.x = x;
+                this.y = y;
+                this.oldX = x;
+                this.oldY = y;
+                this.pinned = pinned;
+            }
+
+            update() {
+                if (this.pinned) return;
+
+                // Verlet Integration (korrekte Reihenfolge!)
+                const vx = (this.x - this.oldX) * CONFIG.friction;
+                const vy = (this.y - this.oldY) * CONFIG.friction;
+
+                this.oldX = this.x;
+                this.oldY = this.y;
+
+                this.x += vx;
+                this.y += vy + CONFIG.gravity;
+            }
+
+            constrain(x, y) {
+                this.x = x;
+                this.y = y;
+                this.oldX = x;
+                this.oldY = y;
+            }
+
+            applyForce(fx, fy) {
+                if (this.pinned) return;
+                this.x += fx;
+                this.y += fy;
+            }
+        }
+
+        // ==================== CONSTRAINT CLASS ====================
+        class Constraint {
+            constructor(p1, p2, length) {
+                this.p1 = p1;
+                this.p2 = p2;
+                this.length = length;
+            }
+
+            solve() {
+                const dx = this.p2.x - this.p1.x;
+                const dy = this.p2.y - this.p1.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const diff = this.length - dist;
+                const percent = diff / dist / 2;
+                const offsetX = dx * percent;
+                const offsetY = dy * percent;
+
+                if (!this.p1.pinned) {
+                    this.p1.x -= offsetX;
+                    this.p1.y -= offsetY;
+                }
+                if (!this.p2.pinned) {
+                    this.p2.x += offsetX;
+                    this.p2.y += offsetY;
+                }
+            }
+        }
+
+        // ==================== AUDIO ENGINE ====================
+        class AudioEngine {
+            constructor() {
+                this.context = null;
+                try {
+                    this.context = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                }
+            }
+
+            playTone(frequency, duration, type = 'sine', volume = 0.08) {
+                if (!this.context) return;
+
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+
+                oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
+                oscillator.type = type;
+
+                gainNode.gain.setValueAtTime(volume, this.context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
+
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + duration);
+            }
+
+            saberSwing() {
+                this.playTone(800 + Math.random() * 200, 0.1, 'sawtooth', 0.05);
+            }
+
+            saberHit() {
+                this.playTone(1200, 0.2, 'square', 0.08);
+                setTimeout(() => this.playTone(900, 0.15, 'square', 0.06), 50);
+            }
+
+            saberClash() {
+                this.playTone(2000, 0.15, 'square', 0.1);
+            }
+
+            forcePush() {
+                this.playTone(400, 0.3, 'sine', 0.12);
+                setTimeout(() => this.playTone(200, 0.3, 'sine', 0.1), 100);
+            }
+
+            jump() {
+                this.playTone(600, 0.1, 'sine', 0.06);
+            }
+        }
+
+        // ==================== PARTICLE SYSTEM ====================
+        class Particle {
+            constructor(x, y, vx, vy, color, life) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.life = life;
+                this.maxLife = life;
+                this.size = 2 + Math.random() * 4;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.3;
+                this.life--;
+                this.vx *= 0.97;
+                this.vy *= 0.97;
+            }
+
+            render(ctx) {
+                const alpha = this.life / this.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class ParticleSystem {
+            constructor() {
+                this.particles = [];
+            }
+
+            emit(x, y, count, color) {
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 8;
+                    this.particles.push(new Particle(
+                        x, y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        color,
+                        20 + Math.random() * 30
+                    ));
+                }
+            }
+
+            update() {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update();
+                    if (this.particles[i].life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+
+            render(ctx) {
+                this.particles.forEach(p => p.render(ctx));
+            }
+        }
+
+        // ==================== INPUT MANAGER ====================
+        class InputManager {
+            constructor() {
+                this.keys = {};
+                this.gamepads = [];
+                this.gamepadConnected = false;
+
+                // WICHTIG: e.code verwenden, nicht e.key!
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.code.toLowerCase()] = true;
+                });
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.code.toLowerCase()] = false;
+                });
+
+                window.addEventListener('gamepadconnected', (e) => {
+                    console.log('Gamepad connected:', e.gamepad);
+                    this.gamepadConnected = true;
+                    this.updateGamepadStatus();
+                });
+
+                window.addEventListener('gamepaddisconnected', (e) => {
+                    console.log('Gamepad disconnected');
+                    this.gamepadConnected = false;
+                    this.updateGamepadStatus();
+                });
+            }
+
+            updateGamepadStatus() {
+                const status = document.getElementById('gamepadStatus');
+                if (this.gamepadConnected) {
+                    status.textContent = 'Controller: Verbunden ✓';
+                    status.classList.remove('disconnected');
+                } else {
+                    status.textContent = 'Controller: Nicht verbunden';
+                    status.classList.add('disconnected');
+                }
+            }
+
+            poll() {
+                this.gamepads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(gp => gp) : [];
+            }
+
+            getInput(playerIndex) {
+                const input = {
+                    moveX: 0,
+                    attack: false,
+                    block: false,
+                    jump: false,
+                    forcePush: false,
+                    forcePull: false
+                };
+
+                // Keyboard - Spieler 1
+                if (playerIndex === 0) {
+                    if (this.keys['keya']) input.moveX -= 1;
+                    if (this.keys['keyd']) input.moveX += 1;
+                    input.attack = this.keys['keyw'];
+                    input.block = this.keys['keys'];
+                    input.jump = this.keys['space'];
+                    input.forcePush = this.keys['keyq'];
+                    input.forcePull = this.keys['keye'];
+                }
+                // Keyboard - Spieler 2
+                else if (playerIndex === 1) {
+                    if (this.keys['arrowleft']) input.moveX -= 1;
+                    if (this.keys['arrowright']) input.moveX += 1;
+                    input.attack = this.keys['arrowup'];
+                    input.block = this.keys['arrowdown'];
+                    input.jump = this.keys['numpad0'];
+                    input.forcePush = this.keys['numpad1'];
+                    input.forcePull = this.keys['numpad2'];
+                }
+
+                // Gamepad input (überschreibt Keyboard wenn vorhanden)
+                if (this.gamepads[playerIndex]) {
+                    const gp = this.gamepads[playerIndex];
+
+                    // Linker Stick nur horizontal
+                    if (Math.abs(gp.axes[0]) > 0.2) {
+                        input.moveX = gp.axes[0];
+                    }
+
+                    // Buttons
+                    if (gp.buttons[7]?.pressed) input.attack = true;   // RT
+                    if (gp.buttons[6]?.pressed) input.block = true;    // LT
+                    if (gp.buttons[0]?.pressed) input.jump = true;     // A
+                    if (gp.buttons[5]?.pressed) input.forcePush = true; // RB
+                    if (gp.buttons[4]?.pressed) input.forcePull = true; // LB
+                }
+
+                return input;
+            }
+        }
+
+        // ==================== STICKMAN PLAYER (Verbesserte Version) ====================
+        class Stickman {
+            constructor(x, y, color, saberColor, playerIndex) {
+                this.playerIndex = playerIndex;
+                this.color = color;
+                this.saberColor = saberColor;
+
+                // VEREINFACHTE Körperstruktur mit nur 7 Punkten (stabiler!)
+                const headY = y - 90;
+                const chestY = y - 60;
+                const waistY = y - 30;
+                const footY = y;
+
+                this.points = {
+                    head: new Point(x, headY),
+                    chest: new Point(x, chestY),
+                    waist: new Point(x, waistY),
+                    handL: new Point(x - 30, chestY + 10),
+                    handR: new Point(x + 30, chestY + 10),
+                    footL: new Point(x - 15, footY),
+                    footR: new Point(x + 15, footY)
+                };
+
+                // Helper function
+                const dist = (p1, p2) => {
+                    return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+                };
+
+                // EINFACHE aber STABILE Constraints
+                this.constraints = [
+                    // Wirbelsäule (vertical chain)
+                    new Constraint(this.points.head, this.points.chest, dist(this.points.head, this.points.chest)),
+                    new Constraint(this.points.chest, this.points.waist, dist(this.points.chest, this.points.waist)),
+
+                    // Beine
+                    new Constraint(this.points.waist, this.points.footL, dist(this.points.waist, this.points.footL)),
+                    new Constraint(this.points.waist, this.points.footR, dist(this.points.waist, this.points.footR)),
+
+                    // Arme
+                    new Constraint(this.points.chest, this.points.handL, dist(this.points.chest, this.points.handL)),
+                    new Constraint(this.points.chest, this.points.handR, dist(this.points.chest, this.points.handR)),
+
+                    // Strukturelle Stabilität
+                    new Constraint(this.points.head, this.points.waist, dist(this.points.head, this.points.waist)),
+                    new Constraint(this.points.footL, this.points.footR, dist(this.points.footL, this.points.footR)),
+                    new Constraint(this.points.handL, this.points.handR, dist(this.points.handL, this.points.handR)),
+                    new Constraint(this.points.chest, this.points.footL, dist(this.points.chest, this.points.footL)),
+                    new Constraint(this.points.chest, this.points.footR, dist(this.points.chest, this.points.footR))
+                ];
+
+                // Stabilisiere beim Start
+                for (let i = 0; i < 30; i++) {
+                    this.constraints.forEach(c => c.solve());
+                }
+
+                // Fixiere Füße auf dem Boden
+                this.points.footL.y = footY;
+                this.points.footL.oldY = footY;
+                this.points.footR.y = footY;
+                this.points.footR.oldY = footY;
+
+                // Stats
+                this.health = 100;
+                this.stamina = 100;
+                this.force = 100;
+
+                // Combat
+                this.attacking = false;
+                this.blocking = false;
+                this.attackFrame = 0;
+                this.attackFrameMax = 20;
+                this.attackCooldown = 0;
+                this.hitCooldown = 0;
+                this.combo = 0;
+                this.comboTimer = 0;
+
+                // Physics
+                this.grounded = false;
+                this.facingRight = playerIndex === 0;
+                this.saberLength = 70;
+
+                // Force powers
+                this.forcePushCooldown = 0;
+                this.forcePullCooldown = 0;
+
+                // Attack hand (welche Hand das Schwert hält)
+                this.attackHand = this.points.handR;
+            }
+
+            update(input, dt) {
+                // ========== PHASE 1: INPUT & FORCES (vor Verlet!) ==========
+                // Movement
+                if (input.moveX !== 0) {
+                    this.facingRight = input.moveX > 0;
+                    const force = input.moveX * 1.2;
+                    this.points.waist.applyForce(force, 0);
+                    this.points.chest.applyForce(force * 0.5, 0);
+                }
+
+                // Jump
+                if (input.jump && this.grounded && this.stamina > 15) {
+                    const jumpForce = -15;
+                    this.points.waist.applyForce(0, jumpForce);
+                    this.points.chest.applyForce(0, jumpForce);
+                    this.points.head.applyForce(0, jumpForce * 0.8);
+                    this.stamina -= 15;
+                    game.audio.jump();
+                }
+
+                // ========== PHASE 2: VERLET INTEGRATION ==========
+                Object.values(this.points).forEach(p => p.update());
+
+                // ========== PHASE 3: CONSTRAINT SOLVING + COLLISIONS ==========
+                // Check if grounded BEFORE constraint loop
+                this.grounded = false;
+                [this.points.footL, this.points.footR].forEach(foot => {
+                    if (foot.y >= CONFIG.groundY - 1) {
+                        this.grounded = true;
+                    }
+                });
+
+                // PINNE die Füße NUR wenn grounded UND keine Bewegung
+                const shouldPin = this.grounded && input.moveX === 0 && !input.jump;
+                this.points.footL.pinned = shouldPin;
+                this.points.footR.pinned = shouldPin;
+
+                for (let i = 0; i < 30; i++) {
+                    // Solve structural constraints
+                    this.constraints.forEach(c => c.solve());
+
+                    // Apply ground collision INSIDE constraint loop!
+                    [this.points.footL, this.points.footR].forEach(foot => {
+                        if (foot.y > CONFIG.groundY) {
+                            foot.y = CONFIG.groundY;
+                            foot.oldY = CONFIG.groundY;
+                        }
+                    });
+                }
+
+                // ========== PHASE 4: GAME LOGIC ==========
+                // Attack
+                if (input.attack && !this.attacking && this.attackCooldown <= 0 && this.stamina > 10) {
+                    this.attacking = true;
+                    this.attackFrame = 0;
+                    this.attackCooldown = 35;
+                    this.stamina -= 10;
+                    game.audio.saberSwing();
+                }
+
+                // Attack animation
+                if (this.attacking) {
+                    this.attackFrame++;
+                    if (this.attackFrame >= this.attackFrameMax) {
+                        this.attacking = false;
+                        this.attackFrame = 0;
+                    }
+                }
+
+                this.blocking = input.block && this.stamina > 0;
+                if (this.blocking) {
+                    this.stamina -= 0.3;
+                }
+
+                // Force Powers
+                if (input.forcePush && this.forcePushCooldown <= 0 && this.force > 25) {
+                    this.useForcePush();
+                }
+                if (input.forcePull && this.forcePullCooldown <= 0 && this.force > 25) {
+                    this.useForcePull();
+                }
+
+                // Screen bounds
+                Object.values(this.points).forEach(point => {
+                    if (point.x < 30) {
+                        point.x = 30;
+                        point.oldX = point.x + 1;
+                    }
+                    if (point.x > CONFIG.width - 30) {
+                        point.x = CONFIG.width - 30;
+                        point.oldX = point.x - 1;
+                    }
+                });
+
+                // Cooldowns
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.hitCooldown > 0) this.hitCooldown--;
+                if (this.forcePushCooldown > 0) this.forcePushCooldown--;
+                if (this.forcePullCooldown > 0) this.forcePullCooldown--;
+
+                if (this.comboTimer > 0) {
+                    this.comboTimer--;
+                } else {
+                    this.combo = 0;
+                }
+
+                // Regeneration (nur wenn nicht angreift)
+                if (!this.attacking && !this.blocking) {
+                    this.stamina = Math.min(100, this.stamina + 0.8);
+                }
+                this.force = Math.min(100, this.force + 0.4);
+            }
+
+            useForcePush() {
+                this.force -= 25;
+                this.forcePushCooldown = 100;
+                game.audio.forcePush();
+
+                const pushRange = 250;
+                game.players.forEach(other => {
+                    if (other === this || other.health <= 0) return;
+                    const dx = other.points.waist.x - this.points.waist.x;
+                    const dy = other.points.waist.y - this.points.waist.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < pushRange) {
+                        const power = (pushRange - dist) / pushRange * 12;
+                        const angle = Math.atan2(dy, dx);
+                        const fx = Math.cos(angle) * power;
+                        const fy = Math.sin(angle) * power;
+
+                        Object.values(other.points).forEach(p => {
+                            p.applyForce(fx, fy);
+                        });
+                    }
+                });
+
+                game.particles.emit(this.points.handL.x, this.points.handL.y, 25, this.color);
+            }
+
+            useForcePull() {
+                this.force -= 25;
+                this.forcePullCooldown = 120;
+
+                const pullRange = 280;
+                game.players.forEach(other => {
+                    if (other === this || other.health <= 0) return;
+                    const dx = other.points.waist.x - this.points.waist.x;
+                    const dy = other.points.waist.y - this.points.waist.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < pullRange && dist > 40) {
+                        const power = (pullRange - dist) / pullRange * -8;
+                        const angle = Math.atan2(dy, dx);
+                        const fx = Math.cos(angle) * power;
+                        const fy = Math.sin(angle) * power;
+
+                        Object.values(other.points).forEach(p => {
+                            p.applyForce(fx, fy);
+                        });
+                    }
+                });
+            }
+
+            takeDamage(amount, knockbackX = 0, knockbackY = 0) {
+                if (this.hitCooldown > 0) return;
+
+                if (this.blocking) {
+                    amount *= 0.4;
+                    knockbackX *= 0.3;
+                    knockbackY *= 0.3;
+                    game.audio.saberClash();
+                } else {
+                    game.audio.saberHit();
+                }
+
+                this.health = Math.max(0, this.health - amount);
+                this.hitCooldown = 25;
+
+                // Apply knockback to all body parts
+                Object.values(this.points).forEach(p => {
+                    p.applyForce(knockbackX, knockbackY);
+                });
+
+                game.particles.emit(this.points.chest.x, this.points.chest.y, 12, '#ff0000');
+                game.screenShake = 8;
+            }
+
+            getSaberPosition() {
+                // Berechne Schwertposition basierend auf Attack Frame
+                let angle = this.facingRight ? 0 : Math.PI;
+
+                if (this.attacking) {
+                    const progress = this.attackFrame / this.attackFrameMax;
+                    if (progress < 0.3) {
+                        // Windup: Zurückziehen
+                        angle += (this.facingRight ? 1 : -1) * Math.PI * 0.5 * (1 - progress / 0.3);
+                    } else if (progress < 0.7) {
+                        // Swing: Vorwärts schwingen
+                        const swingProgress = (progress - 0.3) / 0.4;
+                        angle -= (this.facingRight ? 1 : -1) * Math.PI * 0.8 * swingProgress;
+                    } else {
+                        // Recovery: Zurück
+                        const recoveryProgress = (progress - 0.7) / 0.3;
+                        angle -= (this.facingRight ? 1 : -1) * Math.PI * 0.8 * (1 - recoveryProgress);
+                    }
+                }
+
+                const hand = this.attackHand;
+                return {
+                    startX: hand.x,
+                    startY: hand.y,
+                    endX: hand.x + Math.cos(angle) * this.saberLength,
+                    endY: hand.y + Math.sin(angle) * this.saberLength
+                };
+            }
+
+            render(ctx) {
+                if (this.health <= 0) return;
+
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Wirbelsäule
+                ctx.beginPath();
+                ctx.moveTo(this.points.head.x, this.points.head.y);
+                ctx.lineTo(this.points.chest.x, this.points.chest.y);
+                ctx.lineTo(this.points.waist.x, this.points.waist.y);
+                ctx.stroke();
+
+                // Linker Arm
+                ctx.beginPath();
+                ctx.moveTo(this.points.chest.x, this.points.chest.y);
+                ctx.lineTo(this.points.handL.x, this.points.handL.y);
+                ctx.stroke();
+
+                // Rechter Arm
+                ctx.beginPath();
+                ctx.moveTo(this.points.chest.x, this.points.chest.y);
+                ctx.lineTo(this.points.handR.x, this.points.handR.y);
+                ctx.stroke();
+
+                // Linkes Bein
+                ctx.beginPath();
+                ctx.moveTo(this.points.waist.x, this.points.waist.y);
+                ctx.lineTo(this.points.footL.x, this.points.footL.y);
+                ctx.stroke();
+
+                // Rechtes Bein
+                ctx.beginPath();
+                ctx.moveTo(this.points.waist.x, this.points.waist.y);
+                ctx.lineTo(this.points.footR.x, this.points.footR.y);
+                ctx.stroke();
+
+                // Kopf
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.points.head.x, this.points.head.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Augen
+                ctx.fillStyle = '#000';
+                const eyeOffsetX = this.facingRight ? 6 : -6;
+                ctx.fillRect(this.points.head.x + eyeOffsetX - 2, this.points.head.y - 3, 4, 6);
+
+                // Lightsaber
+                this.renderSaber(ctx);
+
+                // Health bar
+                if (this.health < 100) {
+                    const barWidth = 50;
+                    const barHeight = 6;
+                    const x = this.points.head.x - barWidth / 2;
+                    const y = this.points.head.y - 30;
+
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x, y, barWidth, barHeight);
+
+                    ctx.fillStyle = this.health > 50 ? '#0f0' : this.health > 25 ? '#ff0' : '#f00';
+                    ctx.fillRect(x, y, barWidth * (this.health / 100), barHeight);
+                }
+            }
+
+            renderSaber(ctx) {
+                const saber = this.getSaberPosition();
+
+                // Glow effect
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = this.saberColor;
+
+                // Trail wenn angreift
+                if (this.attacking && this.attackFrame > 5 && this.attackFrame < 15) {
+                    ctx.globalAlpha = 0.4;
+                    for (let i = 1; i <= 4; i++) {
+                        const prevFrame = Math.max(0, this.attackFrame - i * 2);
+                        const progress = prevFrame / this.attackFrameMax;
+                        let trailAngle = this.facingRight ? 0 : Math.PI;
+
+                        if (progress < 0.3) {
+                            trailAngle += (this.facingRight ? 1 : -1) * Math.PI * 0.5 * (1 - progress / 0.3);
+                        } else if (progress < 0.7) {
+                            const swingProgress = (progress - 0.3) / 0.4;
+                            trailAngle -= (this.facingRight ? 1 : -1) * Math.PI * 0.8 * swingProgress;
+                        }
+
+                        const hand = this.attackHand;
+                        const trailEndX = hand.x + Math.cos(trailAngle) * this.saberLength;
+                        const trailEndY = hand.y + Math.sin(trailAngle) * this.saberLength;
+
+                        ctx.strokeStyle = this.saberColor;
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.moveTo(hand.x, hand.y);
+                        ctx.lineTo(trailEndX, trailEndY);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                }
+
+                // Main blade
+                ctx.strokeStyle = this.saberColor;
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(saber.startX, saber.startY);
+                ctx.lineTo(saber.endX, saber.endY);
+                ctx.stroke();
+
+                // Core (white)
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(saber.startX, saber.startY);
+                ctx.lineTo(saber.endX, saber.endY);
+                ctx.stroke();
+
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // ==================== MAIN GAME CLASS ====================
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+
+                this.audio = new AudioEngine();
+                this.particles = new ParticleSystem();
+                this.input = new InputManager();
+
+                this.players = [];
+                this.gameState = 'menu';
+                this.screenShake = 0;
+
+                this.lastTime = 0;
+                this.animate(0);
+            }
+
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.scale = Math.min(
+                    this.canvas.width / CONFIG.width,
+                    this.canvas.height / CONFIG.height
+                );
+            }
+
+            startGame(playerCount) {
+                document.getElementById('menuOverlay').classList.add('hidden');
+                document.getElementById('hud').style.display = 'block';
+
+                this.players = [];
+                const spacing = CONFIG.width / (playerCount + 1);
+
+                for (let i = 0; i < playerCount; i++) {
+                    const x = spacing * (i + 1);
+                    const y = CONFIG.groundY;
+                    this.players.push(new Stickman(
+                        x, y,
+                        CONFIG.playerColors[i],
+                        CONFIG.saberColors[i],
+                        i
+                    ));
+                }
+
+                this.gameState = 'playing';
+                this.showAnnouncement('FIGHT!');
+            }
+
+            showAnnouncement(text) {
+                const div = document.createElement('div');
+                div.className = 'round-announcement';
+                div.textContent = text;
+                document.body.appendChild(div);
+                setTimeout(() => div.remove(), 1500);
+            }
+
+            update(dt) {
+                if (this.gameState !== 'playing') return;
+
+                this.input.poll();
+
+                // Update players
+                this.players.forEach(player => {
+                    const input = this.input.getInput(player.playerIndex);
+                    player.update(input, dt);
+                });
+
+                // Check combat
+                this.checkCombat();
+
+                // Update particles
+                this.particles.update();
+
+                // Screen shake
+                if (this.screenShake > 0) {
+                    this.screenShake *= 0.85;
+                    if (this.screenShake < 0.1) this.screenShake = 0;
+                }
+
+                // Update HUD
+                this.updateHUD();
+
+                // Check winner
+                const alive = this.players.filter(p => p.health > 0);
+                if (alive.length === 1 && this.players.length > 1) {
+                    setTimeout(() => {
+                        this.showAnnouncement('JEDI ' + (alive[0].playerIndex + 1) + ' GEWINNT!');
+                        setTimeout(() => this.returnToMenu(), 3000);
+                    }, 500);
+                    this.gameState = 'ended';
+                }
+            }
+
+            checkCombat() {
+                for (let i = 0; i < this.players.length; i++) {
+                    const attacker = this.players[i];
+                    if (!attacker.attacking || attacker.health <= 0) continue;
+                    if (attacker.attackFrame < 6 || attacker.attackFrame > 14) continue;
+
+                    const saber = attacker.getSaberPosition();
+
+                    for (let j = 0; j < this.players.length; j++) {
+                        if (i === j) continue;
+                        const target = this.players[j];
+                        if (target.health <= 0) continue;
+
+                        // Check hit on head
+                        const headHit = lineIntersectsCircle(
+                            saber.startX, saber.startY,
+                            saber.endX, saber.endY,
+                            target.points.head.x, target.points.head.y, 18
+                        );
+
+                        // Check hit on body
+                        const bodyHit = distance(
+                            target.points.chest.x, target.points.chest.y,
+                            saber.endX, saber.endY
+                        ) < 30;
+
+                        if (headHit || bodyHit) {
+                            const dx = target.points.waist.x - attacker.points.waist.x;
+                            const knockX = dx > 0 ? 10 : -10;
+                            const damage = headHit ? 35 : 25;
+
+                            target.takeDamage(damage, knockX, -4);
+
+                            attacker.combo++;
+                            attacker.comboTimer = 150;
+
+                            if (attacker.combo >= 3) {
+                                this.showCombo(attacker.combo);
+                            }
+
+                            // Nur 1 Hit pro Swing
+                            attacker.attackFrame = 15;
+                        }
+                    }
+                }
+            }
+
+            showCombo(count) {
+                const div = document.createElement('div');
+                div.className = 'combo-display';
+                div.textContent = count + ' COMBO!';
+                div.style.color = count >= 5 ? '#ffff00' : count >= 10 ? '#ff00ff' : '#00ffff';
+                document.body.appendChild(div);
+                setTimeout(() => div.remove(), 1500);
+            }
+
+            updateHUD() {
+                [0, 1].forEach(i => {
+                    if (this.players[i]) {
+                        const p = this.players[i];
+                        const prefix = 'p' + (i + 1);
+
+                        const health = document.getElementById(prefix + '-health');
+                        const stamina = document.getElementById(prefix + '-stamina');
+                        const force = document.getElementById(prefix + '-force');
+
+                        if (health) health.style.width = Math.max(0, p.health) + '%';
+                        if (stamina) stamina.style.width = Math.max(0, p.stamina) + '%';
+                        if (force) force.style.width = Math.max(0, p.force) + '%';
+                    }
+                });
+            }
+
+            returnToMenu() {
+                this.gameState = 'menu';
+                document.getElementById('menuOverlay').classList.remove('hidden');
+                document.getElementById('hud').style.display = 'none';
+            }
+
+            render() {
+                const ctx = this.ctx;
+
+                // Clear
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                ctx.save();
+
+                // Screen shake
+                if (this.screenShake > 0) {
+                    ctx.translate(
+                        (Math.random() - 0.5) * this.screenShake * 3,
+                        (Math.random() - 0.5) * this.screenShake * 3
+                    );
+                }
+
+                // Scale
+                const offsetX = (this.canvas.width - CONFIG.width * this.scale) / 2;
+                const offsetY = (this.canvas.height - CONFIG.height * this.scale) / 2;
+                ctx.translate(offsetX, offsetY);
+                ctx.scale(this.scale, this.scale);
+
+                // Stars
+                ctx.fillStyle = '#fff';
+                for (let i = 0; i < 150; i++) {
+                    const x = (i * 123.456) % CONFIG.width;
+                    const y = (i * 789.012) % CONFIG.height;
+                    const size = ((i % 4) + 1) * 0.5;
+                    const brightness = 0.3 + (i % 7) * 0.1;
+                    ctx.globalAlpha = brightness;
+                    ctx.fillRect(x, y, size, size);
+                }
+                ctx.globalAlpha = 1;
+
+                // Ground
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(0, CONFIG.groundY, CONFIG.width, CONFIG.height - CONFIG.groundY);
+
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ffff';
+                ctx.beginPath();
+                ctx.moveTo(0, CONFIG.groundY);
+                ctx.lineTo(CONFIG.width, CONFIG.groundY);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // Grid lines on ground
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < CONFIG.width; x += 100) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, CONFIG.groundY);
+                    ctx.lineTo(x, CONFIG.height);
+                    ctx.stroke();
+                }
+
+                // Particles
+                this.particles.render(ctx);
+
+                // Players
+                this.players.forEach(player => player.render(ctx));
+
+                ctx.restore();
+            }
+
+            animate(currentTime) {
+                const dt = Math.min((currentTime - this.lastTime) / 16.67, 2);
+                this.lastTime = currentTime;
+
+                this.update(dt);
+                this.render();
+
+                requestAnimationFrame((t) => this.animate(t));
+            }
+        }
+
+        // ==================== INITIALIZE ====================
+        const game = new Game();
+    </script>
+</body>
+</html>
