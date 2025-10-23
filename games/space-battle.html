@@ -362,9 +362,9 @@
         }
         
         function initBackground() {
-            // Create stars
+            // Create stars - MANY MORE for epic space battles
             starField = [];
-            for (let i = 0; i < 300; i++) {
+            for (let i = 0; i < 800; i++) {
                 starField.push({
                     x: Math.random() * window.innerWidth,
                     y: Math.random() * window.innerHeight,
@@ -401,25 +401,25 @@
                 this.vx = 0;
                 this.vy = 0;
                 
-                // Set stats based on ship type
+                // Set stats based on ship type - REDUCED SIZES for zoomed-out perspective
                 if (shipType === 'stardestroyer' || isBoss) {
                     this.health = 500;
                     this.maxHealth = 500;
                     this.shield = 300;
                     this.maxShield = 300;
-                    this.size = 75;
+                    this.size = 40; // Reduced from 75
                 } else if (shipType === 'tiefighter') {
                     this.health = 80;
                     this.maxHealth = 80;
                     this.shield = 60;
                     this.maxShield = 60;
-                    this.size = 20;
+                    this.size = 12; // Reduced from 20
                 } else {
                     this.health = 100;
                     this.maxHealth = 100;
                     this.shield = 100;
                     this.maxShield = 100;
-                    this.size = 25;
+                    this.size = 15; // Reduced from 25
                 }
                 
                 this.shootCooldown = 0;
@@ -1803,9 +1803,9 @@
                 gameRunning = true;
                 bossSpawned = false;
                 
-                // Create stars
+                // Create stars - MANY MORE for epic space battles
                 starField = [];
-                for (let i = 0; i < 200; i++) {
+                for (let i = 0; i < 800; i++) {
                     starField.push({
                         x: Math.random() * canvas.width,
                         y: Math.random() * canvas.height,
@@ -1821,28 +1821,51 @@
                 player = new Ship(canvas.width * 0.1, canvas.height / 2, team, true, false, playerShipType);
                 ships.push(player);
                 
-                // Create teams based on player faction
+                // Create teams based on player faction - MASSIVE BATTLES
                 if (playerFaction === 'empire') {
                     // Player is Empire, allies are Empire, enemies are Rebellion
-                    
-                    // Create allied Empire ships
-                    const allyCount = playerShipType === 'stardestroyer' ? 2 : 3;
-                    for (let i = 0; i < allyCount; i++) {
+
+                    // Create allied Empire Star Destroyers (3)
+                    for (let i = 0; i < 3; i++) {
                         ships.push(new Ship(
-                            Math.random() * canvas.width * 0.25,
-                            100 + Math.random() * (canvas.height - 200),
+                            Math.random() * canvas.width * 0.3,
+                            100 + i * (canvas.height / 4),
+                            'red',
+                            false,
+                            false,
+                            'stardestroyer'
+                        ));
+                    }
+
+                    // Create allied TIE Fighters (20)
+                    for (let i = 0; i < 20; i++) {
+                        ships.push(new Ship(
+                            Math.random() * canvas.width * 0.35,
+                            50 + Math.random() * (canvas.height - 100),
                             'red',
                             false,
                             false,
                             'tiefighter'
                         ));
                     }
-                    
-                    // Create enemy Rebellion ships
-                    for (let i = 0; i < 5; i++) {
+
+                    // Create enemy Rebellion Star Destroyers (2)
+                    for (let i = 0; i < 2; i++) {
                         ships.push(new Ship(
                             canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
-                            100 + Math.random() * (canvas.height - 200),
+                            150 + i * (canvas.height / 3),
+                            'blue',
+                            false,
+                            false,
+                            'stardestroyer'
+                        ));
+                    }
+
+                    // Create enemy X-Wings (30)
+                    for (let i = 0; i < 30; i++) {
+                        ships.push(new Ship(
+                            canvas.width * 0.65 + Math.random() * canvas.width * 0.35,
+                            50 + Math.random() * (canvas.height - 100),
                             'blue',
                             false,
                             false,
@@ -1851,24 +1874,48 @@
                     }
                 } else {
                     // Player is Rebellion, allies are Rebellion, enemies are Empire
-                    
-                    // Create allied Rebellion ships
-                    for (let i = 0; i < 3; i++) {
+
+                    // Create allied Rebellion Star Destroyers (2)
+                    for (let i = 0; i < 2; i++) {
                         ships.push(new Ship(
-                            Math.random() * canvas.width * 0.25,
-                            100 + Math.random() * (canvas.height - 200),
+                            Math.random() * canvas.width * 0.3,
+                            150 + i * (canvas.height / 3),
+                            'blue',
+                            false,
+                            false,
+                            'stardestroyer'
+                        ));
+                    }
+
+                    // Create allied X-Wings (25)
+                    for (let i = 0; i < 25; i++) {
+                        ships.push(new Ship(
+                            Math.random() * canvas.width * 0.35,
+                            50 + Math.random() * (canvas.height - 100),
                             'blue',
                             false,
                             false,
                             'xwing'
                         ));
                     }
-                    
-                    // Create enemy Empire ships
+
+                    // Create enemy Empire Star Destroyers (4)
                     for (let i = 0; i < 4; i++) {
                         ships.push(new Ship(
-                            canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
-                            100 + Math.random() * (canvas.height - 200),
+                            canvas.width * 0.7 + Math.random() * canvas.width * 0.25,
+                            80 + i * (canvas.height / 5),
+                            'red',
+                            false,
+                            false,
+                            'stardestroyer'
+                        ));
+                    }
+
+                    // Create enemy TIE Fighters (35)
+                    for (let i = 0; i < 35; i++) {
+                        ships.push(new Ship(
+                            canvas.width * 0.65 + Math.random() * canvas.width * 0.35,
+                            50 + Math.random() * (canvas.height - 100),
                             'red',
                             false,
                             false,

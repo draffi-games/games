@@ -1536,15 +1536,33 @@
         function init() {
             new StarSystem();
             loadGames();
-            
+
             // Initialize button animations
             const animator = new ButtonAnimator();
-            
+
+            // Initialize background music
+            const bgMusic = new BackgroundMusicSystem();
+
+            // Start music on first user interaction (browser autoplay policy)
+            const startMusic = () => {
+                bgMusic.start();
+                document.removeEventListener('click', startMusic);
+                document.removeEventListener('keydown', startMusic);
+            };
+
+            document.addEventListener('click', startMusic, { once: true });
+            document.addEventListener('keydown', startMusic, { once: true });
+
+            // Try to start immediately (might work if autoplay is allowed)
+            bgMusic.start().catch(() => {
+                console.log('Autoplay prevented - music will start on user interaction');
+            });
+
             // Start auto-animation after a delay
             setTimeout(() => {
                 animator.startAutoAnimation();
             }, 3000);
-            
+
             // Remove loading screen
             setTimeout(() => {
                 document.body.classList.add('loaded');
