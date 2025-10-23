@@ -1048,6 +1048,12 @@
                 description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support. Inspiriert von Stick Fight meets Star Wars!",
                 url: "games/jedi-stickman.html",
                 icon: "⚔️"
+            },
+            {
+                title: "Frogger Rush",
+                description: "Klassisches Frogger! Überquere gefährliche Straßen voller Autos und springe auf Baumstämme über den Fluss. Erreiche alle 5 Ziele bevor die Zeit abläuft!",
+                url: "games/frogger-rush.html",
+                icon: "🐸"
             }
         ];
 
@@ -1071,6 +1077,134 @@
                 
                 gamesGrid.appendChild(gameCard);
             });
+        }
+
+        // Background Music System
+        class BackgroundMusicSystem {
+            constructor() {
+                this.audioContext = null;
+                this.isPlaying = false;
+                this.masterGain = null;
+                this.setupAudio();
+            }
+
+            setupAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.audioContext.createGain();
+                    this.masterGain.gain.value = 0.15; // Low volume for background
+                    this.masterGain.connect(this.audioContext.destination);
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                }
+            }
+
+            async start() {
+                if (!this.audioContext || this.isPlaying) return;
+
+                // Resume audio context if suspended (browser autoplay policy)
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+
+                this.isPlaying = true;
+                this.playHelldiversTheme();
+            }
+
+            playHelldiversTheme() {
+                if (!this.audioContext || !this.isPlaying) return;
+
+                const now = this.audioContext.currentTime;
+                const loopDuration = 8; // 8 second loop
+
+                // Deep bass drone for space atmosphere
+                const bass = this.audioContext.createOscillator();
+                const bassGain = this.audioContext.createGain();
+                bass.type = 'sine';
+                bass.frequency.setValueAtTime(55, now); // A1 note
+                bassGain.gain.setValueAtTime(0.3, now);
+                bass.connect(bassGain);
+                bassGain.connect(this.masterGain);
+                bass.start(now);
+                bass.stop(now + loopDuration);
+
+                // Mid bass for rhythm
+                const midBass = this.audioContext.createOscillator();
+                const midBassGain = this.audioContext.createGain();
+                midBass.type = 'triangle';
+                midBass.frequency.setValueAtTime(110, now); // A2 note
+                midBassGain.gain.setValueAtTime(0, now);
+                midBassGain.gain.setValueAtTime(0.2, now + 0.01);
+                midBassGain.gain.setValueAtTime(0, now + 0.3);
+                midBass.connect(midBassGain);
+                midBassGain.connect(this.masterGain);
+                midBass.start(now);
+                midBass.stop(now + loopDuration);
+
+                // Epic synth pad
+                const pad1 = this.audioContext.createOscillator();
+                const pad1Gain = this.audioContext.createGain();
+                pad1.type = 'sawtooth';
+                pad1.frequency.setValueAtTime(220, now); // A3
+                pad1Gain.gain.setValueAtTime(0, now);
+                pad1Gain.gain.linearRampToValueAtTime(0.1, now + 2);
+                pad1Gain.gain.setValueAtTime(0.1, now + 6);
+                pad1Gain.gain.linearRampToValueAtTime(0, now + loopDuration);
+                pad1.connect(pad1Gain);
+                pad1Gain.connect(this.masterGain);
+                pad1.start(now);
+                pad1.stop(now + loopDuration);
+
+                // Higher harmony
+                const pad2 = this.audioContext.createOscillator();
+                const pad2Gain = this.audioContext.createGain();
+                pad2.type = 'sawtooth';
+                pad2.frequency.setValueAtTime(330, now); // E4
+                pad2Gain.gain.setValueAtTime(0, now);
+                pad2Gain.gain.linearRampToValueAtTime(0.08, now + 2.5);
+                pad2Gain.gain.setValueAtTime(0.08, now + 6.5);
+                pad2Gain.gain.linearRampToValueAtTime(0, now + loopDuration);
+                pad2.connect(pad2Gain);
+                pad2Gain.connect(this.masterGain);
+                pad2.start(now);
+                pad2.stop(now + loopDuration);
+
+                // Rhythmic pulse (military feel)
+                const pulse = this.audioContext.createOscillator();
+                const pulseGain = this.audioContext.createGain();
+                pulse.type = 'square';
+                pulse.frequency.setValueAtTime(110, now);
+
+                // Create rhythmic pattern
+                for (let i = 0; i < 8; i++) {
+                    const beatTime = now + i;
+                    pulseGain.gain.setValueAtTime(0, beatTime);
+                    pulseGain.gain.setValueAtTime(0.15, beatTime + 0.01);
+                    pulseGain.gain.setValueAtTime(0, beatTime + 0.1);
+                }
+
+                pulse.connect(pulseGain);
+                pulseGain.connect(this.masterGain);
+                pulse.start(now);
+                pulse.stop(now + loopDuration);
+
+                // Schedule next loop
+                setTimeout(() => {
+                    if (this.isPlaying) {
+                        this.playHelldiversTheme();
+                    }
+                }, loopDuration * 1000);
+            }
+
+            stop() {
+                this.isPlaying = false;
+            }
+
+            setVolume(volume) {
+                if (this.masterGain) {
+                    this.masterGain.gain.value = volume;
+                }
+            }
         }
 
         // Easter Egg Effects System

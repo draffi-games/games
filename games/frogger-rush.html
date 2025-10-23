@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐸 Frogger Rush</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 640px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .lives { color: #e74c3c; }
+        .score { color: #27ae60; }
+        .level { color: #3498db; }
+        .timer-bar {
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #f39c12, #e74c3c);
+            transition: width 0.1s linear;
+        }
+        #gameCanvas {
+            display: block;
+            border-radius: 10px;
+            background: #34495e;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .btn {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-start {
+            background: #27ae60;
+            color: white;
+        }
+        .btn-start:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+        .btn-pause {
+            background: #f39c12;
+            color: white;
+        }
+        .btn-pause:hover {
+            background: #e67e22;
+        }
+        .btn-fullscreen {
+            background: #3498db;
+            color: white;
+        }
+        .btn-fullscreen:hover {
+            background: #2980b9;
+        }
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 0.9em;
+            color: #2c3e50;
+        }
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+        .instructions ul {
+            list-style-position: inside;
+            margin-left: 10px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #95a5a6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+        .back-link:hover {
+            background: #7f8c8d;
+        }
+        .game-over-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .game-over-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .game-over-content h2 {
+            color: #e74c3c;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .game-over-content .final-score {
+            font-size: 1.5em;
+            margin: 20px 0;
+            color: #2c3e50;
+        }
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .mobile-btn {
+            padding: 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: background 0.3s;
+            user-select: none;
+        }
+        .mobile-btn:active {
+            background: #2980b9;
+        }
+        .mobile-btn:nth-child(1) { grid-column: 2; }
+        .mobile-btn:nth-child(2) { grid-column: 1; grid-row: 2; }
+        .mobile-btn:nth-child(3) { grid-column: 3; grid-row: 2; }
+        .mobile-btn:nth-child(4) { grid-column: 2; grid-row: 2; }
+        @media (max-width: 768px) {
+            .mobile-controls { display: grid; }
+            h1 { font-size: 1.5em; }
+            .stat-value { font-size: 1.2em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>🐸 Frogger Rush</h1>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Score</div>
+                <div class="stat-value score" id="scoreDisplay">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Lives</div>
+                <div class="stat-value lives" id="livesDisplay">3</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Level</div>
+                <div class="stat-value level" id="levelDisplay">1</div>
+            </div>
+        </div>
+        <div class="timer-bar">
+            <div class="timer-fill" id="timerFill"></div>
+        </div>
+        <canvas id="gameCanvas" width="600" height="560"></canvas>
+        <div class="mobile-controls">
+            <button class="mobile-btn" data-direction="up">↑</button>
+            <button class="mobile-btn" data-direction="left">←</button>
+            <button class="mobile-btn" data-direction="right">→</button>
+            <button class="mobile-btn" data-direction="down">↓</button>
+        </div>
+        <div class="controls">
+            <button class="btn btn-start" onclick="startGame()">Neues Spiel</button>
+            <button class="btn btn-pause" onclick="togglePause()">Pause</button>
+            <button class="btn btn-fullscreen" onclick="toggleFullscreen()">Vollbild</button>
+        </div>
+        <div class="instructions">
+            <h3>📖 Spielanleitung</h3>
+            <ul>
+                <li>Bewege den Frosch mit den Pfeiltasten 🐸</li>
+                <li>Überquere die Straßen ohne von Autos getroffen zu werden 🚗</li>
+                <li>Springe auf Baumstämme um den Fluss zu überqueren 🪵</li>
+                <li>Erreiche alle 5 Ziele oben 🎯</li>
+                <li>Vorsicht: Im Wasser ertrinkt der Frosch! 💧</li>
+            </ul>
+        </div>
+        <a href="../index.html" class="back-link">← Zurück zur Übersicht</a>
+    </div>
+    <div class="game-over-overlay" id="gameOverOverlay">
+        <div class="game-over-content">
+            <h2>Game Over!</h2>
+            <div class="final-score">Score: <span id="finalScore">0</span></div>
+            <div class="final-score">Level: <span id="finalLevel">1</span></div>
+            <div class="final-score">High Score: <span id="highScore">0</span></div>
+            <button class="btn btn-start" onclick="restartGame()">Nochmal spielen</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const CELL_SIZE = 40;
+        const COLS = 15;
+        const ROWS = 14;
+        const MAX_TIME = 60;
+        const GOAL_POSITIONS = [1, 4, 7, 10, 13];
+        let gameRunning = false, paused = false, score = 0, lives = 3, level = 1;
+        let timeRemaining = MAX_TIME, lastTime = 0, highestRow = ROWS - 2;
+        let highScore = localStorage.getItem('froggerHighScore') || 0;
+        let frog = { col: 7, row: ROWS - 2, onLog: false, logSpeed: 0 };
+        let goals = GOAL_POSITIONS.map(col => ({ col, reached: false }));
+        const lanes = [
+            { type: 'goal', row: 0 },
+            { type: 'water', row: 1, speed: 1, direction: 1 },
+            { type: 'water', row: 2, speed: 1.5, direction: -1 },
+            { type: 'water', row: 3, speed: 2, direction: 1 },
+            { type: 'water', row: 4, speed: 1.2, direction: -1 },
+            { type: 'water', row: 5, speed: 1.8, direction: 1 },
+            { type: 'safe', row: 6 },
+            { type: 'road', row: 7, speed: 1.5, direction: 1 },
+            { type: 'road', row: 8, speed: 2, direction: -1 },
+            { type: 'road', row: 9, speed: 2.5, direction: 1 },
+            { type: 'road', row: 10, speed: 1.8, direction: -1 },
+            { type: 'road', row: 11, speed: 2.2, direction: 1 },
+            { type: 'safe', row: 12 },
+            { type: 'safe', row: 13 }
+        ];
+        let vehicles = [], logs = [];
+        function initGame() {
+            vehicles = []; logs = [];
+            lanes.forEach(lane => {
+                if (lane.type === 'road') {
+                    const numVehicles = Math.floor(Math.random() * 2) + 2;
+                    const spacing = canvas.width / numVehicles;
+                    for (let i = 0; i < numVehicles; i++) {
+                        vehicles.push({
+                            x: i * spacing + Math.random() * spacing,
+                            y: lane.row * CELL_SIZE,
+                            width: CELL_SIZE * (1.5 + Math.random()),
+                            height: CELL_SIZE * 0.7,
+                            speed: lane.speed * lane.direction * (1 + level * 0.15),
+                            color: ['#e74c3c', '#3498db', '#f39c12', '#9b59b6'][Math.floor(Math.random() * 4)],
+                            row: lane.row
+                        });
+                    }
+                }
+                if (lane.type === 'water') {
+                    const numLogs = Math.floor(Math.random() * 2) + 2;
+                    const spacing = canvas.width / numLogs;
+                    for (let i = 0; i < numLogs; i++) {
+                        logs.push({
+                            x: i * spacing + Math.random() * spacing,
+                            y: lane.row * CELL_SIZE,
+                            width: CELL_SIZE * (2 + Math.random() * 2),
+                            height: CELL_SIZE * 0.8,
+                            speed: lane.speed * lane.direction * (1 + level * 0.15),
+                            row: lane.row
+                        });
+                    }
+                }
+            });
+        }
+        function startGame() {
+            gameRunning = true; paused = false; score = 0; lives = 3; level = 1;
+            timeRemaining = MAX_TIME; highestRow = ROWS - 2;
+            frog = { col: 7, row: ROWS - 2, onLog: false, logSpeed: 0 };
+            goals = GOAL_POSITIONS.map(col => ({ col, reached: false }));
+            initGame(); updateDisplay();
+            document.getElementById('gameOverOverlay').style.display = 'none';
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+        function togglePause() {
+            if (gameRunning) {
+                paused = !paused;
+                if (!paused) { lastTime = performance.now(); requestAnimationFrame(gameLoop); }
+            }
+        }
+        function restartGame() { startGame(); }
+        function gameOver() {
+            gameRunning = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('froggerHighScore', highScore);
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalLevel').textContent = level;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('gameOverOverlay').style.display = 'flex';
+        }
+        function resetFrog() {
+            frog.col = 7; frog.row = ROWS - 2; frog.onLog = false; frog.logSpeed = 0;
+            timeRemaining = MAX_TIME; highestRow = ROWS - 2;
+        }
+        function nextLevel() {
+            level++;
+            goals = GOAL_POSITIONS.map(col => ({ col, reached: false }));
+            resetFrog(); initGame(); score += 1000; updateDisplay();
+        }
+        function moveFrog(dcol, drow) {
+            if (!gameRunning || paused) return;
+            const newCol = frog.col + dcol, newRow = frog.row + drow;
+            if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) return;
+            frog.col = newCol; frog.row = newRow;
+            if (drow < 0 && newRow < highestRow) {
+                score += 10; highestRow = newRow; updateDisplay();
+            }
+            if (frog.row === 0) {
+                const goal = goals.find(g => g.col === frog.col && !g.reached);
+                if (goal) {
+                    goal.reached = true;
+                    score += 200 + Math.floor(timeRemaining * 10);
+                    if (goals.every(g => g.reached)) { nextLevel(); }
+                    else { resetFrog(); }
+                    updateDisplay();
+                } else {
+                    lives--; updateDisplay();
+                    if (lives <= 0) { gameOver(); } else { resetFrog(); }
+                }
+            }
+        }
+        function updateDisplay() {
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('livesDisplay').textContent = lives;
+            document.getElementById('levelDisplay').textContent = level;
+        }
+        function updateTimer(deltaTime) {
+            timeRemaining -= deltaTime / 1000;
+            if (timeRemaining <= 0) {
+                timeRemaining = 0; lives--; updateDisplay();
+                if (lives <= 0) { gameOver(); } else { resetFrog(); }
+            }
+            document.getElementById('timerFill').style.width = ((timeRemaining / MAX_TIME) * 100) + '%';
+        }
+        function update(deltaTime) {
+            vehicles.forEach(v => {
+                v.x += v.speed;
+                if (v.speed > 0 && v.x > canvas.width) v.x = -v.width;
+                else if (v.speed < 0 && v.x < -v.width) v.x = canvas.width;
+            });
+            logs.forEach(log => {
+                log.x += log.speed;
+                if (log.speed > 0 && log.x > canvas.width) log.x = -log.width;
+                else if (log.speed < 0 && log.x < -log.width) log.x = canvas.width;
+            });
+            const lane = lanes.find(l => l.row === frog.row);
+            if (lane && lane.type === 'water') {
+                frog.onLog = false;
+                logs.forEach(log => {
+                    if (log.row === frog.row) {
+                        const frogX = frog.col * CELL_SIZE + CELL_SIZE / 2;
+                        if (frogX >= log.x && frogX <= log.x + log.width) {
+                            frog.onLog = true; frog.logSpeed = log.speed;
+                        }
+                    }
+                });
+                if (!frog.onLog) {
+                    lives--; updateDisplay();
+                    if (lives <= 0) { gameOver(); } else { resetFrog(); }
+                    return;
+                }
+            }
+            if (frog.onLog && frog.logSpeed !== 0) {
+                const newX = frog.col * CELL_SIZE + frog.logSpeed;
+                const newCol = Math.round(newX / CELL_SIZE);
+                if (newCol < 0 || newCol >= COLS) {
+                    lives--; updateDisplay();
+                    if (lives <= 0) { gameOver(); } else { resetFrog(); }
+                    return;
+                }
+                frog.col = Math.max(0, Math.min(COLS - 1, newCol));
+            }
+            vehicles.forEach(v => {
+                if (v.row === frog.row) {
+                    const frogX = frog.col * CELL_SIZE, frogY = frog.row * CELL_SIZE;
+                    if (frogX < v.x + v.width && frogX + CELL_SIZE > v.x &&
+                        frogY < v.y + v.height && frogY + CELL_SIZE > v.y) {
+                        lives--; updateDisplay();
+                        if (lives <= 0) { gameOver(); } else { resetFrog(); }
+                    }
+                }
+            });
+            updateTimer(deltaTime);
+        }
+        function drawBackground() {
+            lanes.forEach(lane => {
+                if (lane.type === 'safe') ctx.fillStyle = '#27ae60';
+                else if (lane.type === 'road') ctx.fillStyle = '#7f8c8d';
+                else if (lane.type === 'water') ctx.fillStyle = '#3498db';
+                else if (lane.type === 'goal') ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(0, lane.row * CELL_SIZE, canvas.width, CELL_SIZE);
+            });
+            goals.forEach(goal => {
+                ctx.fillStyle = goal.reached ? '#f39c12' : '#1abc9c';
+                ctx.beginPath();
+                ctx.arc(goal.col * CELL_SIZE + CELL_SIZE / 2, CELL_SIZE / 2, CELL_SIZE / 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                if (goal.reached) {
+                    ctx.font = '24px Arial';
+                    ctx.fillText('🐸', goal.col * CELL_SIZE + CELL_SIZE / 2 - 12, CELL_SIZE / 2 + 8);
+                }
+            });
+            lanes.forEach(lane => {
+                if (lane.type === 'road') {
+                    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 2; ctx.setLineDash([15, 10]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, lane.row * CELL_SIZE + CELL_SIZE / 2);
+                    ctx.lineTo(canvas.width, lane.row * CELL_SIZE + CELL_SIZE / 2);
+                    ctx.stroke(); ctx.setLineDash([]);
+                }
+            });
+        }
+        function drawVehicles() {
+            vehicles.forEach(v => {
+                ctx.fillStyle = v.color;
+                ctx.fillRect(v.x, v.y + 5, v.width, v.height);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                const w = v.width * 0.3;
+                ctx.fillRect(v.x + v.width * 0.2, v.y + 8, w, v.height * 0.4);
+                ctx.fillRect(v.x + v.width * 0.6, v.y + 8, w, v.height * 0.4);
+            });
+        }
+        function drawLogs() {
+            logs.forEach(log => {
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(log.x, log.y + 4, log.width, log.height);
+                ctx.strokeStyle = '#654321'; ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const x = log.x + (log.width / 3) * i;
+                    ctx.beginPath();
+                    ctx.moveTo(x, log.y + 4);
+                    ctx.lineTo(x, log.y + 4 + log.height);
+                    ctx.stroke();
+                }
+            });
+        }
+        function drawFrog() {
+            const x = frog.col * CELL_SIZE + CELL_SIZE / 2;
+            const y = frog.row * CELL_SIZE + CELL_SIZE / 2;
+            ctx.fillStyle = '#27ae60';
+            ctx.beginPath(); ctx.arc(x, y, CELL_SIZE / 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x - 6, y - 5, 5, 0, Math.PI * 2);
+            ctx.arc(x + 6, y - 5, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(x - 6, y - 5, 3, 0, Math.PI * 2);
+            ctx.arc(x + 6, y - 5, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground(); drawLogs(); drawVehicles(); drawFrog();
+        }
+        function gameLoop(currentTime) {
+            if (!gameRunning || paused) return;
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            update(deltaTime); render();
+            requestAnimationFrame(gameLoop);
+        }
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning || paused) return;
+            switch(e.key) {
+                case 'ArrowUp': e.preventDefault(); moveFrog(0, -1); break;
+                case 'ArrowDown': e.preventDefault(); moveFrog(0, 1); break;
+                case 'ArrowLeft': e.preventDefault(); moveFrog(-1, 0); break;
+                case 'ArrowRight': e.preventDefault(); moveFrog(1, 0); break;
+                case 'p': case 'P': case 'Escape': togglePause(); break;
+            }
+        });
+        document.querySelectorAll('.mobile-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const d = btn.dataset.direction;
+                switch(d) {
+                    case 'up': moveFrog(0, -1); break;
+                    case 'down': moveFrog(0, 1); break;
+                    case 'left': moveFrog(-1, 0); break;
+                    case 'right': moveFrog(1, 0); break;
+                }
+            });
+        });
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); }
+            else { if (document.exitFullscreen) { document.exitFullscreen(); } }
+        }
+        render(); updateDisplay();
+    </script>
+</body>
+</html>
