@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: Disc Wars</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Orbitron', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        canvas {
+            border: 2px solid #00D9FF;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+            display: block;
+            background: #000;
+            cursor: crosshair;
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border: 2px solid #00D9FF;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .hud-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: #00D9FF;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        .hud-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            color: #fff;
+            text-shadow:
+                0 0 5px #00D9FF,
+                0 0 10px #00D9FF;
+            font-weight: 700;
+        }
+
+        .health-bar {
+            width: 200px;
+            height: 10px;
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #FF0000;
+            margin-top: 5px;
+            position: relative;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: #00FF41;
+            box-shadow: 0 0 10px #00FF41;
+            transition: width 0.3s ease;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #fff;
+            text-shadow:
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px #00D9FF,
+                0 0 82px #00D9FF,
+                0 0 92px #00D9FF;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            padding: 15px 40px;
+            margin: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .btn:hover {
+            background: #00D9FF;
+            color: #000;
+            transform: translateY(-5px);
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            text-decoration: none;
+            display: inline-block;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .back-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
+        .game-over-stats {
+            margin: 2rem 0;
+            padding: 30px 50px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #FF0000;
+            box-shadow:
+                0 0 10px #FF0000,
+                0 0 20px #FF0000;
+        }
+
+        .stat-line {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1.3rem;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            min-width: 300px;
+        }
+
+        .controls-hint {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1rem;
+            color: #00D9FF;
+            margin-top: 2rem;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .wave-announce {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', monospace;
+            font-size: 4rem;
+            color: #FF0000;
+            text-shadow:
+                0 0 10px #FF0000,
+                0 0 20px #FF0000,
+                0 0 40px #FF0000;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .wave-announce.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="back-link">
+        <a href="../../tron-index.html" class="back-btn">← GRID</a>
+    </div>
+
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="score">0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Wave</div>
+            <div class="hud-value" id="wave">1</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Health</div>
+            <div class="health-bar">
+                <div class="health-fill" id="healthFill" style="width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wave-announce" id="waveAnnounce">WAVE 1</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <h1 class="overlay-title">DISC WARS</h1>
+        <button class="btn" id="startBtn">ENTER ARENA</button>
+        <p class="controls-hint">
+            Click / Tap to throw discs<br>
+            Mouse / Touch to aim<br>
+            Eliminate enemies • Survive waves
+        </p>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="overlay hidden" id="gameOverScreen">
+        <h1 class="overlay-title">DEREZZED</h1>
+        <div class="game-over-stats">
+            <div class="stat-line">
+                <span>FINAL SCORE:</span>
+                <span id="finalScore">0</span>
+            </div>
+            <div class="stat-line">
+                <span>WAVES SURVIVED:</span>
+                <span id="finalWave">0</span>
+            </div>
+            <div class="stat-line">
+                <span>ENEMIES DEFEATED:</span>
+                <span id="finalKills">0</span>
+            </div>
+        </div>
+        <button class="btn" id="restartBtn">RESTART</button>
+        <button class="btn" id="menuBtn">EXIT</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Canvas size
+        const CANVAS_SIZE = Math.min(700, Math.min(window.innerWidth - 40, window.innerHeight - 140));
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
+
+        // Audio
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let wave = 1;
+        let playerHealth = 100;
+        let totalKills = 0;
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+
+        // Game objects
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 15,
+            color: '#00D9FF'
+        };
+
+        let discs = [];
+        let enemies = [];
+        let particles = [];
+
+        // Classes
+        class Disc {
+            constructor(x, y, targetX, targetY, isEnemy = false) {
+                this.x = x;
+                this.y = y;
+                this.radius = 8;
+                this.speed = 10;
+                this.isEnemy = isEnemy;
+                this.color = isEnemy ? '#FF0000' : '#00D9FF';
+
+                const angle = Math.atan2(targetY - y, targetX - x);
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                this.rotation = 0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += 0.2;
+
+                // Remove if out of bounds
+                return this.x >= 0 && this.x <= canvas.width &&
+                       this.y >= 0 && this.y <= canvas.height;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // Triangle (Identity Disc)
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+
+                ctx.beginPath();
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i * Math.PI * 2) / 3 + Math.PI / 2;
+                    const x = Math.cos(angle) * this.radius;
+                    const y = Math.sin(angle) * this.radius;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Inner glow
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i * Math.PI * 2) / 3 + Math.PI / 2;
+                    const x = Math.cos(angle) * (this.radius * 0.5);
+                    const y = Math.sin(angle) * (this.radius * 0.5);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 12;
+                this.health = 1;
+                this.color = '#FF0000';
+                this.speed = 1 + wave * 0.2;
+                this.shootCooldown = 0;
+                this.shootInterval = Math.random() * 100 + 100;
+            }
+
+            update() {
+                // Move toward player
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist > 100) {
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                }
+
+                // Shoot at player
+                this.shootCooldown++;
+                if (this.shootCooldown >= this.shootInterval) {
+                    this.shoot();
+                    this.shootCooldown = 0;
+                }
+            }
+
+            shoot() {
+                discs.push(new Disc(this.x, this.y, player.x, player.y, true));
+                playSound('enemyShoot');
+            }
+
+            draw() {
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner core
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+            }
+
+            takeDamage() {
+                this.health--;
+                return this.health <= 0;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3 + 1;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 30;
+                this.maxLife = 30;
+                this.size = Math.random() * 3 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                return this.life > 0;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Spawn wave
+        function spawnWave() {
+            const enemyCount = 3 + wave * 2;
+            for (let i = 0; i < enemyCount; i++) {
+                setTimeout(() => {
+                    const side = Math.floor(Math.random() * 4);
+                    let x, y;
+
+                    switch(side) {
+                        case 0: // Top
+                            x = Math.random() * canvas.width;
+                            y = -20;
+                            break;
+                        case 1: // Right
+                            x = canvas.width + 20;
+                            y = Math.random() * canvas.height;
+                            break;
+                        case 2: // Bottom
+                            x = Math.random() * canvas.width;
+                            y = canvas.height + 20;
+                            break;
+                        case 3: // Left
+                            x = -20;
+                            y = Math.random() * canvas.height;
+                            break;
+                    }
+
+                    enemies.push(new Enemy(x, y));
+                }, i * 300);
+            }
+
+            showWaveAnnounce();
+        }
+
+        function showWaveAnnounce() {
+            const announce = document.getElementById('waveAnnounce');
+            announce.textContent = `WAVE ${wave}`;
+            announce.classList.add('show');
+            setTimeout(() => {
+                announce.classList.remove('show');
+            }, 2000);
+        }
+
+        // Collision detection
+        function checkCollision(obj1, obj2) {
+            const dx = obj1.x - obj2.x;
+            const dy = obj1.y - obj2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            return dist < obj1.radius + obj2.radius;
+        }
+
+        // Game loop
+        function update() {
+            if (!gameRunning) return;
+
+            // Clear
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            // Update and draw particles
+            particles = particles.filter(p => {
+                const alive = p.update();
+                if (alive) p.draw();
+                return alive;
+            });
+
+            // Update and draw discs
+            discs = discs.filter(disc => {
+                const inBounds = disc.update();
+                if (inBounds) disc.draw();
+                return inBounds;
+            });
+
+            // Check disc-enemy collisions
+            for (let i = discs.length - 1; i >= 0; i--) {
+                const disc = discs[i];
+                if (disc.isEnemy) continue;
+
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (checkCollision(disc, enemy)) {
+                        if (enemy.takeDamage()) {
+                            // Enemy destroyed
+                            for (let k = 0; k < 10; k++) {
+                                particles.push(new Particle(enemy.x, enemy.y, '#FF0000'));
+                            }
+                            enemies.splice(j, 1);
+                            score += 100;
+                            totalKills++;
+                            updateHUD();
+                            playSound('enemyHit');
+                        }
+                        discs.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            // Check enemy disc-player collisions
+            for (let i = discs.length - 1; i >= 0; i--) {
+                const disc = discs[i];
+                if (!disc.isEnemy) continue;
+
+                if (checkCollision(disc, player)) {
+                    playerHealth -= 10;
+                    updateHUD();
+                    discs.splice(i, 1);
+
+                    for (let k = 0; k < 5; k++) {
+                        particles.push(new Particle(player.x, player.y, '#00D9FF'));
+                    }
+                    playSound('playerHit');
+
+                    if (playerHealth <= 0) {
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+
+            // Update and draw enemies
+            enemies.forEach(enemy => {
+                enemy.update();
+                enemy.draw();
+            });
+
+            // Draw player
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = player.color;
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 40;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw aim line
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(mouseX, mouseY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.shadowBlur = 0;
+
+            // Check wave completion
+            if (enemies.length === 0) {
+                wave++;
+                updateHUD();
+                spawnWave();
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        function updateHUD() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('wave').textContent = wave;
+            const healthPercent = Math.max(0, playerHealth);
+            document.getElementById('healthFill').style.width = healthPercent + '%';
+
+            if (healthPercent < 30) {
+                document.getElementById('healthFill').style.background = '#FF0000';
+            } else if (healthPercent < 60) {
+                document.getElementById('healthFill').style.background = '#FF6600';
+            } else {
+                document.getElementById('healthFill').style.background = '#00FF41';
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            gameRunning = true;
+            score = 0;
+            wave = 1;
+            playerHealth = 100;
+            totalKills = 0;
+            discs = [];
+            enemies = [];
+            particles = [];
+            updateHUD();
+            spawnWave();
+            requestAnimationFrame(update);
+            playSound('start');
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalWave').textContent = wave;
+            document.getElementById('finalKills').textContent = totalKills;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            playSound('gameOver');
+        }
+
+        // Mouse/Touch controls
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const targetX = e.clientX - rect.left;
+            const targetY = e.clientY - rect.top;
+            discs.push(new Disc(player.x, player.y, targetX, targetY));
+            playSound('shoot');
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.touches[0].clientX - rect.left;
+            mouseY = e.touches[0].clientY - rect.top;
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const targetX = e.touches[0].clientX - rect.left;
+            const targetY = e.touches[0].clientY - rect.top;
+            discs.push(new Disc(player.x, player.y, targetX, targetY));
+            playSound('shoot');
+            e.preventDefault();
+        }, { passive: false });
+
+        // Buttons
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            startGame();
+        });
+        document.getElementById('menuBtn').addEventListener('click', () => {
+            window.location.href = '../../tron-index.html';
+        });
+
+        // Sound effects
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'start':
+                    oscillator.frequency.value = 400;
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'shoot':
+                    oscillator.frequency.value = 800;
+                    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'enemyShoot':
+                    oscillator.frequency.value = 400;
+                    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'enemyHit':
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.15);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'playerHit':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.value = 200;
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.2);
+                    break;
+                case 'gameOver':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.5);
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

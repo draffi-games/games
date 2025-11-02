@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: Grid Puzzle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Orbitron', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        canvas {
+            border: 2px solid #00D9FF;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+            display: block;
+            background: #000;
+            cursor: pointer;
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 2rem;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border: 2px solid #00D9FF;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+            text-align: center;
+        }
+
+        .hud-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: #00D9FF;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        .hud-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            color: #fff;
+            text-shadow:
+                0 0 5px #00D9FF,
+                0 0 10px #00D9FF;
+            font-weight: 700;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            z-index: 10;
+        }
+
+        .btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            padding: 12px 30px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .btn:hover {
+            background: #00D9FF;
+            color: #000;
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        .btn.success {
+            border-color: #00FF41;
+            color: #00FF41;
+            box-shadow:
+                0 0 10px #00FF41,
+                0 0 20px #00FF41;
+        }
+
+        .btn.success:hover {
+            background: #00FF41;
+            color: #000;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #fff;
+            text-shadow:
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px #00D9FF,
+                0 0 82px #00D9FF,
+                0 0 92px #00D9FF;
+            margin-bottom: 2rem;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            text-decoration: none;
+            display: inline-block;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .back-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
+        .controls-hint {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1rem;
+            color: #00D9FF;
+            margin-top: 2rem;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .level-complete {
+            padding: 30px 50px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00FF41;
+            box-shadow:
+                0 0 10px #00FF41,
+                0 0 20px #00FF41;
+            margin: 2rem 0;
+        }
+
+        .stat-line {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1.3rem;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="back-link">
+        <a href="../../tron-index.html" class="back-btn">← GRID</a>
+    </div>
+
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">Level</div>
+            <div class="hud-value" id="level">1</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Moves</div>
+            <div class="hud-value" id="moves">0</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls">
+        <button class="btn" id="resetBtn">RESET</button>
+        <button class="btn success" id="checkBtn">VERIFY</button>
+    </div>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <h1 class="overlay-title">GRID PUZZLE</h1>
+        <button class="btn" id="startBtn">INITIALIZE</button>
+        <p class="controls-hint">
+            Click tiles to rotate<br>
+            Connect SOURCE to TARGET<br>
+            Complete the circuit path
+        </p>
+    </div>
+
+    <!-- Level Complete Screen -->
+    <div class="overlay hidden" id="completeScreen">
+        <h1 class="overlay-title">CIRCUIT COMPLETE</h1>
+        <div class="level-complete">
+            <div class="stat-line" id="completeStat">Level completed!</div>
+        </div>
+        <button class="btn success" id="nextBtn">NEXT LEVEL</button>
+        <button class="btn" id="menuBtn">EXIT</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Canvas size
+        const CANVAS_SIZE = Math.min(600, Math.min(window.innerWidth - 40, window.innerHeight - 200));
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
+
+        // Audio
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Game settings
+        let GRID_SIZE = 5;
+        const TILE_SIZE = CANVAS_SIZE / GRID_SIZE;
+
+        // Tile types
+        const TYPES = {
+            EMPTY: 0,
+            STRAIGHT: 1,
+            CORNER: 2,
+            SOURCE: 3,
+            TARGET: 4
+        };
+
+        // Game state
+        let level = 1;
+        let moves = 0;
+        let grid = [];
+        let sourcePos = null;
+        let targetPos = null;
+        let powered = [];
+
+        // Initialize level
+        function initLevel() {
+            GRID_SIZE = Math.min(5 + Math.floor(level / 3), 8);
+            moves = 0;
+            updateHUD();
+
+            // Generate puzzle
+            generatePuzzle();
+            draw();
+        }
+
+        function generatePuzzle() {
+            grid = [];
+            powered = [];
+
+            // Create empty grid
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    grid[y][x] = {
+                        type: TYPES.EMPTY,
+                        rotation: 0
+                    };
+                }
+            }
+
+            // Place source and target
+            sourcePos = { x: 0, y: Math.floor(GRID_SIZE / 2) };
+            targetPos = { x: GRID_SIZE - 1, y: Math.floor(GRID_SIZE / 2) };
+
+            grid[sourcePos.y][sourcePos.x] = {
+                type: TYPES.SOURCE,
+                rotation: 0
+            };
+
+            grid[targetPos.y][targetPos.x] = {
+                type: TYPES.TARGET,
+                rotation: 0
+            };
+
+            // Create a valid path (simple horizontal first)
+            const path = [];
+            let current = { ...sourcePos };
+
+            while (current.x < targetPos.x || current.y !== targetPos.y) {
+                const next = { ...current };
+
+                // Decide direction
+                if (current.x < targetPos.x && (Math.random() > 0.3 || current.y === targetPos.y)) {
+                    next.x++;
+                } else if (current.y < targetPos.y) {
+                    next.y++;
+                } else if (current.y > targetPos.y) {
+                    next.y--;
+                }
+
+                // Determine tile type based on direction change
+                if (current.x !== next.x && current.y !== next.y) {
+                    // Corner
+                    const tile = { type: TYPES.CORNER, rotation: 0 };
+                    grid[current.y][current.x] = tile;
+                } else {
+                    // Straight
+                    const tile = { type: TYPES.STRAIGHT, rotation: current.x !== next.x ? 0 : 1 };
+                    if (grid[current.y][current.x].type === TYPES.EMPTY) {
+                        grid[current.y][current.x] = tile;
+                    }
+                }
+
+                path.push({ ...current });
+                current = next;
+            }
+
+            // Add some random tiles
+            const emptyTiles = level + 3;
+            let added = 0;
+            while (added < emptyTiles) {
+                const x = Math.floor(Math.random() * GRID_SIZE);
+                const y = Math.floor(Math.random() * GRID_SIZE);
+
+                if (grid[y][x].type === TYPES.EMPTY) {
+                    grid[y][x] = {
+                        type: Math.random() > 0.5 ? TYPES.STRAIGHT : TYPES.CORNER,
+                        rotation: Math.floor(Math.random() * 4)
+                    };
+                    added++;
+                }
+            }
+
+            // Randomize rotations of all tiles
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x].type !== TYPES.SOURCE && grid[y][x].type !== TYPES.TARGET && grid[y][x].type !== TYPES.EMPTY) {
+                        grid[y][x].rotation = Math.floor(Math.random() * 4);
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const tileSize = CANVAS_SIZE / GRID_SIZE;
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.2)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= GRID_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * tileSize, 0);
+                ctx.lineTo(i * tileSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * tileSize);
+                ctx.lineTo(canvas.width, i * tileSize);
+                ctx.stroke();
+            }
+
+            // Calculate power flow
+            calculatePower();
+
+            // Draw tiles
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const tile = grid[y][x];
+                    const isPowered = powered.some(p => p.x === x && p.y === y);
+                    drawTile(x, y, tile, isPowered);
+                }
+            }
+        }
+
+        function drawTile(x, y, tile, isPowered) {
+            const tileSize = CANVAS_SIZE / GRID_SIZE;
+            const centerX = x * tileSize + tileSize / 2;
+            const centerY = y * tileSize + tileSize / 2;
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate((tile.rotation * Math.PI) / 2);
+
+            const color = isPowered ? '#00D9FF' : '#004466';
+            const glowColor = isPowered ? '#00D9FF' : '#002233';
+
+            ctx.shadowBlur = isPowered ? 20 : 0;
+            ctx.shadowColor = glowColor;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+
+            switch (tile.type) {
+                case TYPES.STRAIGHT:
+                    ctx.beginPath();
+                    ctx.moveTo(-tileSize / 2, 0);
+                    ctx.lineTo(tileSize / 2, 0);
+                    ctx.stroke();
+                    break;
+
+                case TYPES.CORNER:
+                    ctx.beginPath();
+                    ctx.arc(tileSize / 2, tileSize / 2, tileSize / 2, Math.PI, Math.PI * 1.5);
+                    ctx.stroke();
+                    break;
+
+                case TYPES.SOURCE:
+                    ctx.shadowBlur = 30;
+                    ctx.fillStyle = '#00FF41';
+                    ctx.shadowColor = '#00FF41';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, tileSize / 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#00FF41';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, tileSize / 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+
+                case TYPES.TARGET:
+                    ctx.shadowBlur = isPowered ? 30 : 10;
+                    ctx.strokeStyle = isPowered ? '#00FF41' : '#FF0000';
+                    ctx.shadowColor = isPowered ? '#00FF41' : '#FF0000';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, tileSize / 3, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    if (isPowered) {
+                        ctx.fillStyle = '#00FF41';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, tileSize / 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    break;
+            }
+
+            ctx.restore();
+        }
+
+        function calculatePower() {
+            powered = [];
+            const visited = new Set();
+
+            function explore(x, y, fromDir) {
+                const key = `${x},${y}`;
+                if (visited.has(key)) return;
+                if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+
+                const tile = grid[y][x];
+                if (tile.type === TYPES.EMPTY) return;
+
+                // Check if connection is valid
+                if (!canConnect(tile, fromDir)) return;
+
+                visited.add(key);
+                powered.push({ x, y });
+
+                // Find exit directions
+                const exits = getExits(tile, fromDir);
+                exits.forEach(dir => {
+                    const next = getNextPos(x, y, dir);
+                    const oppositeDir = getOppositeDir(dir);
+                    explore(next.x, next.y, oppositeDir);
+                });
+            }
+
+            // Start from source
+            explore(sourcePos.x, sourcePos.y, null);
+        }
+
+        function canConnect(tile, fromDir) {
+            if (fromDir === null) return true;
+
+            const connections = getConnections(tile);
+            return connections.includes(fromDir);
+        }
+
+        function getConnections(tile) {
+            const connections = [];
+            const rot = tile.rotation;
+
+            switch (tile.type) {
+                case TYPES.SOURCE:
+                case TYPES.TARGET:
+                    return ['up', 'down', 'left', 'right'];
+
+                case TYPES.STRAIGHT:
+                    if (rot % 2 === 0) return ['left', 'right'];
+                    else return ['up', 'down'];
+
+                case TYPES.CORNER:
+                    const dirs = ['up', 'right', 'down', 'left'];
+                    return [dirs[rot], dirs[(rot + 1) % 4]];
+            }
+            return connections;
+        }
+
+        function getExits(tile, fromDir) {
+            const connections = getConnections(tile);
+            return connections.filter(dir => dir !== fromDir);
+        }
+
+        function getNextPos(x, y, dir) {
+            switch (dir) {
+                case 'up': return { x, y: y - 1 };
+                case 'down': return { x, y: y + 1 };
+                case 'left': return { x: x - 1, y };
+                case 'right': return { x: x + 1, y };
+            }
+        }
+
+        function getOppositeDir(dir) {
+            const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
+            return opposites[dir];
+        }
+
+        function rotateTile(x, y) {
+            const tile = grid[y][x];
+            if (tile.type === TYPES.SOURCE || tile.type === TYPES.TARGET || tile.type === TYPES.EMPTY) {
+                return;
+            }
+
+            tile.rotation = (tile.rotation + 1) % 4;
+            moves++;
+            updateHUD();
+            draw();
+            playSound('rotate');
+        }
+
+        function checkSolution() {
+            const targetPowered = powered.some(p => p.x === targetPos.x && p.y === targetPos.y);
+
+            if (targetPowered) {
+                levelComplete();
+            } else {
+                playSound('error');
+            }
+        }
+
+        function resetLevel() {
+            initLevel();
+            playSound('reset');
+        }
+
+        function levelComplete() {
+            document.getElementById('completeStat').textContent = `Level ${level} completed in ${moves} moves!`;
+            document.getElementById('completeScreen').classList.remove('hidden');
+            playSound('complete');
+        }
+
+        function nextLevel() {
+            level++;
+            document.getElementById('completeScreen').classList.add('hidden');
+            initLevel();
+        }
+
+        function updateHUD() {
+            document.getElementById('level').textContent = level;
+            document.getElementById('moves').textContent = moves;
+        }
+
+        // Mouse/Touch controls
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const tileSize = CANVAS_SIZE / GRID_SIZE;
+            const x = Math.floor((e.clientX - rect.left) / tileSize);
+            const y = Math.floor((e.clientY - rect.top) / tileSize);
+
+            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                rotateTile(x, y);
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const tileSize = CANVAS_SIZE / GRID_SIZE;
+            const x = Math.floor((e.touches[0].clientX - rect.left) / tileSize);
+            const y = Math.floor((e.touches[0].clientY - rect.top) / tileSize);
+
+            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                rotateTile(x, y);
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        // Buttons
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('startScreen').classList.add('hidden');
+            initLevel();
+            playSound('start');
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', resetLevel);
+        document.getElementById('checkBtn').addEventListener('click', checkSolution);
+        document.getElementById('nextBtn').addEventListener('click', nextLevel);
+        document.getElementById('menuBtn').addEventListener('click', () => {
+            window.location.href = '../../tron-index.html';
+        });
+
+        // Sound effects
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'start':
+                    oscillator.frequency.value = 400;
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'rotate':
+                    oscillator.frequency.value = 600;
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'complete':
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.4);
+                    break;
+                case 'error':
+                    oscillator.frequency.value = 200;
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.2);
+                    break;
+                case 'reset':
+                    oscillator.frequency.value = 300;
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

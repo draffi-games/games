@@ -277,6 +277,79 @@
             letter-spacing: 1px;
         }
 
+        /* TRON Access Button */
+        .tron-access {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .tron-access-btn {
+            display: inline-block;
+            padding: 20px 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            text-decoration: none;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF,
+                inset 0 0 20px rgba(0, 217, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tron-access-btn::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00D9FF, transparent, #FF0000, transparent, #00FF41);
+            background-size: 300% 300%;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+            animation: tron-gradient 3s ease infinite;
+        }
+
+        @keyframes tron-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .tron-access-btn:hover {
+            background: #00D9FF;
+            color: #000;
+            transform: translateY(-5px) scale(1.05);
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF,
+                0 0 60px #00D9FF,
+                0 5px 20px rgba(0, 217, 255, 0.5);
+        }
+
+        .tron-access-btn:hover::before {
+            opacity: 1;
+        }
+
+        .tron-label {
+            display: block;
+            font-size: 12px;
+            margin-top: 10px;
+            color: #00D9FF;
+            letter-spacing: 2px;
+            opacity: 0.7;
+        }
+
         /* Game Grid */
         .games-grid {
             display: grid;
@@ -796,7 +869,14 @@
                 <div class="display-title">ENTERTAINMENT DATABASE</div>
                 <div class="display-subtitle">Select Mission Parameters</div>
             </div>
-            
+
+            <div class="tron-access">
+                <a href="tron-index.html" class="tron-access-btn">
+                    ⚡ ENTER THE GRID ⚡
+                </a>
+                <span class="tron-label">TRON: ARES GAMES ARCHIVE</span>
+            </div>
+
             <div class="games-grid" id="gamesGrid">
                 <!-- Games will be loaded here -->
             </div>

@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: Light Cycle Racing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Orbitron', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            position: relative;
+            max-width: 100%;
+            max-height: 100vh;
+        }
+
+        canvas {
+            border: 2px solid #00D9FF;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+            display: block;
+            background: #000;
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border: 2px solid #00D9FF;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF,
+                inset 0 0 20px rgba(0, 217, 255, 0.1);
+        }
+
+        .hud-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: #00D9FF;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            opacity: 0.7;
+        }
+
+        .hud-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            color: #fff;
+            text-shadow:
+                0 0 5px #00D9FF,
+                0 0 10px #00D9FF;
+            font-weight: 700;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(2rem, 8vw, 4rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #fff;
+            text-shadow:
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px #00D9FF,
+                0 0 82px #00D9FF,
+                0 0 92px #00D9FF;
+            margin-bottom: 2rem;
+        }
+
+        .overlay-subtitle {
+            font-family: 'Rajdhani', monospace;
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            color: #00D9FF;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 3rem;
+        }
+
+        .btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            padding: 15px 40px;
+            margin: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .btn:hover {
+            background: #00D9FF;
+            color: #000;
+            transform: translateY(-5px);
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        .controls-info {
+            margin-top: 2rem;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #00D9FF;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .controls-info h3 {
+            font-family: 'Orbitron', monospace;
+            color: #00D9FF;
+            margin-bottom: 1rem;
+            letter-spacing: 0.1em;
+        }
+
+        .controls-info p {
+            font-family: 'Rajdhani', monospace;
+            color: #fff;
+            line-height: 1.8;
+            margin: 0.5rem 0;
+        }
+
+        .game-over-stats {
+            margin: 2rem 0;
+            padding: 20px 40px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #FF0000;
+            box-shadow:
+                0 0 10px #FF0000,
+                0 0 20px #FF0000;
+        }
+
+        .stat-line {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1.2rem;
+            color: #fff;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            min-width: 300px;
+        }
+
+        .stat-label {
+            color: #FF6666;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 5px #FF0000;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            text-decoration: none;
+            display: inline-block;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .back-btn:hover {
+            background: #00D9FF;
+            color: #000;
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        @media (max-width: 768px) {
+            .hud {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .hud-item {
+                padding: 10px 15px;
+            }
+
+            .hud-value {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-link">
+        <a href="../../tron-index.html" class="back-btn">← GRID</a>
+    </div>
+
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="hud">
+            <div class="hud-item">
+                <div class="hud-label">Score</div>
+                <div class="hud-value" id="score">0</div>
+            </div>
+            <div class="hud-item">
+                <div class="hud-label">High Score</div>
+                <div class="hud-value" id="highScore">0</div>
+            </div>
+            <div class="hud-item">
+                <div class="hud-label">Speed</div>
+                <div class="hud-value" id="speed">1.0x</div>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div class="overlay" id="startScreen">
+            <h1 class="overlay-title">LIGHT CYCLE</h1>
+            <p class="overlay-subtitle">Grid Combat Protocol</p>
+            <button class="btn" id="startBtn">ENTER GRID</button>
+
+            <div class="controls-info">
+                <h3>CONTROLS</h3>
+                <p>Arrow Keys or WASD - Navigate</p>
+                <p>Avoid walls and light trails</p>
+                <p>Survive longer than opponents</p>
+                <p>Speed increases over time</p>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="overlay hidden" id="gameOverScreen">
+            <h1 class="overlay-title">PROGRAM TERMINATED</h1>
+            <div class="game-over-stats" id="gameOverStats"></div>
+            <button class="btn" id="restartBtn">RE-ENTER GRID</button>
+            <button class="btn" id="menuBtn">EXIT TO GRID</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game constants
+        const GRID_SIZE = 10;
+        const CANVAS_WIDTH = 800;
+        const CANVAS_HEIGHT = 600;
+        const INITIAL_SPEED = 100;
+        const SPEED_INCREASE = 0.5;
+        const AI_COUNT = 3;
+
+        // Set canvas size
+        canvas.width = Math.min(CANVAS_WIDTH, window.innerWidth - 40);
+        canvas.height = Math.min(CANVAS_HEIGHT, window.innerHeight - 40);
+
+        // Game state
+        let gameRunning = false;
+        let gamePaused = false;
+        let score = 0;
+        let gameSpeed = INITIAL_SPEED;
+        let lastUpdateTime = 0;
+        let survivedTime = 0;
+        let highScore = localStorage.getItem('tronLightCycleHighScore') || 0;
+
+        // Audio context
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Direction constants
+        const DIR = {
+            UP: { x: 0, y: -1 },
+            DOWN: { x: 0, y: 1 },
+            LEFT: { x: -1, y: 0 },
+            RIGHT: { x: 1, y: 0 }
+        };
+
+        // Player
+        class LightCycle {
+            constructor(x, y, direction, color, isPlayer = false) {
+                this.x = Math.floor(x / GRID_SIZE) * GRID_SIZE;
+                this.y = Math.floor(y / GRID_SIZE) * GRID_SIZE;
+                this.direction = direction;
+                this.color = color;
+                this.trail = [];
+                this.alive = true;
+                this.isPlayer = isPlayer;
+                this.nextDirection = direction;
+            }
+
+            update() {
+                if (!this.alive) return;
+
+                // Add current position to trail
+                this.trail.push({ x: this.x, y: this.y });
+
+                // Update direction
+                this.direction = this.nextDirection;
+
+                // Move
+                this.x += this.direction.x * GRID_SIZE;
+                this.y += this.direction.y * GRID_SIZE;
+
+                // Check collisions
+                this.checkCollisions();
+            }
+
+            checkCollisions() {
+                // Wall collision
+                if (this.x < 0 || this.x >= canvas.width ||
+                    this.y < 0 || this.y >= canvas.height) {
+                    this.alive = false;
+                    playSound('crash');
+                    return;
+                }
+
+                // Check collision with all trails (including own)
+                for (const cycle of lightCycles) {
+                    for (const segment of cycle.trail) {
+                        if (this.x === segment.x && this.y === segment.y) {
+                            this.alive = false;
+                            playSound('crash');
+                            return;
+                        }
+                    }
+                }
+            }
+
+            changeDirection(newDir) {
+                // Prevent 180-degree turns
+                if (this.direction.x + newDir.x === 0 &&
+                    this.direction.y + newDir.y === 0) {
+                    return;
+                }
+                this.nextDirection = newDir;
+            }
+
+            draw() {
+                if (!this.alive) return;
+
+                // Draw trail
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = GRID_SIZE - 2;
+                ctx.lineCap = 'square';
+                ctx.lineJoin = 'miter';
+
+                if (this.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x + GRID_SIZE/2, this.trail[0].y + GRID_SIZE/2);
+                    for (let i = 1; i < this.trail.length; i++) {
+                        ctx.lineTo(this.trail[i].x + GRID_SIZE/2, this.trail[i].y + GRID_SIZE/2);
+                    }
+                    ctx.lineTo(this.x + GRID_SIZE/2, this.y + GRID_SIZE/2);
+                    ctx.stroke();
+                }
+
+                // Draw cycle (brighter than trail)
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(this.x + 2, this.y + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+
+                // Draw direction indicator
+                ctx.shadowBlur = 40;
+                ctx.fillStyle = this.color;
+                const indicatorX = this.x + GRID_SIZE/2 + this.direction.x * GRID_SIZE/2;
+                const indicatorY = this.y + GRID_SIZE/2 + this.direction.y * GRID_SIZE/2;
+                ctx.beginPath();
+                ctx.arc(indicatorX, indicatorY, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // AI Logic
+        class AICycle extends LightCycle {
+            constructor(x, y, direction, color) {
+                super(x, y, direction, color, false);
+                this.decisionTimer = 0;
+                this.decisionDelay = 5;
+            }
+
+            updateAI() {
+                if (!this.alive) return;
+
+                this.decisionTimer++;
+                if (this.decisionTimer < this.decisionDelay) return;
+                this.decisionTimer = 0;
+
+                // Simple AI: Try to avoid collisions
+                const possibleDirections = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
+                const validDirections = [];
+
+                for (const dir of possibleDirections) {
+                    // Skip opposite direction
+                    if (this.direction.x + dir.x === 0 &&
+                        this.direction.y + dir.y === 0) {
+                        continue;
+                    }
+
+                    // Check if this direction is safe
+                    const testX = this.x + dir.x * GRID_SIZE;
+                    const testY = this.y + dir.y * GRID_SIZE;
+
+                    if (this.isSafe(testX, testY)) {
+                        validDirections.push(dir);
+                    }
+                }
+
+                if (validDirections.length > 0) {
+                    // Prefer continuing straight if safe
+                    const straightIsSafe = validDirections.some(dir =>
+                        dir.x === this.direction.x && dir.y === this.direction.y
+                    );
+
+                    if (straightIsSafe && Math.random() > 0.3) {
+                        // 70% chance to continue straight if safe
+                        return;
+                    }
+
+                    // Choose random safe direction
+                    const randomDir = validDirections[Math.floor(Math.random() * validDirections.length)];
+                    this.changeDirection(randomDir);
+                } else {
+                    // No safe direction, continue current path
+                }
+            }
+
+            isSafe(x, y) {
+                // Check wall
+                if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+                    return false;
+                }
+
+                // Check trails (sample a few steps ahead)
+                for (let i = 1; i <= 3; i++) {
+                    const checkX = x + this.direction.x * GRID_SIZE * i;
+                    const checkY = y + this.direction.y * GRID_SIZE * i;
+
+                    for (const cycle of lightCycles) {
+                        for (const segment of cycle.trail) {
+                            if (checkX === segment.x && checkY === segment.y) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        // Game objects
+        let lightCycles = [];
+        let player;
+
+        // Initialize game
+        function initGame() {
+            lightCycles = [];
+            score = 0;
+            gameSpeed = INITIAL_SPEED;
+            survivedTime = 0;
+
+            // Create player
+            player = new LightCycle(
+                canvas.width / 2,
+                canvas.height / 2,
+                DIR.RIGHT,
+                '#00D9FF',
+                true
+            );
+            lightCycles.push(player);
+
+            // Create AI opponents
+            const positions = [
+                { x: canvas.width * 0.2, y: canvas.height * 0.2, dir: DIR.DOWN },
+                { x: canvas.width * 0.8, y: canvas.height * 0.2, dir: DIR.LEFT },
+                { x: canvas.width * 0.5, y: canvas.height * 0.8, dir: DIR.UP }
+            ];
+
+            for (let i = 0; i < Math.min(AI_COUNT, positions.length); i++) {
+                const pos = positions[i];
+                const ai = new AICycle(pos.x, pos.y, pos.dir, '#FF0000');
+                lightCycles.push(ai);
+            }
+
+            updateHUD();
+        }
+
+        // Game loop
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+
+            const deltaTime = timestamp - lastUpdateTime;
+
+            if (deltaTime >= gameSpeed) {
+                lastUpdateTime = timestamp;
+
+                // Clear canvas
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw grid
+                drawGrid();
+
+                // Update AI
+                for (const cycle of lightCycles) {
+                    if (cycle instanceof AICycle) {
+                        cycle.updateAI();
+                    }
+                }
+
+                // Update all cycles
+                for (const cycle of lightCycles) {
+                    cycle.update();
+                }
+
+                // Draw all cycles
+                for (const cycle of lightCycles) {
+                    cycle.draw();
+                }
+
+                // Update score
+                if (player.alive) {
+                    score += 10;
+                    survivedTime += deltaTime;
+
+                    // Increase speed over time
+                    if (gameSpeed > 50) {
+                        gameSpeed -= SPEED_INCREASE;
+                    }
+                }
+
+                updateHUD();
+
+                // Check game over
+                if (!player.alive) {
+                    endGame();
+                    return;
+                }
+
+                // Check if all AI are dead (player wins this round)
+                const aliveAI = lightCycles.filter(c => !c.isPlayer && c.alive).length;
+                if (aliveAI === 0) {
+                    score += 1000;
+                    playSound('victory');
+                    // Could add new AI here for endless mode
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Draw grid
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.1)';
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x < canvas.width; x += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < canvas.height; y += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        // Update HUD
+        function updateHUD() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('speed').textContent = (INITIAL_SPEED / gameSpeed).toFixed(1) + 'x';
+        }
+
+        // Start game
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            gameRunning = true;
+            initGame();
+            lastUpdateTime = performance.now();
+            requestAnimationFrame(gameLoop);
+            playSound('start');
+        }
+
+        // End game
+        function endGame() {
+            gameRunning = false;
+
+            // Update high score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('tronLightCycleHighScore', highScore);
+            }
+
+            // Show game over screen
+            const statsDiv = document.getElementById('gameOverStats');
+            statsDiv.innerHTML = `
+                <div class="stat-line">
+                    <span class="stat-label">FINAL SCORE:</span>
+                    <span class="stat-value">${score}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">HIGH SCORE:</span>
+                    <span class="stat-value">${highScore}</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">SURVIVED:</span>
+                    <span class="stat-value">${(survivedTime / 1000).toFixed(1)}s</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">MAX SPEED:</span>
+                    <span class="stat-value">${(INITIAL_SPEED / gameSpeed).toFixed(1)}x</span>
+                </div>
+            `;
+
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        // Sound effects
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'start':
+                    oscillator.frequency.value = 400;
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'crash':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'victory':
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.4);
+                    break;
+            }
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning || !player.alive) return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    player.changeDirection(DIR.UP);
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    player.changeDirection(DIR.DOWN);
+                    e.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    player.changeDirection(DIR.LEFT);
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    player.changeDirection(DIR.RIGHT);
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!gameRunning || !player.alive) return;
+
+            const touchEndX = e.touches[0].clientX;
+            const touchEndY = e.touches[0].clientY;
+
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal swipe
+                if (deltaX > 20) {
+                    player.changeDirection(DIR.RIGHT);
+                    touchStartX = touchEndX;
+                } else if (deltaX < -20) {
+                    player.changeDirection(DIR.LEFT);
+                    touchStartX = touchEndX;
+                }
+            } else {
+                // Vertical swipe
+                if (deltaY > 20) {
+                    player.changeDirection(DIR.DOWN);
+                    touchStartY = touchEndY;
+                } else if (deltaY < -20) {
+                    player.changeDirection(DIR.UP);
+                    touchStartY = touchEndY;
+                }
+            }
+
+            e.preventDefault();
+        }, { passive: false });
+
+        // Button events
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            startGame();
+        });
+        document.getElementById('menuBtn').addEventListener('click', () => {
+            window.location.href = '../../tron-index.html';
+        });
+
+        // Initialize
+        updateHUD();
+    </script>
+</body>
+</html>

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: Neon Blocks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Orbitron', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .game-wrapper {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+        }
+
+        .main-panel {
+            position: relative;
+        }
+
+        canvas {
+            border: 2px solid #00D9FF;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+            display: block;
+            background: #000;
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 2px solid #00D9FF;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+            min-width: 200px;
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            color: #00D9FF;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .panel-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            color: #fff;
+            text-shadow:
+                0 0 5px #00D9FF,
+                0 0 10px #00D9FF;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        #nextCanvas {
+            border: 1px solid #00D9FF;
+            box-shadow: 0 0 10px #00D9FF;
+            margin: 10px auto;
+            display: block;
+            background: #000;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #fff;
+            text-shadow:
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px #00D9FF,
+                0 0 82px #00D9FF,
+                0 0 92px #00D9FF;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            padding: 15px 40px;
+            margin: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .btn:hover {
+            background: #00D9FF;
+            color: #000;
+            transform: translateY(-5px);
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            text-decoration: none;
+            display: inline-block;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .back-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
+        .controls {
+            font-family: 'Rajdhani', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        @media (max-width: 768px) {
+            .game-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .side-panel {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .panel {
+                min-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-link">
+        <a href="../../tron-index.html" class="back-btn">← GRID</a>
+    </div>
+
+    <div class="game-wrapper">
+        <div class="main-panel">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel">
+                <div class="panel-title">Score</div>
+                <div class="panel-value" id="score">0</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Level</div>
+                <div class="panel-value" id="level">1</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Lines</div>
+                <div class="panel-value" id="lines">0</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Next</div>
+                <canvas id="nextCanvas" width="80" height="80"></canvas>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Controls</div>
+                <div class="controls">
+                    ← → Move<br>
+                    ↑ Rotate<br>
+                    ↓ Fast Drop<br>
+                    Space: Drop
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <h1 class="overlay-title">NEON BLOCKS</h1>
+        <button class="btn" id="startBtn">INITIALIZE</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="overlay hidden" id="gameOverScreen">
+        <h1 class="overlay-title">SYSTEM OVERLOAD</h1>
+        <div class="panel" style="margin: 2rem 0;">
+            <div class="panel-title">Final Score</div>
+            <div class="panel-value" id="finalScore">0</div>
+        </div>
+        <button class="btn" id="restartBtn">RESTART</button>
+        <button class="btn" id="menuBtn">EXIT</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+
+        // Game settings
+        const COLS = 10;
+        const ROWS = 20;
+        const BLOCK_SIZE = 25;
+        canvas.width = COLS * BLOCK_SIZE;
+        canvas.height = ROWS * BLOCK_SIZE;
+
+        // Audio
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Colors for different pieces (Tron palette)
+        const COLORS = [
+            '#00D9FF', // Cyan
+            '#FF0000', // Red
+            '#00FF41', // Green
+            '#9933FF', // Purple
+            '#FF6600', // Orange
+            '#FFFF00', // Yellow
+            '#FF0099'  // Pink
+        ];
+
+        // Tetromino shapes
+        const SHAPES = [
+            [[1,1,1,1]], // I
+            [[1,1],[1,1]], // O
+            [[1,1,1],[0,1,0]], // T
+            [[1,1,1],[1,0,0]], // L
+            [[1,1,1],[0,0,1]], // J
+            [[1,1,0],[0,1,1]], // S
+            [[0,1,1],[1,1,0]]  // Z
+        ];
+
+        // Game state
+        let board = [];
+        let currentPiece = null;
+        let nextPiece = null;
+        let score = 0;
+        let level = 1;
+        let lines = 0;
+        let gameRunning = false;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+
+        function initBoard() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        }
+
+        function createPiece() {
+            const shapeIndex = Math.floor(Math.random() * SHAPES.length);
+            return {
+                shape: SHAPES[shapeIndex],
+                color: COLORS[shapeIndex],
+                x: Math.floor(COLS / 2) - 1,
+                y: 0
+            };
+        }
+
+        function drawBlock(ctx, x, y, color, size = BLOCK_SIZE) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = color;
+
+            // Outer glow
+            ctx.fillStyle = color;
+            ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+
+            // Inner bright core
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(x * size + 5, y * size + 5, size - 10, size - 10);
+
+            ctx.shadowBlur = 0;
+        }
+
+        function drawBoard() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 217, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * BLOCK_SIZE, 0);
+                ctx.lineTo(x * BLOCK_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * BLOCK_SIZE);
+                ctx.lineTo(canvas.width, y * BLOCK_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw placed blocks
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x]) {
+                        drawBlock(ctx, x, y, board[y][x]);
+                    }
+                }
+            }
+
+            // Draw current piece
+            if (currentPiece) {
+                currentPiece.shape.forEach((row, dy) => {
+                    row.forEach((value, dx) => {
+                        if (value) {
+                            drawBlock(ctx, currentPiece.x + dx, currentPiece.y + dy, currentPiece.color);
+                        }
+                    });
+                });
+            }
+        }
+
+        function drawNext() {
+            nextCtx.fillStyle = '#000';
+            nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+
+            if (!nextPiece) return;
+
+            const size = 16;
+            const offsetX = (nextCanvas.width - nextPiece.shape[0].length * size) / 2;
+            const offsetY = (nextCanvas.height - nextPiece.shape.length * size) / 2;
+
+            nextPiece.shape.forEach((row, dy) => {
+                row.forEach((value, dx) => {
+                    if (value) {
+                        const x = offsetX / size + dx;
+                        const y = offsetY / size + dy;
+                        drawBlock(nextCtx, x, y, nextPiece.color, size);
+                    }
+                });
+            });
+        }
+
+        function collide() {
+            for (let y = 0; y < currentPiece.shape.length; y++) {
+                for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                    if (currentPiece.shape[y][x]) {
+                        const newX = currentPiece.x + x;
+                        const newY = currentPiece.y + y;
+
+                        if (newX < 0 || newX >= COLS || newY >= ROWS) {
+                            return true;
+                        }
+
+                        if (newY >= 0 && board[newY][newX]) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function merge() {
+            currentPiece.shape.forEach((row, dy) => {
+                row.forEach((value, dx) => {
+                    if (value) {
+                        const y = currentPiece.y + dy;
+                        const x = currentPiece.x + dx;
+                        if (y >= 0) {
+                            board[y][x] = currentPiece.color;
+                        }
+                    }
+                });
+            });
+        }
+
+        function rotate() {
+            const rotated = currentPiece.shape[0].map((_, i) =>
+                currentPiece.shape.map(row => row[i]).reverse()
+            );
+
+            const previousShape = currentPiece.shape;
+            currentPiece.shape = rotated;
+
+            if (collide()) {
+                currentPiece.shape = previousShape;
+            } else {
+                playSound('rotate');
+            }
+        }
+
+        function move(dir) {
+            currentPiece.x += dir;
+            if (collide()) {
+                currentPiece.x -= dir;
+                return false;
+            }
+            playSound('move');
+            return true;
+        }
+
+        function drop() {
+            currentPiece.y++;
+            if (collide()) {
+                currentPiece.y--;
+                merge();
+                clearLines();
+                spawnPiece();
+                return false;
+            }
+            dropCounter = 0;
+            return true;
+        }
+
+        function hardDrop() {
+            while (drop()) {}
+            playSound('drop');
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+
+            for (let y = ROWS - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(COLS).fill(0));
+                    linesCleared++;
+                    y++;
+                }
+            }
+
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                score += [40, 100, 300, 1200][linesCleared - 1] * level;
+                level = Math.floor(lines / 10) + 1;
+                dropInterval = Math.max(100, 1000 - (level - 1) * 100);
+                updateUI();
+                playSound('line');
+            }
+        }
+
+        function spawnPiece() {
+            currentPiece = nextPiece || createPiece();
+            nextPiece = createPiece();
+            drawNext();
+
+            if (collide()) {
+                gameOver();
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('lines').textContent = lines;
+        }
+
+        function update(time = 0) {
+            if (!gameRunning) return;
+
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            dropCounter += deltaTime;
+
+            if (dropCounter > dropInterval) {
+                drop();
+            }
+
+            drawBoard();
+            requestAnimationFrame(update);
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            initBoard();
+            score = 0;
+            level = 1;
+            lines = 0;
+            dropInterval = 1000;
+            updateUI();
+            nextPiece = null;
+            spawnPiece();
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(update);
+            playSound('start');
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            playSound('gameOver');
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    move(-1);
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    move(1);
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    drop();
+                    e.preventDefault();
+                    break;
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    rotate();
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    hardDrop();
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (!gameRunning) return;
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (Math.abs(deltaX) > 30) {
+                    move(deltaX > 0 ? 1 : -1);
+                }
+            } else {
+                if (deltaY > 30) {
+                    drop();
+                } else if (deltaY < -30) {
+                    rotate();
+                }
+            }
+
+            e.preventDefault();
+        }, { passive: false });
+
+        // Buttons
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            startGame();
+        });
+        document.getElementById('menuBtn').addEventListener('click', () => {
+            window.location.href = '../../tron-index.html';
+        });
+
+        // Sound effects
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'start':
+                    oscillator.frequency.value = 400;
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'move':
+                    oscillator.frequency.value = 300;
+                    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.05);
+                    break;
+                case 'rotate':
+                    oscillator.frequency.value = 500;
+                    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.08);
+                    break;
+                case 'drop':
+                    oscillator.frequency.value = 200;
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'line':
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'gameOver':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.5);
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

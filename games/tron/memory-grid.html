@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: Memory Grid</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', 'Orbitron', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            position: relative;
+        }
+
+        .hud {
+            position: absolute;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 2rem;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border: 2px solid #00D9FF;
+            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+            text-align: center;
+        }
+
+        .hud-label {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: #00D9FF;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        .hud-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            color: #fff;
+            text-shadow:
+                0 0 5px #00D9FF,
+                0 0 10px #00D9FF;
+            font-weight: 700;
+        }
+
+        .memory-grid {
+            display: grid;
+            gap: 15px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        .memory-card {
+            width: 100px;
+            height: 100px;
+            background: rgba(0, 68, 102, 0.3);
+            border: 2px solid #004466;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            clip-path: polygon(
+                15% 0%, 85% 0%,
+                100% 15%, 100% 85%,
+                85% 100%, 15% 100%,
+                0% 85%, 0% 15%
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        .memory-card:hover:not(.flipped):not(.matched) {
+            border-color: #00D9FF;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+            transform: scale(1.05);
+        }
+
+        .memory-card.flipped {
+            background: rgba(0, 217, 255, 0.2);
+            border-color: #00D9FF;
+            box-shadow:
+                0 0 15px #00D9FF,
+                0 0 30px #00D9FF;
+        }
+
+        .memory-card.matched {
+            background: rgba(0, 255, 65, 0.2);
+            border-color: #00FF41;
+            box-shadow:
+                0 0 15px #00FF41,
+                0 0 30px #00FF41;
+            cursor: default;
+        }
+
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            color: #004466;
+            text-shadow: 0 0 5px #004466;
+        }
+
+        .card-front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #00D9FF;
+            text-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+            filter: drop-shadow(0 0 10px #00D9FF);
+        }
+
+        .memory-card.flipped .card-back {
+            display: none;
+        }
+
+        .memory-card.flipped .card-front {
+            display: flex;
+        }
+
+        .memory-card.matched .card-front {
+            display: flex;
+            color: #00FF41;
+            text-shadow:
+                0 0 10px #00FF41,
+                0 0 20px #00FF41;
+            filter: drop-shadow(0 0 10px #00FF41);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #fff;
+            text-shadow:
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px #00D9FF,
+                0 0 82px #00D9FF,
+                0 0 92px #00D9FF;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            padding: 15px 40px;
+            margin: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .btn:hover {
+            background: #00D9FF;
+            color: #000;
+            transform: translateY(-5px);
+            box-shadow:
+                0 0 20px #00D9FF,
+                0 0 40px #00D9FF;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            text-decoration: none;
+            display: inline-block;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .back-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
+        .difficulty-select {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .controls-hint {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1rem;
+            color: #00D9FF;
+            margin-top: 2rem;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .game-complete-stats {
+            margin: 2rem 0;
+            padding: 30px 50px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00FF41;
+            box-shadow:
+                0 0 10px #00FF41,
+                0 0 20px #00FF41;
+        }
+
+        .stat-line {
+            font-family: 'Rajdhani', monospace;
+            font-size: 1.3rem;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            min-width: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .memory-card {
+                width: 70px;
+                height: 70px;
+                font-size: 2rem;
+            }
+
+            .hud {
+                flex-direction: column;
+                gap: 10px;
+                top: -160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-link">
+        <a href="../../tron-index.html" class="back-btn">← GRID</a>
+    </div>
+
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-item">
+                <div class="hud-label">Moves</div>
+                <div class="hud-value" id="moves">0</div>
+            </div>
+            <div class="hud-item">
+                <div class="hud-label">Pairs</div>
+                <div class="hud-value"><span id="pairs">0</span>/<span id="totalPairs">8</span></div>
+            </div>
+            <div class="hud-item">
+                <div class="hud-label">Time</div>
+                <div class="hud-value" id="time">0:00</div>
+            </div>
+        </div>
+
+        <div class="memory-grid" id="memoryGrid">
+            <!-- Cards will be generated here -->
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div class="overlay" id="startScreen">
+        <h1 class="overlay-title">MEMORY GRID</h1>
+        <p class="controls-hint">Select Difficulty</p>
+        <div class="difficulty-select">
+            <button class="btn" data-difficulty="easy">EASY<br>(4x4)</button>
+            <button class="btn" data-difficulty="medium">MEDIUM<br>(4x5)</button>
+            <button class="btn" data-difficulty="hard">HARD<br>(6x6)</button>
+        </div>
+        <p class="controls-hint">
+            Click cards to flip<br>
+            Match all pairs to win
+        </p>
+    </div>
+
+    <!-- Complete Screen -->
+    <div class="overlay hidden" id="completeScreen">
+        <h1 class="overlay-title">GRID SYNCHRONIZED</h1>
+        <div class="game-complete-stats">
+            <div class="stat-line">
+                <span>TIME:</span>
+                <span id="finalTime">0:00</span>
+            </div>
+            <div class="stat-line">
+                <span>MOVES:</span>
+                <span id="finalMoves">0</span>
+            </div>
+            <div class="stat-line">
+                <span>ACCURACY:</span>
+                <span id="accuracy">100%</span>
+            </div>
+        </div>
+        <button class="btn" id="playAgainBtn">PLAY AGAIN</button>
+        <button class="btn" id="menuBtn">EXIT</button>
+    </div>
+
+    <script>
+        // Audio
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Game state
+        let difficulty = 'medium';
+        let gridSize = { cols: 4, rows: 5 };
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let startTime = null;
+        let timerInterval = null;
+        let canFlip = true;
+
+        // Card symbols (Tron themed)
+        const symbols = ['⚡', '💿', '🔷', '🔺', '⬡', '◈', '◇', '▽', '△', '◉', '⬢', '◆', '✦', '★', '◎', '◐', '◑', '◒'];
+
+        // Difficulty settings
+        const difficulties = {
+            easy: { cols: 4, rows: 4 },
+            medium: { cols: 4, rows: 5 },
+            hard: { cols: 6, rows: 6 }
+        };
+
+        // Initialize game
+        function initGame() {
+            const totalCards = gridSize.cols * gridSize.rows;
+            const pairCount = totalCards / 2;
+
+            document.getElementById('totalPairs').textContent = pairCount;
+
+            // Create card pairs
+            const selectedSymbols = symbols.slice(0, pairCount);
+            const cardSymbols = [...selectedSymbols, ...selectedSymbols];
+
+            // Shuffle
+            for (let i = cardSymbols.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cardSymbols[i], cardSymbols[j]] = [cardSymbols[j], cardSymbols[i]];
+            }
+
+            // Create cards
+            cards = cardSymbols.map((symbol, index) => ({
+                id: index,
+                symbol,
+                flipped: false,
+                matched: false
+            }));
+
+            renderGrid();
+            resetStats();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('memoryGrid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${gridSize.cols}, 1fr)`;
+
+            cards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'memory-card';
+                cardEl.dataset.id = card.id;
+
+                cardEl.innerHTML = `
+                    <div class="card-back">?</div>
+                    <div class="card-front">${card.symbol}</div>
+                `;
+
+                cardEl.addEventListener('click', () => flipCard(card.id));
+                grid.appendChild(cardEl);
+            });
+        }
+
+        function flipCard(id) {
+            if (!canFlip) return;
+
+            const card = cards[id];
+            if (card.flipped || card.matched) return;
+            if (flippedCards.length >= 2) return;
+
+            // Start timer on first move
+            if (moves === 0) {
+                startTimer();
+            }
+
+            // Flip card
+            card.flipped = true;
+            flippedCards.push(card);
+            updateCardVisual(id);
+            playSound('flip');
+
+            // Check for match
+            if (flippedCards.length === 2) {
+                moves++;
+                updateHUD();
+                canFlip = false;
+
+                setTimeout(() => {
+                    checkMatch();
+                    canFlip = true;
+                }, 1000);
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+
+            if (card1.symbol === card2.symbol) {
+                // Match!
+                card1.matched = true;
+                card2.matched = true;
+                matchedPairs++;
+                updateCardVisual(card1.id);
+                updateCardVisual(card2.id);
+                updateHUD();
+                playSound('match');
+
+                // Check win
+                if (matchedPairs === cards.length / 2) {
+                    setTimeout(gameComplete, 500);
+                }
+            } else {
+                // No match
+                card1.flipped = false;
+                card2.flipped = false;
+                updateCardVisual(card1.id);
+                updateCardVisual(card2.id);
+                playSound('nomatch');
+            }
+
+            flippedCards = [];
+        }
+
+        function updateCardVisual(id) {
+            const card = cards[id];
+            const cardEl = document.querySelector(`[data-id="${id}"]`);
+
+            cardEl.classList.toggle('flipped', card.flipped);
+            cardEl.classList.toggle('matched', card.matched);
+        }
+
+        function resetStats() {
+            moves = 0;
+            matchedPairs = 0;
+            flippedCards = [];
+            startTime = null;
+            if (timerInterval) clearInterval(timerInterval);
+            updateHUD();
+        }
+
+        function updateHUD() {
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('pairs').textContent = matchedPairs;
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 100);
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('time').textContent =
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function gameComplete() {
+            clearInterval(timerInterval);
+
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            const totalCards = cards.length;
+            const perfectMoves = totalCards / 2;
+            const accuracyPercent = Math.round((perfectMoves / moves) * 100);
+
+            document.getElementById('finalTime').textContent = timeStr;
+            document.getElementById('finalMoves').textContent = moves;
+            document.getElementById('accuracy').textContent = accuracyPercent + '%';
+            document.getElementById('completeScreen').classList.remove('hidden');
+
+            playSound('complete');
+        }
+
+        // Difficulty selection
+        document.querySelectorAll('[data-difficulty]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                difficulty = btn.dataset.difficulty;
+                gridSize = difficulties[difficulty];
+                document.getElementById('startScreen').classList.add('hidden');
+                initGame();
+                playSound('start');
+            });
+        });
+
+        // Buttons
+        document.getElementById('playAgainBtn').addEventListener('click', () => {
+            document.getElementById('completeScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+        });
+
+        document.getElementById('menuBtn').addEventListener('click', () => {
+            window.location.href = '../../tron-index.html';
+        });
+
+        // Sound effects
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch(type) {
+                case 'start':
+                    oscillator.frequency.value = 400;
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'flip':
+                    oscillator.frequency.value = 600;
+                    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'match':
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'nomatch':
+                    oscillator.frequency.value = 300;
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'complete':
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.4);
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
