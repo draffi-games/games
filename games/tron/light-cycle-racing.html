@@ -867,9 +867,9 @@
             }
 
             applyNoise(evaluations, noiseFactor = 0.2) {
-                return evaluations.map(eval => ({
-                    ...eval,
-                    space: eval.space * (1 - noiseFactor + Math.random() * noiseFactor * 2)
+                return evaluations.map(evaluation => ({
+                    ...evaluation,
+                    space: evaluation.space * (1 - noiseFactor + Math.random() * noiseFactor * 2)
                 }));
             }
         }
@@ -886,14 +886,14 @@
 
                 // Add aggression toward player
                 if (player && player.alive) {
-                    evaluations.forEach(eval => {
+                    evaluations.forEach(evaluation => {
                         const distToPlayer = Math.sqrt(
-                            Math.pow(eval.x - player.x, 2) + Math.pow(eval.y - player.y, 2)
+                            Math.pow(evaluation.x - player.x, 2) + Math.pow(evaluation.y - player.y, 2)
                         );
 
                         // Bonus for getting closer (70% weight on aggression)
                         const aggressionBonus = Math.max(0, 100 - distToPlayer) * 0.7;
-                        eval.space = eval.space * 0.3 + aggressionBonus;
+                        evaluation.space = evaluation.space * 0.3 + aggressionBonus;
                     });
                 }
 
@@ -940,15 +940,15 @@
                 if (evaluations.length === 0) return null;
 
                 // Prioritize staying in territory
-                evaluations.forEach(eval => {
+                evaluations.forEach(evaluation => {
                     const distToTerritory = Math.sqrt(
-                        Math.pow(eval.x - this.territoryCenter.x, 2) +
-                        Math.pow(eval.y - this.territoryCenter.y, 2)
+                        Math.pow(evaluation.x - this.territoryCenter.x, 2) +
+                        Math.pow(evaluation.y - this.territoryCenter.y, 2)
                     );
 
                     // Bonus for staying near territory center
                     const territoryBonus = Math.max(0, 200 - distToTerritory) * 0.5;
-                    eval.space += territoryBonus;
+                    evaluation.space += territoryBonus;
                 });
 
                 evaluations = this.applyNoise(evaluations, 0.18);
@@ -980,20 +980,20 @@
                     // Try to parallel player's path
                     const playerDir = player.direction;
 
-                    evaluations.forEach(eval => {
+                    evaluations.forEach(evaluation => {
                         // Bonus for moving in same direction as player
-                        if (eval.direction.x === playerDir.x && eval.direction.y === playerDir.y) {
-                            eval.space += 50;
+                        if (evaluation.direction.x === playerDir.x && evaluation.direction.y === playerDir.y) {
+                            evaluation.space += 50;
                         }
 
                         // Bonus for staying parallel (3-5 grid units away)
                         const distToPlayer = Math.sqrt(
-                            Math.pow(eval.x - player.x, 2) + Math.pow(eval.y - player.y, 2)
+                            Math.pow(evaluation.x - player.x, 2) + Math.pow(evaluation.y - player.y, 2)
                         );
 
                         const idealDist = GRID_SIZE * 4;
                         const distScore = Math.max(0, 100 - Math.abs(distToPlayer - idealDist));
-                        eval.space += distScore * 0.4;
+                        evaluation.space += distScore * 0.4;
                     });
                 }
 
@@ -1046,14 +1046,14 @@
                     const predictedX = player.x + player.direction.x * GRID_SIZE * 3;
                     const predictedY = player.y + player.direction.y * GRID_SIZE * 3;
 
-                    evaluations.forEach(eval => {
+                    evaluations.forEach(evaluation => {
                         // Try to intercept predicted position
                         const distToPredicted = Math.sqrt(
-                            Math.pow(eval.x - predictedX, 2) + Math.pow(eval.y - predictedY, 2)
+                            Math.pow(evaluation.x - predictedX, 2) + Math.pow(evaluation.y - predictedY, 2)
                         );
 
                         const interceptBonus = Math.max(0, 120 - distToPredicted) * 0.6;
-                        eval.space += interceptBonus;
+                        evaluation.space += interceptBonus;
                     });
                 }
 
