@@ -584,9 +584,9 @@
                 if (difficulty === 'easy') {
                     this.decisionDelay = 5;
                 } else if (difficulty === 'medium') {
-                    this.decisionDelay = 4;
-                } else {
                     this.decisionDelay = 3;
+                } else {
+                    this.decisionDelay = 1; // Hard AI reacts much faster
                 }
             }
 
@@ -701,11 +701,12 @@
             selectNewStrategy() {
                 const weights = this.getStrategyWeights();
                 const strategies = [
-                    { name: 'aggressive', weight: weights.aggressive, strategy: () => new AggressiveHunter(this.aiCycle) },
-                    { name: 'territory', weight: weights.territory, strategy: () => new TerritoryController(this.aiCycle) },
-                    { name: 'mirror', weight: weights.mirror, strategy: () => new MirrorPlayer(this.aiCycle) },
-                    { name: 'chaotic', weight: weights.chaotic, strategy: () => new ChaoticJester(this.aiCycle) },
-                    { name: 'adaptive', weight: weights.adaptive, strategy: () => new AdaptiveLearner(this.aiCycle) }
+                    { name: 'aggressive', weight: weights.aggressive, strategy: () => new AggressiveHunter(this.aiCycle, this.difficulty) },
+                    { name: 'territory', weight: weights.territory, strategy: () => new TerritoryController(this.aiCycle, this.difficulty) },
+                    { name: 'mirror', weight: weights.mirror, strategy: () => new MirrorPlayer(this.aiCycle, this.difficulty) },
+                    { name: 'chaotic', weight: weights.chaotic, strategy: () => new ChaoticJester(this.aiCycle, this.difficulty) },
+                    { name: 'adaptive', weight: weights.adaptive, strategy: () => new AdaptiveLearner(this.aiCycle, this.difficulty) },
+                    { name: 'trapper', weight: weights.trapper, strategy: () => new TrapperStrategy(this.aiCycle, this.difficulty) }
                 ];
 
                 // Weighted random selection
@@ -722,7 +723,7 @@
                 }
 
                 // Fallback
-                this.currentStrategy = new AggressiveHunter(this.aiCycle);
+                this.currentStrategy = new AggressiveHunter(this.aiCycle, this.difficulty);
             }
 
             getStrategyWeights() {
@@ -736,7 +737,8 @@
                     territory: 1.0,
                     mirror: 1.0,
                     chaotic: 1.0,
-                    adaptive: 1.0
+                    adaptive: 1.0,
+                    trapper: 1.0
                 };
 
                 // Difficulty-based base weights
@@ -746,14 +748,17 @@
                     weights.aggressive = 0.5;
                     weights.adaptive = 0.3;
                     weights.mirror = 0.8;
+                    weights.trapper = 0.0; // No trapper on easy
                 } else if (this.difficulty === 'medium') {
                     // Balanced - all equal base weights
+                    weights.trapper = 0.0; // No trapper on medium
                 } else { // hard
-                    weights.adaptive = 2.5;
-                    weights.aggressive = 2.0;
-                    weights.territory = 1.5;
-                    weights.chaotic = 0.3;
-                    weights.mirror = 1.0;
+                    weights.adaptive = 5.0;
+                    weights.aggressive = 4.0;
+                    weights.territory = 2.0;
+                    weights.chaotic = 0.05;
+                    weights.mirror = 0.5;
+                    weights.trapper = 6.0; // Highest priority - actively traps player
                 }
 
                 // Situational adjustments
@@ -772,6 +777,7 @@
                     else if (currentName.includes('mirror')) weights.mirror *= 0.3;
                     else if (currentName.includes('chaotic')) weights.chaotic *= 0.3;
                     else if (currentName.includes('adaptive')) weights.adaptive *= 0.3;
+                    else if (currentName.includes('trapper')) weights.trapper *= 0.3;
                 }
 
                 return weights;
@@ -838,8 +844,9 @@
 
         // Base strategy class
         class AIStrategy {
-            constructor(aiCycle) {
+            constructor(aiCycle, difficulty = 'medium') {
                 this.aiCycle = aiCycle;
+                this.difficulty = difficulty;
             }
 
             getPossibleDirections() {
@@ -867,6 +874,11 @@
             }
 
             applyNoise(evaluations, noiseFactor = 0.2) {
+                // Reduce noise significantly for hard difficulty
+                if (this.difficulty === 'hard') {
+                    noiseFactor *= 0.2; // 80% reduction in randomness for hard mode
+                }
+
                 return evaluations.map(evaluation => ({
                     ...evaluation,
                     space: evaluation.space * (1 - noiseFactor + Math.random() * noiseFactor * 2)
@@ -1065,6 +1077,63 @@
                     return evaluations[1].direction;
                 }
 
+                return evaluations[0].direction;
+            }
+        }
+
+        // Strategy 6: Trapper - Actively reduces player's available space
+        class TrapperStrategy extends AIStrategy {
+            evaluate(player, allCycles) {
+                const directions = this.getPossibleDirections();
+                let evaluations = directions.map(dir => this.evaluateSpace(dir));
+
+                evaluations = evaluations.filter(e => e.space >= 0);
+                if (evaluations.length === 0) return null;
+
+                if (player && player.alive) {
+                    const spatialGrid = getGlobalSpatialGrid();
+
+                    // Calculate player's current available space
+                    const playerSpace = floodFill(player.x, player.y, spatialGrid, 200);
+
+                    evaluations.forEach(evaluation => {
+                        // Simulate this move and recalculate player space
+                        const simGrid = new SpatialGrid(canvas.width, canvas.height, GRID_SIZE);
+
+                        // Copy existing trails
+                        for (const cycle of lightCycles) {
+                            for (const segment of cycle.trail) {
+                                simGrid.markOccupied(segment.x, segment.y);
+                            }
+                        }
+
+                        // Add simulated AI position
+                        simGrid.markOccupied(evaluation.x, evaluation.y);
+
+                        // Calculate player's space after this move
+                        const newPlayerSpace = floodFill(player.x, player.y, simGrid, 200);
+
+                        // Bonus for reducing player's space
+                        const spaceReduction = playerSpace - newPlayerSpace;
+                        const trapBonus = spaceReduction * 2.5;
+
+                        // Also bonus for getting between player and open space
+                        const distToPlayer = Math.sqrt(
+                            Math.pow(evaluation.x - player.x, 2) + Math.pow(evaluation.y - player.y, 2)
+                        );
+
+                        // Optimal trapping distance is 3-6 grid units
+                        const optimalDist = GRID_SIZE * 4.5;
+                        const distanceScore = Math.max(0, 100 - Math.abs(distToPlayer - optimalDist)) * 0.4;
+
+                        // Combine space safety, trap bonus, and positioning
+                        evaluation.space = evaluation.space * 0.3 + trapBonus + distanceScore;
+                    });
+                }
+
+                // Very low noise for trapping strategy (needs precision)
+                evaluations = this.applyNoise(evaluations, 0.08);
+                evaluations.sort((a, b) => b.space - a.space);
                 return evaluations[0].direction;
             }
         }
