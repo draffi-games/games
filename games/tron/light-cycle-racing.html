@@ -651,16 +651,112 @@
                 }
             }
 
-            // Hard AI: Use new AI Brain system with hard difficulty
+            // Hard AI: Ultimate Intercept & Cutoff Strategy
             expertAI() {
-                if (!this.aiBrain) {
-                    this.aiBrain = new AIBrain(this.difficulty, this);
+                if (!player || !player.alive) return;
+
+                // Step 1: Get all safe moves (Safety First!)
+                const possibleDirs = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
+                const safeMoves = [];
+
+                for (const dir of possibleDirs) {
+                    // Skip 180-degree turns
+                    if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) {
+                        continue;
+                    }
+
+                    const testX = this.x + dir.x * GRID_SIZE;
+                    const testY = this.y + dir.y * GRID_SIZE;
+
+                    // Check if move is valid
+                    if (this.isImmediateCollision(testX, testY)) {
+                        continue;
+                    }
+
+                    // Calculate available space in this direction
+                    const spatialGrid = getGlobalSpatialGrid();
+                    const space = floodFill(testX, testY, spatialGrid, 200);
+
+                    // Require minimum safe space (20 for hard mode)
+                    if (space >= 20) {
+                        safeMoves.push({ direction: dir, space, x: testX, y: testY });
+                    }
                 }
 
-                const decision = this.aiBrain.decideMove(player, []);
-                if (decision) {
-                    this.changeDirection(decision);
+                // Emergency: No safe moves, take best available
+                if (safeMoves.length === 0) {
+                    for (const dir of possibleDirs) {
+                        if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) continue;
+                        const testX = this.x + dir.x * GRID_SIZE;
+                        const testY = this.y + dir.y * GRID_SIZE;
+                        if (!this.isImmediateCollision(testX, testY)) {
+                            this.changeDirection(dir);
+                            return;
+                        }
+                    }
+                    return; // No moves available
                 }
+
+                // Step 2: From safe moves, choose most aggressive
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const playerDir = player.direction;
+
+                // Determine if we're AHEAD of player (in his movement direction)
+                let isAhead = false;
+                if (playerDir.x > 0) isAhead = (dx < 0); // Player moving right, we're left of him = ahead
+                if (playerDir.x < 0) isAhead = (dx > 0); // Player moving left, we're right of him = ahead
+                if (playerDir.y > 0) isAhead = (dy < 0); // Player moving down, we're above = ahead
+                if (playerDir.y < 0) isAhead = (dy > 0); // Player moving up, we're below = ahead
+
+                if (!isAhead) {
+                    // OVERTAKE MODE: We're behind, need to get ahead
+                    // Strategy: Move in SAME direction as player to parallel overtake
+                    safeMoves.forEach(move => {
+                        // Bonus for moving in player's direction
+                        const parallelScore = (move.direction.x === playerDir.x && move.direction.y === playerDir.y) ? 500 : 0;
+
+                        // Also bonus for getting closer to being "ahead"
+                        const futureX = move.x + playerDir.x * GRID_SIZE * 5;
+                        const futureY = move.y + playerDir.y * GRID_SIZE * 5;
+                        const distToFuturePlayer = Math.sqrt(Math.pow(futureX - move.x, 2) + Math.pow(futureY - move.y, 2));
+                        const overtakeBonus = Math.max(0, 300 - distToFuturePlayer) * 0.8;
+
+                        move.score = move.space * 0.1 + parallelScore + overtakeBonus;
+                    });
+                } else {
+                    // CUTOFF MODE: We're ahead, cut him off!
+                    safeMoves.forEach(move => {
+                        // Calculate perpendicular distance to player's path
+                        let perpDist;
+                        if (playerDir.x !== 0) {
+                            perpDist = Math.abs(dy); // Horizontal movement, vertical distance matters
+                        } else {
+                            perpDist = Math.abs(dx); // Vertical movement, horizontal distance matters
+                        }
+
+                        // If close enough to player's path, move perpendicular to block
+                        if (perpDist < 150) {
+                            // Bonus for moving PERPENDICULAR to player direction (creates wall)
+                            const isPerpendicular = (playerDir.x !== 0 && move.direction.y !== 0) ||
+                                                   (playerDir.y !== 0 && move.direction.x !== 0);
+                            const cutoffBonus = isPerpendicular ? 400 : 0;
+
+                            // Also bonus for moving TOWARDS player's path
+                            const approachBonus = (perpDist > 0) ? (150 - perpDist) * 2 : 0;
+
+                            move.score = move.space * 0.1 + cutoffBonus + approachBonus;
+                        } else {
+                            // Too far from path, get closer first
+                            const approachBonus = Math.max(0, 200 - perpDist) * 1.5;
+                            move.score = move.space * 0.2 + approachBonus;
+                        }
+                    });
+                }
+
+                // Step 3: Choose best move
+                safeMoves.sort((a, b) => b.score - a.score);
+                this.changeDirection(safeMoves[0].direction);
             }
 
             isImmediateCollision(x, y) {
