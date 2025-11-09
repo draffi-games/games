@@ -239,6 +239,9 @@
 
                 if (this.jumpCooldown > 0) this.jumpCooldown--;
 
+                // Check collision BEFORE writing to grid to avoid self-collision
+                this.checkCollision();
+
                 // Add trail segment
                 const distMoved = Math.sqrt((this.x - this.prevX) ** 2 + (this.y - this.prevY) ** 2);
                 if (distMoved > 0.1) {
@@ -256,17 +259,14 @@
                     }
                 }
 
-                // Update collision grid (only if not jumping high enough)
-                if (this.z <= JUMP_HEIGHT_THRESHOLD) {
+                // Update collision grid (only if not jumping high enough and still alive)
+                if (this.alive && this.z <= JUMP_HEIGHT_THRESHOLD) {
                     const gridX = Math.floor(this.x);
                     const gridY = Math.floor(this.y);
                     if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
                         collisionGrid[gridY][gridX] = this.id === 'player1' ? 1 : 2;
                     }
                 }
-
-                // Check collision
-                this.checkCollision();
             }
 
             checkCollision() {
@@ -480,7 +480,6 @@
                 const midY = (segment.y1 + segment.y2) / 2;
                 const dx = midX - camera.x;
                 const dy = midY - camera.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
 
                 // Basic frustum culling
                 const cosYaw = Math.cos(camera.yaw);
@@ -488,12 +487,12 @@
                 const rotY = dx * sinYaw + dy * cosYaw;
 
                 if (rotY > 0) {
-                    segmentsWithDepth.push({ segment, distance });
+                    segmentsWithDepth.push({ segment, depth: rotY });
                 }
             }
 
-            // Sort far to near
-            segmentsWithDepth.sort((a, b) => b.distance - a.distance);
+            // Sort far to near (use camera-space depth, not Euclidean distance)
+            segmentsWithDepth.sort((a, b) => b.depth - a.depth);
 
             // Render
             for (const item of segmentsWithDepth) {
@@ -594,7 +593,7 @@
         function renderMinimap(ctx) {
             const minimapSize = 280;
             const minimapX = (canvas.width - minimapSize - 40) / 2;
-            const minimapY = 320;
+            const minimapY = 10;
             const scale = minimapSize / GRID_SIZE;
 
             ctx.save();
@@ -746,7 +745,7 @@
                 y: 300,
                 w: 800,
                 h: 600,
-                centerX: 400,
+                centerX: 1200,
                 centerY: 600
             };
 
