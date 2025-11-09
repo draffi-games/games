@@ -115,40 +115,54 @@
             let dy = worldPos.y - camera.y;
             let dz = worldPos.z - camera.z;
 
-            // Rotate by camera yaw
+            // Rotate by camera yaw (horizontal rotation)
             const cosYaw = Math.cos(camera.yaw);
             const sinYaw = Math.sin(camera.yaw);
-            const rotX = dx * cosYaw - dy * sinYaw;
-            const rotY = dx * sinYaw + dy * cosYaw;
-            const rotZ = dz;
+            let rotX = dx * cosYaw - dy * sinYaw;
+            let rotY = dx * sinYaw + dy * cosYaw;
+            let rotZ = dz;
+
+            // Rotate by camera pitch (vertical rotation) - look down at track
+            const cosPitch = Math.cos(camera.pitch);
+            const sinPitch = Math.sin(camera.pitch);
+            const finalY = rotY * cosPitch - rotZ * sinPitch;
+            const finalZ = rotY * sinPitch + rotZ * cosPitch;
 
             // Behind camera check
-            if (rotY <= 0.1) return null;
+            if (finalY <= 0.1) return null;
 
-            // Perspective projection
-            const fov = 80 * Math.PI / 180;
+            // Perspective projection with wider FOV for better spatial awareness
+            const fov = 95 * Math.PI / 180;
             const focalLength = viewport.h / (2 * Math.tan(fov / 2));
 
-            const screenX = (rotX * focalLength / rotY) + viewport.centerX;
-            const screenY = (-rotZ * focalLength / rotY) + viewport.centerY;
+            const screenX = (rotX * focalLength / finalY) + viewport.centerX;
+            const screenY = (-finalZ * focalLength / finalY) + viewport.centerY;
 
-            return { x: screenX, y: screenY, depth: rotY };
+            return { x: screenX, y: screenY, depth: finalY };
         }
 
         function createCamera(player) {
-            const camDistance = 6;
-            const camHeight = 3.5;
-            const lookAhead = 4;
+            const camDistance = 6;        // Behind player
+            const camHeight = 3.5;         // Just above trails for centered view
+            const lookAhead = 5;           // Look ahead of player
 
             const dirX = Math.cos(player.angle);
             const dirY = Math.sin(player.angle);
 
+            // Camera position: behind and above player
+            const camX = player.x - dirX * camDistance;
+            const camY = player.y - dirY * camDistance;
+
+            // Very gentle pitch for horizontal racing view
+            // -0.1 radians ≈ -6 degrees - ground/trails centered
+            const pitch = -0.1;
+
             return {
-                x: player.x - dirX * camDistance,
-                y: player.y - dirY * camDistance,
+                x: camX,
+                y: camY,
                 z: camHeight,
                 yaw: player.angle,
-                pitch: -0.2
+                pitch: pitch
             };
         }
 
@@ -281,7 +295,10 @@
 
                 // Check collision with trails
                 const cell = collisionGrid[gridY][gridX];
-                if (cell !== 0) {
+                const myCell = this.id === 'player1' ? 1 : 2;
+
+                // Only collide with opponent's trail (or walls), not your own
+                if (cell !== 0 && cell !== myCell) {
                     // If jumping high enough, clear the obstacle
                     if (this.z > JUMP_HEIGHT_THRESHOLD) {
                         return; // jumped over it!
@@ -737,7 +754,7 @@
                 w: 800,
                 h: 600,
                 centerX: 400,
-                centerY: 600
+                centerY: 530  // Visual center shifted up for centered trail view
             };
 
             const viewport2 = {
@@ -746,7 +763,7 @@
                 w: 800,
                 h: 600,
                 centerX: 1200,
-                centerY: 600
+                centerY: 530  // Visual center shifted up for centered trail view
             };
 
             renderPlayerView(ctx, player1, viewport1);
