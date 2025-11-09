@@ -179,6 +179,29 @@
             color: #000;
         }
 
+        .sound-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-size: 1.5rem;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .sound-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
         .controls {
             font-family: monospace;
             font-size: 0.9rem;
@@ -209,6 +232,8 @@
         <a href="../../tron-index.html" class="back-btn">← GRID</a>
     </div>
 
+    <button id="soundToggle" class="sound-btn">🔊</button>
+
     <div class="game-wrapper">
         <div class="main-panel">
             <canvas id="gameCanvas"></canvas>
@@ -231,6 +256,11 @@
             </div>
 
             <div class="panel">
+                <div class="panel-title">High Score</div>
+                <div class="panel-value" id="highScore">0</div>
+            </div>
+
+            <div class="panel">
                 <div class="panel-title">Next</div>
                 <canvas id="nextCanvas" width="80" height="80"></canvas>
             </div>
@@ -241,7 +271,9 @@
                     ← → Move<br>
                     ↑ Rotate<br>
                     ↓ Fast Drop<br>
-                    Space: Drop
+                    Space: Drop<br>
+                    ESC/P: Pause<br>
+                    M: Sound
                 </div>
             </div>
         </div>
@@ -264,6 +296,14 @@
         <button class="btn" id="menuBtn">EXIT</button>
     </div>
 
+    <!-- Pause Screen -->
+    <div class="overlay hidden" id="pauseScreen">
+        <h1 class="overlay-title">PAUSED</h1>
+        <div style="font-family: monospace; font-size: 1.2rem; color: rgba(255, 255, 255, 0.8); text-align: center;">
+            Press ESC or P to continue
+        </div>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -276,6 +316,57 @@
         const BLOCK_SIZE = 25;
         canvas.width = COLS * BLOCK_SIZE;
         canvas.height = ROWS * BLOCK_SIZE;
+
+        // Debug mode - set to false to disable console logs
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage helpers
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Event manager for cleanup
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
 
         // Audio
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -309,7 +400,10 @@
         let score = 0;
         let level = 1;
         let lines = 0;
+        let highScore = parseInt(safeGetItem('tronTetrisHighScore', '0'));
+        let soundEnabled = safeGetItem('tronTetrisSoundEnabled', 'true') === 'true';
         let gameRunning = false;
+        let gamePaused = false;
         let dropCounter = 0;
         let dropInterval = 1000;
         let lastTime = 0;
@@ -373,6 +467,30 @@
                 }
             }
 
+            // Draw ghost piece (preview where piece will land)
+            if (currentPiece && !gamePaused) {
+                const ghostY = calculateGhostY();
+
+                // Only draw ghost if it's below current position
+                if (ghostY > currentPiece.y) {
+                    ctx.globalAlpha = 0.2;
+                    currentPiece.shape.forEach((row, dy) => {
+                        row.forEach((value, dx) => {
+                            if (value) {
+                                const x = currentPiece.x + dx;
+                                const y = ghostY + dy;
+
+                                // Draw ghost block outline
+                                ctx.strokeStyle = currentPiece.color;
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(x * BLOCK_SIZE + 1, y * BLOCK_SIZE + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+                            }
+                        });
+                    });
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
             // Draw current piece
             if (currentPiece) {
                 currentPiece.shape.forEach((row, dy) => {
@@ -424,6 +542,27 @@
                 }
             }
             return false;
+        }
+
+        function calculateGhostY() {
+            if (!currentPiece) return 0;
+
+            let ghostY = currentPiece.y;
+            const originalY = currentPiece.y;
+
+            // Move piece down until it collides
+            while (true) {
+                currentPiece.y++;
+                if (collide()) {
+                    currentPiece.y--;
+                    ghostY = currentPiece.y;
+                    break;
+                }
+            }
+
+            // Restore original position
+            currentPiece.y = originalY;
+            return ghostY;
         }
 
         function merge() {
@@ -519,6 +658,13 @@
             document.getElementById('score').textContent = score;
             document.getElementById('level').textContent = level;
             document.getElementById('lines').textContent = lines;
+
+            // Update high score
+            if (score > highScore) {
+                highScore = score;
+                safeSetItem('tronTetrisHighScore', highScore.toString());
+            }
+            document.getElementById('highScore').textContent = highScore;
         }
 
         function update(time = 0) {
@@ -526,10 +672,14 @@
 
             const deltaTime = time - lastTime;
             lastTime = time;
-            dropCounter += deltaTime;
 
-            if (dropCounter > dropInterval) {
-                drop();
+            // Don't update game state when paused, but keep rendering
+            if (!gamePaused) {
+                dropCounter += deltaTime;
+
+                if (dropCounter > dropInterval) {
+                    drop();
+                }
             }
 
             drawBoard();
@@ -538,6 +688,7 @@
 
         function startGame() {
             document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('pauseScreen').classList.add('hidden');
             initBoard();
             score = 0;
             level = 1;
@@ -547,6 +698,7 @@
             nextPiece = null;
             spawnPiece();
             gameRunning = true;
+            gamePaused = false;
             lastTime = performance.now();
             requestAnimationFrame(update);
             playSound('start');
@@ -554,14 +706,58 @@
 
         function gameOver() {
             gameRunning = false;
+            gamePaused = false;
             document.getElementById('finalScore').textContent = score;
             document.getElementById('gameOverScreen').classList.remove('hidden');
             playSound('gameOver');
         }
 
-        // Controls
-        document.addEventListener('keydown', (e) => {
+        function togglePause() {
             if (!gameRunning) return;
+
+            gamePaused = !gamePaused;
+            document.getElementById('pauseScreen').classList.toggle('hidden', !gamePaused);
+
+            // Reset lastTime when resuming to avoid large deltaTime jump
+            if (!gamePaused) {
+                lastTime = performance.now();
+                requestAnimationFrame(update);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            safeSetItem('tronTetrisSoundEnabled', soundEnabled.toString());
+            updateSoundIcon();
+        }
+
+        function updateSoundIcon() {
+            const btn = document.getElementById('soundToggle');
+            if (btn) {
+                btn.textContent = soundEnabled ? '🔊' : '🔇';
+            }
+        }
+
+        // Controls
+        const keydownHandler = (e) => {
+            // Sound toggle works anytime
+            if (e.key === 'm' || e.key === 'M') {
+                toggleSound();
+                e.preventDefault();
+                return;
+            }
+
+            if (!gameRunning) return;
+
+            // Pause toggle works even when paused
+            if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+                togglePause();
+                e.preventDefault();
+                return;
+            }
+
+            // Other controls only work when not paused
+            if (gamePaused) return;
 
             switch(e.key) {
                 case 'ArrowLeft':
@@ -593,23 +789,24 @@
                     e.preventDefault();
                     break;
             }
-        });
+        };
+        eventManager.add(document, 'keydown', keydownHandler);
 
         // Touch controls
         let touchStartX = 0;
         let touchStartY = 0;
 
-        canvas.addEventListener('touchstart', (e) => {
+        const touchStartHandler = (e) => {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             e.preventDefault();
-        }, { passive: false });
+        };
 
-        canvas.addEventListener('touchmove', (e) => {
+        const touchMoveHandler = (e) => {
             e.preventDefault();
-        }, { passive: false });
+        };
 
-        canvas.addEventListener('touchend', (e) => {
+        const touchEndHandler = (e) => {
             if (!gameRunning) return;
 
             const touchEndX = e.changedTouches[0].clientX;
@@ -631,20 +828,27 @@
             }
 
             e.preventDefault();
-        }, { passive: false });
+        };
+
+        eventManager.add(canvas, 'touchstart', touchStartHandler, { passive: false });
+        eventManager.add(canvas, 'touchmove', touchMoveHandler, { passive: false });
+        eventManager.add(canvas, 'touchend', touchEndHandler, { passive: false });
 
         // Buttons
-        document.getElementById('startBtn').addEventListener('click', startGame);
-        document.getElementById('restartBtn').addEventListener('click', () => {
+        eventManager.add(document.getElementById('startBtn'), 'click', startGame);
+        eventManager.add(document.getElementById('restartBtn'), 'click', () => {
             document.getElementById('gameOverScreen').classList.add('hidden');
             startGame();
         });
-        document.getElementById('menuBtn').addEventListener('click', () => {
+        eventManager.add(document.getElementById('menuBtn'), 'click', () => {
             window.location.href = '../../tron-index.html';
         });
+        eventManager.add(document.getElementById('soundToggle'), 'click', toggleSound);
 
         // Sound effects
         function playSound(type) {
+            if (!soundEnabled) return;
+
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
@@ -699,6 +903,10 @@
                     break;
             }
         }
+
+        // Initialize UI with persisted values
+        document.getElementById('highScore').textContent = highScore;
+        updateSoundIcon();
     </script>
 </body>
 </html>

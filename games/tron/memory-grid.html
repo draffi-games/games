@@ -257,6 +257,47 @@
             color: #000;
         }
 
+        .sound-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-size: 1.5rem;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .sound-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
+        .pause-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .pause-overlay.show {
+            display: flex;
+        }
+
         .difficulty-select {
             display: flex;
             gap: 1rem;
@@ -310,6 +351,8 @@
     <div class="back-link">
         <a href="../../tron-index.html" class="back-btn">← GRID</a>
     </div>
+
+    <button id="soundToggle" class="sound-btn">🔊</button>
 
     <div class="game-container">
         <div class="hud">
@@ -368,13 +411,71 @@
         <button class="btn" id="menuBtn">EXIT</button>
     </div>
 
+    <!-- Pause Overlay -->
+    <div class="pause-overlay" id="pauseOverlay">
+        <h1 class="overlay-title">PAUSED</h1>
+        <p class="controls-hint">Press ESC or P to continue</p>
+    </div>
+
     <script>
+        // Debug mode - set to false to disable console logs
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage helpers
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Event manager for cleanup
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
         // Audio
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         // Game state
         let difficulty = 'medium';
         let gridSize = { cols: 4, rows: 5 };
+        let soundEnabled = safeGetItem('memoryGridSoundEnabled', 'true') === 'true';
         let cards = [];
         let flippedCards = [];
         let matchedPairs = 0;
@@ -382,6 +483,7 @@
         let startTime = null;
         let timerInterval = null;
         let canFlip = true;
+        let gamePaused = false;
 
         // Card symbols (Tron themed)
         const symbols = ['⚡', '💿', '🔷', '🔺', '⬡', '◈', '◇', '▽', '△', '◉', '⬢', '◆', '✦', '★', '◎', '◐', '◑', '◒'];
@@ -427,6 +529,9 @@
             grid.innerHTML = '';
             grid.style.gridTemplateColumns = `repeat(${gridSize.cols}, 1fr)`;
 
+            // Clear existing event listeners managed by EventManager
+            eventManager.removeAll();
+
             cards.forEach(card => {
                 const cardEl = document.createElement('div');
                 cardEl.className = 'memory-card';
@@ -437,13 +542,16 @@
                     <div class="card-front">${card.symbol}</div>
                 `;
 
-                cardEl.addEventListener('click', () => flipCard(card.id));
+                eventManager.add(cardEl, 'click', () => flipCard(card.id));
                 grid.appendChild(cardEl);
             });
+
+            // Re-add global button listeners after clearing
+            setupGlobalListeners();
         }
 
         function flipCard(id) {
-            if (!canFlip) return;
+            if (!canFlip || gamePaused) return;
 
             const card = cards[id];
             if (card.flipped || card.matched) return;
@@ -515,7 +623,11 @@
             matchedPairs = 0;
             flippedCards = [];
             startTime = null;
-            if (timerInterval) clearInterval(timerInterval);
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            gamePaused = false;
             updateHUD();
         }
 
@@ -526,15 +638,51 @@
 
         function startTimer() {
             startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(updateTimer, 100);
         }
 
         function updateTimer() {
+            if (gamePaused) return; // Don't update timer when paused
+
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
             const minutes = Math.floor(elapsed / 60);
             const seconds = elapsed % 60;
             document.getElementById('time').textContent =
                 `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function togglePause() {
+            if (!startTime) return; // Game hasn't started yet
+
+            gamePaused = !gamePaused;
+            document.getElementById('pauseOverlay').classList.toggle('show', gamePaused);
+
+            if (gamePaused) {
+                // Pause timer
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            } else {
+                // Resume timer - adjust startTime to account for pause duration
+                const pauseDuration = Date.now() - startTime;
+                startTime = Date.now() - (document.getElementById('time').textContent.split(':').reduce((acc, val) => acc * 60 + parseInt(val), 0) * 1000);
+                timerInterval = setInterval(updateTimer, 100);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            safeSetItem('memoryGridSoundEnabled', soundEnabled.toString());
+            updateSoundIcon();
+        }
+
+        function updateSoundIcon() {
+            const btn = document.getElementById('soundToggle');
+            if (btn) {
+                btn.textContent = soundEnabled ? '🔊' : '🔇';
+            }
         }
 
         function gameComplete() {
@@ -557,29 +705,51 @@
             playSound('complete');
         }
 
-        // Difficulty selection
-        document.querySelectorAll('[data-difficulty]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                difficulty = btn.dataset.difficulty;
-                gridSize = difficulties[difficulty];
-                document.getElementById('startScreen').classList.add('hidden');
-                initGame();
-                playSound('start');
+        // Global event listeners setup
+        function setupGlobalListeners() {
+            // Difficulty selection
+            document.querySelectorAll('[data-difficulty]').forEach(btn => {
+                eventManager.add(btn, 'click', () => {
+                    difficulty = btn.dataset.difficulty;
+                    gridSize = difficulties[difficulty];
+                    document.getElementById('startScreen').classList.add('hidden');
+                    initGame();
+                    playSound('start');
+                });
             });
-        });
 
-        // Buttons
-        document.getElementById('playAgainBtn').addEventListener('click', () => {
-            document.getElementById('completeScreen').classList.add('hidden');
-            document.getElementById('startScreen').classList.remove('hidden');
-        });
+            // Buttons
+            eventManager.add(document.getElementById('playAgainBtn'), 'click', () => {
+                document.getElementById('completeScreen').classList.add('hidden');
+                document.getElementById('startScreen').classList.remove('hidden');
+            });
 
-        document.getElementById('menuBtn').addEventListener('click', () => {
-            window.location.href = '../../tron-index.html';
-        });
+            eventManager.add(document.getElementById('menuBtn'), 'click', () => {
+                window.location.href = '../../tron-index.html';
+            });
+
+            eventManager.add(document.getElementById('soundToggle'), 'click', toggleSound);
+
+            // Keyboard controls
+            const keydownHandler = (e) => {
+                if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+                    togglePause();
+                    e.preventDefault();
+                } else if (e.key === 'm' || e.key === 'M') {
+                    toggleSound();
+                    e.preventDefault();
+                }
+            };
+            eventManager.add(document, 'keydown', keydownHandler);
+        }
+
+        // Initialize global listeners on page load
+        setupGlobalListeners();
 
         // Sound effects
         function playSound(type) {
+            if (!soundEnabled) return;
+
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
@@ -627,6 +797,9 @@
                     break;
             }
         }
+
+        // Initialize UI
+        updateSoundIcon();
     </script>
 </body>
 </html>

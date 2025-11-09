@@ -186,6 +186,29 @@
             color: #000;
         }
 
+        .sound-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-size: 1.5rem;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            cursor: pointer;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 10px #00D9FF,
+                0 0 20px #00D9FF;
+        }
+
+        .sound-btn:hover {
+            background: #00D9FF;
+            color: #000;
+        }
+
         .controls-hint {
             font-family: monospace;
             font-size: 1rem;
@@ -230,9 +253,10 @@
 
     <canvas id="gameCanvas"></canvas>
 
+    <button id="soundToggle" class="sound-btn">🔊</button>
+
     <div class="controls">
         <button class="btn" id="resetBtn">RESET</button>
-        <button class="btn success" id="checkBtn">VERIFY</button>
     </div>
 
     <!-- Start Screen -->
@@ -265,6 +289,57 @@
         canvas.width = CANVAS_SIZE;
         canvas.height = CANVAS_SIZE;
 
+        // Debug mode - set to false to disable console logs
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage helpers
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Event manager for cleanup
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
         // Audio
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -284,6 +359,7 @@
         // Game state
         let level = 1;
         let moves = 0;
+        let soundEnabled = safeGetItem('gridPuzzleSoundEnabled', 'true') === 'true';
         let grid = [];
         let sourcePos = null;
         let targetPos = null;
@@ -577,6 +653,9 @@
             updateHUD();
             draw();
             playSound('rotate');
+
+            // Auto-check for completion after each move
+            checkSolution();
         }
 
         function checkSolution() {
@@ -584,8 +663,6 @@
 
             if (targetPowered) {
                 levelComplete();
-            } else {
-                playSound('error');
             }
         }
 
@@ -611,8 +688,21 @@
             document.getElementById('moves').textContent = moves;
         }
 
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            safeSetItem('gridPuzzleSoundEnabled', soundEnabled.toString());
+            updateSoundIcon();
+        }
+
+        function updateSoundIcon() {
+            const btn = document.getElementById('soundToggle');
+            if (btn) {
+                btn.textContent = soundEnabled ? '🔊' : '🔇';
+            }
+        }
+
         // Mouse/Touch controls
-        canvas.addEventListener('click', (e) => {
+        const canvasClickHandler = (e) => {
             const rect = canvas.getBoundingClientRect();
             const tileSize = CANVAS_SIZE / GRID_SIZE;
             const x = Math.floor((e.clientX - rect.left) / tileSize);
@@ -621,9 +711,9 @@
             if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
                 rotateTile(x, y);
             }
-        });
+        };
 
-        canvas.addEventListener('touchstart', (e) => {
+        const canvasTouchHandler = (e) => {
             const rect = canvas.getBoundingClientRect();
             const tileSize = CANVAS_SIZE / GRID_SIZE;
             const x = Math.floor((e.touches[0].clientX - rect.left) / tileSize);
@@ -633,24 +723,29 @@
                 rotateTile(x, y);
             }
             e.preventDefault();
-        }, { passive: false });
+        };
+
+        eventManager.add(canvas, 'click', canvasClickHandler);
+        eventManager.add(canvas, 'touchstart', canvasTouchHandler, { passive: false });
 
         // Buttons
-        document.getElementById('startBtn').addEventListener('click', () => {
+        eventManager.add(document.getElementById('startBtn'), 'click', () => {
             document.getElementById('startScreen').classList.add('hidden');
             initLevel();
             playSound('start');
         });
 
-        document.getElementById('resetBtn').addEventListener('click', resetLevel);
-        document.getElementById('checkBtn').addEventListener('click', checkSolution);
-        document.getElementById('nextBtn').addEventListener('click', nextLevel);
-        document.getElementById('menuBtn').addEventListener('click', () => {
+        eventManager.add(document.getElementById('resetBtn'), 'click', resetLevel);
+        eventManager.add(document.getElementById('nextBtn'), 'click', nextLevel);
+        eventManager.add(document.getElementById('menuBtn'), 'click', () => {
             window.location.href = '../../tron-index.html';
         });
+        eventManager.add(document.getElementById('soundToggle'), 'click', toggleSound);
 
         // Sound effects
         function playSound(type) {
+            if (!soundEnabled) return;
+
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
@@ -697,6 +792,9 @@
                     break;
             }
         }
+
+        // Initialize UI
+        updateSoundIcon();
     </script>
 </body>
 </html>
