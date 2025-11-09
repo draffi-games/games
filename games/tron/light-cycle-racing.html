@@ -693,9 +693,9 @@
                 this.lastPlayerPos = null;
                 this.playerTurnCount = 0;
                 this.playerMovementHistory = [];
+                this.initialized = false;
 
-                // Initialize first strategy
-                this.selectNewStrategy();
+                // Don't initialize strategy in constructor - wait for first move
             }
 
             selectNewStrategy() {
@@ -818,6 +818,12 @@
             }
 
             decideMove(player, allCycles) {
+                // Lazy initialization on first move
+                if (!this.initialized) {
+                    this.selectNewStrategy();
+                    this.initialized = true;
+                }
+
                 this.moveCount++;
                 this.trackPlayer(player);
                 this.maybeSwitchStrategy();
