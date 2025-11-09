@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRON: Light Cycle Racing</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -15,7 +12,7 @@
         }
 
         body {
-            font-family: 'Rajdhani', 'Orbitron', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Narrow', Arial, monospace;
             background: #000;
             color: #fff;
             overflow: hidden;
@@ -66,7 +63,7 @@
         }
 
         .hud-label {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 0.8rem;
             color: #00D9FF;
             text-transform: uppercase;
@@ -75,7 +72,7 @@
         }
 
         .hud-value {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1.5rem;
             color: #fff;
             text-shadow:
@@ -103,7 +100,7 @@
         }
 
         .overlay-title {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: clamp(2rem, 8vw, 4rem);
             font-weight: 900;
             text-transform: uppercase;
@@ -120,7 +117,7 @@
         }
 
         .overlay-subtitle {
-            font-family: 'Rajdhani', monospace;
+            font-family: monospace;
             font-size: clamp(1rem, 3vw, 1.5rem);
             color: #00D9FF;
             text-transform: uppercase;
@@ -129,7 +126,7 @@
         }
 
         .btn {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1.2rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -166,14 +163,14 @@
         }
 
         .controls-info h3 {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             color: #00D9FF;
             margin-bottom: 1rem;
             letter-spacing: 0.1em;
         }
 
         .controls-info p {
-            font-family: 'Rajdhani', monospace;
+            font-family: monospace;
             color: #fff;
             line-height: 1.8;
             margin: 0.5rem 0;
@@ -190,7 +187,7 @@
         }
 
         .stat-line {
-            font-family: 'Rajdhani', monospace;
+            font-family: monospace;
             font-size: 1.2rem;
             color: #fff;
             margin: 10px 0;
@@ -217,7 +214,7 @@
         }
 
         .back-btn {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1rem;
             padding: 10px 20px;
             background: rgba(0, 0, 0, 0.8);
@@ -291,6 +288,13 @@
                 <p>Avoid walls and light trails</p>
                 <p>Survive longer than opponents</p>
                 <p>Speed increases over time</p>
+
+                <h3 style="margin-top: 2rem;">DIFFICULTY</h3>
+                <select id="difficultySelect" style="width: 100%; padding: 10px; margin-top: 10px; background: rgba(0, 217, 255, 0.1); border: 1px solid #00D9FF; color: #fff; font-size: 1rem; font-family: monospace;">
+                    <option value="easy">EASY - Random AI</option>
+                    <option value="medium" selected>MEDIUM - Smart AI</option>
+                    <option value="hard">HARD - Expert AI</option>
+                </select>
             </div>
         </div>
 
@@ -304,6 +308,136 @@
     </div>
 
     <script>
+        // DEBUG mode pattern
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage wrapper
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // EventManager for memory leak prevention
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
+        // SpatialGrid for O(1) collision detection
+        class SpatialGrid {
+            constructor(width, height, gridSize) {
+                this.cols = Math.ceil(width / gridSize);
+                this.rows = Math.ceil(height / gridSize);
+                this.gridSize = gridSize;
+                this.grid = new Array(this.rows).fill(null).map(() => new Array(this.cols).fill(false));
+            }
+
+            markOccupied(x, y) {
+                const col = Math.floor(x / this.gridSize);
+                const row = Math.floor(y / this.gridSize);
+                if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
+                    this.grid[row][col] = true;
+                }
+            }
+
+            isOccupied(x, y) {
+                const col = Math.floor(x / this.gridSize);
+                const row = Math.floor(y / this.gridSize);
+                if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return true;
+                return this.grid[row][col];
+            }
+        }
+
+        // Global spatial grid caching
+        let globalSpatialGrid = null;
+        let lastGridUpdate = 0;
+        let frameCount = 0;
+
+        function getGlobalSpatialGrid() {
+            if (globalSpatialGrid && lastGridUpdate === frameCount) {
+                return globalSpatialGrid;
+            }
+
+            globalSpatialGrid = new SpatialGrid(canvas.width, canvas.height, GRID_SIZE);
+            for (const cycle of lightCycles) {
+                for (const segment of cycle.trail) {
+                    globalSpatialGrid.markOccupied(segment.x, segment.y);
+                }
+            }
+            lastGridUpdate = frameCount;
+            return globalSpatialGrid;
+        }
+
+        // Flood fill algorithm for space evaluation
+        function floodFill(startX, startY, spatialGrid, maxDepth = 200) {
+            const visited = new Set();
+            const queue = [{x: startX, y: startY, depth: 0}];
+            let spaceCount = 0;
+
+            while (queue.length > 0 && spaceCount < maxDepth) {
+                const {x, y, depth} = queue.shift();
+                const key = `${x},${y}`;
+
+                if (visited.has(key)) continue;
+                if (spatialGrid.isOccupied(x, y)) continue;
+
+                visited.add(key);
+                spaceCount++;
+
+                // Add neighbors
+                const directions = [
+                    {x: x + GRID_SIZE, y: y},
+                    {x: x - GRID_SIZE, y: y},
+                    {x: x, y: y + GRID_SIZE},
+                    {x: x, y: y - GRID_SIZE}
+                ];
+
+                for (const next of directions) {
+                    if (!visited.has(`${next.x},${next.y}`)) {
+                        queue.push({...next, depth: depth + 1});
+                    }
+                }
+            }
+
+            return spaceCount;
+        }
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -326,7 +460,8 @@
         let gameSpeed = INITIAL_SPEED;
         let lastUpdateTime = 0;
         let survivedTime = 0;
-        let highScore = localStorage.getItem('tronLightCycleHighScore') || 0;
+        let highScore = parseInt(safeGetItem('tronLightCycleHighScore', '0'));
+        let difficulty = 'medium';
 
         // Audio context
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -438,12 +573,21 @@
             }
         }
 
-        // AI Logic
+        // AI Logic - Intelligent with space awareness
         class AICycle extends LightCycle {
-            constructor(x, y, direction, color) {
+            constructor(x, y, direction, color, difficulty) {
                 super(x, y, direction, color, false);
+                this.difficulty = difficulty;
                 this.decisionTimer = 0;
-                this.decisionDelay = 5;
+
+                // Adjust decision delay based on difficulty
+                if (difficulty === 'easy') {
+                    this.decisionDelay = 5;
+                } else if (difficulty === 'medium') {
+                    this.decisionDelay = 4;
+                } else {
+                    this.decisionDelay = 3;
+                }
             }
 
             updateAI() {
@@ -453,66 +597,150 @@
                 if (this.decisionTimer < this.decisionDelay) return;
                 this.decisionTimer = 0;
 
-                // Simple AI: Try to avoid collisions
+                // Use different AI strategies based on difficulty
+                if (this.difficulty === 'easy') {
+                    this.simpleAI();
+                } else if (this.difficulty === 'medium') {
+                    this.smartAI();
+                } else {
+                    this.expertAI();
+                }
+            }
+
+            // Easy AI: Original random behavior
+            simpleAI() {
                 const possibleDirections = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
                 const validDirections = [];
 
                 for (const dir of possibleDirections) {
-                    // Skip opposite direction
-                    if (this.direction.x + dir.x === 0 &&
-                        this.direction.y + dir.y === 0) {
+                    if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) {
                         continue;
                     }
 
-                    // Check if this direction is safe
                     const testX = this.x + dir.x * GRID_SIZE;
                     const testY = this.y + dir.y * GRID_SIZE;
 
-                    if (this.isSafe(testX, testY)) {
+                    if (!this.isImmediateCollision(testX, testY)) {
                         validDirections.push(dir);
                     }
                 }
 
                 if (validDirections.length > 0) {
-                    // Prefer continuing straight if safe
                     const straightIsSafe = validDirections.some(dir =>
                         dir.x === this.direction.x && dir.y === this.direction.y
                     );
 
                     if (straightIsSafe && Math.random() > 0.3) {
-                        // 70% chance to continue straight if safe
                         return;
                     }
 
-                    // Choose random safe direction
                     const randomDir = validDirections[Math.floor(Math.random() * validDirections.length)];
                     this.changeDirection(randomDir);
-                } else {
-                    // No safe direction, continue current path
                 }
             }
 
-            isSafe(x, y) {
-                // Check wall
-                if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
-                    return false;
+            // Medium AI: Space-aware decision making
+            smartAI() {
+                const spatialGrid = getGlobalSpatialGrid();
+                const possibleDirections = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
+                const evaluations = [];
+
+                for (const dir of possibleDirections) {
+                    if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) {
+                        continue;
+                    }
+
+                    const testX = this.x + dir.x * GRID_SIZE;
+                    const testY = this.y + dir.y * GRID_SIZE;
+
+                    if (spatialGrid.isOccupied(testX, testY)) {
+                        continue;
+                    }
+
+                    const availableSpace = floodFill(testX, testY, spatialGrid);
+                    evaluations.push({ direction: dir, space: availableSpace });
                 }
 
-                // Check trails (sample a few steps ahead)
-                for (let i = 1; i <= 3; i++) {
-                    const checkX = x + this.direction.x * GRID_SIZE * i;
-                    const checkY = y + this.direction.y * GRID_SIZE * i;
+                if (evaluations.length === 0) return;
 
-                    for (const cycle of lightCycles) {
-                        for (const segment of cycle.trail) {
-                            if (checkX === segment.x && checkY === segment.y) {
-                                return false;
-                            }
+                evaluations.sort((a, b) => b.space - a.space);
+
+                // 70% chance to pick best direction, 30% random safe direction
+                if (Math.random() < 0.7) {
+                    this.changeDirection(evaluations[0].direction);
+                } else {
+                    const randomChoice = evaluations[Math.floor(Math.random() * evaluations.length)];
+                    this.changeDirection(randomChoice.direction);
+                }
+            }
+
+            // Hard AI: Always optimal + offensive tactics
+            expertAI() {
+                const spatialGrid = getGlobalSpatialGrid();
+                const possibleDirections = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
+                const evaluations = [];
+
+                for (const dir of possibleDirections) {
+                    if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) {
+                        continue;
+                    }
+
+                    const testX = this.x + dir.x * GRID_SIZE;
+                    const testY = this.y + dir.y * GRID_SIZE;
+
+                    if (spatialGrid.isOccupied(testX, testY)) {
+                        continue;
+                    }
+
+                    let availableSpace = floodFill(testX, testY, spatialGrid);
+
+                    // Bonus for moving toward center (more space typically)
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const currentDistToCenter = Math.sqrt(
+                        Math.pow(this.x - centerX, 2) + Math.pow(this.y - centerY, 2)
+                    );
+                    const newDistToCenter = Math.sqrt(
+                        Math.pow(testX - centerX, 2) + Math.pow(testY - centerY, 2)
+                    );
+
+                    if (newDistToCenter < currentDistToCenter) {
+                        availableSpace += 10; // Bonus for moving toward center
+                    }
+
+                    // Try to cut off player if possible
+                    if (player && player.alive) {
+                        const distToPlayer = Math.sqrt(
+                            Math.pow(testX - player.x, 2) + Math.pow(testY - player.y, 2)
+                        );
+                        if (distToPlayer < 100) {
+                            availableSpace += 5; // Bonus for getting closer to player
+                        }
+                    }
+
+                    evaluations.push({ direction: dir, space: availableSpace });
+                }
+
+                if (evaluations.length === 0) return;
+
+                evaluations.sort((a, b) => b.space - a.space);
+                this.changeDirection(evaluations[0].direction);
+            }
+
+            isImmediateCollision(x, y) {
+                if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+                    return true;
+                }
+
+                for (const cycle of lightCycles) {
+                    for (const segment of cycle.trail) {
+                        if (x === segment.x && y === segment.y) {
+                            return true;
                         }
                     }
                 }
 
-                return true;
+                return false;
             }
         }
 
@@ -546,7 +774,7 @@
 
             for (let i = 0; i < Math.min(AI_COUNT, positions.length); i++) {
                 const pos = positions[i];
-                const ai = new AICycle(pos.x, pos.y, pos.dir, '#FF0000');
+                const ai = new AICycle(pos.x, pos.y, pos.dir, '#FF0000', difficulty);
                 lightCycles.push(ai);
             }
 
@@ -561,6 +789,7 @@
 
             if (deltaTime >= gameSpeed) {
                 lastUpdateTime = timestamp;
+                frameCount++;
 
                 // Clear canvas
                 ctx.fillStyle = '#000';
@@ -647,6 +876,7 @@
         // Start game
         function startGame() {
             document.getElementById('startScreen').classList.add('hidden');
+            difficulty = document.getElementById('difficultySelect').value;
             gameRunning = true;
             initGame();
             lastUpdateTime = performance.now();
@@ -661,7 +891,7 @@
             // Update high score
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('tronLightCycleHighScore', highScore);
+                safeSetItem('tronLightCycleHighScore', highScore.toString());
             }
 
             // Show game over screen
@@ -726,7 +956,7 @@
         }
 
         // Controls
-        document.addEventListener('keydown', (e) => {
+        const keydownHandler = (e) => {
             if (!gameRunning || !player.alive) return;
 
             switch(e.key) {
@@ -755,19 +985,20 @@
                     e.preventDefault();
                     break;
             }
-        });
+        };
+        eventManager.add(document, 'keydown', keydownHandler);
 
         // Touch controls
         let touchStartX = 0;
         let touchStartY = 0;
 
-        canvas.addEventListener('touchstart', (e) => {
+        const touchstartHandler = (e) => {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             e.preventDefault();
-        }, { passive: false });
+        };
 
-        canvas.addEventListener('touchmove', (e) => {
+        const touchmoveHandler = (e) => {
             if (!gameRunning || !player.alive) return;
 
             const touchEndX = e.touches[0].clientX;
@@ -797,7 +1028,10 @@
             }
 
             e.preventDefault();
-        }, { passive: false });
+        };
+
+        eventManager.add(canvas, 'touchstart', touchstartHandler, { passive: false });
+        eventManager.add(canvas, 'touchmove', touchmoveHandler, { passive: false });
 
         // Button events
         document.getElementById('startBtn').addEventListener('click', startGame);

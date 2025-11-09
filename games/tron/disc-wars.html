@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRON: Disc Wars</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -15,7 +12,7 @@
         }
 
         body {
-            font-family: 'Rajdhani', 'Orbitron', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Narrow', Arial, monospace;
             background: #000;
             color: #fff;
             overflow: hidden;
@@ -59,7 +56,7 @@
         }
 
         .hud-label {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 0.8rem;
             color: #00D9FF;
             text-transform: uppercase;
@@ -67,7 +64,7 @@
         }
 
         .hud-value {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1.5rem;
             color: #fff;
             text-shadow:
@@ -111,7 +108,7 @@
         }
 
         .overlay-title {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: clamp(2.5rem, 10vw, 5rem);
             font-weight: 900;
             text-transform: uppercase;
@@ -128,7 +125,7 @@
         }
 
         .btn {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1.2rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -163,7 +160,7 @@
         }
 
         .back-btn {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1rem;
             padding: 10px 20px;
             background: rgba(0, 0, 0, 0.8);
@@ -216,7 +213,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 4rem;
             color: #FF0000;
             text-shadow:
@@ -293,6 +290,36 @@
     </div>
 
     <script>
+        // DEBUG mode pattern
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // EventManager for memory leak prevention
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -391,29 +418,35 @@
         }
 
         class Enemy {
-            constructor(x, y) {
+            constructor(x, y, currentWave) {
                 this.x = x;
                 this.y = y;
+                this.vx = 0;
+                this.vy = 0;
                 this.radius = 12;
-                this.health = 1;
+                this.health = Math.floor(currentWave / 3) + 1; // More HP as waves progress
+                this.maxHealth = this.health;
                 this.color = '#FF0000';
-                this.speed = 1 + wave * 0.2;
+                this.baseSpeed = 1 + currentWave * 0.15; // Slower speed scaling
                 this.shootCooldown = 0;
-                this.shootInterval = Math.random() * 100 + 100;
+                this.shootInterval = Math.max(60, 120 - currentWave * 3); // Faster shooting with waves
+                this.accuracy = Math.min(0.85, 0.4 + currentWave * 0.03); // Gradually better aim
+                this.strafeAngle = 0;
+                this.strafeDirection = Math.random() < 0.5 ? 1 : -1;
+                this.id = Math.random(); // For coordination
             }
 
             update() {
-                // Move toward player
-                const dx = player.x - this.x;
-                const dy = player.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Check for incoming discs and evade
+                const incomingDisc = this.detectIncomingDisc();
 
-                if (dist > 100) {
-                    this.x += (dx / dist) * this.speed;
-                    this.y += (dy / dist) * this.speed;
+                if (incomingDisc) {
+                    this.evade(incomingDisc);
+                } else {
+                    this.normalMovement();
                 }
 
-                // Shoot at player
+                // Shoot with imperfect aim
                 this.shootCooldown++;
                 if (this.shootCooldown >= this.shootInterval) {
                     this.shoot();
@@ -421,8 +454,108 @@
                 }
             }
 
+            detectIncomingDisc() {
+                const dangerDistance = 80;
+                for (const disc of discs) {
+                    if (disc.isEnemy) continue; // Ignore enemy discs
+
+                    const dx = disc.x - this.x;
+                    const dy = disc.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < dangerDistance) {
+                        // Check if disc is heading toward us
+                        const toEnemyAngle = Math.atan2(dy, dx);
+                        const discAngle = Math.atan2(disc.vy, disc.vx);
+                        let angleDiff = Math.abs(toEnemyAngle - discAngle);
+
+                        // Normalize angle difference to 0-PI
+                        if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+                        if (angleDiff < Math.PI / 2) { // Disc heading toward us
+                            return disc;
+                        }
+                    }
+                }
+                return null;
+            }
+
+            evade(disc) {
+                // Move perpendicular to disc trajectory
+                const discAngle = Math.atan2(disc.vy, disc.vx);
+                const evadeAngle = discAngle + Math.PI / 2 * this.strafeDirection;
+
+                this.vx = Math.cos(evadeAngle) * this.baseSpeed * 1.5; // Faster when evading
+                this.vy = Math.sin(evadeAngle) * this.baseSpeed * 1.5;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Keep within bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+            }
+
+            normalMovement() {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                const targetDist = 120; // Preferred distance from player
+
+                if (dist > targetDist + 20) {
+                    // Move toward player with strafing
+                    const approachAngle = Math.atan2(dy, dx);
+                    this.strafeAngle += 0.02 * this.strafeDirection;
+                    const moveAngle = approachAngle + Math.sin(this.strafeAngle) * 0.3;
+
+                    this.vx = Math.cos(moveAngle) * this.baseSpeed;
+                    this.vy = Math.sin(moveAngle) * this.baseSpeed;
+                } else if (dist < targetDist - 20) {
+                    // Move away from player (strafing backward)
+                    const retreatAngle = Math.atan2(dy, dx) + Math.PI;
+                    this.vx = Math.cos(retreatAngle) * this.baseSpeed * 0.8;
+                    this.vy = Math.sin(retreatAngle) * this.baseSpeed * 0.8;
+                } else {
+                    // Circle strafe around player at preferred distance
+                    const angle = Math.atan2(dy, dx);
+                    const strafeAngle = angle + Math.PI / 2 * this.strafeDirection;
+                    this.vx = Math.cos(strafeAngle) * this.baseSpeed;
+                    this.vy = Math.sin(strafeAngle) * this.baseSpeed;
+
+                    // Change strafe direction occasionally
+                    if (Math.random() < 0.01) {
+                        this.strafeDirection *= -1;
+                    }
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Keep within bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+            }
+
             shoot() {
-                discs.push(new Disc(this.x, this.y, player.x, player.y, true));
+                // Aim with some inaccuracy based on accuracy stat
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const angle = Math.atan2(dy, dx);
+
+                // Add random spread based on accuracy (lower accuracy = more spread)
+                const spread = (1 - this.accuracy) * Math.PI / 4; // Up to 45° spread
+                const aimError = (Math.random() - 0.5) * spread;
+                const finalAngle = angle + aimError;
+
+                // Lead the target slightly at higher accuracies
+                const leadFactor = this.accuracy * 0.5;
+                const playerVx = player.lastX !== undefined ? player.x - player.lastX : 0;
+                const playerVy = player.lastY !== undefined ? player.y - player.lastY : 0;
+                const targetX = player.x + playerVx * leadFactor * 10;
+                const targetY = player.y + playerVy * leadFactor * 10;
+
+                discs.push(new Disc(this.x, this.y, targetX, targetY, true));
                 playSound('enemyShoot');
             }
 
@@ -440,6 +573,22 @@
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
                 ctx.fill();
+
+                // Health bar for enemies with >1 HP
+                if (this.maxHealth > 1) {
+                    const barWidth = this.radius * 2;
+                    const barHeight = 3;
+                    const barX = this.x - barWidth / 2;
+                    const barY = this.y - this.radius - 8;
+
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                    ctx.fillStyle = '#00FF41';
+                    const healthPercent = this.health / this.maxHealth;
+                    ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                }
 
                 ctx.shadowBlur = 0;
             }
@@ -514,7 +663,7 @@
                             break;
                     }
 
-                    enemies.push(new Enemy(x, y));
+                    enemies.push(new Enemy(x, y, wave));
                 }, i * 300);
             }
 
@@ -627,6 +776,10 @@
                 enemy.draw();
             });
 
+            // Track player movement for AI target leading
+            player.lastX = player.x;
+            player.lastY = player.y;
+
             // Draw player
             ctx.shadowBlur = 30;
             ctx.shadowColor = player.color;
@@ -704,30 +857,30 @@
         }
 
         // Mouse/Touch controls
-        canvas.addEventListener('mousemove', (e) => {
+        const mousemoveHandler = (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = e.clientX - rect.left;
             mouseY = e.clientY - rect.top;
-        });
+        };
 
-        canvas.addEventListener('click', (e) => {
+        const clickHandler = (e) => {
             if (!gameRunning) return;
             const rect = canvas.getBoundingClientRect();
             const targetX = e.clientX - rect.left;
             const targetY = e.clientY - rect.top;
             discs.push(new Disc(player.x, player.y, targetX, targetY));
             playSound('shoot');
-        });
+        };
 
-        canvas.addEventListener('touchmove', (e) => {
+        const touchmoveHandler = (e) => {
             if (!gameRunning) return;
             const rect = canvas.getBoundingClientRect();
             mouseX = e.touches[0].clientX - rect.left;
             mouseY = e.touches[0].clientY - rect.top;
             e.preventDefault();
-        }, { passive: false });
+        };
 
-        canvas.addEventListener('touchstart', (e) => {
+        const touchstartHandler = (e) => {
             if (!gameRunning) return;
             const rect = canvas.getBoundingClientRect();
             const targetX = e.touches[0].clientX - rect.left;
@@ -735,7 +888,12 @@
             discs.push(new Disc(player.x, player.y, targetX, targetY));
             playSound('shoot');
             e.preventDefault();
-        }, { passive: false });
+        };
+
+        eventManager.add(canvas, 'mousemove', mousemoveHandler);
+        eventManager.add(canvas, 'click', clickHandler);
+        eventManager.add(canvas, 'touchmove', touchmoveHandler, { passive: false });
+        eventManager.add(canvas, 'touchstart', touchstartHandler, { passive: false });
 
         // Buttons
         document.getElementById('startBtn').addEventListener('click', startGame);

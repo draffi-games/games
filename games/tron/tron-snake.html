@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRON: Grid Snake</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -15,7 +12,7 @@
         }
 
         body {
-            font-family: 'Rajdhani', 'Orbitron', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial Narrow', Arial, monospace;
             background: #000;
             color: #fff;
             overflow: hidden;
@@ -59,7 +56,7 @@
         }
 
         .hud-label {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 0.8rem;
             color: #00D9FF;
             text-transform: uppercase;
@@ -67,7 +64,7 @@
         }
 
         .hud-value {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1.8rem;
             color: #fff;
             text-shadow:
@@ -95,7 +92,7 @@
         }
 
         .overlay-title {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: clamp(2.5rem, 10vw, 5rem);
             font-weight: 900;
             text-transform: uppercase;
@@ -112,7 +109,7 @@
         }
 
         .btn {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1.2rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -147,7 +144,7 @@
         }
 
         .back-btn {
-            font-family: 'Orbitron', monospace;
+            font-family: monospace;
             font-size: 1rem;
             padding: 10px 20px;
             background: rgba(0, 0, 0, 0.8);
@@ -181,7 +178,7 @@
         }
 
         .stat-line {
-            font-family: 'Rajdhani', monospace;
+            font-family: monospace;
             font-size: 1.3rem;
             margin: 10px 0;
             display: flex;
@@ -190,11 +187,55 @@
         }
 
         .controls-hint {
-            font-family: 'Rajdhani', monospace;
+            font-family: monospace;
             font-size: 1rem;
             color: #00D9FF;
             margin-top: 2rem;
             text-align: center;
+        }
+
+        .pause-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 90;
+        }
+
+        .pause-overlay.show {
+            display: flex;
+        }
+
+        .pause-text {
+            font-family: monospace;
+            font-size: 3rem;
+            color: #00D9FF;
+            text-shadow: 0 0 20px #00D9FF;
+        }
+
+        .sound-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            z-index: 1000;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .sound-toggle:hover {
+            background: #00D9FF;
+            color: #000;
         }
     </style>
 </head>
@@ -203,10 +244,20 @@
         <a href="../../tron-index.html" class="back-btn">← GRID</a>
     </div>
 
+    <button class="sound-toggle" id="soundToggle">🔊</button>
+
+    <div class="pause-overlay" id="pauseOverlay">
+        <div class="pause-text">PAUSED</div>
+    </div>
+
     <div class="hud">
         <div class="hud-item">
             <div class="hud-label">Score</div>
             <div class="hud-value" id="score">0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Speed</div>
+            <div class="hud-value" id="speed">1x</div>
         </div>
         <div class="hud-item">
             <div class="hud-label">High Score</div>
@@ -241,6 +292,57 @@
     </div>
 
     <script>
+        // DEBUG mode pattern
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage wrapper
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // EventManager for memory leak prevention
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -251,10 +353,13 @@
         canvas.height = CANVAS_SIZE;
 
         const TILE_COUNT = CANVAS_SIZE / GRID_SIZE;
-        const SPEED = 100; // ms per move
+        const BASE_SPEED = 100; // ms per move
+        const SPEED_INCREASE_INTERVAL = 5; // Every 5 food items
+        const MIN_SPEED = 40; // Fastest possible
 
         // Audio
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = safeGetItem('tronSnakeSoundEnabled', 'true') === 'true';
 
         // Game state
         let snake = [];
@@ -262,12 +367,49 @@
         let direction = { x: 1, y: 0 };
         let nextDirection = { x: 1, y: 0 };
         let score = 0;
-        let highScore = localStorage.getItem('tronSnakeHighScore') || 0;
+        let highScore = parseInt(safeGetItem('tronSnakeHighScore', '0'));
         let gameRunning = false;
+        let gamePaused = false;
         let gameLoop;
+        let currentSpeed = BASE_SPEED;
+        let foodEaten = 0;
+        let particles = [];
 
-        // Initialize
-        document.getElementById('highScore').textContent = highScore;
+        // Particle class for visual effects
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 30;
+                this.maxLife = 30;
+                this.size = Math.random() * 3 + 2;
+                this.color = color;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.95;
+                this.vy *= 0.95;
+                this.life--;
+                return this.life > 0;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+            }
+        }
 
         function init() {
             snake = [
@@ -276,8 +418,12 @@
             direction = { x: 1, y: 0 };
             nextDirection = { x: 1, y: 0 };
             score = 0;
+            foodEaten = 0;
+            currentSpeed = BASE_SPEED;
+            particles = [];
             spawnFood();
             updateScore();
+            updateSpeedDisplay();
         }
 
         function spawnFood() {
@@ -290,7 +436,7 @@
         }
 
         function update() {
-            if (!gameRunning) return;
+            if (!gameRunning || gamePaused) return;
 
             // Update direction
             direction = nextDirection;
@@ -318,7 +464,24 @@
             // Check food
             if (head.x === food.x && head.y === food.y) {
                 score += 10;
+                foodEaten++;
                 updateScore();
+
+                // Create particles at food position
+                const foodCenterX = food.x * GRID_SIZE + GRID_SIZE / 2;
+                const foodCenterY = food.y * GRID_SIZE + GRID_SIZE / 2;
+                for (let i = 0; i < 15; i++) {
+                    particles.push(new Particle(foodCenterX, foodCenterY, '#FF0000'));
+                }
+
+                // Increase speed every SPEED_INCREASE_INTERVAL foods
+                if (foodEaten % SPEED_INCREASE_INTERVAL === 0) {
+                    currentSpeed = Math.max(MIN_SPEED, currentSpeed - 5);
+                    clearInterval(gameLoop);
+                    gameLoop = setInterval(update, currentSpeed);
+                    updateSpeedDisplay();
+                }
+
                 spawnFood();
                 playSound('eat');
             } else {
@@ -326,6 +489,11 @@
             }
 
             draw();
+        }
+
+        function updateSpeedDisplay() {
+            const speedMultiplier = (BASE_SPEED / currentSpeed).toFixed(1);
+            document.getElementById('speed').textContent = speedMultiplier + 'x';
         }
 
         function draw() {
@@ -347,6 +515,13 @@
                 ctx.lineTo(canvas.width, i * GRID_SIZE);
                 ctx.stroke();
             }
+
+            // Update and draw particles
+            particles = particles.filter(p => {
+                const alive = p.update();
+                if (alive) p.draw();
+                return alive;
+            });
 
             // Draw snake
             snake.forEach((segment, index) => {
@@ -371,8 +546,9 @@
                 );
             });
 
-            // Draw food
-            ctx.shadowBlur = 30;
+            // Draw food with pulsing effect
+            const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+            ctx.shadowBlur = 30 * pulse;
             ctx.shadowColor = '#FF0000';
             ctx.fillStyle = '#FF0000';
             ctx.fillRect(
@@ -383,7 +559,7 @@
             );
 
             // Draw food glow
-            ctx.shadowBlur = 40;
+            ctx.shadowBlur = 40 * pulse;
             ctx.fillStyle = '#fff';
             ctx.fillRect(
                 food.x * GRID_SIZE + 8,
@@ -404,7 +580,7 @@
             gameRunning = true;
             init();
             draw();
-            gameLoop = setInterval(update, SPEED);
+            gameLoop = setInterval(update, currentSpeed);
             playSound('start');
         }
 
@@ -414,7 +590,7 @@
 
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('tronSnakeHighScore', highScore);
+                safeSetItem('tronSnakeHighScore', highScore.toString());
                 document.getElementById('highScore').textContent = highScore;
             }
 
@@ -422,6 +598,22 @@
             document.getElementById('finalHighScore').textContent = highScore;
             document.getElementById('gameOverScreen').classList.remove('hidden');
             playSound('crash');
+        }
+
+        function togglePause() {
+            if (!gameRunning) return;
+            gamePaused = !gamePaused;
+            document.getElementById('pauseOverlay').classList.toggle('show', gamePaused);
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            safeSetItem('tronSnakeSoundEnabled', soundEnabled.toString());
+            updateSoundIcon();
+        }
+
+        function updateSoundIcon() {
+            document.getElementById('soundToggle').textContent = soundEnabled ? '🔊' : '🔇';
         }
 
         function changeDirection(newDir) {
@@ -433,8 +625,22 @@
         }
 
         // Controls
-        document.addEventListener('keydown', (e) => {
-            if (!gameRunning) return;
+        const keydownHandler = (e) => {
+            // Pause/ESC key
+            if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+                togglePause();
+                e.preventDefault();
+                return;
+            }
+
+            // Sound toggle
+            if (e.key === 'm' || e.key === 'M') {
+                toggleSound();
+                e.preventDefault();
+                return;
+            }
+
+            if (!gameRunning || gamePaused) return;
 
             switch(e.key) {
                 case 'ArrowUp':
@@ -462,20 +668,21 @@
                     e.preventDefault();
                     break;
             }
-        });
+        };
+        eventManager.add(document, 'keydown', keydownHandler);
 
         // Touch controls
         let touchStartX = 0;
         let touchStartY = 0;
 
-        canvas.addEventListener('touchstart', (e) => {
+        const touchstartHandler = (e) => {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             e.preventDefault();
-        }, { passive: false });
+        };
 
-        canvas.addEventListener('touchend', (e) => {
-            if (!gameRunning) return;
+        const touchendHandler = (e) => {
+            if (!gameRunning || gamePaused) return;
 
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;
@@ -490,7 +697,10 @@
             }
 
             e.preventDefault();
-        }, { passive: false });
+        };
+
+        eventManager.add(canvas, 'touchstart', touchstartHandler, { passive: false });
+        eventManager.add(canvas, 'touchend', touchendHandler, { passive: false });
 
         // Buttons
         document.getElementById('startBtn').addEventListener('click', startGame);
@@ -501,9 +711,16 @@
         document.getElementById('menuBtn').addEventListener('click', () => {
             window.location.href = '../../tron-index.html';
         });
+        document.getElementById('soundToggle').addEventListener('click', toggleSound);
+
+        // Initialize UI
+        document.getElementById('highScore').textContent = highScore;
+        updateSoundIcon();
 
         // Sound effects
         function playSound(type) {
+            if (!soundEnabled) return;
+
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
