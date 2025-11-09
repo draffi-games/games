@@ -645,7 +645,7 @@
                     this.aiBrain = new AIBrain(this.difficulty, this);
                 }
 
-                const decision = this.aiBrain.decideMove(player, lightCycles);
+                const decision = this.aiBrain.decideMove(player, []);
                 if (decision) {
                     this.changeDirection(decision);
                 }
@@ -657,7 +657,7 @@
                     this.aiBrain = new AIBrain(this.difficulty, this);
                 }
 
-                const decision = this.aiBrain.decideMove(player, lightCycles);
+                const decision = this.aiBrain.decideMove(player, []);
                 if (decision) {
                     this.changeDirection(decision);
                 }
