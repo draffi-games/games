@@ -904,21 +904,29 @@
         class TerritoryController extends AIStrategy {
             constructor(aiCycle) {
                 super(aiCycle);
-                this.territoryCenter = this.selectTerritory();
+                this.territoryCenter = null; // Lazy init
             }
 
             selectTerritory() {
-                // Pick a quadrant to claim
+                // Pick a quadrant to claim - lazy init to avoid canvas reference before it exists
+                const canvasEl = document.getElementById('gameCanvas');
+                if (!canvasEl) return { x: 200, y: 200 }; // Fallback
+
                 const quadrants = [
-                    { x: canvas.width * 0.25, y: canvas.height * 0.25 },
-                    { x: canvas.width * 0.75, y: canvas.height * 0.25 },
-                    { x: canvas.width * 0.25, y: canvas.height * 0.75 },
-                    { x: canvas.width * 0.75, y: canvas.height * 0.75 }
+                    { x: canvasEl.width * 0.25, y: canvasEl.height * 0.25 },
+                    { x: canvasEl.width * 0.75, y: canvasEl.height * 0.25 },
+                    { x: canvasEl.width * 0.25, y: canvasEl.height * 0.75 },
+                    { x: canvasEl.width * 0.75, y: canvasEl.height * 0.75 }
                 ];
                 return quadrants[Math.floor(Math.random() * quadrants.length)];
             }
 
             evaluate(player, allCycles) {
+                // Lazy init territory center
+                if (!this.territoryCenter) {
+                    this.territoryCenter = this.selectTerritory();
+                }
+
                 const directions = this.getPossibleDirections();
                 let evaluations = directions.map(dir => this.evaluateSpace(dir));
 
