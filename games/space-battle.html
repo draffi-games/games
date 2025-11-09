@@ -288,6 +288,36 @@
     <a href="../index.html" class="back-btn">← Exit to Hangar</a>
 
     <script>
+        // Debug Configuration - Set to true for development, false for production
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Event Manager - Prevents memory leaks by tracking and cleaning up event listeners
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
         // Global game variables (moved outside functions to fix scoping)
         let canvas, ctx;
         let gameRunning = false;
@@ -329,7 +359,7 @@
                     console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
                 }
                 resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
+                eventManager.add(window, 'resize', resizeCanvas);
                 
                 // Setup input handling
                 setupInputHandlers();
@@ -376,15 +406,15 @@
         }
 
         function setupInputHandlers() {
-            window.addEventListener('keydown', (e) => { 
+            eventManager.add(window, 'keydown', (e) => {
                 if (!keys[e.code]) keysPressed[e.code] = true;
-                keys[e.code] = true; 
-                e.preventDefault(); 
+                keys[e.code] = true;
+                e.preventDefault();
             });
-            window.addEventListener('keyup', (e) => { 
-                keys[e.code] = false; 
+            eventManager.add(window, 'keyup', (e) => {
+                keys[e.code] = false;
                 keysPressed[e.code] = false;
-                e.preventDefault(); 
+                e.preventDefault();
             });
         }
 

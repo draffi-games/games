@@ -20,16 +20,47 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
+      - name: Validate HTML
+        run: |
+          echo "🔍 Validating HTML files..."
+          # Check for basic HTML structure
+          find . -name "*.html" -type f ! -path "./_site/*" ! -path "./node_modules/*" | while read file; do
+            if ! grep -q "<!DOCTYPE html>" "$file"; then
+              echo "❌ Missing DOCTYPE in $file"
+              exit 1
+            fi
+            echo "✅ $file"
+          done
+          echo "✅ All HTML files validated"
+
+      - name: Check File Sizes
+        run: |
+          echo "📊 Checking file sizes (limit: 100KB)..."
+          find games -name "*.html" -type f -size +100k | while read file; do
+            size=$(du -h "$file" | cut -f1)
+            echo "⚠️  $file is $size (exceeds 100KB limit)"
+          done
+          echo "✅ File size check complete"
+
+      - name: Check for Debug Code
+        run: |
+          echo "🐛 Checking for debug code..."
+          if grep -r "console\.log" games/*.html | grep -v "DEBUG = false" | grep -v "console.error"; then
+            echo "⚠️  Found console.log statements in production code"
+          else
+            echo "✅ No debug code found"
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        
+
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
           source: ./
           destination: ./_site
-          
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 

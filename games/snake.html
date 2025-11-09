@@ -183,6 +183,27 @@
     </div>
     
     <script>
+        // Safe LocalStorage Wrapper - Prevents crashes in private browsing
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
@@ -191,17 +212,17 @@
         const finalScoreElement = document.getElementById('finalScore');
         const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
-        
+
         const gridSize = 20;
         const tileCount = canvas.width / gridSize;
-        
+
         let snake = [
             {x: 10, y: 10}
         ];
         let direction = {x: 0, y: 0};
         let food = {};
         let score = 0;
-        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let highScore = parseInt(safeGetItem('snakeHighScore', '0'));
         let gameRunning = false;
         let gamePaused = false;
         let gameLoop;
@@ -334,7 +355,7 @@
             
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('snakeHighScore', highScore);
+                safeSetItem('snakeHighScore', highScore.toString());
                 highScoreElement.textContent = highScore;
             }
             

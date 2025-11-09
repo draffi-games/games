@@ -3,8 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starship Command - Game Archive</title>
+    <title>KI Game Collection - 29 Browser-Spiele | Starship Command</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="29 KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Puzzle, TRON-Collection und mehr. Keine Installation erforderlich!">
+    <meta name="keywords" content="HTML5 Spiele, Browser Games, KI-generiert, TRON Spiele, JavaScript Games, kostenlose Spiele, Indie Games, Web Games, Canvas Games, Arcade Games">
+    <meta name="author" content="KI Game Collection">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="German">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="KI Game Collection - 29 Browser-Spiele">
+    <meta property="og:description" content="29 KI-generierte HTML5-Spiele direkt im Browser spielbar. Von Action bis TRON - keine Installation erforderlich!">
+    <meta property="og:site_name" content="KI Game Collection">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="KI Game Collection - 29 Browser-Spiele">
+    <meta name="twitter:description" content="29 KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Puzzle, TRON und mehr!">
+
+    <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjciIGZpbGw9IiMwMDgwZmYiIHN0cm9rZT0iIzAwZmZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+Cjx0ZXh0IHg9IjgiIHk9IjExIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UzwvdGV4dD4KPHN2Zz4K">
+
+    <!-- Performance & Preloading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
     
     <style>
         :root {
@@ -871,15 +895,27 @@
             </div>
 
             <div class="tron-access">
-                <a href="tron-index.html" class="tron-access-btn">
+                <a href="tron-index.html" class="tron-access-btn" aria-label="Enter TRON: Ares Games Archive - Special collection of 6 TRON themed games">
                     ⚡ ENTER THE GRID ⚡
                 </a>
-                <span class="tron-label">TRON: ARES GAMES ARCHIVE</span>
+                <span class="tron-label" aria-label="TRON: ARES GAMES ARCHIVE">TRON: ARES GAMES ARCHIVE</span>
             </div>
 
-            <div class="games-grid" id="gamesGrid">
-                <!-- Games will be loaded here -->
+            <!-- Filter & Search Bar -->
+            <div class="filter-bar" style="margin: 20px 0; padding: 15px; background: rgba(0, 34, 68, 0.5); border: 1px solid var(--border-color); border-radius: 5px;">
+                <input type="text" id="searchInput" placeholder="🔍 Search games..."
+                       style="width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--border-color); color: var(--accent-blue); font-family: 'Courier New', monospace; font-size: 14px; border-radius: 3px;"
+                       aria-label="Search games by title or description">
+                <div id="filterTags" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
+                    <!-- Filter tags will be added here -->
+                </div>
             </div>
+
+            <main role="main" aria-label="Games Gallery">
+                <div class="games-grid" id="gamesGrid" role="list" aria-label="Available games - 23 titles">
+                    <!-- Games will be loaded here -->
+                </div>
+            </main>
         </div>
 
         <!-- Right Panel -->
@@ -962,7 +998,22 @@
             <div class="console-section">
                 <div class="control-button">🔧</div>
                 <div class="control-button active">💾</div>
-                <div class="control-button">🌐</div>
+                <div class="control-button" id="musicToggle">🔊</div>
+            </div>
+        </div>
+
+        <!-- Volume Control -->
+        <div style="position: fixed; bottom: 20px; right: 20px; background: rgba(0, 34, 68, 0.9); border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; z-index: 1000; min-width: 200px;">
+            <div style="color: var(--accent-blue); font-family: 'Courier New', monospace; font-size: 12px; margin-bottom: 8px;">🎵 AUDIO CONTROL</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: var(--accent-blue); font-size: 12px;">🔈</span>
+                <input type="range" id="volumeSlider" min="0" max="100" value="15"
+                       style="flex: 1; height: 4px; background: rgba(0, 128, 255, 0.3); border-radius: 2px; outline: none; cursor: pointer;"
+                       aria-label="Master volume control">
+                <span style="color: var(--accent-blue); font-size: 12px;">🔊</span>
+            </div>
+            <div style="text-align: center; margin-top: 5px; font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-secondary);">
+                <span id="volumePercent">15</span>%
             </div>
         </div>
     </div>
@@ -1001,160 +1052,261 @@
                 title: "Snake",
                 description: "Das klassische Snake-Spiel - sammle Äpfel und werde länger!",
                 url: "games/snake.html",
-                icon: "🐍"
+                icon: "🐍",
+                tags: ["Arcade", "Classic", "1-Player"]
             },
             {
                 title: "Chain Run", 
                 description: "Kooperatives Jump'n'Run - zwei Spieler verbunden mit einer Kette!",
                 url: "games/chain_run_ketten_jumpnrun_chat_canvas.html",
-                icon: "⛓️"
+                icon: "⛓️",
+                tags: ["Platformer", "2-Player", "Co-op"]
             },
             {
                 title: "Brick Breaker",
                 description: "Zerstöre Blöcke und sammle Power-Ups für Multi-Ball und Laser-Waffen!",
                 url: "games/brickbreaker.html",
-                icon: "🧱"
+                icon: "🧱",
+                tags: ["Arcade", "Classic", "1-Player"]
             },
             {
                 title: "Volleyball",
                 description: "Spannende Volleyball-Action für zwei Spieler mit realistischer Physik!",
                 url: "games/volleyball.html",
-                icon: "🏐"
+                icon: "🏐",
+                tags: ["Sports", "2-Player", "Physics"]
             },
             {
                 title: "3D Maze Escape",
                 description: "Finde den Ausgang im 3D-Labyrinth! Wähle zwischen Krieger, Magier oder Schurke.",
                 url: "games/maze3d.html",
-                icon: "🏛️"
+                icon: "🏛️",
+                tags: ["3D", "Puzzle", "1-Player"]
             },
             {
                 title: "Helldivers Strategy",
                 description: "Kommandiere Elite-Truppen in strategischen Gefechten! Orbital Strikes, Laser-Kanonen und taktische Kriegsführung für die Verteidigung der Super Earth.",
                 url: "games/helldivers-strategy.html",
-                icon: "🚀"
+                icon: "🚀",
+                tags: ["Strategy", "Action", "1-Player"]
             },
             {
                 title: "Helldivers 2 Stratego",
                 description: "Klassisches Stratego mit Helldivers 2 Thematik! Super Earth vs Automatons in epischen taktischen Duellen mit versteckten Rängen und strategischen Gefechten.",
                 url: "games/helldivers-stratego.html",
-                icon: "⚔️"
+                icon: "⚔️",
+                tags: ["Strategy", "Board Game", "2-Player"]
             },
             {
                 title: "Minecraft 3D",
                 description: "Vollständiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und überlebe in deiner eigenen Blockwelt!",
                 url: "games/minecraft3d.html",
-                icon: "⛏️"
+                icon: "⛏️",
+                tags: ["3D", "Sandbox", "1-Player"]
             },
             {
                 title: "Space Battle Arena",
                 description: "Intensiver 4v4 Weltraumkampf! Führe das rote Team zum Sieg gegen die blauen Feinde. WASD-Steuerung, Schilde und epische Raumschlachten!",
                 url: "games/space-battle.html",
-                icon: "🚀"
+                icon: "🚀",
+                tags: ["Action", "Space", "1-Player"]
             },
             {
                 title: "Das Geheimnis des Professors",
                 description: "Ein mysteriöses Rätselabenteuer! Professor Blackwood ist verschwunden und hat Hinweise hinterlassen. Löse einfache Rätsel in 5 Räumen seines Hauses.",
                 url: "games/cipher-detective.html",
-                icon: "📚"
+                icon: "📚",
+                tags: ["Puzzle", "Detective", "1-Player"]
             },
             {
                 title: "Neon Tetris",
                 description: "Tetris mit coolen 3D-Neon-Blöcken! Klassisches Gameplay trifft auf moderne Cyberpunk-Ästhetik mit Glow-Effekten und Partikel-Explosionen.",
                 url: "games/neon-tetris.html",
-                icon: "🟦"
+                icon: "🟦",
+                tags: ["Puzzle", "Classic", "1-Player"]
             },
             {
                 title: "Space Command",
                 description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten gegen die KI. Komplettes Echtzeitstrategie-Erlebnis im Browser!",
                 url: "games/space-command.html",
-                icon: "🛰️"
+                icon: "🛰️",
+                tags: ["Strategy", "RTS", "1-Player"]
             },
             {
                 title: "Flappy Bird",
                 description: "Das süchtig machende Flugspiel! Steuere den Vogel durch die Röhren, sammle Punkte und vermeide Kollisionen. Einfach zu lernen, schwer zu meistern!",
                 url: "games/flappy-bird.html",
-                icon: "🐦"
+                icon: "🐦",
+                tags: ["Arcade", "1-Player", "Endless"]
             },
             {
                 title: "Penalty Shootout",
                 description: "Elfmeterschießen! Ziele aufs Tor, wähle die perfekte Schusskraft und bezwinge den Torwart. Mit Streak-Bonus und drei Schwierigkeitsgraden!",
                 url: "games/penalty-shootout.html",
-                icon: "⚽"
+                icon: "⚽",
+                tags: ["Sports", "1-Player", "Soccer"]
             },
             {
                 title: "Kingdom Defense",
                 description: "Mittelalterliches Tower Defense! Platziere Bogenschützen, Kanonen und Magier-Türme, um 15 Wellen von Soldaten, Rittern und Giganten abzuwehren. Strategisches Bauen und Upgraden!",
                 url: "games/kingdom-defense.html",
-                icon: "🏰"
+                icon: "🏰",
+                tags: ["Tower Defense", "Strategy", "1-Player"]
             },
             {
                 title: "Zombie Waves",
                 description: "Überlebe gegen Zombie-Wellen! Baue Barrikaden zur Verteidigung, töte Zombies für Ressourcen. Top-Down Shooter mit strategischem Bau-System!",
                 url: "games/zombie-waves.html",
-                icon: "🧟"
+                icon: "🧟",
+                tags: ["Action", "Tower Defense", "1-Player"]
             },
             {
                 title: "Maze Runner",
                 description: "Zwei-Spieler Labyrinth-Rennen! Spieler 1 mit WASD, Spieler 2 mit Pfeiltasten. Erreiche als Erster das Ziel!",
                 url: "games/maze-runner.html",
-                icon: "🎯"
+                icon: "🎯",
+                tags: ["Puzzle", "2-Player", "Racing"]
             },
             {
                 title: "Racing Circuit",
                 description: "Top-Down Rennspiel mit Zeitrennen! Fahre 5 Runden auf dem Circuit und stelle neue Bestzeiten auf!",
                 url: "games/racing-circuit.html",
-                icon: "🏎️"
+                icon: "🏎️",
+                tags: ["Racing", "1-Player", "Top-Down"]
             },
             {
                 title: "Rocket Duel",
                 description: "Face-to-Face Split-Screen Battle! Zwei Spieler am iPad, 4 Schiffe pro Seite. Tap zum Schießen, Swipe für Schild. Schnelles 1v1 Duell!",
                 url: "games/rocket-duel.html",
-                icon: "🚀"
+                icon: "🚀",
+                tags: ["Action", "2-Player", "Space"]
             },
             {
                 title: "Shield Siege",
                 description: "Asymmetrisches Split-Screen Spiel! Angreifer vs Verteidiger mit Rollentausch. Platziere Schilde strategisch oder feuere Raketen. Best of 3 Runden!",
                 url: "games/shield-siege.html",
-                icon: "🛡️"
+                icon: "🛡️",
+                tags: ["Tower Defense", "Strategy", "1-Player"]
             },
             {
                 title: "Blitz Battle",
                 description: "Ultra-schnelles Split-Screen Combat! 60 Sekunden, 6 Schiffe pro Spieler, keine Schilde. Pure Reaktion und Präzision. Wer die meisten Treffer landet, gewinnt!",
                 url: "games/blitz-battle.html",
-                icon: "⚡"
+                icon: "⚡",
+                tags: ["Action", "1-Player", "Arcade"]
             },
             {
                 title: "Jedi Stickman Arena",
                 description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support. Inspiriert von Stick Fight meets Star Wars!",
                 url: "games/jedi-stickman.html",
-                icon: "⚔️"
+                icon: "⚔️",
+                tags: ["Action", "Fighting", "4-Player"]
             },
             {
                 title: "Frogger Rush",
                 description: "Klassisches Frogger! Überquere gefährliche Straßen voller Autos und springe auf Baumstämme über den Fluss. Erreiche alle 5 Ziele bevor die Zeit abläuft!",
                 url: "games/frogger-rush.html",
-                icon: "🐸"
+                icon: "🐸",
+                tags: ["Arcade", "Classic", "1-Player"]
             }
         ];
 
-        // Initialize Games Grid
+        // Filter & Search State
+        let activeFilters = [];
+        let searchQuery = '';
+
+        // Initialize Filter Tags
+        function initializeFilters() {
+            const allTags = new Set();
+            games.forEach(game => {
+                if (game.tags) {
+                    game.tags.forEach(tag => allTags.add(tag));
+                }
+            });
+
+            const filterContainer = document.getElementById('filterTags');
+            filterContainer.innerHTML = '<span style="color: var(--accent-blue); margin-right: 10px;">FILTER:</span>';
+
+            Array.from(allTags).sort().forEach(tag => {
+                const tagBtn = document.createElement('button');
+                tagBtn.textContent = tag;
+                tagBtn.style.cssText = 'padding: 5px 12px; background: rgba(0, 128, 255, 0.2); border: 1px solid var(--border-color); color: var(--accent-blue); cursor: pointer; border-radius: 3px; font-family: "Courier New", monospace; font-size: 12px; transition: all 0.2s;';
+                tagBtn.setAttribute('aria-label', `Filter by ${tag}`);
+
+                tagBtn.addEventListener('click', () => {
+                    const index = activeFilters.indexOf(tag);
+                    if (index > -1) {
+                        activeFilters.splice(index, 1);
+                        tagBtn.style.background = 'rgba(0, 128, 255, 0.2)';
+                        tagBtn.style.borderColor = 'var(--border-color)';
+                    } else {
+                        activeFilters.push(tag);
+                        tagBtn.style.background = 'var(--accent-blue)';
+                        tagBtn.style.borderColor = 'var(--accent-blue)';
+                        tagBtn.style.color = '#000';
+                    }
+                    loadGames();
+                });
+
+                filterContainer.appendChild(tagBtn);
+            });
+
+            // Search Input
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                loadGames();
+            });
+        }
+
+        // Initialize Games Grid with Filters
         function loadGames() {
             const gamesGrid = document.getElementById('gamesGrid');
             gamesGrid.innerHTML = '';
-            
-            games.forEach(game => {
-                const gameCard = document.createElement('div');
+
+            const filteredGames = games.filter(game => {
+                // Search filter
+                if (searchQuery && !game.title.toLowerCase().includes(searchQuery) &&
+                    !game.description.toLowerCase().includes(searchQuery)) {
+                    return false;
+                }
+
+                // Tag filter
+                if (activeFilters.length > 0) {
+                    if (!game.tags || !activeFilters.some(filter => game.tags.includes(filter))) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            filteredGames.forEach((game, index) => {
+                const gameCard = document.createElement('article');
                 gameCard.className = 'game-card';
+                gameCard.setAttribute('role', 'listitem');
+                gameCard.setAttribute('tabindex', '0');
+                gameCard.setAttribute('aria-label', `Play ${game.title}: ${game.description}`);
+
                 gameCard.innerHTML = `
-                    <div class="game-icon">${game.icon}</div>
+                    <div class="game-icon" aria-hidden="true">${game.icon}</div>
                     <div class="game-title">${game.title}</div>
                     <div class="game-description">${game.description}</div>
                 `;
-                
-                gameCard.addEventListener('click', () => {
+
+                const navigateToGame = () => {
                     window.location.href = game.url;
+                };
+
+                gameCard.addEventListener('click', navigateToGame);
+
+                gameCard.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigateToGame();
+                    }
                 });
-                
+
                 gamesGrid.appendChild(gameCard);
             });
         }
@@ -1615,6 +1767,7 @@
         // Initialize everything
         function init() {
             new StarSystem();
+            initializeFilters();
             loadGames();
 
             // Initialize button animations
@@ -1622,6 +1775,38 @@
 
             // Initialize background music
             const bgMusic = new BackgroundMusicSystem();
+
+            // Volume Control
+            const volumeSlider = document.getElementById('volumeSlider');
+            const volumePercent = document.getElementById('volumePercent');
+            const musicToggle = document.getElementById('musicToggle');
+
+            volumeSlider.addEventListener('input', (e) => {
+                const volume = e.target.value / 100;
+                if (bgMusic.masterGain) {
+                    bgMusic.masterGain.gain.value = volume;
+                }
+                volumePercent.textContent = e.target.value;
+            });
+
+            musicToggle.addEventListener('click', () => {
+                if (bgMusic.isPlaying) {
+                    bgMusic.isPlaying = false;
+                    if (bgMusic.masterGain) {
+                        bgMusic.masterGain.gain.value = 0;
+                    }
+                    musicToggle.textContent = '🔇';
+                    musicToggle.classList.remove('active');
+                } else {
+                    bgMusic.start();
+                    const volume = volumeSlider.value / 100;
+                    if (bgMusic.masterGain) {
+                        bgMusic.masterGain.gain.value = volume;
+                    }
+                    musicToggle.textContent = '🔊';
+                    musicToggle.classList.add('active');
+                }
+            });
 
             // Start music on first user interaction (browser autoplay policy)
             const startMusic = () => {

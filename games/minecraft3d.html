@@ -230,6 +230,15 @@
     </div>
 
     <script>
+        // Debug Configuration - Set to true for development, false for production
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
         // Game constants
         const WORLD_SIZE = 32;  // Smaller for better performance
         const WORLD_HEIGHT = 16; // Smaller height

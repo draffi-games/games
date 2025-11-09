@@ -1,5 +1,34 @@
 theme: jekyll-theme-minimal
-title: KI Game Collection
-description: Eine Sammlung von KI-generierten HTML-Spielen
+title: KI Game Collection - 29 Browser-Spiele
+description: >
+  29 KI-generierte HTML5-Spiele die direkt im Browser spielbar sind.
+  Action, Strategie, Puzzle, TRON-Collection und mehr. Keine Installation erforderlich!
+
+# Site settings
+lang: de
+author: KI Game Collection
+keywords: >
+  HTML5 Spiele, Browser Games, KI-generiert, TRON Spiele, JavaScript Games,
+  kostenlose Spiele, Indie Games, Web Games, Canvas Games, Arcade Games
+
+# SEO
+url: ""  # Wird von GitHub Pages automatisch gesetzt
+baseurl: ""
+permalink: /:title/
+
+# Social Media
+og_image: # Pfad zu Social Media Preview Bild (TODO)
+twitter_username: # TODO
+github_username: # TODO
+
+# Features
 show_downloads: false
+show_excerpts: true
+
+# Google Analytics (optional)
 google_analytics:
+
+# Plugins
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap

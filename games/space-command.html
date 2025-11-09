@@ -398,6 +398,15 @@
     </div>
 
     <script>
+        // Debug Configuration - Set to true for development, false for production
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
         // Game Core System
         console.log("Space Command loading...");
         

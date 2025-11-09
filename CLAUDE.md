@@ -107,6 +107,116 @@ function stopGame() {
 }
 ```
 
+**Event Listener Cleanup Pattern (IMPORTANT - Prevents Memory Leaks):**
+```javascript
+// Event Manager Class
+class EventManager {
+    constructor() {
+        this.listeners = [];
+    }
+
+    add(element, event, handler, options) {
+        element.addEventListener(event, handler, options);
+        this.listeners.push({ element, event, handler, options });
+    }
+
+    removeAll() {
+        this.listeners.forEach(({ element, event, handler, options }) => {
+            element.removeEventListener(event, handler, options);
+        });
+        this.listeners = [];
+    }
+}
+
+// Usage in game
+const eventManager = new EventManager();
+
+function initGame() {
+    // Add listeners through event manager
+    eventManager.add(canvas, 'click', handleClick);
+    eventManager.add(window, 'keydown', handleKeyDown);
+    eventManager.add(window, 'resize', handleResize);
+}
+
+function resetGame() {
+    // Clean up all listeners before re-initializing
+    eventManager.removeAll();
+    // Reset game state...
+    initGame();
+}
+```
+
+**Debug Mode Pattern (No console.log in Production):**
+```javascript
+// At top of script
+const DEBUG = false;
+
+if (!DEBUG) {
+    const noop = () => {};
+    console.log = noop;
+    console.warn = noop;
+    console.info = noop;
+    // Keep console.error for critical issues
+}
+
+// Now all console.log will be silent in production
+console.log("This won't show when DEBUG = false");
+```
+
+**Safe LocalStorage Access (Error Handling):**
+```javascript
+function safeGetItem(key, defaultValue = null) {
+    try {
+        const item = localStorage.getItem(key);
+        return item !== null ? item : defaultValue;
+    } catch (error) {
+        console.error('LocalStorage not available:', error);
+        return defaultValue;
+    }
+}
+
+function safeSetItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        console.error('LocalStorage not available:', error);
+        return false;
+    }
+}
+
+// Usage
+const highScore = parseInt(safeGetItem('gameHighScore', '0'));
+safeSetItem('gameHighScore', newScore.toString());
+```
+
+**Safe Canvas Context:**
+```javascript
+function initCanvas() {
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return null;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Canvas 2D context not available');
+        return null;
+    }
+
+    return { canvas, ctx };
+}
+
+// Usage
+const canvasSetup = initCanvas();
+if (!canvasSetup) {
+    alert('Your browser does not support Canvas. Please use a modern browser.');
+    return;
+}
+const { canvas, ctx } = canvasSetup;
+```
+
 ## GitHub Pages Configuration
 
 The site automatically deploys when changes are pushed to the main branch. The GitHub Actions workflow handles:
