@@ -639,92 +639,28 @@
                 }
             }
 
-            // Medium AI: Space-aware decision making
+            // Medium AI: Use new AI Brain system
             smartAI() {
-                const spatialGrid = getGlobalSpatialGrid();
-                const possibleDirections = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
-                const evaluations = [];
-
-                for (const dir of possibleDirections) {
-                    if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) {
-                        continue;
-                    }
-
-                    const testX = this.x + dir.x * GRID_SIZE;
-                    const testY = this.y + dir.y * GRID_SIZE;
-
-                    if (spatialGrid.isOccupied(testX, testY)) {
-                        continue;
-                    }
-
-                    const availableSpace = floodFill(testX, testY, spatialGrid);
-                    evaluations.push({ direction: dir, space: availableSpace });
+                if (!this.aiBrain) {
+                    this.aiBrain = new AIBrain(this.difficulty, this);
                 }
 
-                if (evaluations.length === 0) return;
-
-                evaluations.sort((a, b) => b.space - a.space);
-
-                // 70% chance to pick best direction, 30% random safe direction
-                if (Math.random() < 0.7) {
-                    this.changeDirection(evaluations[0].direction);
-                } else {
-                    const randomChoice = evaluations[Math.floor(Math.random() * evaluations.length)];
-                    this.changeDirection(randomChoice.direction);
+                const decision = this.aiBrain.decideMove(player, lightCycles);
+                if (decision) {
+                    this.changeDirection(decision);
                 }
             }
 
-            // Hard AI: Always optimal + offensive tactics
+            // Hard AI: Use new AI Brain system with hard difficulty
             expertAI() {
-                const spatialGrid = getGlobalSpatialGrid();
-                const possibleDirections = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
-                const evaluations = [];
-
-                for (const dir of possibleDirections) {
-                    if (this.direction.x + dir.x === 0 && this.direction.y + dir.y === 0) {
-                        continue;
-                    }
-
-                    const testX = this.x + dir.x * GRID_SIZE;
-                    const testY = this.y + dir.y * GRID_SIZE;
-
-                    if (spatialGrid.isOccupied(testX, testY)) {
-                        continue;
-                    }
-
-                    let availableSpace = floodFill(testX, testY, spatialGrid);
-
-                    // Bonus for moving toward center (more space typically)
-                    const centerX = canvas.width / 2;
-                    const centerY = canvas.height / 2;
-                    const currentDistToCenter = Math.sqrt(
-                        Math.pow(this.x - centerX, 2) + Math.pow(this.y - centerY, 2)
-                    );
-                    const newDistToCenter = Math.sqrt(
-                        Math.pow(testX - centerX, 2) + Math.pow(testY - centerY, 2)
-                    );
-
-                    if (newDistToCenter < currentDistToCenter) {
-                        availableSpace += 10; // Bonus for moving toward center
-                    }
-
-                    // Try to cut off player if possible
-                    if (player && player.alive) {
-                        const distToPlayer = Math.sqrt(
-                            Math.pow(testX - player.x, 2) + Math.pow(testY - player.y, 2)
-                        );
-                        if (distToPlayer < 100) {
-                            availableSpace += 5; // Bonus for getting closer to player
-                        }
-                    }
-
-                    evaluations.push({ direction: dir, space: availableSpace });
+                if (!this.aiBrain) {
+                    this.aiBrain = new AIBrain(this.difficulty, this);
                 }
 
-                if (evaluations.length === 0) return;
-
-                evaluations.sort((a, b) => b.space - a.space);
-                this.changeDirection(evaluations[0].direction);
+                const decision = this.aiBrain.decideMove(player, lightCycles);
+                if (decision) {
+                    this.changeDirection(decision);
+                }
             }
 
             isImmediateCollision(x, y) {
@@ -743,6 +679,383 @@
                 return false;
             }
         }
+
+        // ==================== NEW AI BRAIN SYSTEM ====================
+
+        // AI Brain - manages strategy selection and switching
+        class AIBrain {
+            constructor(difficulty, aiCycle) {
+                this.difficulty = difficulty;
+                this.aiCycle = aiCycle;
+                this.moveCount = 0;
+                this.strategyTimer = Math.floor(Math.random() * 5) + 5; // 5-10 moves until first switch
+                this.currentStrategy = null;
+                this.lastPlayerPos = null;
+                this.playerTurnCount = 0;
+                this.playerMovementHistory = [];
+
+                // Initialize first strategy
+                this.selectNewStrategy();
+            }
+
+            selectNewStrategy() {
+                const weights = this.getStrategyWeights();
+                const strategies = [
+                    { name: 'aggressive', weight: weights.aggressive, strategy: () => new AggressiveHunter(this.aiCycle) },
+                    { name: 'territory', weight: weights.territory, strategy: () => new TerritoryController(this.aiCycle) },
+                    { name: 'mirror', weight: weights.mirror, strategy: () => new MirrorPlayer(this.aiCycle) },
+                    { name: 'chaotic', weight: weights.chaotic, strategy: () => new ChaoticJester(this.aiCycle) },
+                    { name: 'adaptive', weight: weights.adaptive, strategy: () => new AdaptiveLearner(this.aiCycle) }
+                ];
+
+                // Weighted random selection
+                const totalWeight = strategies.reduce((sum, s) => sum + s.weight, 0);
+                let random = Math.random() * totalWeight;
+
+                for (const strat of strategies) {
+                    random -= strat.weight;
+                    if (random <= 0) {
+                        this.currentStrategy = strat.strategy();
+                        this.strategyTimer = Math.floor(Math.random() * 6) + 5; // Next switch in 5-10 moves
+                        return;
+                    }
+                }
+
+                // Fallback
+                this.currentStrategy = new AggressiveHunter(this.aiCycle);
+            }
+
+            getStrategyWeights() {
+                const spatialGrid = getGlobalSpatialGrid();
+                const aiSpace = floodFill(this.aiCycle.x, this.aiCycle.y, spatialGrid, 200);
+                const totalSpace = (canvas.width / GRID_SIZE) * (canvas.height / GRID_SIZE);
+                const spaceRatio = aiSpace / Math.max(totalSpace * 0.3, 1);
+
+                let weights = {
+                    aggressive: 1.0,
+                    territory: 1.0,
+                    mirror: 1.0,
+                    chaotic: 1.0,
+                    adaptive: 1.0
+                };
+
+                // Difficulty-based base weights
+                if (this.difficulty === 'easy') {
+                    weights.chaotic = 3.0;
+                    weights.territory = 1.5;
+                    weights.aggressive = 0.5;
+                    weights.adaptive = 0.3;
+                    weights.mirror = 0.8;
+                } else if (this.difficulty === 'medium') {
+                    // Balanced - all equal base weights
+                } else { // hard
+                    weights.adaptive = 2.5;
+                    weights.aggressive = 2.0;
+                    weights.territory = 1.5;
+                    weights.chaotic = 0.3;
+                    weights.mirror = 1.0;
+                }
+
+                // Situational adjustments
+                if (spaceRatio < 0.3) {
+                    weights.aggressive *= 2.0;
+                    weights.chaotic *= 1.5;
+                } else if (spaceRatio > 0.6) {
+                    weights.territory *= 2.0;
+                }
+
+                // Reduce current strategy weight to encourage variety
+                if (this.currentStrategy) {
+                    const currentName = this.currentStrategy.constructor.name.toLowerCase();
+                    if (currentName.includes('aggressive')) weights.aggressive *= 0.3;
+                    else if (currentName.includes('territory')) weights.territory *= 0.3;
+                    else if (currentName.includes('mirror')) weights.mirror *= 0.3;
+                    else if (currentName.includes('chaotic')) weights.chaotic *= 0.3;
+                    else if (currentName.includes('adaptive')) weights.adaptive *= 0.3;
+                }
+
+                return weights;
+            }
+
+            maybeSwitchStrategy() {
+                this.strategyTimer--;
+
+                if (this.strategyTimer <= 0) {
+                    // 30% chance to actually switch
+                    if (Math.random() < 0.3) {
+                        this.selectNewStrategy();
+                    } else {
+                        this.strategyTimer = Math.floor(Math.random() * 6) + 5;
+                    }
+                }
+            }
+
+            trackPlayer(player) {
+                if (!player || !player.alive) return;
+
+                if (this.lastPlayerPos) {
+                    const dx = player.x - this.lastPlayerPos.x;
+                    const dy = player.y - this.lastPlayerPos.y;
+
+                    if (dx !== 0 || dy !== 0) {
+                        this.playerMovementHistory.push({ x: dx, y: dy, time: Date.now() });
+
+                        if (this.playerMovementHistory.length > 20) {
+                            this.playerMovementHistory.shift();
+                        }
+
+                        // Detect direction changes
+                        if (this.playerMovementHistory.length >= 2) {
+                            const prev = this.playerMovementHistory[this.playerMovementHistory.length - 2];
+                            if (prev.x !== dx || prev.y !== dy) {
+                                this.playerTurnCount++;
+                            }
+                        }
+                    }
+                }
+
+                this.lastPlayerPos = { x: player.x, y: player.y };
+            }
+
+            decideMove(player, allCycles) {
+                this.moveCount++;
+                this.trackPlayer(player);
+                this.maybeSwitchStrategy();
+
+                if (!this.currentStrategy) {
+                    this.selectNewStrategy();
+                }
+
+                return this.currentStrategy.evaluate(player, allCycles);
+            }
+        }
+
+        // Base strategy class
+        class AIStrategy {
+            constructor(aiCycle) {
+                this.aiCycle = aiCycle;
+            }
+
+            getPossibleDirections() {
+                return [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT].filter(dir => {
+                    // Filter out 180-degree turns
+                    if (this.aiCycle.direction.x + dir.x === 0 &&
+                        this.aiCycle.direction.y + dir.y === 0) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            evaluateSpace(dir) {
+                const testX = this.aiCycle.x + dir.x * GRID_SIZE;
+                const testY = this.aiCycle.y + dir.y * GRID_SIZE;
+                const spatialGrid = getGlobalSpatialGrid();
+
+                if (spatialGrid.isOccupied(testX, testY)) {
+                    return { direction: dir, space: -1, x: testX, y: testY };
+                }
+
+                const space = floodFill(testX, testY, spatialGrid, 200);
+                return { direction: dir, space, x: testX, y: testY };
+            }
+
+            applyNoise(evaluations, noiseFactor = 0.2) {
+                return evaluations.map(eval => ({
+                    ...eval,
+                    space: eval.space * (1 - noiseFactor + Math.random() * noiseFactor * 2)
+                }));
+            }
+        }
+
+        // Strategy 1: Aggressive Hunter
+        class AggressiveHunter extends AIStrategy {
+            evaluate(player, allCycles) {
+                const directions = this.getPossibleDirections();
+                let evaluations = directions.map(dir => this.evaluateSpace(dir));
+
+                // Remove invalid moves
+                evaluations = evaluations.filter(e => e.space >= 0);
+                if (evaluations.length === 0) return null;
+
+                // Add aggression toward player
+                if (player && player.alive) {
+                    evaluations.forEach(eval => {
+                        const distToPlayer = Math.sqrt(
+                            Math.pow(eval.x - player.x, 2) + Math.pow(eval.y - player.y, 2)
+                        );
+
+                        // Bonus for getting closer (70% weight on aggression)
+                        const aggressionBonus = Math.max(0, 100 - distToPlayer) * 0.7;
+                        eval.space = eval.space * 0.3 + aggressionBonus;
+                    });
+                }
+
+                // Apply noise
+                evaluations = this.applyNoise(evaluations, 0.15);
+
+                // Sort and pick best
+                evaluations.sort((a, b) => b.space - a.space);
+                return evaluations[0].direction;
+            }
+        }
+
+        // Strategy 2: Territory Controller
+        class TerritoryController extends AIStrategy {
+            constructor(aiCycle) {
+                super(aiCycle);
+                this.territoryCenter = this.selectTerritory();
+            }
+
+            selectTerritory() {
+                // Pick a quadrant to claim
+                const quadrants = [
+                    { x: canvas.width * 0.25, y: canvas.height * 0.25 },
+                    { x: canvas.width * 0.75, y: canvas.height * 0.25 },
+                    { x: canvas.width * 0.25, y: canvas.height * 0.75 },
+                    { x: canvas.width * 0.75, y: canvas.height * 0.75 }
+                ];
+                return quadrants[Math.floor(Math.random() * quadrants.length)];
+            }
+
+            evaluate(player, allCycles) {
+                const directions = this.getPossibleDirections();
+                let evaluations = directions.map(dir => this.evaluateSpace(dir));
+
+                evaluations = evaluations.filter(e => e.space >= 0);
+                if (evaluations.length === 0) return null;
+
+                // Prioritize staying in territory
+                evaluations.forEach(eval => {
+                    const distToTerritory = Math.sqrt(
+                        Math.pow(eval.x - this.territoryCenter.x, 2) +
+                        Math.pow(eval.y - this.territoryCenter.y, 2)
+                    );
+
+                    // Bonus for staying near territory center
+                    const territoryBonus = Math.max(0, 200 - distToTerritory) * 0.5;
+                    eval.space += territoryBonus;
+                });
+
+                evaluations = this.applyNoise(evaluations, 0.18);
+                evaluations.sort((a, b) => b.space - a.space);
+
+                // Maybe relocate territory if current area is getting crowded
+                const currentDist = Math.sqrt(
+                    Math.pow(this.aiCycle.x - this.territoryCenter.x, 2) +
+                    Math.pow(this.aiCycle.y - this.territoryCenter.y, 2)
+                );
+                if (currentDist > 250) {
+                    this.territoryCenter = this.selectTerritory();
+                }
+
+                return evaluations[0].direction;
+            }
+        }
+
+        // Strategy 3: Mirror Player
+        class MirrorPlayer extends AIStrategy {
+            evaluate(player, allCycles) {
+                const directions = this.getPossibleDirections();
+                let evaluations = directions.map(dir => this.evaluateSpace(dir));
+
+                evaluations = evaluations.filter(e => e.space >= 0);
+                if (evaluations.length === 0) return null;
+
+                if (player && player.alive) {
+                    // Try to parallel player's path
+                    const playerDir = player.direction;
+
+                    evaluations.forEach(eval => {
+                        // Bonus for moving in same direction as player
+                        if (eval.direction.x === playerDir.x && eval.direction.y === playerDir.y) {
+                            eval.space += 50;
+                        }
+
+                        // Bonus for staying parallel (3-5 grid units away)
+                        const distToPlayer = Math.sqrt(
+                            Math.pow(eval.x - player.x, 2) + Math.pow(eval.y - player.y, 2)
+                        );
+
+                        const idealDist = GRID_SIZE * 4;
+                        const distScore = Math.max(0, 100 - Math.abs(distToPlayer - idealDist));
+                        eval.space += distScore * 0.4;
+                    });
+                }
+
+                // Safety override if space too low
+                const maxSpace = Math.max(...evaluations.map(e => e.space));
+                if (maxSpace < 30) {
+                    evaluations.sort((a, b) => b.space - a.space);
+                    return evaluations[0].direction;
+                }
+
+                evaluations = this.applyNoise(evaluations, 0.25);
+                evaluations.sort((a, b) => b.space - a.space);
+                return evaluations[0].direction;
+            }
+        }
+
+        // Strategy 4: Chaotic Jester
+        class ChaoticJester extends AIStrategy {
+            evaluate(player, allCycles) {
+                const directions = this.getPossibleDirections();
+                let evaluations = directions.map(dir => this.evaluateSpace(dir));
+
+                evaluations = evaluations.filter(e => e.space >= 0);
+                if (evaluations.length === 0) return null;
+
+                // 40% pure random, 60% from top candidates
+                if (Math.random() < 0.4) {
+                    // Pure random valid move
+                    return evaluations[Math.floor(Math.random() * evaluations.length)].direction;
+                } else {
+                    // Pick from top 3
+                    evaluations.sort((a, b) => b.space - a.space);
+                    const topChoices = evaluations.slice(0, Math.min(3, evaluations.length));
+                    return topChoices[Math.floor(Math.random() * topChoices.length)].direction;
+                }
+            }
+        }
+
+        // Strategy 5: Adaptive Learner
+        class AdaptiveLearner extends AIStrategy {
+            evaluate(player, allCycles) {
+                const directions = this.getPossibleDirections();
+                let evaluations = directions.map(dir => this.evaluateSpace(dir));
+
+                evaluations = evaluations.filter(e => e.space >= 0);
+                if (evaluations.length === 0) return null;
+
+                if (player && player.alive) {
+                    // Predict player's next position based on current direction
+                    const predictedX = player.x + player.direction.x * GRID_SIZE * 3;
+                    const predictedY = player.y + player.direction.y * GRID_SIZE * 3;
+
+                    evaluations.forEach(eval => {
+                        // Try to intercept predicted position
+                        const distToPredicted = Math.sqrt(
+                            Math.pow(eval.x - predictedX, 2) + Math.pow(eval.y - predictedY, 2)
+                        );
+
+                        const interceptBonus = Math.max(0, 120 - distToPredicted) * 0.6;
+                        eval.space += interceptBonus;
+                    });
+                }
+
+                evaluations = this.applyNoise(evaluations, 0.1); // Low noise for "smart" strategy
+                evaluations.sort((a, b) => b.space - a.space);
+
+                // 90% pick best, 10% pick 2nd best for unpredictability
+                if (evaluations.length > 1 && Math.random() < 0.1) {
+                    return evaluations[1].direction;
+                }
+
+                return evaluations[0].direction;
+            }
+        }
+
+        // ==================== END NEW AI BRAIN SYSTEM ====================
 
         // Game objects
         let lightCycles = [];
