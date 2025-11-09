@@ -709,6 +709,16 @@
                     { name: 'trapper', weight: weights.trapper, strategy: () => new TrapperStrategy(this.aiCycle, this.difficulty) }
                 ];
 
+                // Hard mode: Always start with an aggressive strategy
+                if (this.difficulty === 'hard' && !this.initialized) {
+                    const aggressiveStrategies = ['aggressive', 'adaptive', 'trapper'];
+                    const randomAggressive = aggressiveStrategies[Math.floor(Math.random() * aggressiveStrategies.length)];
+                    const chosenStrategy = strategies.find(s => s.name === randomAggressive);
+                    this.currentStrategy = chosenStrategy.strategy();
+                    this.strategyTimer = Math.floor(Math.random() * 8) + 8; // 8-15 moves
+                    return;
+                }
+
                 // Weighted random selection
                 const totalWeight = strategies.reduce((sum, s) => sum + s.weight, 0);
                 let random = Math.random() * totalWeight;
@@ -717,7 +727,9 @@
                     random -= strat.weight;
                     if (random <= 0) {
                         this.currentStrategy = strat.strategy();
-                        this.strategyTimer = Math.floor(Math.random() * 6) + 5; // Next switch in 5-10 moves
+                        const minMoves = this.difficulty === 'hard' ? 8 : 5;
+                        const maxMoves = this.difficulty === 'hard' ? 15 : 10;
+                        this.strategyTimer = Math.floor(Math.random() * (maxMoves - minMoves + 1)) + minMoves;
                         return;
                     }
                 }
@@ -787,11 +799,16 @@
                 this.strategyTimer--;
 
                 if (this.strategyTimer <= 0) {
-                    // 30% chance to actually switch
-                    if (Math.random() < 0.3) {
+                    // Hard mode: Keep strategies longer for consistency
+                    const switchChance = this.difficulty === 'hard' ? 0.15 : 0.3;
+
+                    if (Math.random() < switchChance) {
                         this.selectNewStrategy();
                     } else {
-                        this.strategyTimer = Math.floor(Math.random() * 6) + 5;
+                        // Hard mode: Longer strategy duration
+                        const minMoves = this.difficulty === 'hard' ? 8 : 5;
+                        const maxMoves = this.difficulty === 'hard' ? 15 : 11;
+                        this.strategyTimer = Math.floor(Math.random() * (maxMoves - minMoves + 1)) + minMoves;
                     }
                 }
             }
@@ -903,9 +920,16 @@
                             Math.pow(evaluation.x - player.x, 2) + Math.pow(evaluation.y - player.y, 2)
                         );
 
-                        // Bonus for getting closer (70% weight on aggression)
-                        const aggressionBonus = Math.max(0, 100 - distToPlayer) * 0.7;
-                        evaluation.space = evaluation.space * 0.3 + aggressionBonus;
+                        // Hard mode: Much more aggressive
+                        if (this.difficulty === 'hard') {
+                            // Always hunt the player, even from far away
+                            const aggressionBonus = Math.max(0, 500 - distToPlayer) * 1.2;
+                            evaluation.space = evaluation.space * 0.15 + aggressionBonus;
+                        } else {
+                            // Normal aggression for other difficulties
+                            const aggressionBonus = Math.max(0, 100 - distToPlayer) * 0.7;
+                            evaluation.space = evaluation.space * 0.3 + aggressionBonus;
+                        }
                     });
                 }
 
@@ -920,16 +944,25 @@
 
         // Strategy 2: Territory Controller
         class TerritoryController extends AIStrategy {
-            constructor(aiCycle) {
-                super(aiCycle);
+            constructor(aiCycle, difficulty) {
+                super(aiCycle, difficulty);
                 this.territoryCenter = null; // Lazy init
             }
 
-            selectTerritory() {
+            selectTerritory(player = null) {
                 // Pick a quadrant to claim - lazy init to avoid canvas reference before it exists
                 const canvasEl = document.getElementById('gameCanvas');
                 if (!canvasEl) return { x: 200, y: 200 }; // Fallback
 
+                // Hard mode: Pick territory that blocks player
+                if (this.difficulty === 'hard' && player && player.alive) {
+                    // Choose point between AI and player to cut them off
+                    const midX = (this.aiCycle.x + player.x) / 2;
+                    const midY = (this.aiCycle.y + player.y) / 2;
+                    return { x: midX, y: midY };
+                }
+
+                // Normal mode: Random quadrant
                 const quadrants = [
                     { x: canvasEl.width * 0.25, y: canvasEl.height * 0.25 },
                     { x: canvasEl.width * 0.75, y: canvasEl.height * 0.25 },
@@ -942,7 +975,7 @@
             evaluate(player, allCycles) {
                 // Lazy init territory center
                 if (!this.territoryCenter) {
-                    this.territoryCenter = this.selectTerritory();
+                    this.territoryCenter = this.selectTerritory(player);
                 }
 
                 const directions = this.getPossibleDirections();
@@ -971,8 +1004,11 @@
                     Math.pow(this.aiCycle.x - this.territoryCenter.x, 2) +
                     Math.pow(this.aiCycle.y - this.territoryCenter.y, 2)
                 );
-                if (currentDist > 250) {
-                    this.territoryCenter = this.selectTerritory();
+
+                // Hard mode: Relocate more frequently to stay between AI and player
+                const relocateThreshold = this.difficulty === 'hard' ? 100 : 250;
+                if (currentDist > relocateThreshold) {
+                    this.territoryCenter = this.selectTerritory(player);
                 }
 
                 return evaluations[0].direction;
@@ -1054,9 +1090,10 @@
                 if (evaluations.length === 0) return null;
 
                 if (player && player.alive) {
-                    // Predict player's next position based on current direction
-                    const predictedX = player.x + player.direction.x * GRID_SIZE * 3;
-                    const predictedY = player.y + player.direction.y * GRID_SIZE * 3;
+                    // Hard mode: Predict further ahead
+                    const predictionSteps = this.difficulty === 'hard' ? 6 : 3;
+                    const predictedX = player.x + player.direction.x * GRID_SIZE * predictionSteps;
+                    const predictedY = player.y + player.direction.y * GRID_SIZE * predictionSteps;
 
                     evaluations.forEach(evaluation => {
                         // Try to intercept predicted position
@@ -1064,15 +1101,26 @@
                             Math.pow(evaluation.x - predictedX, 2) + Math.pow(evaluation.y - predictedY, 2)
                         );
 
-                        const interceptBonus = Math.max(0, 120 - distToPredicted) * 0.6;
-                        evaluation.space += interceptBonus;
+                        if (this.difficulty === 'hard') {
+                            // More aggressive interception on hard
+                            const interceptBonus = Math.max(0, 300 - distToPredicted) * 1.0;
+                            evaluation.space = evaluation.space * 0.2 + interceptBonus;
+                        } else {
+                            const interceptBonus = Math.max(0, 120 - distToPredicted) * 0.6;
+                            evaluation.space += interceptBonus;
+                        }
                     });
                 }
 
                 evaluations = this.applyNoise(evaluations, 0.1); // Low noise for "smart" strategy
                 evaluations.sort((a, b) => b.space - a.space);
 
-                // 90% pick best, 10% pick 2nd best for unpredictability
+                // Hard mode: Always pick best
+                if (this.difficulty === 'hard') {
+                    return evaluations[0].direction;
+                }
+
+                // Other difficulties: 90% pick best, 10% pick 2nd best for unpredictability
                 if (evaluations.length > 1 && Math.random() < 0.1) {
                     return evaluations[1].direction;
                 }
