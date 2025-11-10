@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: AI Arena</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0ff;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 20px;
+            text-shadow: 0 0 10px currentColor;
+            pointer-events: none;
+            z-index: 10;
+            color: #0ff;
+        }
+
+        .hud-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 15px currentColor;
+        }
+
+        .enemies-list {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .enemy-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+        }
+
+        .enemy-icon {
+            font-size: 18px;
+        }
+
+        .enemy-status.dead {
+            opacity: 0.3;
+            text-decoration: line-through;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.95);
+            font-size: 32px;
+            z-index: 100;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-size: 48px;
+            color: #0ff;
+            text-shadow: 0 0 30px #0ff;
+            letter-spacing: 5px;
+            margin-bottom: 20px;
+        }
+
+        .overlay-subtitle {
+            font-size: 18px;
+            color: #0ff;
+            opacity: 0.8;
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #0ff;
+            color: #0ff;
+            font-family: 'Courier New', monospace;
+            font-size: 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            letter-spacing: 3px;
+        }
+
+        .btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 30px #0ff;
+            transform: scale(1.05);
+        }
+
+        .controls-info {
+            font-size: 14px;
+            color: #0ff;
+            opacity: 0.7;
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .controls-row {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div class="hud">
+        <div class="hud-stats">
+            <div class="stat-item">
+                <span class="stat-label">WAVE:</span>
+                <span class="stat-value" id="wave">1</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">SCORE:</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">SURVIVAL:</span>
+                <span class="stat-value" id="time">0s</span>
+            </div>
+        </div>
+        <div class="enemies-list" id="enemiesList">
+            <!-- AI status will be added here -->
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="overlay-title">TRON: AI ARENA</div>
+        <div class="overlay-subtitle">
+            Survive the arena against intelligent AI opponents. Navigate through obstacles,
+            avoid trails, and outlast your enemies. Each wave brings more challengers!
+        </div>
+        <button class="btn" id="startBtn">ENTER THE ARENA</button>
+        <div class="controls-info">
+            <div class="controls-row"><strong>A/D or ←/→</strong> - Turn Left/Right</div>
+            <div class="controls-row"><strong>W or ↑</strong> - Turbo Boost</div>
+            <div class="controls-row"><strong>T</strong> - Toggle Steering Mode</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game constants
+        const GRID_SIZE = 120;
+        const WALL_HEIGHT = 3;
+        const WALL_WIDTH = 0.7;
+        const MOVE_SPEED = 0.3;
+        const TURBO_SPEED = 0.6;
+        const SMOOTH_TURN_SPEED = 0.05;
+        const GRID_TURN_COOLDOWN = 8;
+        const TURBO_CHARGE_RATE = 0.25;
+        const TURBO_DRAIN_RATE = 1.2;
+
+        // Game state
+        let gameState = 'WAITING';
+        let steeringMode = 'smooth';
+        let wave = 1;
+        let score = 0;
+        let survivalTime = 0;
+        let gameStartTime = 0;
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.Fog(0x000000, 80, 180);
+
+        // Camera - top-down with slight angle
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+        camera.position.set(0, 80, 40);
+        camera.lookAt(0, 0, 0);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirLight.position.set(50, 100, 50);
+        scene.add(dirLight);
+
+        // Grid floor
+        const gridHelper = new THREE.GridHelper(GRID_SIZE, 60, 0x0088ff, 0x003344);
+        scene.add(gridHelper);
+
+        // Arena boundaries (visible walls)
+        function createBoundaryWalls() {
+            const boundary = GRID_SIZE / 2;
+            const wallHeight = 5;
+            const wallThickness = 1;
+
+            const wallMaterial = new THREE.MeshPhongMaterial({
+                color: 0x0066ff,
+                emissive: 0x0066ff,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            // North wall
+            const northWall = new THREE.Mesh(
+                new THREE.BoxGeometry(GRID_SIZE, wallHeight, wallThickness),
+                wallMaterial
+            );
+            northWall.position.set(0, wallHeight / 2, -boundary);
+            scene.add(northWall);
+
+            // South wall
+            const southWall = new THREE.Mesh(
+                new THREE.BoxGeometry(GRID_SIZE, wallHeight, wallThickness),
+                wallMaterial
+            );
+            southWall.position.set(0, wallHeight / 2, boundary);
+            scene.add(southWall);
+
+            // West wall
+            const westWall = new THREE.Mesh(
+                new THREE.BoxGeometry(wallThickness, wallHeight, GRID_SIZE),
+                wallMaterial
+            );
+            westWall.position.set(-boundary, wallHeight / 2, 0);
+            scene.add(westWall);
+
+            // East wall
+            const eastWall = new THREE.Mesh(
+                new THREE.BoxGeometry(wallThickness, wallHeight, GRID_SIZE),
+                wallMaterial
+            );
+            eastWall.position.set(boundary, wallHeight / 2, 0);
+            scene.add(eastWall);
+        }
+
+        // Obstacles in arena
+        const obstacles = [];
+
+        function createArenaObstacles() {
+            const obstacleMaterial = new THREE.MeshPhongMaterial({
+                color: 0xff6600,
+                emissive: 0xff6600,
+                emissiveIntensity: 0.4
+            });
+
+            // Central structure - cross pattern
+            const centerSize = 20;
+            const centerHeight = 4;
+
+            // Horizontal beam
+            const horizontalBeam = new THREE.Mesh(
+                new THREE.BoxGeometry(centerSize, centerHeight, 3),
+                obstacleMaterial
+            );
+            horizontalBeam.position.set(0, centerHeight / 2, 0);
+            scene.add(horizontalBeam);
+            obstacles.push({
+                mesh: horizontalBeam,
+                type: 'box',
+                minX: -centerSize / 2,
+                maxX: centerSize / 2,
+                minZ: -1.5,
+                maxZ: 1.5
+            });
+
+            // Vertical beam
+            const verticalBeam = new THREE.Mesh(
+                new THREE.BoxGeometry(3, centerHeight, centerSize),
+                obstacleMaterial
+            );
+            verticalBeam.position.set(0, centerHeight / 2, 0);
+            scene.add(verticalBeam);
+            obstacles.push({
+                mesh: verticalBeam,
+                type: 'box',
+                minX: -1.5,
+                maxX: 1.5,
+                minZ: -centerSize / 2,
+                maxZ: centerSize / 2
+            });
+
+            // Corner pillars
+            const pillarSize = 4;
+            const pillarHeight = 6;
+            const pillarPositions = [
+                [-35, -35], [35, -35], [-35, 35], [35, 35]
+            ];
+
+            pillarPositions.forEach(([x, z]) => {
+                const pillar = new THREE.Mesh(
+                    new THREE.BoxGeometry(pillarSize, pillarHeight, pillarSize),
+                    obstacleMaterial
+                );
+                pillar.position.set(x, pillarHeight / 2, z);
+                scene.add(pillar);
+                obstacles.push({
+                    mesh: pillar,
+                    type: 'box',
+                    minX: x - pillarSize / 2,
+                    maxX: x + pillarSize / 2,
+                    minZ: z - pillarSize / 2,
+                    maxZ: z + pillarSize / 2
+                });
+            });
+
+            // Side barriers
+            const barrierPositions = [
+                [-25, 0, 15, 3], [25, 0, 15, 3]
+            ];
+
+            barrierPositions.forEach(([x, z, width, depth]) => {
+                const barrier = new THREE.Mesh(
+                    new THREE.BoxGeometry(width, centerHeight, depth),
+                    obstacleMaterial
+                );
+                barrier.position.set(x, centerHeight / 2, z);
+                scene.add(barrier);
+                obstacles.push({
+                    mesh: barrier,
+                    type: 'box',
+                    minX: x - width / 2,
+                    maxX: x + width / 2,
+                    minZ: z - depth / 2,
+                    maxZ: z + depth / 2
+                });
+            });
+        }
+
+        // Create Light Cycle Geometry
+        function createLightCycle(color) {
+            const group = new THREE.Group();
+
+            const bodyGeometry = new THREE.BoxGeometry(0.8, 0.4, 1.8);
+            const bodyMaterial = new THREE.MeshPhongMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.4,
+                shininess: 100
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.3;
+            group.add(body);
+
+            const cockpitGeometry = new THREE.BoxGeometry(0.6, 0.5, 0.8);
+            const cockpit = new THREE.Mesh(cockpitGeometry, bodyMaterial);
+            cockpit.position.set(0, 0.6, 0.2);
+            group.add(cockpit);
+
+            const wheelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.15, 16);
+            const wheelMaterial = new THREE.MeshPhongMaterial({
+                color: 0x222222,
+                emissive: color,
+                emissiveIntensity: 0.3
+            });
+
+            const frontWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            frontWheel.rotation.z = Math.PI / 2;
+            frontWheel.position.set(0, 0.3, 0.7);
+            group.add(frontWheel);
+
+            const backWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            backWheel.rotation.z = Math.PI / 2;
+            backWheel.position.set(0, 0.3, -0.7);
+            group.add(backWheel);
+
+            return group;
+        }
+
+        // Player class
+        class Player {
+            constructor(x, y, angle, color) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.color = color;
+                this.alive = true;
+                this.trailPoints = [];
+                this.trailMeshes = [];
+                this.collisionSegments = [];
+                this.turboCharge = 100;
+                this.turboActive = false;
+                this.turningLeft = false;
+                this.turningRight = false;
+                this.turnCooldown = 0;
+
+                this.mesh = createLightCycle(this.color);
+                this.mesh.position.set(this.x, 0, this.y);
+                scene.add(this.mesh);
+
+                this.light = new THREE.PointLight(this.color, 2, 10);
+                this.light.position.copy(this.mesh.position);
+                scene.add(this.light);
+
+                this.trailPoints.push({ x: this.x, y: this.y });
+            }
+
+            update() {
+                if (!this.alive || gameState !== 'PLAYING') return;
+
+                if (this.turnCooldown > 0) this.turnCooldown--;
+
+                // Handle steering
+                if (steeringMode === 'smooth') {
+                    if (this.turningLeft) this.angle -= SMOOTH_TURN_SPEED;
+                    if (this.turningRight) this.angle += SMOOTH_TURN_SPEED;
+                } else if (steeringMode === 'grid') {
+                    if (this.turnCooldown === 0) {
+                        if (this.turningLeft) {
+                            this.angle -= Math.PI / 2;
+                            this.turnCooldown = GRID_TURN_COOLDOWN;
+                            this.turningLeft = false;
+                        } else if (this.turningRight) {
+                            this.angle += Math.PI / 2;
+                            this.turnCooldown = GRID_TURN_COOLDOWN;
+                            this.turningRight = false;
+                        }
+                    }
+                }
+
+                // Turbo system
+                if (this.turboActive && this.turboCharge > 0) {
+                    this.turboCharge -= TURBO_DRAIN_RATE;
+                    if (this.turboCharge <= 0) {
+                        this.turboCharge = 0;
+                        this.turboActive = false;
+                    }
+                } else {
+                    this.turboActive = false;
+                    if (this.turboCharge < 100) {
+                        this.turboCharge += TURBO_CHARGE_RATE;
+                        if (this.turboCharge > 100) this.turboCharge = 100;
+                    }
+                }
+
+                // Move
+                const currentSpeed = this.turboActive ? TURBO_SPEED : MOVE_SPEED;
+                this.x += Math.cos(this.angle) * currentSpeed;
+                this.y += Math.sin(this.angle) * currentSpeed;
+
+                this.mesh.position.set(this.x, 0, this.y);
+                this.mesh.rotation.y = -this.angle + Math.PI / 2;
+
+                this.light.intensity = this.turboActive ? 4 : 2;
+                this.light.distance = this.turboActive ? 15 : 10;
+                this.light.position.copy(this.mesh.position);
+
+                // Add trail
+                if (this.trailPoints.length > 0) {
+                    const lastPoint = this.trailPoints[this.trailPoints.length - 1];
+                    const dist = Math.sqrt((this.x - lastPoint.x) ** 2 + (this.y - lastPoint.y) ** 2);
+
+                    if (dist > 0.1) {
+                        this.addTrailSegment(lastPoint.x, lastPoint.y, this.x, this.y);
+                        this.trailPoints.push({ x: this.x, y: this.y });
+                    }
+                } else {
+                    this.trailPoints.push({ x: this.x, y: this.y });
+                }
+
+                this.checkCollision();
+            }
+
+            addTrailSegment(x1, y1, x2, y2) {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length < 0.05) return;
+
+                const wallWidth = this.turboActive ? WALL_WIDTH * 1.5 : WALL_WIDTH;
+                const wallHeight = this.turboActive ? WALL_HEIGHT * 1.2 : WALL_HEIGHT;
+
+                const geometry = new THREE.BoxGeometry(wallWidth, wallHeight, length);
+                const material = new THREE.MeshPhongMaterial({
+                    color: this.color,
+                    emissive: this.color,
+                    emissiveIntensity: this.turboActive ? 1.2 : 0.8,
+                    transparent: true,
+                    opacity: this.turboActive ? 1.0 : 0.9
+                });
+
+                const wall = new THREE.Mesh(geometry, material);
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                wall.position.set(midX, wallHeight / 2, midY);
+                wall.rotation.y = -Math.atan2(dy, dx);
+
+                scene.add(wall);
+                this.trailMeshes.push(wall);
+                this.collisionSegments.push({ x1, y1, x2, y2 });
+
+                if (this.trailMeshes.length > 800) {
+                    const old = this.trailMeshes.shift();
+                    scene.remove(old);
+                    old.geometry.dispose();
+                    old.material.dispose();
+                    if (this.collisionSegments.length > 800) {
+                        this.collisionSegments.shift();
+                    }
+                }
+            }
+
+            checkCollision() {
+                const boundary = GRID_SIZE / 2;
+                if (Math.abs(this.x) > boundary || Math.abs(this.y) > boundary) {
+                    this.alive = false;
+                    return;
+                }
+
+                // Check obstacles
+                for (const obstacle of obstacles) {
+                    if (this.x >= obstacle.minX && this.x <= obstacle.maxX &&
+                        this.y >= obstacle.minZ && this.y <= obstacle.maxZ) {
+                        this.alive = false;
+                        return;
+                    }
+                }
+
+                // Check all trails
+                const allEntities = [player, ...aiPlayers];
+                for (const entity of allEntities) {
+                    if (!entity.collisionSegments) continue;
+                    const skipCount = (entity === this) ? 10 : 0;
+                    const totalSegments = entity.collisionSegments.length;
+
+                    for (let i = 0; i < totalSegments - skipCount; i++) {
+                        const segment = entity.collisionSegments[i];
+                        if (this.collidesWithSegment(segment)) {
+                            this.alive = false;
+                            return;
+                        }
+                    }
+                }
+            }
+
+            collidesWithSegment(segment) {
+                const dx = segment.x2 - segment.x1;
+                const dy = segment.y2 - segment.y1;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length < 0.01) return false;
+
+                const px = this.x - segment.x1;
+                const py = this.y - segment.y1;
+                const dot = (px * dx + py * dy) / (length * length);
+
+                if (dot < 0 || dot > 1) return false;
+
+                const closestX = segment.x1 + dot * dx;
+                const closestY = segment.y1 + dot * dy;
+                const dist = Math.sqrt((this.x - closestX) ** 2 + (this.y - closestY) ** 2);
+
+                return dist < (WALL_WIDTH / 2 + 0.5);
+            }
+
+            startTurnLeft() { this.turningLeft = true; }
+            stopTurnLeft() { this.turningLeft = false; }
+            startTurnRight() { this.turningRight = true; }
+            stopTurnRight() { this.turningRight = false; }
+        }
+
+        // AI Player class
+        class AIPlayer extends Player {
+            constructor(x, y, angle, color, name) {
+                super(x, y, angle, color);
+                this.name = name;
+                this.isAI = true;
+                this.thinkInterval = 5; // Frames between decisions
+                this.thinkCounter = 0;
+                this.targetAngle = angle;
+                this.dangerCheckDistance = 15;
+                this.aggressiveness = 0.3 + Math.random() * 0.4;
+            }
+
+            update() {
+                if (!this.alive || gameState !== 'PLAYING') return;
+
+                this.thinkCounter++;
+                if (this.thinkCounter >= this.thinkInterval) {
+                    this.thinkCounter = 0;
+                    this.makeDecision();
+                }
+
+                // Smooth turn towards target angle
+                let angleDiff = this.targetAngle - this.angle;
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+                if (Math.abs(angleDiff) > 0.05) {
+                    if (angleDiff > 0) {
+                        this.angle += Math.min(SMOOTH_TURN_SPEED, angleDiff);
+                    } else {
+                        this.angle += Math.max(-SMOOTH_TURN_SPEED, angleDiff);
+                    }
+                }
+
+                // Occasional turbo usage
+                if (this.turboCharge > 50 && Math.random() < 0.02) {
+                    this.turboActive = true;
+                } else if (this.turboCharge < 20) {
+                    this.turboActive = false;
+                }
+
+                // Move
+                const currentSpeed = this.turboActive ? TURBO_SPEED : MOVE_SPEED;
+                this.x += Math.cos(this.angle) * currentSpeed;
+                this.y += Math.sin(this.angle) * currentSpeed;
+
+                this.mesh.position.set(this.x, 0, this.y);
+                this.mesh.rotation.y = -this.angle + Math.PI / 2;
+
+                this.light.intensity = this.turboActive ? 4 : 2;
+                this.light.distance = this.turboActive ? 15 : 10;
+                this.light.position.copy(this.mesh.position);
+
+                // Turbo charge/drain
+                if (this.turboActive && this.turboCharge > 0) {
+                    this.turboCharge -= TURBO_DRAIN_RATE;
+                    if (this.turboCharge <= 0) {
+                        this.turboCharge = 0;
+                        this.turboActive = false;
+                    }
+                } else {
+                    this.turboActive = false;
+                    if (this.turboCharge < 100) {
+                        this.turboCharge += TURBO_CHARGE_RATE;
+                        if (this.turboCharge > 100) this.turboCharge = 100;
+                    }
+                }
+
+                // Add trail
+                if (this.trailPoints.length > 0) {
+                    const lastPoint = this.trailPoints[this.trailPoints.length - 1];
+                    const dist = Math.sqrt((this.x - lastPoint.x) ** 2 + (this.y - lastPoint.y) ** 2);
+
+                    if (dist > 0.1) {
+                        this.addTrailSegment(lastPoint.x, lastPoint.y, this.x, this.y);
+                        this.trailPoints.push({ x: this.x, y: this.y });
+                    }
+                }
+
+                this.checkCollision();
+            }
+
+            makeDecision() {
+                // Check danger in multiple directions
+                const directions = [
+                    this.angle,
+                    this.angle - Math.PI / 4,
+                    this.angle + Math.PI / 4,
+                    this.angle - Math.PI / 2,
+                    this.angle + Math.PI / 2
+                ];
+
+                const dangers = directions.map(dir => this.checkDangerInDirection(dir));
+
+                // Find safest direction
+                let safestDir = 0;
+                let lowestDanger = Infinity;
+
+                for (let i = 0; i < directions.length; i++) {
+                    if (dangers[i] < lowestDanger) {
+                        lowestDanger = dangers[i];
+                        safestDir = i;
+                    }
+                }
+
+                // Sometimes go towards player (aggressiveness)
+                if (Math.random() < this.aggressiveness && player.alive) {
+                    const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+                    const playerDanger = this.checkDangerInDirection(angleToPlayer);
+
+                    if (playerDanger < 5) {
+                        this.targetAngle = angleToPlayer;
+                        return;
+                    }
+                }
+
+                // If current direction is too dangerous, turn
+                if (dangers[0] > 3) {
+                    this.targetAngle = directions[safestDir];
+                } else if (Math.random() < 0.1) {
+                    // Random occasional turn
+                    this.targetAngle = directions[1 + Math.floor(Math.random() * 4)];
+                }
+            }
+
+            checkDangerInDirection(angle) {
+                let danger = 0;
+                const checkDist = this.dangerCheckDistance;
+                const steps = 10;
+
+                for (let step = 1; step <= steps; step++) {
+                    const testDist = (checkDist / steps) * step;
+                    const testX = this.x + Math.cos(angle) * testDist;
+                    const testY = this.y + Math.sin(angle) * testDist;
+
+                    // Boundary check
+                    const boundary = GRID_SIZE / 2 - 5;
+                    if (Math.abs(testX) > boundary || Math.abs(testY) > boundary) {
+                        danger += 10 / step;
+                    }
+
+                    // Obstacle check
+                    for (const obstacle of obstacles) {
+                        if (testX >= obstacle.minX - 3 && testX <= obstacle.maxX + 3 &&
+                            testY >= obstacle.minZ - 3 && testY <= obstacle.maxZ + 3) {
+                            danger += 8 / step;
+                        }
+                    }
+
+                    // Trail check
+                    const allEntities = [player, ...aiPlayers];
+                    for (const entity of allEntities) {
+                        if (!entity.collisionSegments) continue;
+
+                        for (const segment of entity.collisionSegments) {
+                            const dist = this.pointToSegmentDistance(testX, testY, segment);
+                            if (dist < 3) {
+                                danger += 5 / step;
+                            }
+                        }
+                    }
+                }
+
+                return danger;
+            }
+
+            pointToSegmentDistance(px, py, segment) {
+                const dx = segment.x2 - segment.x1;
+                const dy = segment.y2 - segment.y1;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length < 0.01) return Infinity;
+
+                const dpx = px - segment.x1;
+                const dpy = py - segment.y1;
+                const dot = (dpx * dx + dpy * dy) / (length * length);
+
+                if (dot < 0 || dot > 1) return Infinity;
+
+                const closestX = segment.x1 + dot * dx;
+                const closestY = segment.y1 + dot * dy;
+
+                return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
+            }
+        }
+
+        // Game entities
+        let player;
+        const aiPlayers = [];
+
+        // Input handling
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+
+            if (gameState === 'WAITING' && e.key === ' ') {
+                startGame();
+                return;
+            }
+
+            if (key === 't') {
+                steeringMode = steeringMode === 'smooth' ? 'grid' : 'smooth';
+                e.preventDefault();
+                return;
+            }
+
+            if (gameState !== 'PLAYING' || !player) return;
+
+            if (key === 'a' || key === 'arrowleft') {
+                player.startTurnLeft();
+                e.preventDefault();
+            }
+            if (key === 'd' || key === 'arrowright') {
+                player.startTurnRight();
+                e.preventDefault();
+            }
+            if (key === 'w' || key === 'arrowup') {
+                player.turboActive = player.turboCharge > 0;
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+
+            if (gameState !== 'PLAYING' || !player) return;
+
+            if (key === 'a' || key === 'arrowleft') {
+                player.stopTurnLeft();
+            }
+            if (key === 'd' || key === 'arrowright') {
+                player.stopTurnRight();
+            }
+            if (key === 'w' || key === 'arrowup') {
+                player.turboActive = false;
+            }
+        });
+
+        // Game functions
+        function startGame() {
+            gameState = 'PLAYING';
+            document.getElementById('overlay').classList.add('hidden');
+            gameStartTime = Date.now();
+
+            initWave();
+        }
+
+        function initWave() {
+            // Clear old entities
+            if (player) {
+                scene.remove(player.mesh);
+                scene.remove(player.light);
+                player.trailMeshes.forEach(m => scene.remove(m));
+            }
+
+            aiPlayers.forEach(ai => {
+                scene.remove(ai.mesh);
+                scene.remove(ai.light);
+                ai.trailMeshes.forEach(m => scene.remove(m));
+            });
+            aiPlayers.length = 0;
+
+            // Create player
+            player = new Player(-40, -40, Math.PI / 4, 0x00ffff);
+
+            // Create AI opponents (more each wave)
+            const aiCount = Math.min(2 + wave, 6);
+            const aiColors = [0xff0000, 0xff6600, 0xffff00, 0x00ff00, 0xff00ff, 0xff0099];
+            const aiNames = ['ALPHA', 'BETA', 'GAMMA', 'DELTA', 'EPSILON', 'ZETA'];
+            const spawnPositions = [
+                [40, 40, -3 * Math.PI / 4],
+                [40, -40, 3 * Math.PI / 4],
+                [-40, 40, -Math.PI / 4],
+                [0, 50, -Math.PI / 2],
+                [50, 0, Math.PI],
+                [-50, 0, 0]
+            ];
+
+            for (let i = 0; i < aiCount; i++) {
+                const [x, y, angle] = spawnPositions[i];
+                const ai = new AIPlayer(x, y, angle, aiColors[i], aiNames[i]);
+                aiPlayers.push(ai);
+            }
+
+            updateEnemiesList();
+        }
+
+        function updateEnemiesList() {
+            const list = document.getElementById('enemiesList');
+            list.innerHTML = '<div style="margin-bottom: 10px; opacity: 0.8;">ENEMIES:</div>';
+
+            aiPlayers.forEach(ai => {
+                const status = document.createElement('div');
+                status.className = 'enemy-status' + (ai.alive ? '' : ' dead');
+                status.innerHTML = `
+                    <span class="enemy-icon">▸</span>
+                    <span style="color: #${ai.color.toString(16).padStart(6, '0')}">${ai.name}</span>
+                `;
+                list.appendChild(status);
+            });
+        }
+
+        function endGame(won) {
+            gameState = 'WAITING';
+            const overlay = document.getElementById('overlay');
+            const title = overlay.querySelector('.overlay-title');
+            const subtitle = overlay.querySelector('.overlay-subtitle');
+
+            if (won) {
+                title.textContent = 'WAVE ' + wave + ' COMPLETE!';
+                subtitle.textContent = `You survived! Score: ${score}. Ready for the next challenge?`;
+                setTimeout(() => {
+                    wave++;
+                    startGame();
+                }, 3000);
+            } else {
+                title.textContent = 'DEREZZED';
+                subtitle.textContent = `You survived ${survivalTime}s and completed ${wave - 1} waves. Final Score: ${score}`;
+                overlay.classList.remove('hidden');
+                document.getElementById('startBtn').textContent = 'TRY AGAIN';
+
+                // Reset for new game
+                wave = 1;
+                score = 0;
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+
+            if (gameState === 'PLAYING') {
+                player.update();
+                aiPlayers.forEach(ai => ai.update());
+
+                // Update HUD
+                survivalTime = Math.floor((Date.now() - gameStartTime) / 1000);
+                document.getElementById('wave').textContent = wave;
+                document.getElementById('score').textContent = score;
+                document.getElementById('time').textContent = survivalTime + 's';
+
+                // Check win/loss conditions
+                const aliveAI = aiPlayers.filter(ai => ai.alive).length;
+
+                if (!player.alive) {
+                    endGame(false);
+                } else if (aliveAI === 0) {
+                    score += 1000 * wave;
+                    updateEnemiesList();
+                    endGame(true);
+                } else {
+                    // Update score for survival
+                    score += 1;
+
+                    // Update enemies list when AI dies
+                    const currentAliveCount = aiPlayers.filter(ai => ai.alive).length;
+                    if (currentAliveCount !== aliveAI) {
+                        score += 500;
+                        updateEnemiesList();
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize
+        createBoundaryWalls();
+        createArenaObstacles();
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        gameLoop();
+    </script>
+</body>
+</html>
