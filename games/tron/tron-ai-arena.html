@@ -942,6 +942,58 @@
             }
         }
 
+        // Dynamic camera to keep all players in view
+        function updateCamera() {
+            const allPlayers = [player, ...aiPlayers].filter(p => p.alive);
+
+            if (allPlayers.length === 0) return;
+
+            // Calculate bounding box of all alive players
+            let minX = Infinity, maxX = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+
+            allPlayers.forEach(p => {
+                minX = Math.min(minX, p.x);
+                maxX = Math.max(maxX, p.x);
+                minZ = Math.min(minZ, p.y);
+                maxZ = Math.max(maxZ, p.y);
+            });
+
+            // Add padding
+            const padding = 20;
+            minX -= padding;
+            maxX += padding;
+            minZ -= padding;
+            maxZ += padding;
+
+            // Calculate center and size
+            const centerX = (minX + maxX) / 2;
+            const centerZ = (minZ + maxZ) / 2;
+            const width = maxX - minX;
+            const height = maxZ - minZ;
+            const maxDimension = Math.max(width, height);
+
+            // Calculate camera height based on FOV and required view size
+            const fov = camera.fov * Math.PI / 180;
+            const cameraHeight = (maxDimension / 2) / Math.tan(fov / 2);
+            const minHeight = 50;
+            const maxHeight = 120;
+            const targetHeight = Math.max(minHeight, Math.min(maxHeight, cameraHeight * 1.2));
+
+            // Target camera position (slightly behind center for better view)
+            const targetCameraX = centerX;
+            const targetCameraY = targetHeight;
+            const targetCameraZ = centerZ + targetHeight * 0.4;
+
+            // Smooth lerp to target position
+            camera.position.x += (targetCameraX - camera.position.x) * 0.05;
+            camera.position.y += (targetCameraY - camera.position.y) * 0.05;
+            camera.position.z += (targetCameraZ - camera.position.z) * 0.05;
+
+            // Look at center
+            camera.lookAt(centerX, 0, centerZ);
+        }
+
         // Game loop
         function gameLoop() {
             requestAnimationFrame(gameLoop);
@@ -949,6 +1001,9 @@
             if (gameState === 'PLAYING') {
                 player.update();
                 aiPlayers.forEach(ai => ai.update());
+
+                // Update dynamic camera
+                updateCamera();
 
                 // Update HUD
                 survivalTime = Math.floor((Date.now() - gameStartTime) / 1000);
