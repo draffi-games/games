@@ -114,9 +114,9 @@
         // Game constants
         const GRID_SIZE = 100;
         const WALL_HEIGHT = 3;
-        const WALL_WIDTH = 0.6;
-        const MOVE_SPEED = 0.25;
-        const TURN_SPEED = 0.08; // Smooth turning instead of instant 90°
+        const WALL_WIDTH = 0.7;
+        const MOVE_SPEED = 0.35; // Fast movement
+        const TURN_COOLDOWN = 8; // Frames between turns to prevent spam
 
         // Game state
         let gameState = 'WAITING';
@@ -144,7 +144,6 @@
                 this.startY = y;
                 this.startAngle = angle;
                 this.color = color;
-                this.targetAngle = angle;
                 this.cameraPosition = new THREE.Vector3();
                 this.cameraTarget = new THREE.Vector3();
                 this.reset();
@@ -154,10 +153,10 @@
                 this.x = this.startX;
                 this.y = this.startY;
                 this.angle = this.startAngle;
-                this.targetAngle = this.startAngle;
                 this.alive = true;
-                this.trailPoints = []; // Store position history
+                this.trailPoints = [];
                 this.frameCount = 0;
+                this.turnCooldown = 0;
 
                 // Remove all old trail meshes from scene
                 if (this.trailMeshes) {
@@ -208,26 +207,24 @@
             }
 
             turnLeft() {
-                this.targetAngle += TURN_SPEED;
+                if (this.turnCooldown > 0) return;
+                this.angle -= Math.PI / 2; // Instant 90° left
+                this.turnCooldown = TURN_COOLDOWN;
             }
 
             turnRight() {
-                this.targetAngle -= TURN_SPEED;
+                if (this.turnCooldown > 0) return;
+                this.angle += Math.PI / 2; // Instant 90° right
+                this.turnCooldown = TURN_COOLDOWN;
             }
 
             update() {
                 if (!this.alive || gameState !== 'PLAYING') return;
 
                 this.frameCount++;
-                const prevX = this.x;
-                const prevY = this.y;
 
-                // Smooth angle interpolation (lerp towards target)
-                let angleDiff = this.targetAngle - this.angle;
-                // Normalize angle difference to [-PI, PI]
-                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                this.angle += angleDiff * 0.15; // Smooth turn
+                // Decrease turn cooldown
+                if (this.turnCooldown > 0) this.turnCooldown--;
 
                 // Move forward
                 this.x += Math.cos(this.angle) * MOVE_SPEED;
@@ -238,12 +235,19 @@
                 this.mesh.rotation.y = -this.angle + Math.PI / 2;
                 this.light.position.copy(this.mesh.position);
 
-                // Add trail point EVERY frame for continuous trail
-                this.trailPoints.push({ x: this.x, y: this.y });
+                // Add trail segment EVERY frame for continuous trail
+                if (this.trailPoints.length > 0) {
+                    const lastPoint = this.trailPoints[this.trailPoints.length - 1];
+                    const dist = Math.sqrt((this.x - lastPoint.x) ** 2 + (this.y - lastPoint.y) ** 2);
 
-                // Create trail mesh every few frames
-                if (this.frameCount % 3 === 0 && this.trailPoints.length > 1) {
-                    this.createTrailMesh();
+                    // Only add if moved enough to avoid duplicate segments
+                    if (dist > 0.1) {
+                        this.addTrailSegment(lastPoint.x, lastPoint.y, this.x, this.y);
+                        this.trailPoints.push({ x: this.x, y: this.y });
+                    }
+                } else {
+                    // First point
+                    this.trailPoints.push({ x: this.x, y: this.y });
                 }
 
                 // Smooth camera follow with lerp
@@ -254,11 +258,11 @@
 
                 this.cameraPosition.lerp(
                     new THREE.Vector3(targetCamX, camHeight, targetCamY),
-                    0.1
+                    0.15 // Faster camera follow
                 );
                 this.cameraTarget.lerp(
                     new THREE.Vector3(this.x, 0, this.y),
-                    0.15
+                    0.2 // Faster target tracking
                 );
 
                 this.camera.position.copy(this.cameraPosition);
@@ -268,69 +272,55 @@
                 this.checkCollision();
             }
 
-            createTrailMesh() {
-                const points = this.trailPoints;
-                if (points.length < 2) return;
+            addTrailSegment(x1, y1, x2, y2) {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const length = Math.sqrt(dx * dx + dy * dy);
 
-                // Create path from trail points
-                const path = new THREE.CurvePath();
-                for (let i = 0; i < points.length - 1; i++) {
-                    const p1 = points[i];
-                    const p2 = points[i + 1];
-                    path.add(new THREE.LineCurve3(
-                        new THREE.Vector3(p1.x, 0, p1.y),
-                        new THREE.Vector3(p2.x, 0, p2.y)
-                    ));
-                }
+                if (length < 0.05) return;
 
-                // Create extruded geometry along path
-                const shape = new THREE.Shape();
-                shape.moveTo(-WALL_WIDTH / 2, 0);
-                shape.lineTo(WALL_WIDTH / 2, 0);
-                shape.lineTo(WALL_WIDTH / 2, WALL_HEIGHT);
-                shape.lineTo(-WALL_WIDTH / 2, WALL_HEIGHT);
-                shape.lineTo(-WALL_WIDTH / 2, 0);
-
-                const extrudeSettings = {
-                    steps: points.length - 1,
-                    bevelEnabled: false,
-                    extrudePath: path
-                };
-
-                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                // Create a simple box geometry - ALWAYS VERTICAL!
+                const geometry = new THREE.BoxGeometry(WALL_WIDTH, WALL_HEIGHT, length);
                 const material = new THREE.MeshPhongMaterial({
                     color: this.color,
                     emissive: this.color,
-                    emissiveIntensity: 0.9,
+                    emissiveIntensity: 0.8,
                     transparent: true,
-                    opacity: 0.85,
+                    opacity: 0.9,
                     side: THREE.DoubleSide
                 });
 
-                const trailMesh = new THREE.Mesh(geometry, material);
-                scene.add(trailMesh);
-                this.trailMeshes.push(trailMesh);
+                const wall = new THREE.Mesh(geometry, material);
+
+                // Position at midpoint
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                // IMPORTANT: Y is UP, not Z. Set position correctly
+                wall.position.set(midX, WALL_HEIGHT / 2, midY);
+
+                // Rotate ONLY around Y axis (vertical) to keep wall upright
+                const angle = Math.atan2(dy, dx);
+                wall.rotation.y = -angle; // Negative because Three.js coordinate system
+
+                scene.add(wall);
+                this.trailMeshes.push(wall);
 
                 // Store collision data
                 if (!this.collisionSegments) this.collisionSegments = [];
-                for (let i = 0; i < points.length - 1; i++) {
-                    this.collisionSegments.push({
-                        x1: points[i].x,
-                        y1: points[i].y,
-                        x2: points[i + 1].x,
-                        y2: points[i + 1].y
-                    });
-                }
+                this.collisionSegments.push({ x1, y1, x2, y2 });
 
-                // Clear trail points for next segment
-                this.trailPoints = [points[points.length - 1]];
-
-                // Limit total trail meshes
-                if (this.trailMeshes.length > 150) {
+                // Limit trail length
+                if (this.trailMeshes.length > 500) {
                     const old = this.trailMeshes.shift();
                     scene.remove(old);
                     old.geometry.dispose();
                     old.material.dispose();
+
+                    // Also remove old collision segment
+                    if (this.collisionSegments.length > 500) {
+                        this.collisionSegments.shift();
+                    }
                 }
             }
 
@@ -347,8 +337,8 @@
                 for (const p of players) {
                     if (!p.collisionSegments) continue;
 
-                    // Skip own recent segments to avoid self-collision
-                    const skipCount = (p === this) ? 20 : 0;
+                    // Skip own recent segments to avoid self-collision (last 10 segments)
+                    const skipCount = (p === this) ? 10 : 0;
                     const totalSegments = p.collisionSegments.length;
 
                     for (let i = 0; i < totalSegments - skipCount; i++) {
@@ -382,8 +372,8 @@
 
                 const dist = Math.sqrt((this.x - closestX) ** 2 + (this.y - closestY) ** 2);
 
-                // Collision if within wall width
-                return dist < (WALL_WIDTH + 0.3);
+                // Collision if within wall radius plus small buffer
+                return dist < (WALL_WIDTH / 2 + 0.5);
             }
         }
 
@@ -411,29 +401,40 @@
             player2.camera.updateProjectionMatrix();
         }
 
-        // Input handling
+        // Input handling - instant response on keydown
         window.addEventListener('keydown', (e) => {
-            keysPressed.add(e.key.toLowerCase());
+            const key = e.key.toLowerCase();
 
             if (gameState === 'WAITING' && e.key === ' ') {
                 startGame();
+                return;
+            }
+
+            if (gameState !== 'PLAYING') return;
+
+            // Player 1 (WASD) - instant turn on press
+            if (key === 'a') {
+                player1.turnLeft();
+                e.preventDefault();
+            }
+            if (key === 'd') {
+                player1.turnRight();
+                e.preventDefault();
+            }
+
+            // Player 2 (Arrows) - instant turn on press
+            if (key === 'arrowleft') {
+                player2.turnLeft();
+                e.preventDefault();
+            }
+            if (key === 'arrowright') {
+                player2.turnRight();
+                e.preventDefault();
             }
         });
 
-        window.addEventListener('keyup', (e) => {
-            keysPressed.delete(e.key.toLowerCase());
-        });
-
         function handleInput() {
-            if (gameState !== 'PLAYING') return;
-
-            // Player 1 (WASD)
-            if (keysPressed.has('a')) player1.turnLeft();
-            if (keysPressed.has('d')) player1.turnRight();
-
-            // Player 2 (Arrows)
-            if (keysPressed.has('arrowleft')) player2.turnLeft();
-            if (keysPressed.has('arrowright')) player2.turnRight();
+            // No longer needed - turns happen on keydown
         }
 
         // Game loop
@@ -441,7 +442,6 @@
             requestAnimationFrame(gameLoop);
 
             if (gameState === 'PLAYING') {
-                handleInput();
                 player1.update();
                 player2.update();
 
