@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON: 3D Dual Arena (Three.js)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0ff;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            grid-template-rows: 1fr;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .player-viewport {
+            position: relative;
+            background: #000;
+        }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+            text-shadow: 0 0 10px currentColor;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.9);
+            font-size: 32px;
+            z-index: 100;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #0ff;
+            color: #0ff;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="player-viewport" id="viewport1">
+            <div class="hud" style="color: #0ff;">
+                <div>P1: <span id="score1">0</span></div>
+                <div>WASD + Space</div>
+            </div>
+        </div>
+        <div class="player-viewport" id="viewport2">
+            <div class="hud" style="color: #f60;">
+                <div>P2: <span id="score2">0</span></div>
+                <div>Arrows + Enter</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div id="message">Press SPACE to Start</div>
+        <button class="btn" id="startBtn">START GAME</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game constants
+        const GRID_SIZE = 100;
+        const WALL_HEIGHT = 3;
+        const WALL_WIDTH = 0.6;
+        const MOVE_SPEED = 0.25;
+        const TURN_SPEED = 0.08; // Smooth turning instead of instant 90°
+
+        // Game state
+        let gameState = 'WAITING';
+        let scores = { p1: 0, p2: 0 };
+        let keysPressed = new Set();
+
+        // Three.js scenes for split screen
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.Fog(0x000000, 50, 150);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+
+        // Grid floor
+        const gridHelper = new THREE.GridHelper(GRID_SIZE, 50, 0x0088ff, 0x003344);
+        scene.add(gridHelper);
+
+        // Players
+        class Player {
+            constructor(id, x, y, angle, color) {
+                this.id = id;
+                this.startX = x;
+                this.startY = y;
+                this.startAngle = angle;
+                this.color = color;
+                this.targetAngle = angle;
+                this.cameraPosition = new THREE.Vector3();
+                this.cameraTarget = new THREE.Vector3();
+                this.reset();
+            }
+
+            reset() {
+                this.x = this.startX;
+                this.y = this.startY;
+                this.angle = this.startAngle;
+                this.targetAngle = this.startAngle;
+                this.alive = true;
+                this.trailPoints = []; // Store position history
+                this.frameCount = 0;
+
+                // Remove all old trail meshes from scene
+                if (this.trailMeshes) {
+                    for (const mesh of this.trailMeshes) {
+                        scene.remove(mesh);
+                        mesh.geometry.dispose();
+                        mesh.material.dispose();
+                    }
+                }
+                this.trailMeshes = [];
+                this.collisionSegments = [];
+                this.currentTrailStart = null;
+
+                // Create light cycle mesh
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshPhongMaterial({
+                    color: this.color,
+                    emissive: this.color,
+                    emissiveIntensity: 0.5
+                });
+
+                if (this.mesh) scene.remove(this.mesh);
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(this.x, 0.5, this.y);
+                scene.add(this.mesh);
+
+                // Add point light to cycle
+                if (this.light) scene.remove(this.light);
+                this.light = new THREE.PointLight(this.color, 2, 10);
+                this.light.position.copy(this.mesh.position);
+                scene.add(this.light);
+
+                // Create camera for this player
+                if (!this.camera) {
+                    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200);
+                }
+
+                // Initialize camera position
+                const camDist = 15;
+                const camHeight = 12;
+                const camX = this.x - Math.cos(this.angle) * camDist;
+                const camY = this.y - Math.sin(this.angle) * camDist;
+
+                this.cameraPosition.set(camX, camHeight, camY);
+                this.cameraTarget.set(this.x, 0, this.y);
+                this.camera.position.copy(this.cameraPosition);
+                this.camera.lookAt(this.cameraTarget);
+            }
+
+            turnLeft() {
+                this.targetAngle += TURN_SPEED;
+            }
+
+            turnRight() {
+                this.targetAngle -= TURN_SPEED;
+            }
+
+            update() {
+                if (!this.alive || gameState !== 'PLAYING') return;
+
+                this.frameCount++;
+                const prevX = this.x;
+                const prevY = this.y;
+
+                // Smooth angle interpolation (lerp towards target)
+                let angleDiff = this.targetAngle - this.angle;
+                // Normalize angle difference to [-PI, PI]
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                this.angle += angleDiff * 0.15; // Smooth turn
+
+                // Move forward
+                this.x += Math.cos(this.angle) * MOVE_SPEED;
+                this.y += Math.sin(this.angle) * MOVE_SPEED;
+
+                // Update mesh position
+                this.mesh.position.set(this.x, 0.5, this.y);
+                this.mesh.rotation.y = -this.angle + Math.PI / 2;
+                this.light.position.copy(this.mesh.position);
+
+                // Add trail point EVERY frame for continuous trail
+                this.trailPoints.push({ x: this.x, y: this.y });
+
+                // Create trail mesh every few frames
+                if (this.frameCount % 3 === 0 && this.trailPoints.length > 1) {
+                    this.createTrailMesh();
+                }
+
+                // Smooth camera follow with lerp
+                const camDist = 15;
+                const camHeight = 12;
+                const targetCamX = this.x - Math.cos(this.angle) * camDist;
+                const targetCamY = this.y - Math.sin(this.angle) * camDist;
+
+                this.cameraPosition.lerp(
+                    new THREE.Vector3(targetCamX, camHeight, targetCamY),
+                    0.1
+                );
+                this.cameraTarget.lerp(
+                    new THREE.Vector3(this.x, 0, this.y),
+                    0.15
+                );
+
+                this.camera.position.copy(this.cameraPosition);
+                this.camera.lookAt(this.cameraTarget);
+
+                // Check collisions
+                this.checkCollision();
+            }
+
+            createTrailMesh() {
+                const points = this.trailPoints;
+                if (points.length < 2) return;
+
+                // Create path from trail points
+                const path = new THREE.CurvePath();
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p1 = points[i];
+                    const p2 = points[i + 1];
+                    path.add(new THREE.LineCurve3(
+                        new THREE.Vector3(p1.x, 0, p1.y),
+                        new THREE.Vector3(p2.x, 0, p2.y)
+                    ));
+                }
+
+                // Create extruded geometry along path
+                const shape = new THREE.Shape();
+                shape.moveTo(-WALL_WIDTH / 2, 0);
+                shape.lineTo(WALL_WIDTH / 2, 0);
+                shape.lineTo(WALL_WIDTH / 2, WALL_HEIGHT);
+                shape.lineTo(-WALL_WIDTH / 2, WALL_HEIGHT);
+                shape.lineTo(-WALL_WIDTH / 2, 0);
+
+                const extrudeSettings = {
+                    steps: points.length - 1,
+                    bevelEnabled: false,
+                    extrudePath: path
+                };
+
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                const material = new THREE.MeshPhongMaterial({
+                    color: this.color,
+                    emissive: this.color,
+                    emissiveIntensity: 0.9,
+                    transparent: true,
+                    opacity: 0.85,
+                    side: THREE.DoubleSide
+                });
+
+                const trailMesh = new THREE.Mesh(geometry, material);
+                scene.add(trailMesh);
+                this.trailMeshes.push(trailMesh);
+
+                // Store collision data
+                if (!this.collisionSegments) this.collisionSegments = [];
+                for (let i = 0; i < points.length - 1; i++) {
+                    this.collisionSegments.push({
+                        x1: points[i].x,
+                        y1: points[i].y,
+                        x2: points[i + 1].x,
+                        y2: points[i + 1].y
+                    });
+                }
+
+                // Clear trail points for next segment
+                this.trailPoints = [points[points.length - 1]];
+
+                // Limit total trail meshes
+                if (this.trailMeshes.length > 150) {
+                    const old = this.trailMeshes.shift();
+                    scene.remove(old);
+                    old.geometry.dispose();
+                    old.material.dispose();
+                }
+            }
+
+            checkCollision() {
+                // Boundary check
+                const boundary = GRID_SIZE / 2;
+                if (Math.abs(this.x) > boundary || Math.abs(this.y) > boundary) {
+                    this.alive = false;
+                    return;
+                }
+
+                // Check collision with all collision segments
+                const players = [player1, player2];
+                for (const p of players) {
+                    if (!p.collisionSegments) continue;
+
+                    // Skip own recent segments to avoid self-collision
+                    const skipCount = (p === this) ? 20 : 0;
+                    const totalSegments = p.collisionSegments.length;
+
+                    for (let i = 0; i < totalSegments - skipCount; i++) {
+                        const segment = p.collisionSegments[i];
+                        if (this.collidesWithSegment(segment)) {
+                            this.alive = false;
+                            return;
+                        }
+                    }
+                }
+            }
+
+            collidesWithSegment(segment) {
+                // Simple point-line distance check
+                const dx = segment.x2 - segment.x1;
+                const dy = segment.y2 - segment.y1;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length < 0.01) return false;
+
+                const px = this.x - segment.x1;
+                const py = this.y - segment.y1;
+
+                const dot = (px * dx + py * dy) / (length * length);
+
+                // Check if point is within segment bounds
+                if (dot < 0 || dot > 1) return false;
+
+                const closestX = segment.x1 + dot * dx;
+                const closestY = segment.y1 + dot * dy;
+
+                const dist = Math.sqrt((this.x - closestX) ** 2 + (this.y - closestY) ** 2);
+
+                // Collision if within wall width
+                return dist < (WALL_WIDTH + 0.3);
+            }
+        }
+
+        const player1 = new Player('p1', -20, 0, 0, 0x00ffff);
+        const player2 = new Player('p2', 20, 0, Math.PI, 0xff6600);
+
+        // Renderers for split screen
+        const renderer1 = new THREE.WebGLRenderer({ antialias: true });
+        const renderer2 = new THREE.WebGLRenderer({ antialias: true });
+
+        function initRenderers() {
+            const vp1 = document.getElementById('viewport1');
+            const vp2 = document.getElementById('viewport2');
+
+            renderer1.setSize(vp1.clientWidth, vp1.clientHeight);
+            renderer2.setSize(vp2.clientWidth, vp2.clientHeight);
+
+            vp1.appendChild(renderer1.domElement);
+            vp2.appendChild(renderer2.domElement);
+
+            player1.camera.aspect = vp1.clientWidth / vp1.clientHeight;
+            player1.camera.updateProjectionMatrix();
+
+            player2.camera.aspect = vp2.clientWidth / vp2.clientHeight;
+            player2.camera.updateProjectionMatrix();
+        }
+
+        // Input handling
+        window.addEventListener('keydown', (e) => {
+            keysPressed.add(e.key.toLowerCase());
+
+            if (gameState === 'WAITING' && e.key === ' ') {
+                startGame();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keysPressed.delete(e.key.toLowerCase());
+        });
+
+        function handleInput() {
+            if (gameState !== 'PLAYING') return;
+
+            // Player 1 (WASD)
+            if (keysPressed.has('a')) player1.turnLeft();
+            if (keysPressed.has('d')) player1.turnRight();
+
+            // Player 2 (Arrows)
+            if (keysPressed.has('arrowleft')) player2.turnLeft();
+            if (keysPressed.has('arrowright')) player2.turnRight();
+        }
+
+        // Game loop
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+
+            if (gameState === 'PLAYING') {
+                handleInput();
+                player1.update();
+                player2.update();
+
+                // Check for round end
+                if (!player1.alive && !player2.alive) {
+                    endRound('DRAW');
+                } else if (!player1.alive) {
+                    scores.p2++;
+                    endRound('PLAYER 2 WINS!');
+                } else if (!player2.alive) {
+                    scores.p1++;
+                    endRound('PLAYER 1 WINS!');
+                }
+            }
+
+            // Render split screen
+            renderer1.render(scene, player1.camera);
+            renderer2.render(scene, player2.camera);
+        }
+
+        function startGame() {
+            gameState = 'PLAYING';
+            document.getElementById('overlay').classList.add('hidden');
+            player1.reset();
+            player2.reset();
+        }
+
+        function endRound(message) {
+            gameState = 'WAITING';
+            document.getElementById('message').textContent = message;
+            document.getElementById('score1').textContent = scores.p1;
+            document.getElementById('score2').textContent = scores.p2;
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        // Start button
+        document.getElementById('startBtn').addEventListener('click', startGame);
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            const vp1 = document.getElementById('viewport1');
+            const vp2 = document.getElementById('viewport2');
+
+            renderer1.setSize(vp1.clientWidth, vp1.clientHeight);
+            renderer2.setSize(vp2.clientWidth, vp2.clientHeight);
+
+            player1.camera.aspect = vp1.clientWidth / vp1.clientHeight;
+            player1.camera.updateProjectionMatrix();
+
+            player2.camera.aspect = vp2.clientWidth / vp2.clientHeight;
+            player2.camera.updateProjectionMatrix();
+        });
+
+        // Initialize
+        initRenderers();
+        gameLoop();
+    </script>
+</body>
+</html>
