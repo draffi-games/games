@@ -883,13 +883,14 @@
             const aiCount = Math.min(2 + wave, 6);
             const aiColors = [0xff0000, 0xff6600, 0xffff00, 0x00ff00, 0xff00ff, 0xff0099];
             const aiNames = ['ALPHA', 'BETA', 'GAMMA', 'DELTA', 'EPSILON', 'ZETA'];
+            // Spawn positions: [x, z, angle] - angles point towards center or parallel to walls
             const spawnPositions = [
-                [40, 40, -3 * Math.PI / 4],
-                [40, -40, 3 * Math.PI / 4],
-                [-40, 40, -Math.PI / 4],
-                [0, 50, -Math.PI / 2],
-                [50, 0, Math.PI],
-                [-50, 0, 0]
+                [35, 35, -3 * Math.PI / 4],      // Top-right, facing center
+                [35, -35, 3 * Math.PI / 4],      // Bottom-right, facing center
+                [-35, 35, -Math.PI / 4],         // Top-left, facing center
+                [-35, -35, Math.PI / 4],         // Bottom-left, facing center
+                [0, 45, -Math.PI / 2],           // Top-center, facing down
+                [45, 0, Math.PI]                 // Right-center, facing left
             ];
 
             for (let i = 0; i < aiCount; i++) {
