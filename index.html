@@ -830,6 +830,313 @@
         .loaded .loading {
             display: none;
         }
+
+        /* Featured Games Carousel */
+        .featured-carousel {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            margin: 20px 0 30px 0;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-track {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-slide {
+            position: absolute;
+            width: 70%;
+            max-width: 700px;
+            height: 300px;
+            background: linear-gradient(135deg, rgba(0, 68, 102, 0.4), rgba(0, 34, 68, 0.6));
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 40px;
+            cursor: pointer;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transform: translateX(0) scale(0.8) rotateY(0deg);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .carousel-slide.active {
+            opacity: 1;
+            transform: translateX(0) scale(1) rotateY(0deg);
+            z-index: 3;
+            pointer-events: all;
+            border-color: var(--accent-blue);
+            box-shadow:
+                0 0 30px var(--accent-blue),
+                0 10px 50px rgba(0, 0, 0, 0.7);
+        }
+
+        .carousel-slide.prev {
+            opacity: 0.4;
+            transform: translateX(-60%) scale(0.75) rotateY(25deg);
+            z-index: 2;
+            filter: brightness(0.6);
+        }
+
+        .carousel-slide.next {
+            opacity: 0.4;
+            transform: translateX(60%) scale(0.75) rotateY(-25deg);
+            z-index: 2;
+            filter: brightness(0.6);
+        }
+
+        .carousel-slide:hover.active {
+            border-color: var(--accent-blue);
+            box-shadow:
+                0 0 40px var(--accent-blue),
+                0 0 60px rgba(0, 255, 255, 0.5),
+                0 10px 50px rgba(0, 0, 0, 0.7);
+            transform: translateX(0) scale(1.02) rotateY(0deg);
+        }
+
+        .carousel-slide-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px var(--accent-blue));
+            animation: float-icon 3s ease-in-out infinite;
+        }
+
+        .carousel-slide-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--accent-blue);
+            text-shadow: 0 0 20px var(--accent-blue);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .carousel-slide-description {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .carousel-slide-tags {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .carousel-tag {
+            padding: 5px 12px;
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid var(--accent-blue);
+            border-radius: 3px;
+            font-size: 11px;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .carousel-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 34, 68, 0.8);
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.3s;
+            font-size: 24px;
+            color: var(--accent-blue);
+        }
+
+        .carousel-nav:hover {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 20px var(--accent-blue);
+            background: rgba(0, 68, 102, 0.9);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .carousel-nav.prev {
+            left: 20px;
+        }
+
+        .carousel-nav.next {
+            right: 20px;
+        }
+
+        .carousel-indicators {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .carousel-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(0, 255, 255, 0.3);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .carousel-indicator.active {
+            background: var(--accent-blue);
+            box-shadow: 0 0 10px var(--accent-blue);
+            transform: scale(1.3);
+        }
+
+        .carousel-indicator:hover {
+            background: var(--accent-blue);
+            transform: scale(1.2);
+        }
+
+        /* Auto-play Progress Indicator */
+        .carousel-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: var(--accent-blue);
+            box-shadow: 0 0 10px var(--accent-blue);
+            z-index: 11;
+            animation: carousel-progress 5s linear infinite;
+            transform-origin: left;
+        }
+
+        @keyframes carousel-progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .carousel-progress.paused {
+            animation-play-state: paused;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: var(--accent-orange);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px var(--accent-orange);
+        }
+
+        /* Optimize Games Grid */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            max-height: calc(100vh - 550px);
+            overflow-y: auto;
+        }
+
+        .game-card {
+            padding: 15px;
+        }
+
+        .game-icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .game-title {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .game-description {
+            font-size: 11px;
+        }
+
+        /* Compact TRON Button */
+        .tron-access {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .tron-access-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            letter-spacing: 2px;
+        }
+
+        /* Responsive Carousel */
+        @media (max-width: 900px) {
+            .featured-carousel {
+                height: 300px;
+            }
+
+            .carousel-slide {
+                width: 85%;
+                height: 250px;
+                padding: 30px 20px;
+            }
+
+            .carousel-slide.prev,
+            .carousel-slide.next {
+                opacity: 0;
+                transform: translateX(0) scale(0.7);
+            }
+
+            .carousel-slide-icon {
+                font-size: 48px;
+            }
+
+            .carousel-slide-title {
+                font-size: 24px;
+            }
+
+            .carousel-slide-description {
+                font-size: 14px;
+            }
+
+            .carousel-nav {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .carousel-nav.prev {
+                left: 10px;
+            }
+
+            .carousel-nav.next {
+                right: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -892,6 +1199,22 @@
             <div class="display-header">
                 <div class="display-title">ENTERTAINMENT DATABASE</div>
                 <div class="display-subtitle">Select Mission Parameters</div>
+            </div>
+
+            <!-- Featured Games Carousel -->
+            <div class="section-title">⚡ FEATURED MISSIONS ⚡</div>
+            <div class="featured-carousel" id="featuredCarousel">
+                <div class="carousel-container">
+                    <div class="carousel-track" id="carouselTrack">
+                        <!-- Slides will be generated by JavaScript -->
+                    </div>
+                    <div class="carousel-nav prev" id="carouselPrev">‹</div>
+                    <div class="carousel-nav next" id="carouselNext">›</div>
+                    <div class="carousel-indicators" id="carouselIndicators">
+                        <!-- Indicators will be generated by JavaScript -->
+                    </div>
+                    <div class="carousel-progress" id="carouselProgress"></div>
+                </div>
             </div>
 
             <div class="tron-access">
@@ -1210,11 +1533,11 @@
                 tags: ["Arcade", "Classic", "1-Player"]
             },
             {
-                title: "Tron: 3D Dual Arena",
-                description: "Revolutionäres 3D Split-Screen Tron! 2 Spieler Duell mit Gamepad/Keyboard, echte 3D-Perspektive, Jump-Mechanik über Trails und Best-of-5 Rundensystem. Wie in Tron: Legacy!",
-                url: "games/tron/tron-3d-dual-arena.html",
-                icon: "⚡",
-                tags: ["Action", "2-Player", "3D", "TRON"]
+                title: "Tron: 3D Arena WebGL",
+                description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System und instant-responsive Steuerung. Das beste Tron-Erlebnis!",
+                url: "games/tron/tron-3d-dual-arena-threejs.html",
+                icon: "🌟",
+                tags: ["Action", "2-Player", "3D", "TRON", "WebGL"]
             },
             {
                 title: "Tron: Light Cycle Racing",
@@ -1657,6 +1980,201 @@
             }
         }
 
+        // Featured Games Carousel System
+        class FeaturedCarousel {
+            constructor() {
+                this.currentIndex = 0;
+                this.autoPlayInterval = null;
+                this.isHovered = false;
+                this.autoPlayDuration = 5000; // 5 seconds per slide
+
+                // Featured games - highlight the best/newest games
+                this.featuredGames = [
+                    {
+                        title: "Tron: 3D Arena WebGL",
+                        description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System und instant-responsive Steuerung. Das beste Tron-Erlebnis!",
+                        url: "games/tron/tron-3d-dual-arena-threejs.html",
+                        icon: "🌟",
+                        tags: ["Action", "2-Player", "3D", "TRON", "WebGL"]
+                    },
+                    {
+                        title: "Minecraft 3D",
+                        description: "Vollständiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und überlebe in deiner eigenen Blockwelt!",
+                        url: "games/minecraft3d.html",
+                        icon: "⛏️",
+                        tags: ["3D", "Sandbox", "1-Player"]
+                    },
+                    {
+                        title: "Space Command",
+                        description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten gegen die KI.",
+                        url: "games/space-command.html",
+                        icon: "🛰️",
+                        tags: ["Strategy", "RTS", "1-Player"]
+                    },
+                    {
+                        title: "Jedi Stickman Arena",
+                        description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support.",
+                        url: "games/jedi-stickman.html",
+                        icon: "⚔️",
+                        tags: ["Action", "Fighting", "4-Player"]
+                    },
+                    {
+                        title: "Helldivers Strategy",
+                        description: "Kommandiere Elite-Truppen in strategischen Gefechten! Orbital Strikes, Laser-Kanonen und taktische Kriegsführung für die Verteidigung der Super Earth.",
+                        url: "games/helldivers-strategy.html",
+                        icon: "🚀",
+                        tags: ["Strategy", "Action", "1-Player"]
+                    },
+                    {
+                        title: "Neon Tetris",
+                        description: "Tetris mit coolen 3D-Neon-Blöcken! Klassisches Gameplay trifft auf moderne Cyberpunk-Ästhetik mit Glow-Effekten und Partikel-Explosionen.",
+                        url: "games/neon-tetris.html",
+                        icon: "🟦",
+                        tags: ["Puzzle", "Classic", "1-Player"]
+                    }
+                ];
+
+                this.track = document.getElementById('carouselTrack');
+                this.indicators = document.getElementById('carouselIndicators');
+                this.prevBtn = document.getElementById('carouselPrev');
+                this.nextBtn = document.getElementById('carouselNext');
+                this.carousel = document.getElementById('featuredCarousel');
+                this.progressBar = document.getElementById('carouselProgress');
+
+                this.init();
+            }
+
+            init() {
+                this.createSlides();
+                this.createIndicators();
+                this.attachEvents();
+                this.updateCarousel();
+                this.startAutoPlay();
+            }
+
+            createSlides() {
+                this.featuredGames.forEach((game, index) => {
+                    const slide = document.createElement('div');
+                    slide.className = 'carousel-slide';
+                    slide.innerHTML = `
+                        <div class="carousel-slide-icon">${game.icon}</div>
+                        <div class="carousel-slide-title">${game.title}</div>
+                        <div class="carousel-slide-description">${game.description}</div>
+                        <div class="carousel-slide-tags">
+                            ${game.tags.map(tag => `<span class="carousel-tag">${tag}</span>`).join('')}
+                        </div>
+                    `;
+
+                    slide.addEventListener('click', () => {
+                        if (slide.classList.contains('active')) {
+                            window.location.href = game.url;
+                        } else {
+                            this.goToSlide(index);
+                        }
+                    });
+
+                    this.track.appendChild(slide);
+                });
+            }
+
+            createIndicators() {
+                this.featuredGames.forEach((_, index) => {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'carousel-indicator';
+                    indicator.addEventListener('click', () => this.goToSlide(index));
+                    this.indicators.appendChild(indicator);
+                });
+            }
+
+            attachEvents() {
+                this.prevBtn.addEventListener('click', () => {
+                    this.prev();
+                    this.restartAutoPlay();
+                });
+
+                this.nextBtn.addEventListener('click', () => {
+                    this.next();
+                    this.restartAutoPlay();
+                });
+
+                // Pause on hover
+                this.carousel.addEventListener('mouseenter', () => {
+                    this.isHovered = true;
+                    this.progressBar.classList.add('paused');
+                });
+
+                this.carousel.addEventListener('mouseleave', () => {
+                    this.isHovered = false;
+                    this.progressBar.classList.remove('paused');
+                });
+
+                // Keyboard navigation
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft') {
+                        this.prev();
+                        this.restartAutoPlay();
+                    }
+                    if (e.key === 'ArrowRight') {
+                        this.next();
+                        this.restartAutoPlay();
+                    }
+                });
+            }
+
+            updateCarousel() {
+                const slides = this.track.querySelectorAll('.carousel-slide');
+                const indicatorDots = this.indicators.querySelectorAll('.carousel-indicator');
+                const total = slides.length;
+
+                slides.forEach((slide, index) => {
+                    slide.classList.remove('active', 'prev', 'next');
+
+                    if (index === this.currentIndex) {
+                        slide.classList.add('active');
+                    } else if (index === (this.currentIndex - 1 + total) % total) {
+                        slide.classList.add('prev');
+                    } else if (index === (this.currentIndex + 1) % total) {
+                        slide.classList.add('next');
+                    }
+                });
+
+                indicatorDots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === this.currentIndex);
+                });
+            }
+
+            goToSlide(index) {
+                this.currentIndex = index;
+                this.updateCarousel();
+            }
+
+            next() {
+                this.currentIndex = (this.currentIndex + 1) % this.featuredGames.length;
+                this.updateCarousel();
+            }
+
+            prev() {
+                this.currentIndex = (this.currentIndex - 1 + this.featuredGames.length) % this.featuredGames.length;
+                this.updateCarousel();
+            }
+
+            startAutoPlay() {
+                this.stopAutoPlay();
+                this.autoPlayInterval = setInterval(() => {
+                    if (!this.isHovered) {
+                        this.next();
+                    }
+                }, 5000); // Change slide every 5 seconds
+            }
+
+            stopAutoPlay() {
+                if (this.autoPlayInterval) {
+                    clearInterval(this.autoPlayInterval);
+                    this.autoPlayInterval = null;
+                }
+            }
+        }
+
         // Console Button Animation System
         class ButtonAnimator {
             constructor() {
@@ -1781,6 +2299,10 @@
         // Initialize everything
         function init() {
             new StarSystem();
+
+            // Initialize Featured Carousel
+            new FeaturedCarousel();
+
             initializeFilters();
             loadGames();
 
