@@ -308,13 +308,18 @@
     </div>
 
     <script>
-        // DEBUG mode pattern
+        // DEBUG mode pattern - set to true to see collision details
         const DEBUG = false;
         if (!DEBUG) {
             const noop = () => {};
             console.log = noop;
             console.warn = noop;
             console.info = noop;
+        }
+
+        // Debug helper
+        function debugLog(message) {
+            if (DEBUG) console.log(message);
         }
 
         // Safe localStorage wrapper
@@ -499,24 +504,45 @@
                 // Move
                 this.x += this.direction.x * GRID_SIZE;
                 this.y += this.direction.y * GRID_SIZE;
+            }
 
-                // Check collisions
+            checkCollisionsPhase() {
+                if (!this.alive) return;
                 this.checkCollisions();
             }
 
             checkCollisions() {
+                const cycleType = this.isPlayer ? 'PLAYER' : 'AI';
+
                 // Wall collision
                 if (this.x < 0 || this.x >= canvas.width ||
                     this.y < 0 || this.y >= canvas.height) {
+                    debugLog(`${cycleType} died: Wall collision at (${this.x}, ${this.y})`);
                     this.alive = false;
                     playSound('crash');
                     return;
+                }
+
+                // Check collision with other cycles' current positions (head-on collisions)
+                for (const cycle of lightCycles) {
+                    if (cycle !== this && cycle.alive) {
+                        if (this.x === cycle.x && this.y === cycle.y) {
+                            const otherType = cycle.isPlayer ? 'PLAYER' : 'AI';
+                            debugLog(`${cycleType} died: Head-on collision with ${otherType} at (${this.x}, ${this.y})`);
+                            this.alive = false;
+                            playSound('crash');
+                            return;
+                        }
+                    }
                 }
 
                 // Check collision with all trails (including own)
                 for (const cycle of lightCycles) {
                     for (const segment of cycle.trail) {
                         if (this.x === segment.x && this.y === segment.y) {
+                            const trailOwner = cycle.isPlayer ? 'PLAYER' : 'AI';
+                            const ownTrail = cycle === this ? ' (own trail)' : '';
+                            debugLog(`${cycleType} died: Trail collision with ${trailOwner}'s trail${ownTrail} at (${this.x}, ${this.y})`);
                             this.alive = false;
                             playSound('crash');
                             return;
@@ -764,6 +790,16 @@
                     return true;
                 }
 
+                // Check collision with other cycles' current positions
+                for (const cycle of lightCycles) {
+                    if (cycle !== this && cycle.alive) {
+                        if (x === cycle.x && y === cycle.y) {
+                            return true;
+                        }
+                    }
+                }
+
+                // Check collision with all trails
                 for (const cycle of lightCycles) {
                     for (const segment of cycle.trail) {
                         if (x === segment.x && y === segment.y) {
@@ -1338,16 +1374,21 @@
                 // Draw grid
                 drawGrid();
 
-                // Update AI
+                // Update AI decisions
                 for (const cycle of lightCycles) {
                     if (cycle instanceof AICycle) {
                         cycle.updateAI();
                     }
                 }
 
-                // Update all cycles
+                // Phase 1: Move all cycles simultaneously
                 for (const cycle of lightCycles) {
                     cycle.update();
+                }
+
+                // Phase 2: Check collisions after ALL cycles have moved
+                for (const cycle of lightCycles) {
+                    cycle.checkCollisionsPhase();
                 }
 
                 // Draw all cycles
@@ -1368,17 +1409,25 @@
 
                 updateHUD();
 
+                // Count alive cycles
+                const aliveCycles = lightCycles.filter(c => c.alive);
+                const aliveCount = aliveCycles.length;
+                const aliveAI = lightCycles.filter(c => !c.isPlayer && c.alive).length;
+
+                debugLog(`Frame ${frameCount}: ${aliveCount} cycles alive (Player: ${player.alive ? 'YES' : 'NO'}, AI: ${aliveAI})`);
+
                 // Check game over
                 if (!player.alive) {
+                    debugLog(`Game Over: Player died. Total alive: ${aliveCount}`);
                     endGame();
                     return;
                 }
 
                 // Check if all AI are dead (player wins this round)
-                const aliveAI = lightCycles.filter(c => !c.isPlayer && c.alive).length;
                 if (aliveAI === 0) {
                     score += 1000;
                     playSound('victory');
+                    debugLog('Victory: All AI defeated!');
                     // Could add new AI here for endless mode
                 }
             }
