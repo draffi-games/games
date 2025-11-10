@@ -1028,16 +1028,17 @@
             bottom: 0;
             left: 0;
             height: 3px;
-            background: var(--accent-blue);
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-orange));
             box-shadow: 0 0 10px var(--accent-blue);
             z-index: 11;
-            animation: carousel-progress 5s linear infinite;
+            animation: carousel-progress 5000ms linear infinite;
             transform-origin: left;
         }
 
         @keyframes carousel-progress {
-            0% { width: 0%; }
-            100% { width: 100%; }
+            0% { width: 0%; opacity: 1; }
+            90% { opacity: 1; }
+            100% { width: 100%; opacity: 0.5; }
         }
 
         .carousel-progress.paused {
@@ -2081,7 +2082,10 @@
                 this.featuredGames.forEach((_, index) => {
                     const indicator = document.createElement('div');
                     indicator.className = 'carousel-indicator';
-                    indicator.addEventListener('click', () => this.goToSlide(index));
+                    indicator.addEventListener('click', () => {
+                        this.goToSlide(index);
+                        this.restartAutoPlay();
+                    });
                     this.indicators.appendChild(indicator);
                 });
             }
@@ -2163,8 +2167,9 @@
                 this.autoPlayInterval = setInterval(() => {
                     if (!this.isHovered) {
                         this.next();
+                        this.restartProgressBar();
                     }
-                }, 5000); // Change slide every 5 seconds
+                }, this.autoPlayDuration);
             }
 
             stopAutoPlay() {
@@ -2172,6 +2177,19 @@
                     clearInterval(this.autoPlayInterval);
                     this.autoPlayInterval = null;
                 }
+            }
+
+            restartAutoPlay() {
+                this.startAutoPlay();
+                this.restartProgressBar();
+            }
+
+            restartProgressBar() {
+                // Restart the progress bar animation
+                this.progressBar.style.animation = 'none';
+                // Trigger reflow to restart animation
+                void this.progressBar.offsetWidth;
+                this.progressBar.style.animation = `carousel-progress ${this.autoPlayDuration}ms linear infinite`;
             }
         }
 
