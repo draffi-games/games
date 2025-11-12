@@ -147,10 +147,14 @@
         const TURBO_DRAIN_RATE = 1.5;
 
         // Game state
-        let gameState = 'WAITING';
+        let gameState = 'WAITING'; // WAITING, PLAYING, DEATH_ANIMATION
+        let deathAnimationTimer = 0;
         let scores = { p1: 0, p2: 0 };
         let steeringMode = 'smooth'; // 'smooth' or 'grid'
         let keysPressed = new Set();
+
+        // Particle system for explosions
+        let particles = [];
 
         // Three.js scenes for split screen
         const scene = new THREE.Scene();
@@ -165,78 +169,219 @@
         const gridHelper = new THREE.GridHelper(GRID_SIZE, 50, 0x0088ff, 0x003344);
         scene.add(gridHelper);
 
-        // Create Light Cycle Geometry
+        // ===== PARTICLE SYSTEM FOR EXPLOSIONS =====
+        class Particle {
+            constructor(x, y, z, vx, vy, vz, color) {
+                this.vx = vx;
+                this.vy = vy;
+                this.vz = vz;
+                this.life = 150; // 2.5 seconds at 60fps
+                this.maxLife = 150;
+
+                // Create small rotating cube
+                const size = 0.15 + Math.random() * 0.25;
+                const geometry = new THREE.BoxGeometry(size, size, size);
+                const material = new THREE.MeshPhongMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 1.5,
+                    transparent: true,
+                    opacity: 1.0
+                });
+
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(x, y, z);
+
+                // Random rotation speeds
+                this.rotVelX = (Math.random() - 0.5) * 0.2;
+                this.rotVelY = (Math.random() - 0.5) * 0.2;
+                this.rotVelZ = (Math.random() - 0.5) * 0.2;
+
+                scene.add(this.mesh);
+            }
+
+            update() {
+                // Physics
+                this.mesh.position.x += this.vx;
+                this.mesh.position.y += this.vy;
+                this.mesh.position.z += this.vz;
+
+                // Gravity
+                this.vy -= 0.02;
+
+                // Air resistance
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.vz *= 0.98;
+
+                // Rotation
+                this.mesh.rotation.x += this.rotVelX;
+                this.mesh.rotation.y += this.rotVelY;
+                this.mesh.rotation.z += this.rotVelZ;
+
+                // Bounce off ground
+                if (this.mesh.position.y < 0) {
+                    this.mesh.position.y = 0;
+                    this.vy = -this.vy * 0.4; // Dampened bounce
+                    this.vx *= 0.7;
+                    this.vz *= 0.7;
+                }
+
+                // Fade out
+                this.life--;
+                const alpha = this.life / this.maxLife;
+                this.mesh.material.opacity = alpha;
+                this.mesh.material.emissiveIntensity = 1.5 * alpha;
+
+                // Remove if dead
+                if (this.life <= 0) {
+                    scene.remove(this.mesh);
+                    this.mesh.geometry.dispose();
+                    this.mesh.material.dispose();
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        function createExplosion(x, y, z, color1, color2) {
+            const particleCount = 50; // More particles for dramatic effect
+
+            for (let i = 0; i < particleCount; i++) {
+                // Random radial direction
+                const angle = Math.random() * Math.PI * 2;
+                const elevation = (Math.random() - 0.2) * Math.PI * 0.8;
+                const speed = 0.15 + Math.random() * 0.25;
+
+                const vx = Math.cos(angle) * Math.cos(elevation) * speed;
+                const vy = Math.sin(elevation) * speed + 0.15; // Upward bias
+                const vz = Math.sin(angle) * Math.cos(elevation) * speed;
+
+                // Mix of both colors + white sparks
+                let color;
+                const rand = Math.random();
+                if (rand < 0.35) color = color1;
+                else if (rand < 0.70) color = color2;
+                else color = 0xffffff; // White sparks
+
+                particles.push(new Particle(x, y, z, vx, vy, vz, color));
+            }
+        }
+
+        // Create Light Cycle Geometry - sleek and streamlined
         function createLightCycle(color) {
             const group = new THREE.Group();
+            const scale = 1.5; // Moderate size - sleek and visible
 
-            // Main body (elongated)
-            const bodyGeometry = new THREE.BoxGeometry(0.8, 0.4, 1.8);
+            // Main body (elongated and slim)
+            const bodyGeometry = new THREE.BoxGeometry(0.5 * scale, 0.3 * scale, 2.2 * scale);
             const bodyMaterial = new THREE.MeshPhongMaterial({
                 color: color,
                 emissive: color,
-                emissiveIntensity: 0.4,
+                emissiveIntensity: 0.5,
                 shininess: 100
             });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 0.3;
+            body.position.y = 0.3 * scale;
             group.add(body);
 
-            // Cockpit
-            const cockpitGeometry = new THREE.BoxGeometry(0.6, 0.5, 0.8);
+            // Cockpit (rider area) - slimmer
+            const cockpitGeometry = new THREE.BoxGeometry(0.4 * scale, 0.5 * scale, 0.8 * scale);
             const cockpit = new THREE.Mesh(cockpitGeometry, bodyMaterial);
-            cockpit.position.set(0, 0.6, 0.2);
+            cockpit.position.set(0, 0.6 * scale, 0.2 * scale);
             group.add(cockpit);
 
-            // Front wheel
-            const wheelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.15, 16);
+            // Rider (human silhouette on top) - slimmer
+            const riderGeometry = new THREE.BoxGeometry(0.35 * scale, 0.7 * scale, 0.5 * scale);
+            const riderMaterial = new THREE.MeshPhongMaterial({
+                color: 0x001020,
+                emissive: color,
+                emissiveIntensity: 0.2
+            });
+            const rider = new THREE.Mesh(riderGeometry, riderMaterial);
+            rider.position.set(0, 1.0 * scale, 0);
+            group.add(rider);
+
+            // Front wheel (bigger)
+            const wheelGeometry = new THREE.CylinderGeometry(0.5 * scale, 0.5 * scale, 0.25 * scale, 16);
             const wheelMaterial = new THREE.MeshPhongMaterial({
                 color: 0x222222,
                 emissive: color,
-                emissiveIntensity: 0.3
+                emissiveIntensity: 0.5
             });
             const frontWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
             frontWheel.rotation.z = Math.PI / 2;
-            frontWheel.position.set(0, 0.3, 0.7);
+            frontWheel.position.set(0, 0.5 * scale, 1.1 * scale);
             group.add(frontWheel);
 
-            // Back wheel
+            // Front wheel rim (glowing center)
+            const rimGeometry = new THREE.CylinderGeometry(0.25 * scale, 0.25 * scale, 0.3 * scale, 16);
+            const rimMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                emissive: color,
+                emissiveIntensity: 1.5
+            });
+            const frontRim = new THREE.Mesh(rimGeometry, rimMaterial);
+            frontRim.rotation.z = Math.PI / 2;
+            frontRim.position.set(0, 0.5 * scale, 1.1 * scale);
+            group.add(frontRim);
+
+            // Back wheel (bigger)
             const backWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
             backWheel.rotation.z = Math.PI / 2;
-            backWheel.position.set(0, 0.3, -0.7);
+            backWheel.position.set(0, 0.5 * scale, -1.0 * scale);
             group.add(backWheel);
 
-            // Side wings (TRON style)
-            const wingGeometry = new THREE.BoxGeometry(0.05, 0.8, 1.2);
+            // Back wheel rim
+            const backRim = new THREE.Mesh(rimGeometry, rimMaterial);
+            backRim.rotation.z = Math.PI / 2;
+            backRim.position.set(0, 0.5 * scale, -1.0 * scale);
+            group.add(backRim);
+
+            // Side wings (TRON style - thin and elegant)
+            const wingGeometry = new THREE.BoxGeometry(0.05 * scale, 0.9 * scale, 1.5 * scale);
             const wingMaterial = new THREE.MeshPhongMaterial({
                 color: color,
                 emissive: color,
-                emissiveIntensity: 0.8,
+                emissiveIntensity: 1.0,
                 transparent: true,
                 opacity: 0.7
             });
 
             const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-            leftWing.position.set(-0.5, 0.5, 0);
+            leftWing.position.set(-0.4 * scale, 0.6 * scale, 0);
             group.add(leftWing);
 
             const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-            rightWing.position.set(0.5, 0.5, 0);
+            rightWing.position.set(0.4 * scale, 0.6 * scale, 0);
             group.add(rightWing);
 
-            // Glow lines on body
-            const lineGeometry = new THREE.BoxGeometry(0.1, 0.1, 1.8);
+            // Front headlight (bright white)
+            const lightGeometry = new THREE.SphereGeometry(0.15 * scale, 16, 16);
+            const lightMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                emissive: 0xffffff,
+                emissiveIntensity: 2.0
+            });
+            const headlight = new THREE.Mesh(lightGeometry, lightMaterial);
+            headlight.position.set(0, 0.4 * scale, 1.4 * scale);
+            group.add(headlight);
+
+            // Glow lines on body (thin and bright)
+            const lineGeometry = new THREE.BoxGeometry(0.08 * scale, 0.08 * scale, 2.0 * scale);
             const lineMaterial = new THREE.MeshPhongMaterial({
                 color: 0xffffff,
                 emissive: color,
-                emissiveIntensity: 1.0
+                emissiveIntensity: 1.5
             });
 
             const leftLine = new THREE.Mesh(lineGeometry, lineMaterial);
-            leftLine.position.set(-0.3, 0.3, 0);
+            leftLine.position.set(-0.22 * scale, 0.3 * scale, 0);
             group.add(leftLine);
 
             const rightLine = new THREE.Mesh(lineGeometry, lineMaterial);
-            rightLine.position.set(0.3, 0.3, 0);
+            rightLine.position.set(0.22 * scale, 0.3 * scale, 0);
             group.add(rightLine);
 
             return group;
@@ -489,6 +634,7 @@
                 const boundary = GRID_SIZE / 2;
                 if (Math.abs(this.x) > boundary || Math.abs(this.y) > boundary) {
                     this.alive = false;
+                    createExplosion(this.x, 1, this.y, this.color, this.color);
                     return;
                 }
 
@@ -505,9 +651,32 @@
                         const segment = p.collisionSegments[i];
                         if (this.collidesWithSegment(segment)) {
                             this.alive = false;
+                            const otherColor = p.color;
+                            createExplosion(this.x, 1, this.y, this.color, otherColor);
                             return;
                         }
                     }
+                }
+            }
+
+            checkPlayerCollision(otherPlayer) {
+                // Head-on crash detection!
+                if (!this.alive || !otherPlayer.alive) return;
+
+                const dx = this.x - otherPlayer.x;
+                const dy = this.y - otherPlayer.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Collision if both players are very close
+                const COLLISION_DISTANCE = 2.5; // Adjusted for sleeker bikes
+                if (distance < COLLISION_DISTANCE) {
+                    // Both die - spectacular explosion!
+                    const midX = (this.x + otherPlayer.x) / 2;
+                    const midY = (this.y + otherPlayer.y) / 2;
+                    createExplosion(midX, 1.5, midY, this.color, otherPlayer.color);
+
+                    this.alive = false;
+                    otherPlayer.alive = false;
                 }
             }
 
@@ -666,6 +835,11 @@
                 player1.update();
                 player2.update();
 
+                // Check head-on collision
+                if (player1.alive && player2.alive) {
+                    player1.checkPlayerCollision(player2);
+                }
+
                 // Update turbo HUD
                 document.getElementById('turbo1').style.width = player1.turboCharge + '%';
                 document.getElementById('turbo2').style.width = player2.turboCharge + '%';
@@ -673,15 +847,30 @@
                 // Update steering mode display
                 document.getElementById('steeringMode').textContent = `MODE: ${steeringMode.toUpperCase()}`;
 
-                // Check for round end
-                if (!player1.alive && !player2.alive) {
-                    endRound('DRAW');
-                } else if (!player1.alive) {
-                    scores.p2++;
-                    endRound('PLAYER 2 WINS!');
-                } else if (!player2.alive) {
-                    scores.p1++;
-                    endRound('PLAYER 1 WINS!');
+                // Update particles
+                particles = particles.filter(p => p.update());
+
+                // Check for round end - start death animation
+                if (!player1.alive || !player2.alive) {
+                    gameState = 'DEATH_ANIMATION';
+                    deathAnimationTimer = 150; // 2.5 seconds to watch explosion
+                }
+            } else if (gameState === 'DEATH_ANIMATION') {
+                // No player movement - just particles!
+                particles = particles.filter(p => p.update());
+
+                deathAnimationTimer--;
+                if (deathAnimationTimer <= 0) {
+                    // Now show winner and end round
+                    if (!player1.alive && !player2.alive) {
+                        endRound('DRAW');
+                    } else if (!player1.alive) {
+                        scores.p2++;
+                        endRound('PLAYER 2 WINS!');
+                    } else if (!player2.alive) {
+                        scores.p1++;
+                        endRound('PLAYER 1 WINS!');
+                    }
                 }
             }
 
@@ -693,6 +882,15 @@
         function startGame() {
             gameState = 'PLAYING';
             document.getElementById('overlay').classList.add('hidden');
+
+            // Clear any remaining particles from previous round
+            for (const particle of particles) {
+                scene.remove(particle.mesh);
+                particle.mesh.geometry.dispose();
+                particle.mesh.material.dispose();
+            }
+            particles = [];
+
             player1.reset();
             player2.reset();
         }
