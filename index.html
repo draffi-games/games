@@ -831,313 +831,95 @@
             display: none;
         }
 
-        /* Featured Games Carousel */
-        .featured-carousel {
-            position: relative;
-            width: 100%;
-            height: 350px;
-            margin: 20px 0 30px 0;
-            overflow: hidden;
-            perspective: 1000px;
-        }
-
-        .carousel-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
+        /* Category Tabs Navigation */
+        .category-tabs {
             display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .carousel-track {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .carousel-slide {
-            position: absolute;
-            width: 70%;
-            max-width: 700px;
-            height: 300px;
-            background: linear-gradient(135deg, rgba(0, 68, 102, 0.4), rgba(0, 34, 68, 0.6));
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            padding: 40px;
-            cursor: pointer;
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0;
-            transform: translateX(0) scale(0.8) rotateY(0deg);
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-        }
-
-        .carousel-slide.active {
-            opacity: 1;
-            transform: translateX(0) scale(1) rotateY(0deg);
-            z-index: 3;
-            pointer-events: all;
-            border-color: var(--accent-blue);
-            box-shadow:
-                0 0 30px var(--accent-blue),
-                0 10px 50px rgba(0, 0, 0, 0.7);
-        }
-
-        .carousel-slide.prev {
-            opacity: 0.4;
-            transform: translateX(-60%) scale(0.75) rotateY(25deg);
-            z-index: 2;
-            filter: brightness(0.6);
-        }
-
-        .carousel-slide.next {
-            opacity: 0.4;
-            transform: translateX(60%) scale(0.75) rotateY(-25deg);
-            z-index: 2;
-            filter: brightness(0.6);
-        }
-
-        .carousel-slide:hover.active {
-            border-color: var(--accent-blue);
-            box-shadow:
-                0 0 40px var(--accent-blue),
-                0 0 60px rgba(0, 255, 255, 0.5),
-                0 10px 50px rgba(0, 0, 0, 0.7);
-            transform: translateX(0) scale(1.02) rotateY(0deg);
-        }
-
-        .carousel-slide-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 0 20px var(--accent-blue));
-            animation: float-icon 3s ease-in-out infinite;
-        }
-
-        .carousel-slide-title {
-            font-size: 32px;
-            font-weight: bold;
-            color: var(--accent-blue);
-            text-shadow: 0 0 20px var(--accent-blue);
-            margin-bottom: 15px;
-            letter-spacing: 2px;
-        }
-
-        .carousel-slide-description {
-            font-size: 16px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            max-width: 600px;
-            margin-bottom: 20px;
-        }
-
-        .carousel-slide-tags {
-            display: flex;
-            gap: 10px;
+            gap: 8px;
+            padding: 15px 0;
+            border-bottom: 2px solid var(--border-color);
             flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .carousel-tag {
-            padding: 5px 12px;
-            background: rgba(0, 255, 255, 0.2);
-            border: 1px solid var(--accent-blue);
-            border-radius: 3px;
-            font-size: 11px;
-            color: var(--accent-blue);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .carousel-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 34, 68, 0.8);
-            border: 2px solid var(--border-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 10;
-            transition: all 0.3s;
-            font-size: 24px;
-            color: var(--accent-blue);
-        }
-
-        .carousel-nav:hover {
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 20px var(--accent-blue);
-            background: rgba(0, 68, 102, 0.9);
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .carousel-nav.prev {
-            left: 20px;
-        }
-
-        .carousel-nav.next {
-            right: 20px;
-        }
-
-        .carousel-indicators {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 10;
-        }
-
-        .carousel-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: rgba(0, 255, 255, 0.3);
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .carousel-indicator.active {
-            background: var(--accent-blue);
-            box-shadow: 0 0 10px var(--accent-blue);
-            transform: scale(1.3);
-        }
-
-        .carousel-indicator:hover {
-            background: var(--accent-blue);
-            transform: scale(1.2);
-        }
-
-        /* Auto-play Progress Indicator */
-        .carousel-progress {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--accent-blue), var(--accent-orange));
-            box-shadow: 0 0 10px var(--accent-blue);
-            z-index: 11;
-            animation: carousel-progress 5000ms linear infinite;
-            transform-origin: left;
-        }
-
-        @keyframes carousel-progress {
-            0% { width: 0%; opacity: 1; }
-            90% { opacity: 1; }
-            100% { width: 100%; opacity: 0.5; }
-        }
-
-        .carousel-progress.paused {
-            animation-play-state: paused;
-        }
-
-        .section-title {
-            font-size: 20px;
-            color: var(--accent-orange);
-            text-transform: uppercase;
-            letter-spacing: 3px;
             margin-bottom: 15px;
-            text-align: center;
-            text-shadow: 0 0 10px var(--accent-orange);
         }
 
-        /* Optimize Games Grid */
+        .category-tab {
+            padding: 10px 16px;
+            background: rgba(0, 68, 102, 0.3);
+            border: 1px solid var(--border-color);
+            color: var(--accent-blue);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        .category-tab:hover {
+            background: rgba(0, 68, 102, 0.5);
+            border-color: var(--accent-blue);
+        }
+
+        .category-tab.active {
+            background: var(--accent-blue);
+            color: #000;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 15px var(--accent-blue);
+            font-weight: bold;
+        }
+
+        /* Compact Games Grid */
         .games-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 15px;
-            max-height: calc(100vh - 550px);
-            overflow-y: auto;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            min-height: 600px;
+        }
+
+        #gamesContainer {
+            transition: opacity 0.2s;
         }
 
         .game-card {
-            padding: 15px;
+            padding: 12px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .game-icon {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .game-title {
-            font-size: 16px;
+            font-size: 32px;
             margin-bottom: 8px;
         }
 
+        .game-title {
+            font-size: 14px;
+            margin-bottom: 6px;
+            line-height: 1.2;
+        }
+
         .game-description {
-            font-size: 11px;
+            font-size: 10px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
-        /* Compact TRON Button */
-        .tron-access {
-            text-align: center;
-            margin: 20px 0;
+        @media (max-width: 1400px) {
+            .games-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
 
-        .tron-access-btn {
-            padding: 15px 40px;
-            font-size: 20px;
-            letter-spacing: 2px;
-        }
-
-        /* Responsive Carousel */
         @media (max-width: 900px) {
-            .featured-carousel {
-                height: 300px;
-            }
-
-            .carousel-slide {
-                width: 85%;
-                height: 250px;
-                padding: 30px 20px;
-            }
-
-            .carousel-slide.prev,
-            .carousel-slide.next {
-                opacity: 0;
-                transform: translateX(0) scale(0.7);
-            }
-
-            .carousel-slide-icon {
-                font-size: 48px;
-            }
-
-            .carousel-slide-title {
-                font-size: 24px;
-            }
-
-            .carousel-slide-description {
-                font-size: 14px;
-            }
-
-            .carousel-nav {
-                width: 40px;
-                height: 40px;
-                font-size: 20px;
-            }
-
-            .carousel-nav.prev {
-                left: 10px;
-            }
-
-            .carousel-nav.next {
-                right: 10px;
+            .games-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
+
     </style>
 </head>
 <body>
@@ -1202,42 +984,33 @@
                 <div class="display-subtitle">Select Mission Parameters</div>
             </div>
 
-            <!-- Featured Games Carousel -->
-            <div class="section-title">⚡ FEATURED MISSIONS ⚡</div>
-            <div class="featured-carousel" id="featuredCarousel">
-                <div class="carousel-container">
-                    <div class="carousel-track" id="carouselTrack">
-                        <!-- Slides will be generated by JavaScript -->
-                    </div>
-                    <div class="carousel-nav prev" id="carouselPrev">‹</div>
-                    <div class="carousel-nav next" id="carouselNext">›</div>
-                    <div class="carousel-indicators" id="carouselIndicators">
-                        <!-- Indicators will be generated by JavaScript -->
-                    </div>
-                    <div class="carousel-progress" id="carouselProgress"></div>
-                </div>
+            <!-- Category Tabs Navigation -->
+            <div class="category-tabs" id="categoryTabs" role="tablist">
+                <!-- Tabs will be generated by JavaScript -->
             </div>
 
-            <div class="tron-access">
-                <a href="tron-index.html" class="tron-access-btn" aria-label="Enter TRON: Ares Games Archive - Special collection of 6 TRON themed games">
+            <!-- TRON Access Button (Compact) -->
+            <div class="tron-access-compact" style="text-align: center; margin: 15px 0;">
+                <a href="tron-index.html" class="tron-access-btn-compact"
+                   style="display: inline-block; padding: 12px 30px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00D9FF; color: #00D9FF; text-decoration: none; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; clip-path: polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%); transition: all 0.3s ease; box-shadow: 0 0 10px #00D9FF, inset 0 0 10px rgba(0, 217, 255, 0.1); font-family: 'Courier New', monospace;"
+                   onmouseover="this.style.background='#00D9FF'; this.style.color='#000'; this.style.boxShadow='0 0 20px #00D9FF, 0 0 40px #00D9FF';"
+                   onmouseout="this.style.background='rgba(0, 0, 0, 0.8)'; this.style.color='#00D9FF'; this.style.boxShadow='0 0 10px #00D9FF, inset 0 0 10px rgba(0, 217, 255, 0.1)';"
+                   aria-label="Enter TRON: Ares Games Archive">
                     ⚡ ENTER THE GRID ⚡
                 </a>
-                <span class="tron-label" aria-label="TRON: ARES GAMES ARCHIVE">TRON: ARES GAMES ARCHIVE</span>
             </div>
 
-            <!-- Filter & Search Bar -->
-            <div class="filter-bar" style="margin: 20px 0; padding: 15px; background: rgba(0, 34, 68, 0.5); border: 1px solid var(--border-color); border-radius: 5px;">
-                <input type="text" id="searchInput" placeholder="🔍 Search games..."
-                       style="width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--border-color); color: var(--accent-blue); font-family: 'Courier New', monospace; font-size: 14px; border-radius: 3px;"
+            <!-- Search Bar -->
+            <div class="search-bar" style="margin: 10px 0; padding: 10px; background: rgba(0, 34, 68, 0.5); border: 1px solid var(--border-color); border-radius: 5px;">
+                <input type="text" id="searchInput" placeholder="🔍 Spiele durchsuchen..."
+                       style="width: 100%; padding: 10px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--border-color); color: var(--accent-blue); font-family: 'Courier New', monospace; font-size: 13px; border-radius: 3px;"
                        aria-label="Search games by title or description">
-                <div id="filterTags" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
-                    <!-- Filter tags will be added here -->
-                </div>
             </div>
 
+            <!-- Games Grid -->
             <main role="main" aria-label="Games Gallery">
-                <div class="games-grid" id="gamesGrid" role="list" aria-label="Available games - 25 titles">
-                    <!-- Games will be loaded here -->
+                <div class="games-grid" id="gamesGrid" role="list">
+                    <!-- Game cards will be loaded here -->
                 </div>
             </main>
         </div>
@@ -1370,289 +1143,411 @@
             }
         }
 
-        // Game Data
-        const games = [
-            {
-                title: "Snake",
-                description: "Das klassische Snake-Spiel - sammle Äpfel und werde länger!",
-                url: "games/snake.html",
-                icon: "🐍",
-                tags: ["Arcade", "Classic", "1-Player"]
+        // Game Categories
+        const gameCategories = {
+            "Featured": {
+                title: "⭐ Featured",
+                icon: "⭐",
+                games: [
+                    {
+                        title: "Tron: 3D Arena WebGL",
+                        description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System.",
+                        url: "games/tron/tron-3d-dual-arena-threejs.html",
+                        icon: "🌟"
+                    },
+                    {
+                        title: "Minecraft 3D",
+                        description: "Vollständiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und überlebe in deiner eigenen Blockwelt!",
+                        url: "games/minecraft3d.html",
+                        icon: "⛏️"
+                    },
+                    {
+                        title: "Space Command",
+                        description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten.",
+                        url: "games/space-command.html",
+                        icon: "🛰️"
+                    },
+                    {
+                        title: "Jedi Stickman Arena",
+                        description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support.",
+                        url: "games/jedi-stickman.html",
+                        icon: "⚔️"
+                    },
+                    {
+                        title: "Helldivers Strategy",
+                        description: "Kommandiere Elite-Truppen in strategischen Gefechten! Orbital Strikes, Laser-Kanonen und taktische Kriegsführung.",
+                        url: "games/helldivers-strategy.html",
+                        icon: "🚀"
+                    },
+                    {
+                        title: "Neon Tetris",
+                        description: "Tetris mit coolen 3D-Neon-Blöcken! Klassisches Gameplay trifft auf moderne Cyberpunk-Ästhetik mit Glow-Effekten.",
+                        url: "games/neon-tetris.html",
+                        icon: "🟦"
+                    }
+                ]
             },
-            {
-                title: "Chain Run", 
-                description: "Kooperatives Jump'n'Run - zwei Spieler verbunden mit einer Kette!",
-                url: "games/chain_run_ketten_jumpnrun_chat_canvas.html",
-                icon: "⛓️",
-                tags: ["Platformer", "2-Player", "Co-op"]
+            "3D": {
+                title: "🎮 3D Spiele",
+                icon: "🎮",
+                games: [
+                    {
+                        title: "Tron: 3D Arena WebGL",
+                        description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System und instant-responsive Steuerung.",
+                        url: "games/tron/tron-3d-dual-arena-threejs.html",
+                        icon: "🌟"
+                    },
+                    {
+                        title: "Minecraft 3D",
+                        description: "Vollständiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und überlebe in deiner eigenen Blockwelt!",
+                        url: "games/minecraft3d.html",
+                        icon: "⛏️"
+                    },
+                    {
+                        title: "3D Maze Escape",
+                        description: "Finde den Ausgang im 3D-Labyrinth! Wähle zwischen Krieger, Magier oder Schurke.",
+                        url: "games/maze3d.html",
+                        icon: "🏛️"
+                    }
+                ]
             },
-            {
-                title: "Brick Breaker",
-                description: "Zerstöre Blöcke und sammle Power-Ups für Multi-Ball und Laser-Waffen!",
-                url: "games/brickbreaker.html",
-                icon: "🧱",
-                tags: ["Arcade", "Classic", "1-Player"]
-            },
-            {
-                title: "Volleyball",
-                description: "Spannende Volleyball-Action für zwei Spieler mit realistischer Physik!",
-                url: "games/volleyball.html",
-                icon: "🏐",
-                tags: ["Sports", "2-Player", "Physics"]
-            },
-            {
-                title: "3D Maze Escape",
-                description: "Finde den Ausgang im 3D-Labyrinth! Wähle zwischen Krieger, Magier oder Schurke.",
-                url: "games/maze3d.html",
-                icon: "🏛️",
-                tags: ["3D", "Puzzle", "1-Player"]
-            },
-            {
-                title: "Helldivers Strategy",
-                description: "Kommandiere Elite-Truppen in strategischen Gefechten! Orbital Strikes, Laser-Kanonen und taktische Kriegsführung für die Verteidigung der Super Earth.",
-                url: "games/helldivers-strategy.html",
-                icon: "🚀",
-                tags: ["Strategy", "Action", "1-Player"]
-            },
-            {
-                title: "Helldivers 2 Stratego",
-                description: "Klassisches Stratego mit Helldivers 2 Thematik! Super Earth vs Automatons in epischen taktischen Duellen mit versteckten Rängen und strategischen Gefechten.",
-                url: "games/helldivers-stratego.html",
-                icon: "⚔️",
-                tags: ["Strategy", "Board Game", "2-Player"]
-            },
-            {
-                title: "Minecraft 3D",
-                description: "Vollständiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und überlebe in deiner eigenen Blockwelt!",
-                url: "games/minecraft3d.html",
-                icon: "⛏️",
-                tags: ["3D", "Sandbox", "1-Player"]
-            },
-            {
-                title: "Space Battle Arena",
-                description: "Intensiver 4v4 Weltraumkampf! Führe das rote Team zum Sieg gegen die blauen Feinde. WASD-Steuerung, Schilde und epische Raumschlachten!",
-                url: "games/space-battle.html",
-                icon: "🚀",
-                tags: ["Action", "Space", "1-Player"]
-            },
-            {
-                title: "Das Geheimnis des Professors",
-                description: "Ein mysteriöses Rätselabenteuer! Professor Blackwood ist verschwunden und hat Hinweise hinterlassen. Löse einfache Rätsel in 5 Räumen seines Hauses.",
-                url: "games/cipher-detective.html",
-                icon: "📚",
-                tags: ["Puzzle", "Detective", "1-Player"]
-            },
-            {
-                title: "Neon Tetris",
-                description: "Tetris mit coolen 3D-Neon-Blöcken! Klassisches Gameplay trifft auf moderne Cyberpunk-Ästhetik mit Glow-Effekten und Partikel-Explosionen.",
-                url: "games/neon-tetris.html",
-                icon: "🟦",
-                tags: ["Puzzle", "Classic", "1-Player"]
-            },
-            {
-                title: "Space Command",
-                description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten gegen die KI. Komplettes Echtzeitstrategie-Erlebnis im Browser!",
-                url: "games/space-command.html",
-                icon: "🛰️",
-                tags: ["Strategy", "RTS", "1-Player"]
-            },
-            {
-                title: "Flappy Bird",
-                description: "Das süchtig machende Flugspiel! Steuere den Vogel durch die Röhren, sammle Punkte und vermeide Kollisionen. Einfach zu lernen, schwer zu meistern!",
-                url: "games/flappy-bird.html",
-                icon: "🐦",
-                tags: ["Arcade", "1-Player", "Endless"]
-            },
-            {
-                title: "Penalty Shootout",
-                description: "Elfmeterschießen! Ziele aufs Tor, wähle die perfekte Schusskraft und bezwinge den Torwart. Mit Streak-Bonus und drei Schwierigkeitsgraden!",
-                url: "games/penalty-shootout.html",
-                icon: "⚽",
-                tags: ["Sports", "1-Player", "Soccer"]
-            },
-            {
-                title: "Kingdom Defense",
-                description: "Mittelalterliches Tower Defense! Platziere Bogenschützen, Kanonen und Magier-Türme, um 15 Wellen von Soldaten, Rittern und Giganten abzuwehren. Strategisches Bauen und Upgraden!",
-                url: "games/kingdom-defense.html",
-                icon: "🏰",
-                tags: ["Tower Defense", "Strategy", "1-Player"]
-            },
-            {
-                title: "Zombie Waves",
-                description: "Überlebe gegen Zombie-Wellen! Baue Barrikaden zur Verteidigung, töte Zombies für Ressourcen. Top-Down Shooter mit strategischem Bau-System!",
-                url: "games/zombie-waves.html",
-                icon: "🧟",
-                tags: ["Action", "Tower Defense", "1-Player"]
-            },
-            {
-                title: "Maze Runner",
-                description: "Zwei-Spieler Labyrinth-Rennen! Spieler 1 mit WASD, Spieler 2 mit Pfeiltasten. Erreiche als Erster das Ziel!",
-                url: "games/maze-runner.html",
-                icon: "🎯",
-                tags: ["Puzzle", "2-Player", "Racing"]
-            },
-            {
-                title: "Racing Circuit",
-                description: "Top-Down Rennspiel mit Zeitrennen! Fahre 5 Runden auf dem Circuit und stelle neue Bestzeiten auf!",
-                url: "games/racing-circuit.html",
-                icon: "🏎️",
-                tags: ["Racing", "1-Player", "Top-Down"]
-            },
-            {
-                title: "Rocket Duel",
-                description: "Face-to-Face Split-Screen Battle! Zwei Spieler am iPad, 4 Schiffe pro Seite. Tap zum Schießen, Swipe für Schild. Schnelles 1v1 Duell!",
-                url: "games/rocket-duel.html",
-                icon: "🚀",
-                tags: ["Action", "2-Player", "Space"]
-            },
-            {
-                title: "Shield Siege",
-                description: "Asymmetrisches Split-Screen Spiel! Angreifer vs Verteidiger mit Rollentausch. Platziere Schilde strategisch oder feuere Raketen. Best of 3 Runden!",
-                url: "games/shield-siege.html",
-                icon: "🛡️",
-                tags: ["Tower Defense", "Strategy", "1-Player"]
-            },
-            {
-                title: "Blitz Battle",
-                description: "Ultra-schnelles Split-Screen Combat! 60 Sekunden, 6 Schiffe pro Spieler, keine Schilde. Pure Reaktion und Präzision. Wer die meisten Treffer landet, gewinnt!",
-                url: "games/blitz-battle.html",
+            "TRON": {
+                title: "⚡ TRON Collection",
                 icon: "⚡",
-                tags: ["Action", "1-Player", "Arcade"]
+                games: [
+                    {
+                        title: "Tron: Light Cycle Racing",
+                        description: "Klassisches Light Cycle Racing im TRON-Stil! Rase gegen die Zeit, hinterlasse leuchtende Trails und meistere das Grid.",
+                        url: "games/tron/light-cycle-racing.html",
+                        icon: "🏍️"
+                    },
+                    {
+                        title: "Tron: AI Arena",
+                        description: "Überlebe gegen intelligente KI-Gegner in einer Arena voller Hindernisse! Wave-basiertes Gameplay, strategische Map mit Säulen und Barrieren.",
+                        url: "games/tron/tron-ai-arena.html",
+                        icon: "🤖"
+                    }
+                ]
             },
-            {
-                title: "Jedi Stickman Arena",
-                description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support. Inspiriert von Stick Fight meets Star Wars!",
-                url: "games/jedi-stickman.html",
-                icon: "⚔️",
-                tags: ["Action", "Fighting", "4-Player"]
+            "Strategy": {
+                title: "🎮 Strategie",
+                icon: "🎮",
+                games: [
+                    {
+                        title: "Space Command",
+                        description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten gegen die KI.",
+                        url: "games/space-command.html",
+                        icon: "🛰️"
+                    },
+                    {
+                        title: "Helldivers Strategy",
+                        description: "Kommandiere Elite-Truppen in strategischen Gefechten! Orbital Strikes, Laser-Kanonen und taktische Kriegsführung für die Verteidigung der Super Earth.",
+                        url: "games/helldivers-strategy.html",
+                        icon: "🚀"
+                    },
+                    {
+                        title: "Helldivers 2 Stratego",
+                        description: "Klassisches Stratego mit Helldivers 2 Thematik! Super Earth vs Automatons in epischen taktischen Duellen mit versteckten Rängen.",
+                        url: "games/helldivers-stratego.html",
+                        icon: "⚔️"
+                    },
+                    {
+                        title: "Kingdom Defense",
+                        description: "Mittelalterliches Tower Defense! Platziere Bogenschützen, Kanonen und Magier-Türme, um 15 Wellen von Soldaten, Rittern und Giganten abzuwehren.",
+                        url: "games/kingdom-defense.html",
+                        icon: "🏰"
+                    },
+                    {
+                        title: "Shield Siege",
+                        description: "Asymmetrisches Split-Screen Spiel! Angreifer vs Verteidiger mit Rollentausch. Platziere Schilde strategisch oder feuere Raketen.",
+                        url: "games/shield-siege.html",
+                        icon: "🛡️"
+                    }
+                ]
             },
-            {
-                title: "Frogger Rush",
-                description: "Klassisches Frogger! Überquere gefährliche Straßen voller Autos und springe auf Baumstämme über den Fluss. Erreiche alle 5 Ziele bevor die Zeit abläuft!",
-                url: "games/frogger-rush.html",
-                icon: "🐸",
-                tags: ["Arcade", "Classic", "1-Player"]
+            "Arcade": {
+                title: "🕹️ Arcade & Klassiker",
+                icon: "🕹️",
+                games: [
+                    {
+                        title: "Snake",
+                        description: "Das klassische Snake-Spiel - sammle Äpfel und werde länger!",
+                        url: "games/snake.html",
+                        icon: "🐍"
+                    },
+                    {
+                        title: "Brick Breaker",
+                        description: "Zerstöre Blöcke und sammle Power-Ups für Multi-Ball und Laser-Waffen!",
+                        url: "games/brickbreaker.html",
+                        icon: "🧱"
+                    },
+                    {
+                        title: "Flappy Bird",
+                        description: "Das süchtig machende Flugspiel! Steuere den Vogel durch die Röhren. Einfach zu lernen, schwer zu meistern!",
+                        url: "games/flappy-bird.html",
+                        icon: "🐦"
+                    },
+                    {
+                        title: "Frogger Rush",
+                        description: "Klassisches Frogger! Überquere gefährliche Straßen voller Autos und springe auf Baumstämme über den Fluss.",
+                        url: "games/frogger-rush.html",
+                        icon: "🐸"
+                    },
+                    {
+                        title: "Neon Tetris",
+                        description: "Tetris mit coolen 3D-Neon-Blöcken! Klassisches Gameplay trifft auf moderne Cyberpunk-Ästhetik mit Glow-Effekten.",
+                        url: "games/neon-tetris.html",
+                        icon: "🟦"
+                    }
+                ]
             },
-            {
-                title: "Tron: 3D Arena WebGL",
-                description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System und instant-responsive Steuerung. Das beste Tron-Erlebnis!",
-                url: "games/tron/tron-3d-dual-arena-threejs.html",
-                icon: "🌟",
-                tags: ["Action", "2-Player", "3D", "TRON", "WebGL"]
+            "Multiplayer": {
+                title: "👥 Mehrspieler",
+                icon: "👥",
+                games: [
+                    {
+                        title: "Jedi Stickman Arena",
+                        description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support.",
+                        url: "games/jedi-stickman.html",
+                        icon: "⚔️"
+                    },
+                    {
+                        title: "Chain Run",
+                        description: "Kooperatives Jump'n'Run - zwei Spieler verbunden mit einer Kette!",
+                        url: "games/chain_run_ketten_jumpnrun_chat_canvas.html",
+                        icon: "⛓️"
+                    },
+                    {
+                        title: "Volleyball",
+                        description: "Spannende Volleyball-Action für zwei Spieler mit realistischer Physik!",
+                        url: "games/volleyball.html",
+                        icon: "🏐"
+                    },
+                    {
+                        title: "Maze Runner",
+                        description: "Zwei-Spieler Labyrinth-Rennen! Spieler 1 mit WASD, Spieler 2 mit Pfeiltasten. Erreiche als Erster das Ziel!",
+                        url: "games/maze-runner.html",
+                        icon: "🎯"
+                    },
+                    {
+                        title: "Rocket Duel",
+                        description: "Face-to-Face Split-Screen Battle! Zwei Spieler am iPad, 4 Schiffe pro Seite. Tap zum Schießen, Swipe für Schild.",
+                        url: "games/rocket-duel.html",
+                        icon: "🚀"
+                    },
+                    {
+                        title: "Blitz Battle",
+                        description: "Ultra-schnelles Split-Screen Combat! 60 Sekunden, 6 Schiffe pro Spieler, keine Schilde. Pure Reaktion und Präzision.",
+                        url: "games/blitz-battle.html",
+                        icon: "⚡"
+                    }
+                ]
             },
-            {
-                title: "Tron: Light Cycle Racing",
-                description: "Klassisches Light Cycle Racing im TRON-Stil! Rase gegen die Zeit, hinterlasse leuchtende Trails und meistere das Grid. Arcade-Action wie im Film!",
-                url: "games/tron/light-cycle-racing.html",
-                icon: "🏍️",
-                tags: ["Racing", "1-Player", "TRON", "Arcade"]
+            "Action": {
+                title: "💥 Action",
+                icon: "💥",
+                games: [
+                    {
+                        title: "Space Battle Arena",
+                        description: "Intensiver 4v4 Weltraumkampf! Führe das rote Team zum Sieg gegen die blauen Feinde. WASD-Steuerung, Schilde und epische Raumschlachten!",
+                        url: "games/space-battle.html",
+                        icon: "🚀"
+                    },
+                    {
+                        title: "Zombie Waves",
+                        description: "Überlebe gegen Zombie-Wellen! Baue Barrikaden zur Verteidigung, töte Zombies für Ressourcen. Top-Down Shooter mit strategischem Bau-System!",
+                        url: "games/zombie-waves.html",
+                        icon: "🧟"
+                    }
+                ]
             },
-            {
-                title: "Tron: AI Arena",
-                description: "Überlebe gegen intelligente KI-Gegner in einer Arena voller Hindernisse! Wave-basiertes Gameplay, strategische Map mit Säulen und Barrieren. Wie lange kannst du durchhalten?",
-                url: "games/tron/tron-ai-arena.html",
-                icon: "🤖",
-                tags: ["Action", "1-Player", "TRON", "AI", "Strategy"]
+            "Sports": {
+                title: "⚽ Sport & Racing",
+                icon: "⚽",
+                games: [
+                    {
+                        title: "Penalty Shootout",
+                        description: "Elfmeterschießen! Ziele aufs Tor, wähle die perfekte Schusskraft und bezwinge den Torwart. Mit Streak-Bonus und drei Schwierigkeitsgraden!",
+                        url: "games/penalty-shootout.html",
+                        icon: "⚽"
+                    },
+                    {
+                        title: "Racing Circuit",
+                        description: "Top-Down Rennspiel mit Zeitrennen! Fahre 5 Runden auf dem Circuit und stelle neue Bestzeiten auf!",
+                        url: "games/racing-circuit.html",
+                        icon: "🏎️"
+                    }
+                ]
+            },
+            "Puzzle": {
+                title: "🧩 Puzzle & Rätsel",
+                icon: "🧩",
+                games: [
+                    {
+                        title: "Das Geheimnis des Professors",
+                        description: "Ein mysteriöses Rätselabenteuer! Professor Blackwood ist verschwunden und hat Hinweise hinterlassen. Löse einfache Rätsel in 5 Räumen seines Hauses.",
+                        url: "games/cipher-detective.html",
+                        icon: "📚"
+                    }
+                ]
             }
-        ];
+        };
 
-        // Filter & Search State
-        let activeFilters = [];
+        // State
+        let activeCategory = 'Featured';
         let searchQuery = '';
 
-        // Initialize Filter Tags
-        function initializeFilters() {
-            const allTags = new Set();
-            games.forEach(game => {
-                if (game.tags) {
-                    game.tags.forEach(tag => allTags.add(tag));
+        // Create Game Card Element
+        function createGameCard(game) {
+            const gameCard = document.createElement('article');
+            gameCard.className = 'game-card';
+            gameCard.setAttribute('role', 'listitem');
+            gameCard.setAttribute('tabindex', '0');
+            gameCard.setAttribute('aria-label', `Play ${game.title}: ${game.description}`);
+
+            gameCard.innerHTML = `
+                <div class="game-icon" aria-hidden="true">${game.icon}</div>
+                <div class="game-title">${game.title}</div>
+                <div class="game-description">${game.description}</div>
+            `;
+
+            const navigateToGame = () => {
+                window.location.href = game.url;
+            };
+
+            gameCard.addEventListener('click', navigateToGame);
+
+            gameCard.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigateToGame();
                 }
             });
 
-            const filterContainer = document.getElementById('filterTags');
-            filterContainer.innerHTML = '<span style="color: var(--accent-blue); margin-right: 10px;">FILTER:</span>';
+            return gameCard;
+        }
 
-            Array.from(allTags).sort().forEach(tag => {
-                const tagBtn = document.createElement('button');
-                tagBtn.textContent = tag;
-                tagBtn.style.cssText = 'padding: 5px 12px; background: rgba(0, 128, 255, 0.2); border: 1px solid var(--border-color); color: var(--accent-blue); cursor: pointer; border-radius: 3px; font-family: "Courier New", monospace; font-size: 12px; transition: all 0.2s;';
-                tagBtn.setAttribute('aria-label', `Filter by ${tag}`);
+        // Initialize Category Tabs
+        function initializeTabs() {
+            const tabsContainer = document.getElementById('categoryTabs');
+            tabsContainer.innerHTML = '';
 
-                tagBtn.addEventListener('click', () => {
-                    const index = activeFilters.indexOf(tag);
-                    if (index > -1) {
-                        activeFilters.splice(index, 1);
-                        tagBtn.style.background = 'rgba(0, 128, 255, 0.2)';
-                        tagBtn.style.borderColor = 'var(--border-color)';
-                    } else {
-                        activeFilters.push(tag);
-                        tagBtn.style.background = 'var(--accent-blue)';
-                        tagBtn.style.borderColor = 'var(--accent-blue)';
-                        tagBtn.style.color = '#000';
-                    }
-                    loadGames();
-                });
-
-                filterContainer.appendChild(tagBtn);
+            // Get all games for counting
+            const allGames = [];
+            Object.values(gameCategories).forEach(cat => {
+                allGames.push(...cat.games);
             });
 
-            // Search Input
+            // Create "Alle" tab
+            const allTab = document.createElement('button');
+            allTab.className = 'category-tab';
+            allTab.textContent = `🎯 Alle (${allGames.length})`;
+            allTab.setAttribute('data-category', 'All');
+            allTab.setAttribute('role', 'tab');
+            allTab.addEventListener('click', () => switchCategory('All'));
+            tabsContainer.appendChild(allTab);
+
+            // Create category tabs
+            Object.keys(gameCategories).forEach(categoryKey => {
+                const category = gameCategories[categoryKey];
+                const tab = document.createElement('button');
+                tab.className = 'category-tab';
+                if (categoryKey === activeCategory) {
+                    tab.classList.add('active');
+                }
+                tab.textContent = `${category.title} (${category.games.length})`;
+                tab.setAttribute('data-category', categoryKey);
+                tab.setAttribute('role', 'tab');
+                tab.addEventListener('click', () => switchCategory(categoryKey));
+                tabsContainer.appendChild(tab);
+            });
+        }
+
+        // Switch Category
+        function switchCategory(category) {
+            activeCategory = category;
+
+            // Update tab styles
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                if (tab.getAttribute('data-category') === category) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            loadGames();
+        }
+
+        // Load Games
+        function loadGames() {
+            const grid = document.getElementById('gamesGrid');
+            grid.style.opacity = '0';
+
+            setTimeout(() => {
+                grid.innerHTML = '';
+
+                let gamesToShow = [];
+
+                // Collect games based on active category
+                if (activeCategory === 'All') {
+                    // Show all games from all categories
+                    Object.values(gameCategories).forEach(category => {
+                        gamesToShow.push(...category.games);
+                    });
+                } else {
+                    // Show games from selected category
+                    if (gameCategories[activeCategory]) {
+                        gamesToShow = [...gameCategories[activeCategory].games];
+                    }
+                }
+
+                // Filter by search query
+                if (searchQuery) {
+                    gamesToShow = gamesToShow.filter(game => {
+                        return game.title.toLowerCase().includes(searchQuery) ||
+                               game.description.toLowerCase().includes(searchQuery);
+                    });
+                }
+
+                // Remove duplicates (some games might be in multiple categories)
+                const uniqueGames = [];
+                const seenUrls = new Set();
+                gamesToShow.forEach(game => {
+                    if (!seenUrls.has(game.url)) {
+                        seenUrls.add(game.url);
+                        uniqueGames.push(game);
+                    }
+                });
+
+                // Add game cards
+                if (uniqueGames.length > 0) {
+                    uniqueGames.forEach(game => {
+                        const gameCard = createGameCard(game);
+                        grid.appendChild(gameCard);
+                    });
+                } else {
+                    // No games found
+                    const noResults = document.createElement('div');
+                    noResults.style.cssText = 'text-align: center; color: var(--text-secondary); font-size: 16px; padding: 100px 20px; grid-column: 1 / -1;';
+                    noResults.innerHTML = `
+                        <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+                        <div>Keine Spiele gefunden.</div>
+                        <div style="font-size: 12px; margin-top: 10px; opacity: 0.7;">Versuche einen anderen Suchbegriff oder wähle eine andere Kategorie.</div>
+                    `;
+                    grid.appendChild(noResults);
+                }
+
+                grid.style.opacity = '1';
+            }, 100);
+        }
+
+        // Initialize Search
+        function initializeSearch() {
             const searchInput = document.getElementById('searchInput');
             searchInput.addEventListener('input', (e) => {
                 searchQuery = e.target.value.toLowerCase();
                 loadGames();
-            });
-        }
-
-        // Initialize Games Grid with Filters
-        function loadGames() {
-            const gamesGrid = document.getElementById('gamesGrid');
-            gamesGrid.innerHTML = '';
-
-            const filteredGames = games.filter(game => {
-                // Search filter
-                if (searchQuery && !game.title.toLowerCase().includes(searchQuery) &&
-                    !game.description.toLowerCase().includes(searchQuery)) {
-                    return false;
-                }
-
-                // Tag filter
-                if (activeFilters.length > 0) {
-                    if (!game.tags || !activeFilters.some(filter => game.tags.includes(filter))) {
-                        return false;
-                    }
-                }
-
-                return true;
-            });
-
-            filteredGames.forEach((game, index) => {
-                const gameCard = document.createElement('article');
-                gameCard.className = 'game-card';
-                gameCard.setAttribute('role', 'listitem');
-                gameCard.setAttribute('tabindex', '0');
-                gameCard.setAttribute('aria-label', `Play ${game.title}: ${game.description}`);
-
-                gameCard.innerHTML = `
-                    <div class="game-icon" aria-hidden="true">${game.icon}</div>
-                    <div class="game-title">${game.title}</div>
-                    <div class="game-description">${game.description}</div>
-                `;
-
-                const navigateToGame = () => {
-                    window.location.href = game.url;
-                };
-
-                gameCard.addEventListener('click', navigateToGame);
-
-                gameCard.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        navigateToGame();
-                    }
-                });
-
-                gamesGrid.appendChild(gameCard);
             });
         }
 
@@ -1988,217 +1883,6 @@
             }
         }
 
-        // Featured Games Carousel System
-        class FeaturedCarousel {
-            constructor() {
-                this.currentIndex = 0;
-                this.autoPlayInterval = null;
-                this.isHovered = false;
-                this.autoPlayDuration = 5000; // 5 seconds per slide
-
-                // Featured games - highlight the best/newest games
-                this.featuredGames = [
-                    {
-                        title: "Tron: 3D Arena WebGL",
-                        description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System und instant-responsive Steuerung. Das beste Tron-Erlebnis!",
-                        url: "games/tron/tron-3d-dual-arena-threejs.html",
-                        icon: "🌟",
-                        tags: ["Action", "2-Player", "3D", "TRON", "WebGL"]
-                    },
-                    {
-                        title: "Minecraft 3D",
-                        description: "Vollständiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und überlebe in deiner eigenen Blockwelt!",
-                        url: "games/minecraft3d.html",
-                        icon: "⛏️",
-                        tags: ["3D", "Sandbox", "1-Player"]
-                    },
-                    {
-                        title: "Space Command",
-                        description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und führe epische Schlachten gegen die KI.",
-                        url: "games/space-command.html",
-                        icon: "🛰️",
-                        tags: ["Strategy", "RTS", "1-Player"]
-                    },
-                    {
-                        title: "Jedi Stickman Arena",
-                        description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kräften und Bluetooth Controller Support.",
-                        url: "games/jedi-stickman.html",
-                        icon: "⚔️",
-                        tags: ["Action", "Fighting", "4-Player"]
-                    },
-                    {
-                        title: "Helldivers Strategy",
-                        description: "Kommandiere Elite-Truppen in strategischen Gefechten! Orbital Strikes, Laser-Kanonen und taktische Kriegsführung für die Verteidigung der Super Earth.",
-                        url: "games/helldivers-strategy.html",
-                        icon: "🚀",
-                        tags: ["Strategy", "Action", "1-Player"]
-                    },
-                    {
-                        title: "Neon Tetris",
-                        description: "Tetris mit coolen 3D-Neon-Blöcken! Klassisches Gameplay trifft auf moderne Cyberpunk-Ästhetik mit Glow-Effekten und Partikel-Explosionen.",
-                        url: "games/neon-tetris.html",
-                        icon: "🟦",
-                        tags: ["Puzzle", "Classic", "1-Player"]
-                    }
-                ];
-
-                this.track = document.getElementById('carouselTrack');
-                this.indicators = document.getElementById('carouselIndicators');
-                this.prevBtn = document.getElementById('carouselPrev');
-                this.nextBtn = document.getElementById('carouselNext');
-                this.carousel = document.getElementById('featuredCarousel');
-                this.progressBar = document.getElementById('carouselProgress');
-
-                this.init();
-            }
-
-            init() {
-                this.createSlides();
-                this.createIndicators();
-                this.attachEvents();
-                this.updateCarousel();
-                this.startAutoPlay();
-            }
-
-            createSlides() {
-                this.featuredGames.forEach((game, index) => {
-                    const slide = document.createElement('div');
-                    slide.className = 'carousel-slide';
-                    slide.innerHTML = `
-                        <div class="carousel-slide-icon">${game.icon}</div>
-                        <div class="carousel-slide-title">${game.title}</div>
-                        <div class="carousel-slide-description">${game.description}</div>
-                        <div class="carousel-slide-tags">
-                            ${game.tags.map(tag => `<span class="carousel-tag">${tag}</span>`).join('')}
-                        </div>
-                    `;
-
-                    slide.addEventListener('click', () => {
-                        if (slide.classList.contains('active')) {
-                            window.location.href = game.url;
-                        } else {
-                            this.goToSlide(index);
-                        }
-                    });
-
-                    this.track.appendChild(slide);
-                });
-            }
-
-            createIndicators() {
-                this.featuredGames.forEach((_, index) => {
-                    const indicator = document.createElement('div');
-                    indicator.className = 'carousel-indicator';
-                    indicator.addEventListener('click', () => {
-                        this.goToSlide(index);
-                        this.restartAutoPlay();
-                    });
-                    this.indicators.appendChild(indicator);
-                });
-            }
-
-            attachEvents() {
-                this.prevBtn.addEventListener('click', () => {
-                    this.prev();
-                    this.restartAutoPlay();
-                });
-
-                this.nextBtn.addEventListener('click', () => {
-                    this.next();
-                    this.restartAutoPlay();
-                });
-
-                // Pause on hover
-                this.carousel.addEventListener('mouseenter', () => {
-                    this.isHovered = true;
-                    this.progressBar.classList.add('paused');
-                });
-
-                this.carousel.addEventListener('mouseleave', () => {
-                    this.isHovered = false;
-                    this.progressBar.classList.remove('paused');
-                });
-
-                // Keyboard navigation
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'ArrowLeft') {
-                        this.prev();
-                        this.restartAutoPlay();
-                    }
-                    if (e.key === 'ArrowRight') {
-                        this.next();
-                        this.restartAutoPlay();
-                    }
-                });
-            }
-
-            updateCarousel() {
-                const slides = this.track.querySelectorAll('.carousel-slide');
-                const indicatorDots = this.indicators.querySelectorAll('.carousel-indicator');
-                const total = slides.length;
-
-                slides.forEach((slide, index) => {
-                    slide.classList.remove('active', 'prev', 'next');
-
-                    if (index === this.currentIndex) {
-                        slide.classList.add('active');
-                    } else if (index === (this.currentIndex - 1 + total) % total) {
-                        slide.classList.add('prev');
-                    } else if (index === (this.currentIndex + 1) % total) {
-                        slide.classList.add('next');
-                    }
-                });
-
-                indicatorDots.forEach((dot, index) => {
-                    dot.classList.toggle('active', index === this.currentIndex);
-                });
-            }
-
-            goToSlide(index) {
-                this.currentIndex = index;
-                this.updateCarousel();
-            }
-
-            next() {
-                this.currentIndex = (this.currentIndex + 1) % this.featuredGames.length;
-                this.updateCarousel();
-            }
-
-            prev() {
-                this.currentIndex = (this.currentIndex - 1 + this.featuredGames.length) % this.featuredGames.length;
-                this.updateCarousel();
-            }
-
-            startAutoPlay() {
-                this.stopAutoPlay();
-                this.autoPlayInterval = setInterval(() => {
-                    if (!this.isHovered) {
-                        this.next();
-                        this.restartProgressBar();
-                    }
-                }, this.autoPlayDuration);
-            }
-
-            stopAutoPlay() {
-                if (this.autoPlayInterval) {
-                    clearInterval(this.autoPlayInterval);
-                    this.autoPlayInterval = null;
-                }
-            }
-
-            restartAutoPlay() {
-                this.startAutoPlay();
-                this.restartProgressBar();
-            }
-
-            restartProgressBar() {
-                // Restart the progress bar animation
-                this.progressBar.style.animation = 'none';
-                // Trigger reflow to restart animation
-                void this.progressBar.offsetWidth;
-                this.progressBar.style.animation = `carousel-progress ${this.autoPlayDuration}ms linear infinite`;
-            }
-        }
 
         // Console Button Animation System
         class ButtonAnimator {
@@ -2325,10 +2009,9 @@
         function init() {
             new StarSystem();
 
-            // Initialize Featured Carousel
-            new FeaturedCarousel();
-
-            initializeFilters();
+            // Initialize Tabs and Games
+            initializeTabs();
+            initializeSearch();
             loadGames();
 
             // Initialize button animations
