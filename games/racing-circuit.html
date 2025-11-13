@@ -260,7 +260,7 @@
     </div>
 
     <div class="instructions">
-        <strong>Controls:</strong> Arrow Keys - ↑ Accelerate | ↓ Brake | ← → Steer<br>
+        <strong>Controls:</strong> WASD - W Accelerate | S Brake | A D Steer<br>
         <strong>Goal:</strong> Complete 5 laps as fast as possible!
     </div>
 
@@ -301,10 +301,10 @@
 
         // Controls
         const keys = {
-            ArrowUp: false,
-            ArrowDown: false,
-            ArrowLeft: false,
-            ArrowRight: false
+            w: false,
+            s: false,
+            a: false,
+            d: false
         };
 
         // Checkpoints
@@ -367,9 +367,16 @@
             if ('ontouchstart' in window) {
                 document.getElementById('touchControls').style.display = 'flex';
 
+                const keyMap = {
+                    'btnUp': 'w',
+                    'btnDown': 's',
+                    'btnLeft': 'a',
+                    'btnRight': 'd'
+                };
+
                 ['btnUp', 'btnDown', 'btnLeft', 'btnRight'].forEach(id => {
                     const btn = document.getElementById(id);
-                    const key = 'Arrow' + id.replace('btn', '');
+                    const key = keyMap[id];
 
                     btn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
@@ -445,25 +452,25 @@
             if (!gameRunning || gamePaused) return;
 
             // Acceleration
-            if (keys.ArrowUp) {
+            if (keys.w) {
                 car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
             }
-            if (keys.ArrowDown) {
+            if (keys.s) {
                 car.speed = Math.max(car.speed - car.acceleration * 1.5, -car.maxSpeed * 0.5);
             }
 
             // Friction
-            if (!keys.ArrowUp && !keys.ArrowDown) {
+            if (!keys.w && !keys.s) {
                 car.speed *= (1 - car.friction);
                 if (Math.abs(car.speed) < 0.01) car.speed = 0;
             }
 
             // Steering (only when moving)
             if (Math.abs(car.speed) > 0.5) {
-                if (keys.ArrowLeft) {
+                if (keys.a) {
                     car.angle -= car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
                 }
-                if (keys.ArrowRight) {
+                if (keys.d) {
                     car.angle += car.turnSpeed * Math.abs(car.speed) / car.maxSpeed;
                 }
             }
