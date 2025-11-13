@@ -372,7 +372,7 @@
         <button class="start-button" onclick="startGame()">Mission beginnen</button>
         <div style="margin-top: 30px; color: #008888; font-size: 14px; text-align: center; max-width: 600px;">
             <p>Befehlige eine Raumflotte, sammle Ressourcen, baue Basen und kämpfe um die Kontrolle des Weltalls!</p>
-            <p style="margin-top: 10px;"><strong>Steuerung:</strong> Linksklick auf Einheiten = Auswählen, Linksklick auf Boden = Bewegen, WASD = Kamera</p>
+            <p style="margin-top: 10px;"><strong>Steuerung:</strong> Linksklick = Auswählen/Bewegen, Rechtsklick = Befehle, Mittelklick-Ziehen = Karte bewegen, WASD = Kamera</p>
             <p style="margin-top: 10px;"><strong>Taktik:</strong> Baue Arbeiter für Ressourcen, dann Werften für Kampfschiffe. Zerstöre die feindliche Basis!</p>
         </div>
         <div style="margin-top: 20px; color: #006666; font-size: 12px; text-align: center;">
@@ -433,16 +433,16 @@
             MAP_HEIGHT: 1600,
             GRID_SIZE: 40,
             UNIT_TYPES: {
-                WORKER: { cost: 50, buildTime: 3000, health: 50, speed: 60, damage: 8, range: 50 },
-                FIGHTER: { cost: 50, buildTime: 3000, health: 80, speed: 120, damage: 22, range: 120 },
-                CRUISER: { cost: 150, buildTime: 8000, health: 200, speed: 80, damage: 45, range: 150 },
-                CARRIER: { cost: 400, buildTime: 20000, health: 500, speed: 40, damage: 75, range: 200 }
+                WORKER: { cost: 50, buildTime: 1500, health: 50, speed: 60, damage: 8, range: 50 },
+                FIGHTER: { cost: 50, buildTime: 1500, health: 80, speed: 120, damage: 22, range: 120 },
+                CRUISER: { cost: 150, buildTime: 4000, health: 200, speed: 80, damage: 45, range: 150 },
+                CARRIER: { cost: 400, buildTime: 10000, health: 500, speed: 40, damage: 75, range: 200 }
             },
             BUILDING_TYPES: {
                 COMMAND_CENTER: { cost: 0, buildTime: 0, health: 1000 },
-                SHIPYARD: { cost: 200, buildTime: 15000, health: 400 },
-                EXTRACTOR: { cost: 150, buildTime: 10000, health: 200 },
-                TURRET: { cost: 100, buildTime: 8000, health: 300, damage: 38, range: 180 }
+                SHIPYARD: { cost: 200, buildTime: 7500, health: 400 },
+                EXTRACTOR: { cost: 150, buildTime: 5000, health: 200 },
+                TURRET: { cost: 100, buildTime: 4000, health: 300, damage: 38, range: 180 }
             }
         };
 
@@ -579,12 +579,30 @@
             }
 
             addEffect(x, y, type, duration = 1000) {
-                this.effects.push({
+                const effect = {
                     id: Date.now() + '_' + Math.random(),
                     x, y, type, duration,
                     startTime: Date.now(),
                     particles: []
-                });
+                };
+
+                // Create particles for explosion
+                if (type === 'explosion') {
+                    for (let i = 0; i < 20; i++) {
+                        const angle = (Math.PI * 2 * i) / 20;
+                        const speed = 50 + Math.random() * 100;
+                        effect.particles.push({
+                            x: 0,
+                            y: 0,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            size: 2 + Math.random() * 3,
+                            color: i % 2 === 0 ? '#ff6600' : '#ffff00'
+                        });
+                    }
+                }
+
+                this.effects.push(effect);
             }
 
             update(deltaTime) {
@@ -641,19 +659,25 @@
                         }
                     }
 
-                    // Resource gathering for workers
+                    // Resource gathering for workers - deltaTime-based for smooth collection
                     if (unit.type === 'WORKER' && unit.state === 'mining') {
                         const nearbyResource = this.resources.find(r => {
                             const dx = r.x - unit.x;
                             const dy = r.y - unit.y;
                             return Math.sqrt(dx * dx + dy * dy) < 60;
                         });
-                        
+
                         if (nearbyResource && nearbyResource.amount > 0) {
-                            const mined = Math.min(10, nearbyResource.amount);
+                            // Collect 25 energy per second (more efficient)
+                            const mineRate = 25 * deltaTime;
+                            const mined = Math.min(mineRate, nearbyResource.amount);
                             nearbyResource.amount -= mined;
                             if (unit.owner === 'player') this.player.energy += mined;
                             else this.enemy.energy += mined;
+                        } else if (!nearbyResource || nearbyResource.amount <= 0) {
+                            // If resource is depleted or worker moved away, return to idle
+                            unit.state = 'idle';
+                            unit.destination = null;
                         }
                     }
                 });
@@ -760,6 +784,17 @@
             }
 
             updateEffects(deltaTime) {
+                this.effects.forEach(effect => {
+                    // Update particle positions
+                    effect.particles.forEach(particle => {
+                        particle.x += particle.vx * deltaTime;
+                        particle.y += particle.vy * deltaTime;
+                        // Slow down particles
+                        particle.vx *= 0.95;
+                        particle.vy *= 0.95;
+                    });
+                });
+
                 this.effects = this.effects.filter(effect => {
                     const age = Date.now() - effect.startTime;
                     return age < effect.duration;
@@ -887,6 +922,8 @@
                 this.keys = {};
                 this.mouse = { x: 0, y: 0, down: false };
                 this.mouseListenersAttached = false;
+                this.isPanning = false;
+                this.panStart = { x: 0, y: 0 };
                 this.setupEventListeners();
             }
 
@@ -916,7 +953,7 @@
 
             onMouseDown(e) {
                 if (!canvas) return; // Safety check
-                console.log(`Mouse ${e.button === 0 ? 'left' : 'right'} click detected`);
+                console.log(`Mouse ${e.button === 0 ? 'left' : e.button === 1 ? 'middle' : 'right'} click detected`);
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left + this.game.camera.x;
                 const y = e.clientY - rect.top + this.game.camera.y;
@@ -928,6 +965,11 @@
                     } else {
                         this.startSelection(e.clientX - rect.left, e.clientY - rect.top);
                     }
+                } else if (e.button === 1) { // Middle click - Start panning
+                    this.isPanning = true;
+                    this.panStart = { x: e.clientX, y: e.clientY };
+                    canvas.style.cursor = 'grabbing';
+                    e.preventDefault(); // Prevent default middle-click behavior
                 } else if (e.button === 2) { // Right click
                     this.rightClickCommand(x, y);
                 }
@@ -936,6 +978,10 @@
             onMouseUp(e) {
                 if (e.button === 0 && this.game.isSelecting) {
                     this.endSelection(e);
+                } else if (e.button === 1 && this.isPanning) {
+                    // Stop panning
+                    this.isPanning = false;
+                    canvas.style.cursor = 'crosshair';
                 }
             }
 
@@ -945,7 +991,20 @@
                 this.mouse.x = e.clientX - rect.left;
                 this.mouse.y = e.clientY - rect.top;
 
-                if (this.game.isSelecting) {
+                if (this.isPanning) {
+                    // Pan the camera
+                    const deltaX = e.clientX - this.panStart.x;
+                    const deltaY = e.clientY - this.panStart.y;
+
+                    this.game.camera.x -= deltaX;
+                    this.game.camera.y -= deltaY;
+
+                    // Keep camera in bounds
+                    this.game.camera.x = Math.max(0, Math.min(GAME_CONFIG.MAP_WIDTH - canvas.width, this.game.camera.x));
+                    this.game.camera.y = Math.max(0, Math.min(GAME_CONFIG.MAP_HEIGHT - canvas.height, this.game.camera.y));
+
+                    this.panStart = { x: e.clientX, y: e.clientY };
+                } else if (this.game.isSelecting) {
                     this.updateSelection();
                 }
             }
@@ -1149,11 +1208,45 @@
                 document.getElementById('buildCruiser').addEventListener('click', () => this.queueProduction('CRUISER'));
                 document.getElementById('buildCarrier').addEventListener('click', () => this.queueProduction('CARRIER'));
 
-                // Keyboard shortcuts
+                // Keyboard shortcuts - only active when appropriate building is selected
                 window.addEventListener('keydown', e => {
-                    if (e.key.toLowerCase() === 'q') this.queueProduction('WORKER');
-                    if (e.key.toLowerCase() === 'w') this.enterBuildMode('SHIPYARD');
-                    if (e.key.toLowerCase() === 'e') this.enterBuildMode('EXTRACTOR');
+                    // Check if we have a command center or shipyard selected
+                    const hasCommandCenter = this.game.selectedUnits.length === 1 &&
+                                            this.game.selectedUnits[0].type === 'COMMAND_CENTER';
+                    const hasShipyard = this.game.selectedUnits.length === 1 &&
+                                       this.game.selectedUnits[0].type === 'SHIPYARD';
+
+                    // Command Center shortcuts
+                    if (e.key.toLowerCase() === 'q' && hasCommandCenter) {
+                        this.queueProduction('WORKER');
+                        e.preventDefault();
+                    }
+                    if (e.key.toLowerCase() === 'w' && hasCommandCenter) {
+                        this.enterBuildMode('SHIPYARD');
+                        e.preventDefault();
+                    }
+                    if (e.key.toLowerCase() === 'e' && hasCommandCenter) {
+                        this.enterBuildMode('EXTRACTOR');
+                        e.preventDefault();
+                    }
+                    if (e.key.toLowerCase() === 'r' && hasCommandCenter) {
+                        this.enterBuildMode('TURRET');
+                        e.preventDefault();
+                    }
+
+                    // Shipyard shortcuts
+                    if (e.key.toLowerCase() === 'q' && hasShipyard) {
+                        this.queueProduction('FIGHTER');
+                        e.preventDefault();
+                    }
+                    if (e.key.toLowerCase() === 'w' && hasShipyard) {
+                        this.queueProduction('CRUISER');
+                        e.preventDefault();
+                    }
+                    if (e.key.toLowerCase() === 'e' && hasShipyard) {
+                        this.queueProduction('CARRIER');
+                        e.preventDefault();
+                    }
                 });
             }
 
@@ -1239,22 +1332,90 @@
                 this.game.resources.forEach(resource => {
                     const screenX = resource.x - this.game.camera.x;
                     const screenY = resource.y - this.game.camera.y;
-                    
+
                     if (this.isOnScreen(screenX, screenY)) {
-                        ctx.fillStyle = '#ffff00';
+                        ctx.save();
+
+                        // Pulsing glow effect
+                        const pulse = Math.sin(Date.now() * 0.003) * 0.3 + 0.7;
+                        ctx.shadowBlur = 20 * pulse;
+                        ctx.shadowColor = '#ffff00';
+
+                        // Radial gradient for crystal look
+                        const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 15);
+                        gradient.addColorStop(0, '#ffffaa');
+                        gradient.addColorStop(0.5, '#ffff00');
+                        gradient.addColorStop(1, '#ccaa00');
+
+                        ctx.fillStyle = gradient;
                         ctx.beginPath();
                         ctx.arc(screenX, screenY, 15, 0, Math.PI * 2);
                         ctx.fill();
-                        
+
+                        // Outer glow ring
                         ctx.strokeStyle = '#ffaa00';
                         ctx.lineWidth = 2;
                         ctx.stroke();
-                        
-                        // Amount text
+
+                        // Inner sparkle
+                        ctx.shadowBlur = 10;
                         ctx.fillStyle = '#ffffff';
-                        ctx.font = '12px monospace';
+                        ctx.beginPath();
+                        ctx.arc(screenX - 4, screenY - 4, 3, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.shadowBlur = 0;
+
+                        // Amount text with background
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                        ctx.fillRect(screenX - 20, screenY - 30, 40, 14);
+
+                        ctx.fillStyle = '#ffff00';
+                        ctx.font = 'bold 11px monospace';
                         ctx.textAlign = 'center';
                         ctx.fillText(Math.floor(resource.amount), screenX, screenY - 20);
+
+                        ctx.restore();
+
+                        // Draw mining beam if worker is nearby
+                        this.game.units.forEach(unit => {
+                            if (unit.type === 'WORKER' && unit.state === 'mining') {
+                                const dx = resource.x - unit.x;
+                                const dy = resource.y - unit.y;
+                                if (Math.sqrt(dx * dx + dy * dy) < 60) {
+                                    const unitScreenX = unit.x - this.game.camera.x;
+                                    const unitScreenY = unit.y - this.game.camera.y;
+
+                                    ctx.save();
+                                    ctx.strokeStyle = unit.owner === 'player' ? '#00ffff' : '#ff4444';
+                                    ctx.lineWidth = 2;
+                                    ctx.shadowBlur = 10;
+                                    ctx.shadowColor = ctx.strokeStyle;
+                                    ctx.globalAlpha = 0.6;
+
+                                    ctx.beginPath();
+                                    ctx.moveTo(unitScreenX, unitScreenY);
+                                    ctx.lineTo(screenX, screenY);
+                                    ctx.stroke();
+
+                                    // Energy particles flowing from resource to worker
+                                    const particleCount = 3;
+                                    for (let i = 0; i < particleCount; i++) {
+                                        const t = (Date.now() * 0.002 + i / particleCount) % 1;
+                                        const px = unitScreenX + (screenX - unitScreenX) * t;
+                                        const py = unitScreenY + (screenY - unitScreenY) * t;
+
+                                        ctx.globalAlpha = 1 - t;
+                                        ctx.fillStyle = '#ffff00';
+                                        ctx.beginPath();
+                                        ctx.arc(px, py, 3, 0, Math.PI * 2);
+                                        ctx.fill();
+                                    }
+
+                                    ctx.restore();
+                                }
+                            }
+                        });
                     }
                 });
             }
@@ -1263,36 +1424,89 @@
                 this.game.buildings.forEach(building => {
                     const screenX = building.x - this.game.camera.x;
                     const screenY = building.y - this.game.camera.y;
-                    
+
                     if (this.isOnScreen(screenX, screenY)) {
                         const color = building.owner === 'player' ? '#00ffff' : '#ff4444';
-                        
-                        // Building base
-                        ctx.fillStyle = building.isComplete ? color : '#666666';
+                        const darkColor = building.owner === 'player' ? '#006666' : '#aa0000';
+
+                        ctx.save();
+
+                        // Shadow for building
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                        ctx.shadowOffsetX = 3;
+                        ctx.shadowOffsetY = 3;
+
+                        // Building gradient
+                        const buildingGradient = ctx.createLinearGradient(screenX - 20, screenY - 20, screenX + 20, screenY + 20);
+                        if (building.isComplete) {
+                            buildingGradient.addColorStop(0, color);
+                            buildingGradient.addColorStop(0.5, darkColor);
+                            buildingGradient.addColorStop(1, color);
+                        } else {
+                            buildingGradient.addColorStop(0, '#444444');
+                            buildingGradient.addColorStop(1, '#666666');
+                        }
+
+                        ctx.fillStyle = buildingGradient;
                         ctx.fillRect(screenX - 20, screenY - 20, 40, 40);
-                        
-                        // Building border
+
+                        // Glow effect for complete buildings
+                        if (building.isComplete) {
+                            ctx.shadowBlur = 20;
+                            ctx.shadowColor = color;
+                        }
+
+                        // Building border with glow
                         ctx.strokeStyle = building.selected ? '#ffffff' : color;
-                        ctx.lineWidth = building.selected ? 3 : 1;
+                        ctx.lineWidth = building.selected ? 3 : 2;
                         ctx.strokeRect(screenX - 20, screenY - 20, 40, 40);
-                        
-                        // Icon
+
+                        // Corner details
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - 20, screenY - 15);
+                        ctx.lineTo(screenX - 20, screenY - 20);
+                        ctx.lineTo(screenX - 15, screenY - 20);
+                        ctx.moveTo(screenX + 20, screenY - 15);
+                        ctx.lineTo(screenX + 20, screenY - 20);
+                        ctx.lineTo(screenX + 15, screenY - 20);
+                        ctx.moveTo(screenX - 20, screenY + 15);
+                        ctx.lineTo(screenX - 20, screenY + 20);
+                        ctx.lineTo(screenX - 15, screenY + 20);
+                        ctx.moveTo(screenX + 20, screenY + 15);
+                        ctx.lineTo(screenX + 20, screenY + 20);
+                        ctx.lineTo(screenX + 15, screenY + 20);
+                        ctx.stroke();
+
+                        ctx.shadowBlur = 0;
+
+                        // Icon with glow
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = building.isComplete ? color : '#666666';
                         ctx.fillStyle = '#ffffff';
-                        ctx.font = '16px monospace';
+                        ctx.font = '20px monospace';
                         ctx.textAlign = 'center';
-                        ctx.fillText(this.game.getUnitIcon(building.type), screenX, screenY + 5);
-                        
+                        ctx.fillText(this.game.getUnitIcon(building.type), screenX, screenY + 7);
+
+                        ctx.restore();
+
                         // Health bar
                         this.drawHealthBar(screenX, screenY - 30, building.health / building.maxHealth);
-                        
-                        // Build progress
+
+                        // Build progress with glow
                         if (!building.isComplete) {
                             this.drawProgressBar(screenX, screenY + 25, building.buildProgress);
                         }
-                        
-                        // Production progress
+
+                        // Production progress with animated glow
                         if (building.currentProduction) {
+                            ctx.save();
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = '#00ff00';
                             this.drawProgressBar(screenX, screenY + 35, building.productionProgress, '#00ff00');
+                            ctx.restore();
                         }
                     }
                 });
@@ -1302,34 +1516,46 @@
                 this.game.units.forEach(unit => {
                     const screenX = unit.x - this.game.camera.x;
                     const screenY = unit.y - this.game.camera.y;
-                    
+
                     if (this.isOnScreen(screenX, screenY)) {
                         const color = unit.owner === 'player' ? '#00ffff' : '#ff4444';
-                        
-                        // Unit body
+                        const darkColor = unit.owner === 'player' ? '#006666' : '#aa0000';
+
                         ctx.save();
                         ctx.translate(screenX, screenY);
+
+                        // Shadow
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                        ctx.shadowOffsetX = 2;
+                        ctx.shadowOffsetY = 2;
+
                         ctx.rotate(unit.angle);
-                        
-                        // Mini fighter jet design for RTS
-                        ctx.fillStyle = color;
+
+                        // Create gradient for ship body
+                        const gradient = ctx.createLinearGradient(-8, -5, 10, 5);
+                        gradient.addColorStop(0, darkColor);
+                        gradient.addColorStop(0.5, color);
+                        gradient.addColorStop(1, darkColor);
+
+                        ctx.fillStyle = gradient;
                         ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 0.8;
-                        
-                        // Main fuselage
+                        ctx.lineWidth = 1;
+
+                        // Main fuselage with gradient
                         ctx.beginPath();
-                        ctx.moveTo(10, 0);  // Nose
-                        ctx.lineTo(2, -2);   // Top fuselage
-                        ctx.lineTo(-6, -1.5); // Back top
-                        ctx.lineTo(-8, -0.5);  // Engine top
-                        ctx.lineTo(-8, 0.5);   // Engine bottom
-                        ctx.lineTo(-6, 1.5);   // Back bottom
-                        ctx.lineTo(2, 2);      // Bottom fuselage
+                        ctx.moveTo(10, 0);
+                        ctx.lineTo(2, -2);
+                        ctx.lineTo(-6, -1.5);
+                        ctx.lineTo(-8, -0.5);
+                        ctx.lineTo(-8, 0.5);
+                        ctx.lineTo(-6, 1.5);
+                        ctx.lineTo(2, 2);
                         ctx.closePath();
                         ctx.fill();
                         ctx.stroke();
-                        
-                        // Wings
+
+                        // Wings with gradient
                         ctx.beginPath();
                         ctx.moveTo(1, -2);
                         ctx.lineTo(-2, -5);
@@ -1338,7 +1564,7 @@
                         ctx.closePath();
                         ctx.fill();
                         ctx.stroke();
-                        
+
                         ctx.beginPath();
                         ctx.moveTo(1, 2);
                         ctx.lineTo(-2, 5);
@@ -1347,32 +1573,54 @@
                         ctx.closePath();
                         ctx.fill();
                         ctx.stroke();
-                        
-                        // Cockpit
-                        ctx.fillStyle = 'rgba(200, 220, 255, 0.8)';
+
+                        // Cockpit with glow
+                        ctx.shadowBlur = 4;
+                        ctx.shadowColor = color;
+                        ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
                         ctx.beginPath();
                         ctx.ellipse(3, 0, 1.5, 1, 0, 0, Math.PI * 2);
                         ctx.fill();
-                        
-                        // Engine trail
+
+                        // Enhanced engine trail with particles
                         if (unit.state === 'moving') {
-                            ctx.fillStyle = '#00aaff';
-                            ctx.globalAlpha = 0.7;
-                            ctx.fillRect(-12, -2, 6, 4);
+                            const trailGradient = ctx.createLinearGradient(-12, 0, -8, 0);
+                            trailGradient.addColorStop(0, 'rgba(0, 170, 255, 0)');
+                            trailGradient.addColorStop(0.5, 'rgba(0, 200, 255, 0.6)');
+                            trailGradient.addColorStop(1, color);
+
+                            ctx.shadowBlur = 12;
+                            ctx.shadowColor = color;
+                            ctx.fillStyle = trailGradient;
+                            ctx.fillRect(-16, -2, 8, 4);
+
+                            // Trail particles
+                            for (let i = 0; i < 3; i++) {
+                                const offset = i * 4;
+                                ctx.globalAlpha = 0.3 - i * 0.1;
+                                ctx.fillStyle = color;
+                                ctx.beginPath();
+                                ctx.arc(-16 - offset, Math.sin(Date.now() * 0.01 + i) * 2, 1, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
                             ctx.globalAlpha = 1;
                         }
-                        
+
                         ctx.restore();
-                        
-                        // Selection circle
+
+                        // Selection circle with glow
                         if (unit.selected) {
+                            ctx.save();
+                            ctx.shadowBlur = 15;
+                            ctx.shadowColor = '#ffffff';
                             ctx.strokeStyle = '#ffffff';
                             ctx.lineWidth = 2;
                             ctx.beginPath();
-                            ctx.arc(screenX, screenY, 20, 0, Math.PI * 2);
+                            ctx.arc(screenX, screenY, 20 + Math.sin(Date.now() * 0.005) * 2, 0, Math.PI * 2);
                             ctx.stroke();
+                            ctx.restore();
                         }
-                        
+
                         // Health bar
                         this.drawHealthBar(screenX, screenY - 25, unit.health / unit.maxHealth);
                     }
@@ -1383,17 +1631,45 @@
                 this.game.projectiles.forEach(projectile => {
                     const screenX = projectile.x - this.game.camera.x;
                     const screenY = projectile.y - this.game.camera.y;
-                    
+
                     if (this.isOnScreen(screenX, screenY)) {
-                        ctx.fillStyle = '#ffff00';
+                        ctx.save();
+
+                        // Enhanced glow effect
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = '#ffff00';
+
+                        // Gradient for projectile
+                        const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 4);
+                        gradient.addColorStop(0, '#ffffff');
+                        gradient.addColorStop(0.5, '#ffff00');
+                        gradient.addColorStop(1, '#ff8800');
+
+                        ctx.fillStyle = gradient;
                         ctx.beginPath();
-                        ctx.arc(screenX, screenY, 3, 0, Math.PI * 2);
+                        ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
                         ctx.fill();
-                        
-                        // Glow effect
+
+                        // Outer glow ring
                         ctx.strokeStyle = '#ffaa00';
                         ctx.lineWidth = 2;
                         ctx.stroke();
+
+                        // Trail effect
+                        const dx = projectile.targetX - projectile.x;
+                        const dy = projectile.targetY - projectile.y;
+                        const angle = Math.atan2(dy, dx);
+                        const trailLength = 10;
+
+                        ctx.globalAlpha = 0.5;
+                        ctx.strokeStyle = '#ffff00';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY);
+                        ctx.lineTo(screenX - Math.cos(angle) * trailLength, screenY - Math.sin(angle) * trailLength);
+                        ctx.stroke();
+
+                        ctx.restore();
                     }
                 });
             }
@@ -1402,24 +1678,50 @@
                 this.game.effects.forEach(effect => {
                     const screenX = effect.x - this.game.camera.x;
                     const screenY = effect.y - this.game.camera.y;
-                    
+
                     if (this.isOnScreen(screenX, screenY)) {
                         const age = (Date.now() - effect.startTime) / effect.duration;
                         const alpha = 1 - age;
-                        
+
                         if (effect.type === 'explosion') {
-                            const radius = age * 30;
-                            ctx.globalAlpha = alpha;
-                            ctx.fillStyle = '#ff6600';
+                            // Draw explosion particles
+                            ctx.save();
+                            effect.particles.forEach(particle => {
+                                const px = screenX + particle.x;
+                                const py = screenY + particle.y;
+
+                                ctx.globalAlpha = alpha * 0.8;
+                                ctx.shadowBlur = 15;
+                                ctx.shadowColor = particle.color;
+                                ctx.fillStyle = particle.color;
+                                ctx.beginPath();
+                                ctx.arc(px, py, particle.size, 0, Math.PI * 2);
+                                ctx.fill();
+                            });
+
+                            // Central explosion glow
+                            ctx.globalAlpha = alpha * 0.5;
+                            ctx.shadowBlur = 30;
+                            ctx.shadowColor = '#ff6600';
+                            const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, age * 40);
+                            gradient.addColorStop(0, '#ffffff');
+                            gradient.addColorStop(0.3, '#ff6600');
+                            gradient.addColorStop(0.6, '#ff3300');
+                            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                            ctx.fillStyle = gradient;
                             ctx.beginPath();
-                            ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+                            ctx.arc(screenX, screenY, age * 40, 0, Math.PI * 2);
                             ctx.fill();
-                            ctx.globalAlpha = 1;
+                            ctx.restore();
+
                         } else if (effect.type === 'hit') {
+                            ctx.save();
                             ctx.globalAlpha = alpha;
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = '#ffff00';
                             ctx.fillStyle = '#ffff00';
-                            ctx.fillRect(screenX - 3, screenY - 3, 6, 6);
-                            ctx.globalAlpha = 1;
+                            ctx.fillRect(screenX - 4, screenY - 4, 8, 8);
+                            ctx.restore();
                         }
                     }
                 });
@@ -1515,13 +1817,13 @@
             }
         }
 
-        // AI Manager
+        // AI Manager - Enhanced and more aggressive
         class AIManager {
             constructor(game) {
                 this.game = game;
                 this.lastAction = 0;
                 this.strategy = 'economy'; // economy, military, attack
-                this.actionDelay = 2000;
+                this.actionDelay = 1000; // Faster decisions (was 2000)
             }
 
             update(deltaTime) {
@@ -1529,17 +1831,19 @@
 
                 this.analyzeGameState();
                 this.executeStrategy();
-                
+
                 this.lastAction = Date.now();
             }
 
             analyzeGameState() {
                 const enemyUnits = this.game.units.filter(u => u.owner === 'enemy');
                 const enemyBuildings = this.game.buildings.filter(b => b.owner === 'enemy');
-                
-                if (this.game.enemy.energy > 500 && enemyUnits.length < 15) {
+                const enemyMilitary = enemyUnits.filter(u => u.type !== 'WORKER');
+
+                // More aggressive strategy switching
+                if (this.game.enemy.energy > 300 && enemyMilitary.length < 8) {
                     this.strategy = 'military';
-                } else if (enemyUnits.length > 10) {
+                } else if (enemyMilitary.length > 5) { // Attack earlier (was 10)
                     this.strategy = 'attack';
                 } else {
                     this.strategy = 'economy';
@@ -1549,24 +1853,33 @@
             executeStrategy() {
                 const commandCenters = this.game.buildings.filter(b => b.owner === 'enemy' && b.type === 'COMMAND_CENTER');
                 const shipyards = this.game.buildings.filter(b => b.owner === 'enemy' && b.type === 'SHIPYARD');
+                const turrets = this.game.buildings.filter(b => b.owner === 'enemy' && b.type === 'TURRET');
                 const workers = this.game.units.filter(u => u.owner === 'enemy' && u.type === 'WORKER');
 
                 if (this.strategy === 'economy') {
-                    // Build workers
-                    if (workers.length < 4 && commandCenters.length > 0) {
+                    // Build more workers for faster economy
+                    if (workers.length < 6 && commandCenters.length > 0) { // Increased from 4 to 6
                         this.produceUnit(commandCenters[0], 'WORKER');
                     }
-                    
-                    // Build extractors
-                    if (this.game.enemy.energy > 200 && workers.length > 0) {
+
+                    // Build extractors aggressively
+                    if (this.game.enemy.energy > 150 && workers.length > 1) {
                         const nearestResource = this.findNearestResource(workers[0]);
                         if (nearestResource) {
-                            this.game.addBuilding('EXTRACTOR', nearestResource.x, nearestResource.y, 'enemy');
-                            this.game.enemy.energy -= 150;
+                            // Check if no extractor nearby
+                            const hasExtractorNearby = this.game.buildings.some(b => {
+                                const dx = b.x - nearestResource.x;
+                                const dy = b.y - nearestResource.y;
+                                return Math.sqrt(dx * dx + dy * dy) < 100 && b.type === 'EXTRACTOR';
+                            });
+                            if (!hasExtractorNearby) {
+                                this.game.addBuilding('EXTRACTOR', nearestResource.x + 40, nearestResource.y, 'enemy');
+                                this.game.enemy.energy -= 150;
+                            }
                         }
                     }
-                    
-                    // Build shipyard
+
+                    // Build shipyard early
                     if (shipyards.length === 0 && this.game.enemy.energy > 200) {
                         const commandCenter = commandCenters[0];
                         if (commandCenter) {
@@ -1574,31 +1887,56 @@
                             this.game.enemy.energy -= 200;
                         }
                     }
-                } else if (this.strategy === 'military') {
-                    // Produce military units
-                    if (shipyards.length > 0) {
-                        const unitType = Math.random() < 0.6 ? 'FIGHTER' : 'CRUISER';
-                        this.produceUnit(shipyards[0], unitType);
+
+                    // Build defensive turrets
+                    if (turrets.length < 2 && this.game.enemy.energy > 100 && commandCenters.length > 0) {
+                        const commandCenter = commandCenters[0];
+                        this.game.addBuilding('TURRET', commandCenter.x - 80, commandCenter.y, 'enemy');
+                        this.game.enemy.energy -= 100;
                     }
+                } else if (this.strategy === 'military') {
+                    // Produce military units more aggressively
+                    shipyards.forEach(shipyard => {
+                        if (!shipyard.currentProduction || shipyard.productionQueue.length < 2) {
+                            // Build mix of units
+                            const rand = Math.random();
+                            let unitType;
+                            if (rand < 0.5) unitType = 'FIGHTER';
+                            else if (rand < 0.8) unitType = 'CRUISER';
+                            else unitType = 'CARRIER';
+
+                            this.produceUnit(shipyard, unitType);
+                        }
+                    });
                 } else if (this.strategy === 'attack') {
-                    // Send attack waves
+                    // Send aggressive attack waves
                     const fighters = this.game.units.filter(u => u.owner === 'enemy' && u.type !== 'WORKER');
                     const playerBuildings = this.game.buildings.filter(b => b.owner === 'player');
-                    
-                    if (fighters.length > 5 && playerBuildings.length > 0) {
-                        const target = playerBuildings[0];
+
+                    if (fighters.length > 3 && playerBuildings.length > 0) { // Attack with fewer units (was 5)
+                        // Prioritize command center
+                        const target = playerBuildings.find(b => b.type === 'COMMAND_CENTER') || playerBuildings[0];
                         fighters.forEach(unit => {
-                            unit.target = target;
-                            unit.destination = null;
+                            if (!unit.target || unit.target.health <= 0) {
+                                unit.target = target;
+                                unit.destination = null;
+                            }
                         });
                     }
+
+                    // Keep building while attacking
+                    shipyards.forEach(shipyard => {
+                        if (!shipyard.currentProduction && this.game.enemy.energy > 50) {
+                            this.produceUnit(shipyard, 'FIGHTER');
+                        }
+                    });
                 }
 
-                // Worker AI
+                // Enhanced Worker AI
                 workers.forEach(worker => {
-                    if (worker.state === 'idle') {
+                    if (worker.state === 'idle' || !worker.destination) {
                         const nearestResource = this.findNearestResource(worker);
-                        if (nearestResource) {
+                        if (nearestResource && nearestResource.amount > 0) {
                             worker.destination = { x: nearestResource.x, y: nearestResource.y };
                             worker.state = 'mining';
                         }
@@ -1818,20 +2156,19 @@
         function startGame() {
             document.getElementById('mainMenu').style.display = 'none';
             document.getElementById('loadingScreen').style.display = 'flex';
-            
+
+            // Fast loading - 95% faster (100ms total instead of 2000ms)
             let progress = 0;
             const loadingInterval = setInterval(() => {
-                progress += Math.random() * 15;
+                progress += 50; // Much faster increments
                 if (progress >= 100) {
                     progress = 100;
                     clearInterval(loadingInterval);
-                    setTimeout(() => {
-                        document.getElementById('loadingScreen').style.display = 'none';
-                        initializeGame();
-                    }, 500);
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    initializeGame();
                 }
                 document.getElementById('loadingProgress').style.width = progress + '%';
-            }, 100);
+            }, 20); // Very short interval
         }
 
         function restartGame() {
