@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Brick Builder 3D</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧱</text></svg>">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: #050510;
+            min-height: 100vh;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Spectacular Animated Background */
+        .bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-gradient {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at 20% 0%, rgba(255, 100, 50, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 100%, rgba(50, 100, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(150, 50, 200, 0.1) 0%, transparent 60%),
+                linear-gradient(180deg, #050510 0%, #0a0a20 50%, #050515 100%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgShift {
+            0% { filter: hue-rotate(0deg) brightness(1); }
+            50% { filter: hue-rotate(15deg) brightness(1.05); }
+            100% { filter: hue-rotate(-15deg) brightness(0.95); }
+        }
+
+        .bg-stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.5), transparent),
+                radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.4), transparent),
+                radial-gradient(1px 1px at 160px 120px, rgba(255,255,255,0.7), transparent);
+            background-size: 200px 200px;
+            animation: twinkle 5s ease-in-out infinite alternate;
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .bg-grid {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image:
+                linear-gradient(rgba(100, 150, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 150, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: perspective(500px) rotateX(60deg);
+            animation: gridScroll 30s linear infinite;
+        }
+
+        @keyframes gridScroll {
+            0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+            100% { transform: perspective(500px) rotateX(60deg) translateY(60px); }
+        }
+
+        /* Floating Orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            animation: orbFloat 15s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 100, 100, 0.15);
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: rgba(100, 100, 255, 0.12);
+            bottom: 10%;
+            right: 10%;
+            animation-delay: -5s;
+        }
+
+        .orb-3 {
+            width: 250px;
+            height: 250px;
+            background: rgba(100, 255, 150, 0.1);
+            top: 50%;
+            left: 50%;
+            animation-delay: -10s;
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.1); }
+            50% { transform: translate(-20px, 20px) scale(0.9); }
+            75% { transform: translate(-30px, -10px) scale(1.05); }
+        }
+
+        /* Main Container */
+        .game-wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: rgba(5, 5, 20, 0.8);
+            backdrop-filter: blur(30px);
+            border-bottom: 1px solid rgba(100, 150, 255, 0.15);
+        }
+
+        .back-link {
+            color: rgba(150, 180, 255, 0.7);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+        }
+
+        .back-link:hover {
+            color: #fff;
+            text-shadow: 0 0 30px rgba(100, 150, 255, 1);
+            transform: translateX(-5px);
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF6B35, #FFD93D, #6BCB77, #4D96FF, #9B59B6, #FF6B35);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: titleShine 8s linear infinite;
+            letter-spacing: 4px;
+            position: relative;
+        }
+
+        .title::after {
+            content: 'BRICK BUILDER 3D';
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: inherit;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: blur(15px);
+            opacity: 0.5;
+        }
+
+        @keyframes titleShine {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 400% 50%; }
+        }
+
+        .header-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .brick-counter {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: #FFD93D;
+            background: rgba(255, 215, 0, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+
+        .brick-counter.pulse {
+            animation: counterPulse 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes counterPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); background: rgba(255, 215, 0, 0.25); }
+            100% { transform: scale(1); }
+        }
+
+        .fullscreen-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.7);
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 0 30px rgba(100, 150, 255, 0.4);
+            color: #fff;
+        }
+
+        /* Game Container */
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            position: relative;
+            border-radius: 24px;
+            overflow: visible;
+        }
+
+        .canvas-glow {
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 27px;
+            background: conic-gradient(from 0deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6, #ff6b6b);
+            background-size: 100% 100%;
+            animation: borderRotate 4s linear infinite;
+            z-index: -1;
+            opacity: 0.8;
+        }
+
+        @keyframes borderRotate {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        .canvas-glow::before {
+            content: '';
+            position: absolute;
+            inset: 3px;
+            border-radius: 24px;
+            background: #0a0a1a;
+        }
+
+        .canvas-shadow {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: -10px;
+            bottom: -10px;
+            border-radius: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            filter: blur(30px);
+            z-index: -2;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: grab;
+            touch-action: none;
+            border-radius: 20px;
+            background: #0a0a1a;
+        }
+
+        #gameCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 750px;
+        }
+
+        .control-panel {
+            background: rgba(10, 10, 30, 0.6);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(100, 150, 255, 0.1);
+            border-radius: 18px;
+            padding: 12px 18px;
+            box-shadow:
+                0 15px 50px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .panel-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(150, 180, 255, 0.5);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Brick Palette */
+        .brick-palette {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .brick-btn {
+            background: linear-gradient(145deg, rgba(40, 40, 80, 0.8), rgba(20, 20, 50, 0.8));
+            border: 2px solid rgba(100, 150, 255, 0.15);
+            color: rgba(180, 200, 255, 0.85);
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brick-btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transform: rotate(45deg) translateY(-100%);
+            transition: transform 0.6s;
+        }
+
+        .brick-btn:hover::before {
+            transform: rotate(45deg) translateY(100%);
+        }
+
+        .brick-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            border-color: rgba(100, 200, 255, 0.5);
+            box-shadow:
+                0 15px 35px rgba(0, 0, 0, 0.4),
+                0 0 25px rgba(100, 150, 255, 0.2);
+        }
+
+        .brick-btn.selected {
+            background: linear-gradient(145deg, rgba(80, 120, 255, 0.5), rgba(50, 80, 200, 0.5));
+            border-color: rgba(100, 180, 255, 0.8);
+            color: #fff;
+            box-shadow:
+                0 0 30px rgba(100, 150, 255, 0.3),
+                inset 0 0 20px rgba(100, 150, 255, 0.15);
+            transform: scale(1.05);
+        }
+
+        /* Color Palette */
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .color-btn {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .color-btn:hover::before {
+            opacity: 1;
+        }
+
+        .color-btn:hover {
+            transform: translateY(-6px) scale(1.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            z-index: 10;
+        }
+
+        .color-btn.selected {
+            border-color: #fff;
+            transform: scale(1.25);
+            box-shadow:
+                0 0 0 3px rgba(255, 255, 255, 0.2),
+                0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .color-btn.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .action-btn {
+            background: linear-gradient(145deg, rgba(50, 50, 90, 0.8), rgba(25, 25, 55, 0.8));
+            border: 2px solid rgba(100, 150, 255, 0.15);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            transition: left 0.5s;
+        }
+
+        .action-btn:hover::before {
+            left: 100%;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .action-btn:active {
+            transform: translateY(-2px) scale(0.98);
+        }
+
+        .action-btn.explode {
+            background: linear-gradient(145deg, rgba(255, 60, 60, 0.6), rgba(180, 30, 30, 0.6));
+            border-color: rgba(255, 80, 80, 0.4);
+        }
+
+        .action-btn.explode:hover {
+            box-shadow: 0 20px 50px rgba(255, 50, 50, 0.3), 0 0 40px rgba(255, 80, 80, 0.2);
+        }
+
+        .action-btn.rebuild {
+            background: linear-gradient(145deg, rgba(60, 180, 255, 0.6), rgba(30, 130, 200, 0.6));
+            border-color: rgba(80, 180, 255, 0.4);
+        }
+
+        .action-btn.rebuild:hover {
+            box-shadow: 0 20px 50px rgba(50, 150, 255, 0.3), 0 0 40px rgba(80, 180, 255, 0.2);
+        }
+
+        .action-btn.random {
+            background: linear-gradient(145deg, rgba(80, 220, 120, 0.6), rgba(40, 180, 80, 0.6));
+            border-color: rgba(100, 220, 130, 0.4);
+        }
+
+        .action-btn.random:hover {
+            box-shadow: 0 20px 50px rgba(50, 200, 100, 0.3), 0 0 40px rgba(100, 220, 130, 0.2);
+        }
+
+        .action-btn.clear {
+            background: linear-gradient(145deg, rgba(255, 180, 60, 0.6), rgba(200, 130, 30, 0.6));
+            border-color: rgba(255, 190, 80, 0.4);
+        }
+
+        .action-btn.undo {
+            background: linear-gradient(145deg, rgba(180, 130, 255, 0.6), rgba(130, 80, 200, 0.6));
+            border-color: rgba(180, 130, 255, 0.4);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .action-btn:disabled::before {
+            display: none;
+        }
+
+        /* Instructions */
+        .instructions {
+            color: rgba(150, 180, 255, 0.4);
+            font-size: 11px;
+            text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Screen Effects Overlay */
+        #screenEffects {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Responsive */
+        @media (max-height: 700px) {
+            .game-container { padding: 8px; gap: 8px; }
+            .control-panel { padding: 8px 12px; border-radius: 12px; }
+            .brick-btn { padding: 6px 10px; font-size: 10px; }
+            .color-btn { width: 30px; height: 30px; }
+            .action-btn { padding: 8px 14px; font-size: 11px; }
+            .title { font-size: 16px; letter-spacing: 2px; }
+        }
+
+        @media (max-width: 550px) {
+            .header { padding: 8px 12px; }
+            .title { font-size: 14px; letter-spacing: 1px; }
+            .brick-btn { padding: 5px 8px; font-size: 9px; }
+            .action-btn { padding: 6px 12px; font-size: 10px; }
+            .brick-counter { font-size: 10px; padding: 6px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background -->
+    <div class="bg-container">
+        <div class="bg-gradient"></div>
+        <div class="bg-stars"></div>
+        <div class="bg-grid"></div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Screen Effects -->
+    <canvas id="screenEffects"></canvas>
+
+    <div class="game-wrapper">
+        <!-- Header -->
+        <div class="header">
+            <a href="../index.html" class="back-link">
+                <span>←</span> ZURÜCK
+            </a>
+            <span class="title">BRICK BUILDER 3D</span>
+            <div class="header-right">
+                <div class="brick-counter" id="brickCounter">0 BRICKS</div>
+                <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
+            </div>
+        </div>
+
+        <!-- Game Container -->
+        <div class="game-container">
+            <div class="canvas-container">
+                <div class="canvas-shadow"></div>
+                <div class="canvas-glow"></div>
+                <canvas id="gameCanvas"></canvas>
+            </div>
+
+            <div class="controls">
+                <div class="control-panel">
+                    <span class="panel-label">Bausteine</span>
+                    <div class="brick-palette" id="brickPalette"></div>
+                </div>
+
+                <div class="control-panel">
+                    <span class="panel-label">Farben</span>
+                    <div class="color-palette" id="colorPalette"></div>
+                </div>
+
+                <div class="control-panel">
+                    <div class="action-buttons">
+                        <button class="action-btn explode" id="explodeBtn" onclick="game.triggerExplosion()">💥 EXPLODE</button>
+                        <button class="action-btn rebuild" id="rebuildBtn" onclick="game.triggerRebuild()" disabled>🔄 REBUILD</button>
+                        <button class="action-btn random" onclick="game.randomBuild()">🎲 RANDOM</button>
+                        <button class="action-btn clear" onclick="game.clear()">🗑️ CLEAR</button>
+                        <button class="action-btn undo" id="undoBtn" onclick="game.undo()" disabled>↩️ UNDO</button>
+                    </div>
+                </div>
+
+                <div class="instructions">
+                    DRAG: Drehen • KLICK: Bauen • SHIFT+KLICK / RECHTSKLICK: Löschen
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Config ====================
+        const DEBUG = false;
+        if (!DEBUG) { console.log = console.warn = console.info = () => {}; }
+
+        // ==================== Premium Sound System ====================
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.masterVolume = 0.4;
+                this.init();
+            }
+
+            init() {
+                try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+            }
+
+            async resume() {
+                if (this.ctx?.state === 'suspended') await this.ctx.resume();
+            }
+
+            createOsc(freq, type, duration, volume) {
+                if (!this.ctx || !this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(volume * this.masterVolume, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playClick() {
+                const freqs = [850, 900, 800];
+                this.createOsc(freqs[Math.floor(Math.random() * 3)], 'sine', 0.06, 0.15);
+            }
+
+            playPlace() {
+                if (!this.ctx || !this.enabled) return;
+                // Satisfying plastic snap
+                const now = this.ctx.currentTime;
+
+                // Click transient
+                const click = this.ctx.createOscillator();
+                const clickGain = this.ctx.createGain();
+                click.connect(clickGain);
+                clickGain.connect(this.ctx.destination);
+                click.type = 'square';
+                click.frequency.setValueAtTime(1200, now);
+                click.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+                clickGain.gain.setValueAtTime(0.2 * this.masterVolume, now);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                click.start(now);
+                click.stop(now + 0.08);
+
+                // Snap resonance
+                const snap = this.ctx.createOscillator();
+                const snapGain = this.ctx.createGain();
+                snap.connect(snapGain);
+                snapGain.connect(this.ctx.destination);
+                snap.type = 'sine';
+                snap.frequency.setValueAtTime(800, now + 0.01);
+                snap.frequency.exponentialRampToValueAtTime(500, now + 0.1);
+                snapGain.gain.setValueAtTime(0.15 * this.masterVolume, now + 0.01);
+                snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                snap.start(now + 0.01);
+                snap.stop(now + 0.15);
+            }
+
+            playExplosion() {
+                if (!this.ctx || !this.enabled) return;
+                const now = this.ctx.currentTime;
+
+                // Deep boom
+                const boom = this.ctx.createOscillator();
+                const boomGain = this.ctx.createGain();
+                const boomFilter = this.ctx.createBiquadFilter();
+                boom.connect(boomFilter);
+                boomFilter.connect(boomGain);
+                boomGain.connect(this.ctx.destination);
+                boomFilter.type = 'lowpass';
+                boomFilter.frequency.value = 300;
+                boom.type = 'sawtooth';
+                boom.frequency.setValueAtTime(80, now);
+                boom.frequency.exponentialRampToValueAtTime(20, now + 1);
+                boomGain.gain.setValueAtTime(0.5 * this.masterVolume, now);
+                boomGain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+                boom.start(now);
+                boom.stop(now + 1);
+
+                // Crash noise
+                const bufferSize = this.ctx.sampleRate * 0.8;
+                const buffer = this.ctx.createBuffer(2, bufferSize, this.ctx.sampleRate);
+                for (let c = 0; c < 2; c++) {
+                    const data = buffer.getChannelData(c);
+                    for (let i = 0; i < bufferSize; i++) {
+                        const env = Math.exp(-i / (bufferSize * 0.15));
+                        data[i] = (Math.random() * 2 - 1) * env;
+                    }
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const noiseGain = this.ctx.createGain();
+                const noiseFilter = this.ctx.createBiquadFilter();
+                noiseFilter.type = 'bandpass';
+                noiseFilter.frequency.value = 800;
+                noiseFilter.Q.value = 0.5;
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(this.ctx.destination);
+                noiseGain.gain.setValueAtTime(0.35 * this.masterVolume, now);
+                noise.start(now);
+
+                // High crack
+                const crack = this.ctx.createOscillator();
+                const crackGain = this.ctx.createGain();
+                crack.connect(crackGain);
+                crackGain.connect(this.ctx.destination);
+                crack.type = 'square';
+                crack.frequency.setValueAtTime(2000, now);
+                crack.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                crackGain.gain.setValueAtTime(0.2 * this.masterVolume, now);
+                crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                crack.start(now);
+                crack.stop(now + 0.15);
+            }
+
+            playRebuild() {
+                if (!this.ctx || !this.enabled) return;
+                // Ascending magical sound
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        const freq = 300 + i * 80;
+                        this.createOsc(freq, 'sine', 0.15, 0.08);
+                        this.createOsc(freq * 1.5, 'triangle', 0.1, 0.04);
+                    }, i * 60);
+                }
+            }
+
+            playLand() {
+                this.createOsc(200, 'sine', 0.1, 0.1);
+            }
+        }
+
+        // ==================== Advanced Particle System ====================
+        class Particle {
+            constructor(x, y, config = {}) {
+                this.x = x;
+                this.y = y;
+                this.vx = config.vx ?? (Math.random() - 0.5) * 10;
+                this.vy = config.vy ?? (Math.random() - 0.5) * 10 - 5;
+                this.size = config.size ?? Math.random() * 6 + 2;
+                this.color = config.color ?? '#fff';
+                this.alpha = 1;
+                this.life = 1;
+                this.decay = config.decay ?? 0.015 + Math.random() * 0.01;
+                this.gravity = config.gravity ?? 0.2;
+                this.trail = config.trail ? [] : null;
+                this.trailLength = config.trailLength ?? 8;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.3;
+                this.isSquare = config.isSquare ?? false;
+                this.friction = config.friction ?? 0.99;
+            }
+
+            update(dt) {
+                if (this.trail) {
+                    this.trail.push({ x: this.x, y: this.y, alpha: this.alpha });
+                    if (this.trail.length > this.trailLength) this.trail.shift();
+                }
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.rotation += this.rotSpeed;
+                this.life -= this.decay;
+                this.alpha = Math.max(0, this.life);
+                return this.life > 0;
+            }
+
+            draw(ctx) {
+                // Draw trail
+                if (this.trail) {
+                    this.trail.forEach((p, i) => {
+                        const a = (i / this.trail.length) * p.alpha * 0.4;
+                        ctx.fillStyle = this.color.replace('1)', `${a})`).replace('rgb', 'rgba');
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, this.size * (i / this.trail.length), 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = this.alpha;
+
+                if (this.isSquare) {
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+                } else {
+                    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+                    grad.addColorStop(0, this.color);
+                    grad.addColorStop(0.5, this.color);
+                    grad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class ParticleSystem {
+            constructor(ctx) {
+                this.ctx = ctx;
+                this.particles = [];
+            }
+
+            emit(x, y, count, color, config = {}) {
+                for (let i = 0; i < count; i++) {
+                    this.particles.push(new Particle(x, y, { color, ...config }));
+                }
+            }
+
+            emitExplosion(x, y, color) {
+                // Sparks with trails
+                for (let i = 0; i < 25; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 8 + Math.random() * 15;
+                    this.particles.push(new Particle(x, y, {
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 3,
+                        size: 3 + Math.random() * 4,
+                        color: `hsl(${30 + Math.random() * 30}, 100%, ${60 + Math.random() * 30}%)`,
+                        trail: true,
+                        trailLength: 12,
+                        decay: 0.02,
+                        gravity: 0.15
+                    }));
+                }
+
+                // Debris
+                for (let i = 0; i < 15; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 4 + Math.random() * 8;
+                    this.particles.push(new Particle(x, y, {
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 5,
+                        size: 4 + Math.random() * 6,
+                        color: color,
+                        isSquare: true,
+                        decay: 0.012,
+                        gravity: 0.4
+                    }));
+                }
+            }
+
+            emitSmoke(x, y, count = 5) {
+                for (let i = 0; i < count; i++) {
+                    this.particles.push(new Particle(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30, {
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: -1 - Math.random() * 2,
+                        size: 20 + Math.random() * 30,
+                        color: `rgba(100, 100, 120, 0.4)`,
+                        decay: 0.008,
+                        gravity: -0.02,
+                        friction: 0.98
+                    }));
+                }
+            }
+
+            update(dt) {
+                this.particles = this.particles.filter(p => p.update(dt));
+            }
+
+            draw() {
+                this.particles.forEach(p => p.draw(this.ctx));
+            }
+        }
+
+        // ==================== Explosion System ====================
+        class ExplosionSystem {
+            constructor() {
+                this.active = false;
+                this.shockwave = null;
+                this.timeScale = 1;
+                this.flash = 0;
+                this.screenShake = { x: 0, y: 0, intensity: 0 };
+            }
+
+            trigger(centerX, centerY) {
+                this.active = true;
+
+                // Slow motion
+                this.timeScale = 0.2;
+                setTimeout(() => this.timeScale = 0.4, 400);
+                setTimeout(() => this.timeScale = 0.7, 800);
+                setTimeout(() => this.timeScale = 1.0, 1200);
+
+                // Screen flash
+                this.flash = 1;
+
+                // Shockwave
+                this.shockwave = {
+                    x: centerX,
+                    y: centerY,
+                    radius: 0,
+                    maxRadius: 500,
+                    alpha: 1,
+                    thickness: 40
+                };
+
+                // Screen shake
+                this.screenShake.intensity = 40;
+            }
+
+            update(dt) {
+                // Flash decay
+                this.flash *= 0.9;
+                if (this.flash < 0.01) this.flash = 0;
+
+                // Shake decay
+                this.screenShake.intensity *= 0.92;
+                this.screenShake.x = (Math.random() - 0.5) * this.screenShake.intensity;
+                this.screenShake.y = (Math.random() - 0.5) * this.screenShake.intensity;
+                if (this.screenShake.intensity < 0.5) {
+                    this.screenShake.intensity = 0;
+                    this.screenShake.x = 0;
+                    this.screenShake.y = 0;
+                }
+
+                // Shockwave expand
+                if (this.shockwave) {
+                    this.shockwave.radius += 600 * dt;
+                    this.shockwave.alpha *= 0.97;
+                    this.shockwave.thickness = Math.max(3, this.shockwave.thickness * 0.97);
+                    if (this.shockwave.alpha < 0.02) {
+                        this.shockwave = null;
+                    }
+                }
+            }
+
+            draw(ctx, canvas) {
+                // Screen flash
+                if (this.flash > 0.01) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${this.flash * 0.7})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
+                // Shockwave
+                if (this.shockwave) {
+                    ctx.save();
+
+                    // Outer glow
+                    const glowGrad = ctx.createRadialGradient(
+                        this.shockwave.x, this.shockwave.y, this.shockwave.radius * 0.8,
+                        this.shockwave.x, this.shockwave.y, this.shockwave.radius * 1.2
+                    );
+                    glowGrad.addColorStop(0, 'transparent');
+                    glowGrad.addColorStop(0.4, `rgba(255, 200, 100, ${this.shockwave.alpha * 0.15})`);
+                    glowGrad.addColorStop(0.6, `rgba(255, 150, 50, ${this.shockwave.alpha * 0.3})`);
+                    glowGrad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = glowGrad;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Ring
+                    ctx.strokeStyle = `rgba(255, 220, 150, ${this.shockwave.alpha})`;
+                    ctx.lineWidth = this.shockwave.thickness;
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = `rgba(255, 150, 50, ${this.shockwave.alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(this.shockwave.x, this.shockwave.y, this.shockwave.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Inner distortion hint
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.shockwave.alpha * 0.3})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.shockwave.x, this.shockwave.y, this.shockwave.radius - this.shockwave.thickness / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+            }
+
+            reset() {
+                this.active = false;
+                this.shockwave = null;
+                this.timeScale = 1;
+                this.flash = 0;
+                this.screenShake = { x: 0, y: 0, intensity: 0 };
+            }
+        }
+
+        // ==================== Vector3 ====================
+        class Vector3 {
+            constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+            clone() { return new Vector3(this.x, this.y, this.z); }
+            add(v) { return new Vector3(this.x + v.x, this.y + v.y, this.z + v.z); }
+            sub(v) { return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z); }
+            scale(s) { return new Vector3(this.x * s, this.y * s, this.z * s); }
+            length() { return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z); }
+            normalize() { const l = this.length(); return l > 0 ? this.scale(1 / l) : new Vector3(); }
+            rotateY(a) {
+                const c = Math.cos(a), s = Math.sin(a);
+                return new Vector3(this.x * c - this.z * s, this.y, this.x * s + this.z * c);
+            }
+            rotateX(a) {
+                const c = Math.cos(a), s = Math.sin(a);
+                return new Vector3(this.x, this.y * c - this.z * s, this.y * s + this.z * c);
+            }
+            rotateZ(a) {
+                const c = Math.cos(a), s = Math.sin(a);
+                return new Vector3(this.x * c - this.y * s, this.x * s + this.y * c, this.z);
+            }
+        }
+
+        // ==================== Brick Types & Colors ====================
+        const BRICK_TYPES = {
+            '1x1': { w: 1, d: 1, h: 1, studs: [[0, 0]], name: '1×1' },
+            '1x2': { w: 1, d: 2, h: 1, studs: [[0, 0], [0, 1]], name: '1×2' },
+            '1x4': { w: 1, d: 4, h: 1, studs: [[0, 0], [0, 1], [0, 2], [0, 3]], name: '1×4' },
+            '2x2': { w: 2, d: 2, h: 1, studs: [[0, 0], [0, 1], [1, 0], [1, 1]], name: '2×2' },
+            '2x4': { w: 2, d: 4, h: 1, studs: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3]], name: '2×4' },
+            'plate': { w: 2, d: 2, h: 0.33, studs: [[0, 0], [0, 1], [1, 0], [1, 1]], name: 'PLATE' }
+        };
+
+        const COLORS = [
+            { name: 'Rot', hex: '#DC2626', light: '#EF4444', dark: '#991B1B', glow: 'rgba(239, 68, 68, 0.6)' },
+            { name: 'Blau', hex: '#2563EB', light: '#3B82F6', dark: '#1E40AF', glow: 'rgba(59, 130, 246, 0.6)' },
+            { name: 'Gelb', hex: '#EAB308', light: '#FACC15', dark: '#A16207', glow: 'rgba(250, 204, 21, 0.6)' },
+            { name: 'Grün', hex: '#16A34A', light: '#22C55E', dark: '#166534', glow: 'rgba(34, 197, 94, 0.6)' },
+            { name: 'Weiß', hex: '#E5E5E5', light: '#FFFFFF', dark: '#A3A3A3', glow: 'rgba(255, 255, 255, 0.6)' },
+            { name: 'Schwarz', hex: '#262626', light: '#404040', dark: '#0A0A0A', glow: 'rgba(64, 64, 64, 0.6)' },
+            { name: 'Orange', hex: '#EA580C', light: '#F97316', dark: '#9A3412', glow: 'rgba(249, 115, 22, 0.6)' },
+            { name: 'Cyan', hex: '#0891B2', light: '#22D3EE', dark: '#155E75', glow: 'rgba(34, 211, 238, 0.6)' }
+        ];
+
+        // ==================== Brick Class ====================
+        class Brick {
+            constructor(type, gx, gy, gz, colorData) {
+                this.type = type;
+                this.gx = gx; this.gy = gy; this.gz = gz;
+                this.colorData = colorData;
+                this.color = colorData.hex;
+
+                this.originalPos = new Vector3(gx, gy, gz);
+                this.pos = new Vector3(gx, gy, gz);
+                this.visualY = gy;
+
+                this.vel = new Vector3();
+                this.rot = new Vector3();
+                this.angVel = new Vector3();
+
+                this.state = 'idle'; // idle, dropping, exploding, rebuilding
+                this.dropProgress = 0;
+                this.rebuildProgress = 0;
+                this.squash = 1;
+            }
+
+            get bt() { return BRICK_TYPES[this.type]; }
+
+            getWorldCenter(unit) {
+                return new Vector3(
+                    (this.pos.x + this.bt.w / 2) * unit,
+                    this.visualY * unit * 1.2 + this.bt.h * unit * 0.6,
+                    (this.pos.z + this.bt.d / 2) * unit
+                );
+            }
+
+            startDrop(height = 4) {
+                this.state = 'dropping';
+                this.visualY = this.gy + height;
+                this.dropProgress = 0;
+                this.squash = 1;
+            }
+
+            startExplosion(cx, cz) {
+                this.state = 'exploding';
+                const dx = this.pos.x - cx;
+                const dz = this.pos.z - cz;
+                const dist = Math.sqrt(dx * dx + dz * dz) + 1;
+                const power = 180 + Math.random() * 100;
+                this.vel = new Vector3(
+                    (dx / dist) * power + (Math.random() - 0.5) * 120,
+                    200 + Math.random() * 150,
+                    (dz / dist) * power + (Math.random() - 0.5) * 120
+                );
+                this.angVel = new Vector3(
+                    (Math.random() - 0.5) * 12,
+                    (Math.random() - 0.5) * 12,
+                    (Math.random() - 0.5) * 12
+                );
+            }
+
+            startRebuild(delay) {
+                this.rebuildDelay = delay;
+                this.rebuildProgress = 0;
+            }
+
+            update(dt, timeScale = 1) {
+                dt *= timeScale;
+
+                if (this.state === 'dropping') {
+                    this.dropProgress += dt * 5;
+                    const t = Math.min(1, this.dropProgress);
+                    // Bounce easing
+                    const bounce = t < 0.6
+                        ? this.easeOutQuad(t / 0.6)
+                        : 1 + Math.sin((t - 0.6) / 0.4 * Math.PI * 2) * (1 - t) * 0.15;
+
+                    this.visualY = this.gy + (1 - bounce) * 4;
+
+                    // Squash at landing
+                    if (t > 0.55 && t < 0.7) {
+                        this.squash = 0.8 + (t - 0.55) / 0.15 * 0.2;
+                    } else {
+                        this.squash = 1;
+                    }
+
+                    if (t >= 1) {
+                        this.state = 'idle';
+                        this.visualY = this.gy;
+                        this.squash = 1;
+                    }
+                }
+
+                if (this.state === 'exploding') {
+                    this.vel.y -= 350 * dt;
+                    this.pos.x += this.vel.x * dt;
+                    this.pos.y += this.vel.y * dt;
+                    this.pos.z += this.vel.z * dt;
+                    this.visualY = this.pos.y;
+                    this.rot.x += this.angVel.x * dt;
+                    this.rot.y += this.angVel.y * dt;
+                    this.rot.z += this.angVel.z * dt;
+                }
+
+                if (this.rebuildDelay !== undefined) {
+                    this.rebuildDelay -= dt;
+                    if (this.rebuildDelay <= 0) {
+                        this.state = 'rebuilding';
+                        delete this.rebuildDelay;
+                    }
+                }
+
+                if (this.state === 'rebuilding') {
+                    this.rebuildProgress += dt * 2.5;
+                    if (this.rebuildProgress >= 1) {
+                        this.rebuildProgress = 1;
+                        this.state = 'idle';
+                    }
+                    const t = this.easeOutBack(Math.min(1, this.rebuildProgress));
+                    this.pos.x = this.pos.x + (this.originalPos.x - this.pos.x) * t;
+                    this.pos.y = this.pos.y + (this.originalPos.y - this.pos.y) * t;
+                    this.pos.z = this.pos.z + (this.originalPos.z - this.pos.z) * t;
+                    this.visualY = this.pos.y;
+                    this.rot.x *= (1 - t);
+                    this.rot.y *= (1 - t);
+                    this.rot.z *= (1 - t);
+                }
+            }
+
+            easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+            easeOutBack(t) {
+                const c1 = 1.70158;
+                const c3 = c1 + 1;
+                return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+            }
+
+            reset() {
+                this.state = 'idle';
+                this.pos = this.originalPos.clone();
+                this.visualY = this.gy;
+                this.vel = new Vector3();
+                this.rot = new Vector3();
+                this.angVel = new Vector3();
+                this.squash = 1;
+            }
+        }
+
+        // ==================== Camera ====================
+        class Camera {
+            constructor() {
+                this.rotX = -0.45;
+                this.rotY = 0.7;
+                this.targetRotX = this.rotX;
+                this.targetRotY = this.rotY;
+                this.zoom = 1;
+                this.shakeOffset = { x: 0, y: 0 };
+            }
+
+            project(p, canvas, shakeX = 0, shakeY = 0) {
+                let v = p.clone();
+                v = v.rotateY(this.rotY);
+                v = v.rotateX(this.rotX);
+                const scale = 1.9 * this.zoom;
+                return {
+                    x: canvas.width / 2 + v.x * scale + shakeX,
+                    y: canvas.height / 2 - v.y * scale + shakeY,
+                    z: v.z
+                };
+            }
+
+            update() {
+                this.rotX += (this.targetRotX - this.rotX) * 0.1;
+                this.rotY += (this.targetRotY - this.rotY) * 0.1;
+            }
+        }
+
+        // ==================== Premium Renderer ====================
+        class Renderer {
+            constructor(canvas, camera) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.camera = camera;
+                this.unit = 22;
+            }
+
+            clear() {
+                // Premium gradient background
+                const g = this.ctx.createRadialGradient(
+                    this.canvas.width / 2, this.canvas.height / 2, 0,
+                    this.canvas.width / 2, this.canvas.height / 2, this.canvas.width * 0.8
+                );
+                g.addColorStop(0, '#151528');
+                g.addColorStop(0.4, '#0f0f20');
+                g.addColorStop(1, '#080812');
+                this.ctx.fillStyle = g;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Subtle vignette
+                const vg = this.ctx.createRadialGradient(
+                    this.canvas.width / 2, this.canvas.height / 2, this.canvas.width * 0.25,
+                    this.canvas.width / 2, this.canvas.height / 2, this.canvas.width * 0.6
+                );
+                vg.addColorStop(0, 'transparent');
+                vg.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+                this.ctx.fillStyle = vg;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            drawBaseplate(shakeX, shakeY) {
+                const size = 8;
+                const u = this.unit;
+
+                // Baseplate corners
+                const corners = [
+                    this.camera.project(new Vector3(-size * u, 0, -size * u), this.canvas, shakeX, shakeY),
+                    this.camera.project(new Vector3(size * u, 0, -size * u), this.canvas, shakeX, shakeY),
+                    this.camera.project(new Vector3(size * u, 0, size * u), this.canvas, shakeX, shakeY),
+                    this.camera.project(new Vector3(-size * u, 0, size * u), this.canvas, shakeX, shakeY)
+                ];
+
+                // Base gradient (premium green)
+                const baseGrad = this.ctx.createLinearGradient(
+                    corners[0].x, corners[0].y, corners[2].x, corners[2].y
+                );
+                baseGrad.addColorStop(0, 'rgba(22, 101, 52, 0.7)');
+                baseGrad.addColorStop(0.3, 'rgba(34, 140, 70, 0.75)');
+                baseGrad.addColorStop(0.7, 'rgba(22, 101, 52, 0.7)');
+                baseGrad.addColorStop(1, 'rgba(20, 83, 45, 0.65)');
+
+                this.ctx.fillStyle = baseGrad;
+                this.ctx.beginPath();
+                this.ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(c => this.ctx.lineTo(c.x, c.y));
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // Glossy reflection
+                const reflGrad = this.ctx.createLinearGradient(
+                    corners[3].x, corners[3].y, corners[1].x, corners[1].y
+                );
+                reflGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                reflGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.08)');
+                reflGrad.addColorStop(0.6, 'rgba(255, 255, 255, 0.12)');
+                reflGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                this.ctx.fillStyle = reflGrad;
+                this.ctx.fill();
+
+                // Grid lines
+                this.ctx.strokeStyle = 'rgba(100, 200, 130, 0.12)';
+                this.ctx.lineWidth = 1;
+                for (let i = -size; i <= size; i++) {
+                    const s1 = this.camera.project(new Vector3(i * u, 0, -size * u), this.canvas, shakeX, shakeY);
+                    const e1 = this.camera.project(new Vector3(i * u, 0, size * u), this.canvas, shakeX, shakeY);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(s1.x, s1.y);
+                    this.ctx.lineTo(e1.x, e1.y);
+                    this.ctx.stroke();
+
+                    const s2 = this.camera.project(new Vector3(-size * u, 0, i * u), this.canvas, shakeX, shakeY);
+                    const e2 = this.camera.project(new Vector3(size * u, 0, i * u), this.canvas, shakeX, shakeY);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(s2.x, s2.y);
+                    this.ctx.lineTo(e2.x, e2.y);
+                    this.ctx.stroke();
+                }
+
+                // Subtle studs pattern
+                this.ctx.fillStyle = 'rgba(30, 120, 60, 0.35)';
+                for (let x = -size + 1; x < size; x += 2) {
+                    for (let z = -size + 1; z < size; z += 2) {
+                        const p = this.camera.project(new Vector3(x * u, 2, z * u), this.canvas, shakeX, shakeY);
+                        this.ctx.beginPath();
+                        this.ctx.ellipse(p.x, p.y, 3.5, 1.8, 0, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                }
+
+                // Ambient glow at center
+                const center = this.camera.project(new Vector3(0, 0, 0), this.canvas, shakeX, shakeY);
+                const ambGrad = this.ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, 120);
+                ambGrad.addColorStop(0, 'rgba(100, 230, 150, 0.08)');
+                ambGrad.addColorStop(1, 'transparent');
+                this.ctx.fillStyle = ambGrad;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Edge glow
+                this.ctx.strokeStyle = 'rgba(80, 180, 120, 0.2)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(c => this.ctx.lineTo(c.x, c.y));
+                this.ctx.closePath();
+                this.ctx.stroke();
+            }
+
+            hexToRgb(hex) {
+                const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) } : { r: 128, g: 128, b: 128 };
+            }
+
+            drawBrick(brick, shakeX, shakeY) {
+                const bt = brick.bt;
+                const u = this.unit;
+                const squashY = brick.squash;
+                const w = bt.w * u, d = bt.d * u, h = bt.h * u * 1.2 * squashY;
+                const bx = brick.pos.x * u;
+                const by = brick.visualY * u * 1.2;
+                const bz = brick.pos.z * u;
+
+                let verts = [
+                    new Vector3(bx, by, bz),
+                    new Vector3(bx + w, by, bz),
+                    new Vector3(bx + w, by, bz + d),
+                    new Vector3(bx, by, bz + d),
+                    new Vector3(bx, by + h, bz),
+                    new Vector3(bx + w, by + h, bz),
+                    new Vector3(bx + w, by + h, bz + d),
+                    new Vector3(bx, by + h, bz + d)
+                ];
+
+                // Apply rotation for exploding/rebuilding
+                if (brick.state === 'exploding' || brick.state === 'rebuilding') {
+                    const center = brick.getWorldCenter(u);
+                    verts = verts.map(v => {
+                        let p = v.sub(center);
+                        p = p.rotateX(brick.rot.x);
+                        p = p.rotateY(brick.rot.y);
+                        p = p.rotateZ(brick.rot.z);
+                        return p.add(center);
+                    });
+                }
+
+                const proj = verts.map(v => this.camera.project(v, this.canvas, shakeX, shakeY));
+
+                // Face definitions
+                const faces = [
+                    { v: [0, 1, 5, 4], light: 0.85, name: 'front' },
+                    { v: [2, 3, 7, 6], light: 0.65, name: 'back' },
+                    { v: [0, 3, 7, 4], light: 0.55, name: 'left' },
+                    { v: [1, 2, 6, 5], light: 0.70, name: 'right' },
+                    { v: [4, 5, 6, 7], light: 1.0, name: 'top' },
+                    { v: [0, 1, 2, 3], light: 0.30, name: 'bottom' }
+                ];
+
+                // Sort faces by depth
+                const faceData = faces.map((f, i) => ({
+                    face: f,
+                    avgZ: f.v.reduce((sum, vi) => sum + proj[vi].z, 0) / 4,
+                    idx: i
+                })).sort((a, b) => b.avgZ - a.avgZ);
+
+                const cd = brick.colorData;
+
+                faceData.forEach(({ face, idx }) => {
+                    const pts = face.v.map(vi => proj[vi]);
+
+                    // Backface culling
+                    const v1 = { x: pts[1].x - pts[0].x, y: pts[1].y - pts[0].y };
+                    const v2 = { x: pts[2].x - pts[0].x, y: pts[2].y - pts[0].y };
+                    if (v1.x * v2.y - v1.y * v2.x > 0) return;
+
+                    const rgb = this.hexToRgb(cd.hex);
+                    const lightRgb = this.hexToRgb(cd.light);
+                    const darkRgb = this.hexToRgb(cd.dark);
+
+                    // Premium plastic gradient
+                    if (idx === 4) { // Top face
+                        const grad = this.ctx.createLinearGradient(pts[0].x, pts[0].y, pts[2].x, pts[2].y);
+                        grad.addColorStop(0, cd.light);
+                        grad.addColorStop(0.3, cd.hex);
+                        grad.addColorStop(0.7, cd.hex);
+                        grad.addColorStop(1, cd.dark);
+                        this.ctx.fillStyle = grad;
+                    } else {
+                        const l = face.light;
+                        const r = Math.floor(rgb.r * l);
+                        const g = Math.floor(rgb.g * l);
+                        const b = Math.floor(rgb.b * l);
+
+                        // Side gradient for plastic look
+                        const grad = this.ctx.createLinearGradient(pts[0].x, pts[0].y, pts[1].x, pts[1].y);
+                        grad.addColorStop(0, `rgb(${Math.min(255, r + 25)}, ${Math.min(255, g + 25)}, ${Math.min(255, b + 25)})`);
+                        grad.addColorStop(0.5, `rgb(${r}, ${g}, ${b})`);
+                        grad.addColorStop(1, `rgb(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)})`);
+                        this.ctx.fillStyle = grad;
+                    }
+
+                    // Draw face
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pts[0].x, pts[0].y);
+                    pts.forEach(p => this.ctx.lineTo(p.x, p.y));
+                    this.ctx.closePath();
+                    this.ctx.fill();
+
+                    // Specular highlight on top
+                    if (idx === 4) {
+                        const cx = (pts[0].x + pts[2].x) / 2;
+                        const cy = (pts[0].y + pts[2].y) / 2;
+                        const specGrad = this.ctx.createRadialGradient(
+                            cx - 15, cy - 10, 0,
+                            cx, cy, 40
+                        );
+                        specGrad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+                        specGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.1)');
+                        specGrad.addColorStop(1, 'transparent');
+                        this.ctx.fillStyle = specGrad;
+                        this.ctx.fill();
+                    }
+
+                    // Edge highlights
+                    this.ctx.strokeStyle = `rgba(255, 255, 255, ${idx === 4 ? 0.35 : 0.12})`;
+                    this.ctx.lineWidth = idx === 4 ? 1.5 : 0.8;
+                    this.ctx.stroke();
+
+                    // Bottom edge shadow
+                    if (idx !== 4 && idx !== 5) {
+                        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                        this.ctx.lineWidth = 1.5;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(pts[0].x, pts[0].y);
+                        this.ctx.lineTo(pts[1].x, pts[1].y);
+                        this.ctx.stroke();
+                    }
+                });
+
+                // Draw studs
+                this.drawStuds3D(brick, verts, shakeX, shakeY);
+            }
+
+            drawStuds3D(brick, baseVerts, shakeX, shakeY) {
+                const bt = brick.bt;
+                const u = this.unit;
+                const studRadius = 5.5;
+                const studHeight = 5;
+                const cd = brick.colorData;
+                const rgb = this.hexToRgb(cd.hex);
+                const lightRgb = this.hexToRgb(cd.light);
+
+                bt.studs.forEach(([sx, sz]) => {
+                    const centerX = brick.pos.x * u + sx * u + u / 2;
+                    const centerZ = brick.pos.z * u + sz * u + u / 2;
+                    const baseY = brick.visualY * u * 1.2 + bt.h * u * 1.2 * brick.squash;
+
+                    let studBase = new Vector3(centerX, baseY, centerZ);
+                    let studTop = new Vector3(centerX, baseY + studHeight, centerZ);
+
+                    if (brick.state === 'exploding' || brick.state === 'rebuilding') {
+                        const center = brick.getWorldCenter(u);
+                        studBase = studBase.sub(center);
+                        studBase = studBase.rotateX(brick.rot.x).rotateY(brick.rot.y).rotateZ(brick.rot.z);
+                        studBase = studBase.add(center);
+
+                        studTop = studTop.sub(center);
+                        studTop = studTop.rotateX(brick.rot.x).rotateY(brick.rot.y).rotateZ(brick.rot.z);
+                        studTop = studTop.add(center);
+                    }
+
+                    const projBase = this.camera.project(studBase, this.canvas, shakeX, shakeY);
+                    const projTop = this.camera.project(studTop, this.canvas, shakeX, shakeY);
+
+                    const scale = 1.9 * this.camera.zoom;
+                    const rx = studRadius * scale * 0.75;
+                    const ry = studRadius * scale * 0.35;
+
+                    // Shadow under stud
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(projBase.x + 1, projBase.y + 1, rx * 0.9, ry * 0.9, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Cylinder body gradient (3D effect)
+                    const bodyGrad = this.ctx.createLinearGradient(
+                        projTop.x - rx, projTop.y,
+                        projTop.x + rx, projTop.y
+                    );
+                    bodyGrad.addColorStop(0, cd.dark);
+                    bodyGrad.addColorStop(0.25, cd.light);
+                    bodyGrad.addColorStop(0.5, cd.hex);
+                    bodyGrad.addColorStop(0.75, cd.dark);
+                    bodyGrad.addColorStop(1, `rgb(${rgb.r * 0.5}, ${rgb.g * 0.5}, ${rgb.b * 0.5})`);
+
+                    // Draw cylinder body (approximated)
+                    this.ctx.fillStyle = bodyGrad;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(projBase.x, projBase.y, rx, ry, 0, 0, Math.PI);
+                    this.ctx.lineTo(projTop.x + rx, projTop.y);
+                    this.ctx.ellipse(projTop.x, projTop.y, rx, ry, 0, 0, -Math.PI, true);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+
+                    // Top surface with radial gradient
+                    const topGrad = this.ctx.createRadialGradient(
+                        projTop.x - rx * 0.3, projTop.y - ry * 0.3, 0,
+                        projTop.x, projTop.y, rx
+                    );
+                    topGrad.addColorStop(0, `rgb(${Math.min(255, lightRgb.r + 60)}, ${Math.min(255, lightRgb.g + 60)}, ${Math.min(255, lightRgb.b + 60)})`);
+                    topGrad.addColorStop(0.4, cd.light);
+                    topGrad.addColorStop(0.8, cd.hex);
+                    topGrad.addColorStop(1, cd.dark);
+
+                    this.ctx.fillStyle = topGrad;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(projTop.x, projTop.y, rx, ry, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Specular highlight on top
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(projTop.x - rx * 0.25, projTop.y - ry * 0.2, rx * 0.35, ry * 0.25, -0.3, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Inner circle (hollow effect)
+                    this.ctx.strokeStyle = `rgba(${rgb.r * 0.5}, ${rgb.g * 0.5}, ${rgb.b * 0.5}, 0.6)`;
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(projTop.x, projTop.y, rx * 0.4, ry * 0.4, 0, 0, Math.PI * 2);
+                    this.ctx.stroke();
+
+                    // Edge highlight
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(projTop.x, projTop.y, rx * 0.95, ry * 0.95, 0, -Math.PI * 0.8, -Math.PI * 0.2);
+                    this.ctx.stroke();
+                });
+            }
+
+            drawGhost(type, gx, gy, gz, glow, shakeX, shakeY) {
+                const bt = BRICK_TYPES[type];
+                const u = this.unit;
+                const w = bt.w * u, d = bt.d * u, h = bt.h * u * 1.2;
+                const bx = gx * u, by = gy * u * 1.2, bz = gz * u;
+
+                const verts = [
+                    new Vector3(bx, by, bz),
+                    new Vector3(bx + w, by, bz),
+                    new Vector3(bx + w, by, bz + d),
+                    new Vector3(bx, by, bz + d),
+                    new Vector3(bx, by + h, bz),
+                    new Vector3(bx + w, by + h, bz),
+                    new Vector3(bx + w, by + h, bz + d),
+                    new Vector3(bx, by + h, bz + d)
+                ];
+
+                const proj = verts.map(v => this.camera.project(v, this.canvas, shakeX, shakeY));
+
+                // Glowing wireframe
+                const edges = [
+                    [0, 1], [1, 2], [2, 3], [3, 0],
+                    [4, 5], [5, 6], [6, 7], [7, 4],
+                    [0, 4], [1, 5], [2, 6], [3, 7]
+                ];
+
+                this.ctx.save();
+                this.ctx.shadowBlur = 20;
+                this.ctx.shadowColor = glow;
+                this.ctx.strokeStyle = glow;
+                this.ctx.lineWidth = 2.5;
+                this.ctx.setLineDash([10, 5]);
+
+                edges.forEach(([i, j]) => {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(proj[i].x, proj[i].y);
+                    this.ctx.lineTo(proj[j].x, proj[j].y);
+                    this.ctx.stroke();
+                });
+
+                // Fill top face with transparent color
+                this.ctx.setLineDash([]);
+                this.ctx.shadowBlur = 0;
+                this.ctx.fillStyle = glow.replace('0.6', '0.15');
+                this.ctx.beginPath();
+                this.ctx.moveTo(proj[4].x, proj[4].y);
+                this.ctx.lineTo(proj[5].x, proj[5].y);
+                this.ctx.lineTo(proj[6].x, proj[6].y);
+                this.ctx.lineTo(proj[7].x, proj[7].y);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                this.ctx.restore();
+            }
+        }
+
+        // ==================== Impressive Random Builds ====================
+        class RandomBuilder {
+            static build(game, templateName) {
+                const templates = {
+                    castle: () => {
+                        const c = COLORS[1]; // Blue
+                        const g = COLORS[3]; // Green
+                        const y = COLORS[2]; // Yellow
+
+                        // Base
+                        for (let x = -3; x <= 1; x += 2) {
+                            for (let z = -3; z <= 1; z += 2) {
+                                game.addBrickDirect('2x2', x, 0, z, g);
+                            }
+                        }
+                        // Towers
+                        for (let tower of [[-3, -3], [-3, 1], [1, -3], [1, 1]]) {
+                            for (let y = 1; y <= 4; y++) {
+                                game.addBrickDirect('2x2', tower[0], y, tower[1], c);
+                            }
+                            game.addBrickDirect('plate', tower[0], 5, tower[1], y);
+                        }
+                        // Walls
+                        for (let y = 1; y <= 2; y++) {
+                            game.addBrickDirect('1x4', -1, y, -3, c);
+                            game.addBrickDirect('1x4', -1, y, 2, c);
+                            game.addBrickDirect('1x4', -3, y, -1, c);
+                        }
+                        // Gate opening
+                        game.addBrickDirect('1x2', 1, 1, 0, c);
+                        game.addBrickDirect('1x4', -1, 3, -3, y);
+                    },
+
+                    dragon: () => {
+                        const r = COLORS[0]; // Red
+                        const o = COLORS[6]; // Orange
+                        const y = COLORS[2]; // Yellow
+
+                        // Body
+                        game.addBrickDirect('2x4', -2, 0, -2, r);
+                        game.addBrickDirect('2x4', -2, 1, -2, r);
+                        game.addBrickDirect('2x2', -2, 2, -1, r);
+                        // Neck & Head
+                        game.addBrickDirect('1x2', -1, 3, -1, r);
+                        game.addBrickDirect('2x2', -1, 4, -2, r);
+                        game.addBrickDirect('1x1', -1, 5, -2, y); // Eye
+                        game.addBrickDirect('1x1', 0, 5, -2, y);
+                        // Wings
+                        game.addBrickDirect('1x4', -4, 2, -1, o);
+                        game.addBrickDirect('1x4', 2, 2, -1, o);
+                        game.addBrickDirect('1x2', -4, 3, 0, o);
+                        game.addBrickDirect('1x2', 2, 3, 0, o);
+                        // Tail
+                        game.addBrickDirect('1x4', -1, 0, 2, r);
+                        game.addBrickDirect('1x2', 0, 1, 4, o);
+                        // Legs
+                        game.addBrickDirect('1x1', -3, 0, -1, r);
+                        game.addBrickDirect('1x1', 1, 0, -1, r);
+                    },
+
+                    spaceStation: () => {
+                        const w = COLORS[4]; // White
+                        const b = COLORS[1]; // Blue
+                        const c = COLORS[7]; // Cyan
+
+                        // Central module
+                        game.addBrickDirect('2x2', -1, 0, -1, w);
+                        game.addBrickDirect('2x2', -1, 1, -1, w);
+                        game.addBrickDirect('2x2', -1, 2, -1, c);
+                        game.addBrickDirect('plate', -1, 3, -1, b);
+
+                        // Solar panels
+                        game.addBrickDirect('2x4', -5, 1, -2, b);
+                        game.addBrickDirect('2x4', 3, 1, -2, b);
+                        game.addBrickDirect('plate', -5, 2, -1, c);
+                        game.addBrickDirect('plate', 3, 2, -1, c);
+
+                        // Connecting arms
+                        game.addBrickDirect('1x2', -3, 1, -1, w);
+                        game.addBrickDirect('1x2', 1, 1, -1, w);
+
+                        // Docking ports
+                        game.addBrickDirect('1x2', -1, 0, -4, w);
+                        game.addBrickDirect('1x2', -1, 0, 2, w);
+                        game.addBrickDirect('1x1', -1, 1, -4, c);
+                        game.addBrickDirect('1x1', -1, 1, 3, c);
+
+                        // Antenna
+                        game.addBrickDirect('1x1', 0, 3, 0, w);
+                        game.addBrickDirect('1x1', 0, 4, 0, c);
+                    },
+
+                    lighthouse: () => {
+                        const w = COLORS[4]; // White
+                        const r = COLORS[0]; // Red
+                        const y = COLORS[2]; // Yellow
+                        const b = COLORS[5]; // Black
+
+                        // Base
+                        game.addBrickDirect('2x4', -2, 0, -2, b);
+                        game.addBrickDirect('2x4', -2, 0, 2, b);
+
+                        // Tower stripes
+                        for (let i = 1; i <= 6; i++) {
+                            const color = i % 2 === 0 ? r : w;
+                            game.addBrickDirect('2x2', -1, i, -1, color);
+                        }
+
+                        // Light chamber
+                        game.addBrickDirect('2x2', -1, 7, -1, y);
+                        game.addBrickDirect('plate', -1, 8, -1, b);
+                    },
+
+                    tree: () => {
+                        const brown = COLORS[6]; // Orange (bark)
+                        const g = COLORS[3]; // Green
+
+                        // Trunk
+                        game.addBrickDirect('2x2', -1, 0, -1, brown);
+                        game.addBrickDirect('2x2', -1, 1, -1, brown);
+                        game.addBrickDirect('2x2', -1, 2, -1, brown);
+
+                        // Foliage layers
+                        for (let x = -3; x <= 1; x += 2) {
+                            for (let z = -3; z <= 1; z += 2) {
+                                game.addBrickDirect('2x2', x, 3, z, g);
+                            }
+                        }
+                        game.addBrickDirect('2x4', -2, 4, -1, g);
+                        game.addBrickDirect('2x4', -1, 4, -2, g);
+                        game.addBrickDirect('2x2', -1, 5, -1, g);
+                        game.addBrickDirect('1x1', 0, 6, 0, g);
+                    },
+
+                    miniCity: () => {
+                        const colors = [COLORS[1], COLORS[4], COLORS[7], COLORS[0]];
+                        const gray = COLORS[5];
+
+                        // Ground
+                        for (let x = -4; x <= 2; x += 2) {
+                            game.addBrickDirect('2x4', x, 0, -3, gray);
+                        }
+
+                        // Buildings of varying heights
+                        const buildings = [
+                            { x: -4, z: 1, h: 5, c: colors[0] },
+                            { x: -2, z: 1, h: 3, c: colors[1] },
+                            { x: 0, z: 1, h: 7, c: colors[2] },
+                            { x: 2, z: 1, h: 4, c: colors[3] }
+                        ];
+
+                        buildings.forEach(b => {
+                            for (let y = 1; y <= b.h; y++) {
+                                game.addBrickDirect('2x2', b.x, y, b.z, b.c);
+                            }
+                            game.addBrickDirect('plate', b.x, b.h + 1, b.z, gray);
+                        });
+                    }
+                };
+
+                const names = Object.keys(templates);
+                const selected = templateName || names[Math.floor(Math.random() * names.length)];
+                templates[selected]?.();
+            }
+        }
+
+        // ==================== Main Game ====================
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.effectsCanvas = document.getElementById('screenEffects');
+                this.effectsCtx = this.effectsCanvas.getContext('2d');
+
+                this.camera = new Camera();
+                this.renderer = new Renderer(this.canvas, this.camera);
+                this.particles = new ParticleSystem(this.ctx);
+                this.explosion = new ExplosionSystem();
+                this.sound = new SoundSystem();
+
+                this.bricks = [];
+                this.undoStack = [];
+                this.selectedType = '2x2';
+                this.selectedColorIdx = 0;
+
+                this.isDragging = false;
+                this.lastX = 0;
+                this.lastY = 0;
+                this.dragStartX = 0;
+                this.dragStartY = 0;
+                this.hasMoved = false;
+
+                this.ghostPos = null;
+                this.isExploding = false;
+                this.lastTime = performance.now();
+
+                this.setupCanvas();
+                this.setupUI();
+                this.setupInput();
+                this.loop();
+            }
+
+            get selectedColor() { return COLORS[this.selectedColorIdx]; }
+
+            setupCanvas() {
+                const resize = () => {
+                    const maxW = Math.min(680, window.innerWidth - 30);
+                    const maxH = Math.min(380, window.innerHeight - 320);
+                    this.canvas.width = maxW;
+                    this.canvas.height = maxH;
+                    this.effectsCanvas.width = window.innerWidth;
+                    this.effectsCanvas.height = window.innerHeight;
+                };
+                resize();
+                window.addEventListener('resize', resize);
+            }
+
+            setupUI() {
+                // Brick palette
+                const bp = document.getElementById('brickPalette');
+                Object.keys(BRICK_TYPES).forEach(type => {
+                    const btn = document.createElement('button');
+                    btn.className = 'brick-btn' + (type === this.selectedType ? ' selected' : '');
+                    btn.textContent = BRICK_TYPES[type].name;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.brick-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        this.selectedType = type;
+                        this.sound.playClick();
+                    };
+                    bp.appendChild(btn);
+                });
+
+                // Color palette
+                const cp = document.getElementById('colorPalette');
+                COLORS.forEach((c, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'color-btn' + (i === 0 ? ' selected' : '');
+                    btn.style.background = `linear-gradient(135deg, ${c.light} 0%, ${c.hex} 50%, ${c.dark} 100%)`;
+                    btn.title = c.name;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        this.selectedColorIdx = i;
+                        this.sound.playClick();
+                    };
+                    cp.appendChild(btn);
+                });
+            }
+
+            setupInput() {
+                const onDown = (x, y, btn) => {
+                    this.isDragging = true;
+                    this.lastX = x;
+                    this.lastY = y;
+                    this.dragStartX = x;
+                    this.dragStartY = y;
+                    this.hasMoved = false;
+                    this.sound.resume();
+                };
+
+                const onMove = (x, y) => {
+                    const dx = x - this.lastX;
+                    const dy = y - this.lastY;
+
+                    if (this.isDragging && Math.abs(x - this.dragStartX) + Math.abs(y - this.dragStartY) > 5) {
+                        this.hasMoved = true;
+                        this.camera.targetRotY += dx * 0.007;
+                        this.camera.targetRotX += dy * 0.007;
+                        this.camera.targetRotX = Math.max(-Math.PI / 2 + 0.1, Math.min(0.1, this.camera.targetRotX));
+                    }
+
+                    this.lastX = x;
+                    this.lastY = y;
+
+                    if (!this.isExploding) {
+                        this.updateGhost(x, y);
+                    }
+                };
+
+                const onUp = (x, y, btn, shift) => {
+                    if (!this.hasMoved && !this.isExploding) {
+                        if (btn === 2 || shift) {
+                            this.removeBrick();
+                        } else {
+                            this.placeBrick();
+                        }
+                    }
+                    this.isDragging = false;
+                };
+
+                this.canvas.addEventListener('mousedown', e => onDown(e.clientX, e.clientY, e.button));
+                this.canvas.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+                this.canvas.addEventListener('mouseup', e => onUp(e.clientX, e.clientY, e.button, e.shiftKey));
+                this.canvas.addEventListener('mouseleave', () => { this.isDragging = false; this.ghostPos = null; });
+                this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+                this.canvas.addEventListener('touchstart', e => {
+                    e.preventDefault();
+                    const t = e.touches[0];
+                    onDown(t.clientX, t.clientY, 0);
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    const t = e.touches[0];
+                    onMove(t.clientX, t.clientY);
+                }, { passive: false });
+
+                this.canvas.addEventListener('touchend', e => {
+                    e.preventDefault();
+                    onUp(this.lastX, this.lastY, 0, false);
+                }, { passive: false });
+
+                document.addEventListener('click', () => this.sound.resume(), { once: true });
+            }
+
+            updateGhost(sx, sy) {
+                const rect = this.canvas.getBoundingClientRect();
+                const cx = sx - rect.left;
+                const cy = sy - rect.top;
+                const u = this.renderer.unit;
+                const scale = 1.9 * this.camera.zoom;
+                const centerX = this.canvas.width / 2;
+
+                const cosY = Math.cos(-this.camera.rotY);
+                const sinY = Math.sin(-this.camera.rotY);
+                const screenDx = (cx - centerX) / scale;
+                const worldX = screenDx * cosY;
+                const worldZ = screenDx * sinY;
+
+                const bt = BRICK_TYPES[this.selectedType];
+                let gx = Math.round(worldX / u - bt.w / 2);
+                let gz = Math.round(worldZ / u - bt.d / 2);
+
+                gx = Math.max(-7, Math.min(7 - bt.w + 1, gx));
+                gz = Math.max(-7, Math.min(7 - bt.d + 1, gz));
+
+                let gy = 0;
+                this.bricks.forEach(b => {
+                    if (b.state !== 'exploding' && this.overlaps(b, gx, gz, this.selectedType)) {
+                        gy = Math.max(gy, Math.ceil(b.gy + b.bt.h));
+                    }
+                });
+
+                this.ghostPos = { x: gx, y: gy, z: gz };
+            }
+
+            overlaps(brick, nx, nz, ntype) {
+                const bt1 = brick.bt;
+                const bt2 = BRICK_TYPES[ntype];
+                return brick.gx < nx + bt2.w && brick.gx + bt1.w > nx &&
+                       brick.gz < nz + bt2.d && brick.gz + bt1.d > nz;
+            }
+
+            placeBrick() {
+                if (!this.ghostPos) return;
+                const { x, y, z } = this.ghostPos;
+
+                this.undoStack.push({ action: 'add', data: { type: this.selectedType, x, y, z, colorIdx: this.selectedColorIdx } });
+                if (this.undoStack.length > 50) this.undoStack.shift();
+
+                const brick = new Brick(this.selectedType, x, y, z, this.selectedColor);
+                brick.startDrop();
+                this.bricks.push(brick);
+
+                this.sound.playPlace();
+
+                // Particles
+                const center = brick.getWorldCenter(this.renderer.unit);
+                const proj = this.camera.project(center, this.canvas);
+                this.particles.emit(proj.x, proj.y, 12, this.selectedColor.glow, {
+                    vx: 0, vy: -3, size: 4, decay: 0.03, gravity: 0.1
+                });
+
+                this.updateUI();
+            }
+
+            addBrickDirect(type, x, y, z, colorData) {
+                this.bricks.push(new Brick(type, x, y, z, colorData));
+            }
+
+            removeBrick() {
+                if (!this.ghostPos || this.bricks.length === 0) return;
+
+                for (let i = this.bricks.length - 1; i >= 0; i--) {
+                    const b = this.bricks[i];
+                    if (b.state !== 'exploding' && this.overlaps(b, this.ghostPos.x, this.ghostPos.z, this.selectedType)) {
+                        const colorIdx = COLORS.findIndex(c => c.hex === b.color);
+                        this.undoStack.push({ action: 'remove', data: { type: b.type, x: b.gx, y: b.gy, z: b.gz, colorIdx } });
+                        this.bricks.splice(i, 1);
+                        this.sound.playClick();
+                        this.updateUI();
+                        return;
+                    }
+                }
+            }
+
+            triggerExplosion() {
+                if (this.bricks.length === 0 || this.isExploding) return;
+
+                this.isExploding = true;
+                this.sound.playExplosion();
+
+                // Calculate center
+                let cx = 0, cz = 0;
+                this.bricks.forEach(b => { cx += b.gx; cz += b.gz; });
+                cx /= this.bricks.length;
+                cz /= this.bricks.length;
+
+                // Get screen center for shockwave
+                const centerWorld = new Vector3(cx * this.renderer.unit, 50, cz * this.renderer.unit);
+                const centerScreen = this.camera.project(centerWorld, this.canvas);
+
+                this.explosion.trigger(centerScreen.x, centerScreen.y);
+
+                // Stagger brick explosions
+                this.bricks.forEach((b, i) => {
+                    setTimeout(() => {
+                        b.startExplosion(cx, cz);
+                        const center = b.getWorldCenter(this.renderer.unit);
+                        const proj = this.camera.project(center, this.canvas);
+                        this.particles.emitExplosion(proj.x, proj.y, b.color);
+                    }, i * 25 * this.explosion.timeScale);
+                });
+
+                // Smoke
+                setTimeout(() => {
+                    this.particles.emitSmoke(centerScreen.x, centerScreen.y, 15);
+                }, 100);
+
+                this.updateUI();
+            }
+
+            triggerRebuild() {
+                if (!this.isExploding) return;
+
+                this.sound.playRebuild();
+                this.explosion.reset();
+
+                this.bricks.forEach((b, i) => {
+                    b.startRebuild(i * 0.04);
+                });
+
+                setTimeout(() => {
+                    this.isExploding = false;
+                    this.updateUI();
+                }, this.bricks.length * 40 + 600);
+            }
+
+            randomBuild() {
+                this.clear();
+                RandomBuilder.build(this);
+                this.sound.playPlace();
+                this.updateUI();
+            }
+
+            clear() {
+                this.bricks = [];
+                this.undoStack = [];
+                this.isExploding = false;
+                this.explosion.reset();
+                this.updateUI();
+            }
+
+            undo() {
+                if (this.undoStack.length === 0 || this.isExploding) return;
+                const action = this.undoStack.pop();
+
+                if (action.action === 'add') {
+                    for (let i = this.bricks.length - 1; i >= 0; i--) {
+                        const b = this.bricks[i];
+                        if (b.type === action.data.type && b.gx === action.data.x && b.gy === action.data.y && b.gz === action.data.z) {
+                            this.bricks.splice(i, 1);
+                            break;
+                        }
+                    }
+                } else {
+                    const c = COLORS[action.data.colorIdx] || COLORS[0];
+                    this.bricks.push(new Brick(action.data.type, action.data.x, action.data.y, action.data.z, c));
+                }
+
+                this.sound.playClick();
+                this.updateUI();
+            }
+
+            updateUI() {
+                document.getElementById('undoBtn').disabled = this.undoStack.length === 0 || this.isExploding;
+                document.getElementById('explodeBtn').disabled = this.bricks.length === 0 || this.isExploding;
+                document.getElementById('rebuildBtn').disabled = !this.isExploding;
+
+                const counter = document.getElementById('brickCounter');
+                const newText = `${this.bricks.length} BRICKS`;
+                if (counter.textContent !== newText) {
+                    counter.textContent = newText;
+                    counter.classList.add('pulse');
+                    setTimeout(() => counter.classList.remove('pulse'), 400);
+                }
+            }
+
+            update(dt) {
+                this.camera.update();
+
+                const timeScale = this.explosion.timeScale;
+                this.bricks.forEach(b => b.update(dt, timeScale));
+                this.particles.update(dt * timeScale);
+                this.explosion.update(dt);
+            }
+
+            render() {
+                const shakeX = this.explosion.screenShake.x;
+                const shakeY = this.explosion.screenShake.y;
+
+                this.renderer.clear();
+                this.renderer.drawBaseplate(shakeX, shakeY);
+
+                // Sort bricks by depth
+                const sorted = [...this.bricks].sort((a, b) => {
+                    const ca = a.getWorldCenter(this.renderer.unit);
+                    const cb = b.getWorldCenter(this.renderer.unit);
+                    const pa = this.camera.project(ca, this.canvas);
+                    const pb = this.camera.project(cb, this.canvas);
+                    return pb.z - pa.z;
+                });
+
+                sorted.forEach(b => this.renderer.drawBrick(b, shakeX, shakeY));
+
+                if (this.ghostPos && !this.isExploding) {
+                    this.renderer.drawGhost(this.selectedType, this.ghostPos.x, this.ghostPos.y, this.ghostPos.z, this.selectedColor.glow, shakeX, shakeY);
+                }
+
+                this.particles.draw();
+                this.explosion.draw(this.ctx, this.canvas);
+
+                // Clear effects canvas and draw screen effects
+                this.effectsCtx.clearRect(0, 0, this.effectsCanvas.width, this.effectsCanvas.height);
+                if (this.explosion.flash > 0.01) {
+                    this.effectsCtx.fillStyle = `rgba(255, 255, 255, ${this.explosion.flash * 0.5})`;
+                    this.effectsCtx.fillRect(0, 0, this.effectsCanvas.width, this.effectsCanvas.height);
+                }
+            }
+
+            loop() {
+                const now = performance.now();
+                const dt = Math.min((now - this.lastTime) / 1000, 0.1);
+                this.lastTime = now;
+
+                this.update(dt);
+                this.render();
+
+                requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        // ==================== Fullscreen ====================
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // ==================== Initialize ====================
+        const game = new Game();
+    </script>
+</body>
+</html>

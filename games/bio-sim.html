@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Sim: Mikrobiologie-Labor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a12;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%);
+            border-bottom: 1px solid #2a2a4a;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .logo-icon {
+            font-size: 1.5rem;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .time-controls {
+            display: flex;
+            gap: 4px;
+        }
+
+        .time-btn {
+            padding: 6px 12px;
+            background: #2a2a4a;
+            border: 1px solid #3a3a6a;
+            border-radius: 6px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .time-btn:hover {
+            background: #3a3a6a;
+        }
+
+        .time-btn.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+
+        .scenario-select {
+            padding: 6px 12px;
+            background: #2a2a4a;
+            border: 1px solid #3a3a6a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .stats-toggle {
+            padding: 6px 12px;
+            background: #2a2a4a;
+            border: 1px solid #3a3a6a;
+            border-radius: 6px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stats-toggle:hover, .stats-toggle.active {
+            background: #4a4a7a;
+            color: #fff;
+        }
+
+        .back-link {
+            color: #888;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            color: #fff;
+            background: #2a2a4a;
+        }
+
+        /* Main Area */
+        .main-area {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #050510;
+        }
+
+        #simCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Side Panel */
+        .side-panel {
+            width: 280px;
+            background: #12122a;
+            border-left: 1px solid #2a2a4a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .side-panel.hidden {
+            display: none;
+        }
+
+        .info-panel {
+            padding: 16px;
+            border-bottom: 1px solid #2a2a4a;
+            flex-shrink: 0;
+        }
+
+        .info-panel h3 {
+            color: #00ff88;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-content {
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .info-content .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #1a1a3a;
+        }
+
+        .info-content .fact {
+            margin-top: 12px;
+            padding: 10px;
+            background: #1a1a3a;
+            border-radius: 8px;
+            border-left: 3px solid #00ff88;
+        }
+
+        .no-selection {
+            color: #666;
+            font-style: italic;
+        }
+
+        /* Event Log */
+        .event-log {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .event-log h3 {
+            color: #88aaff;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        .event-list {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .event-item {
+            padding: 6px 0;
+            border-bottom: 1px solid #1a1a3a;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .event-item.infection {
+            color: #ff6688;
+        }
+
+        .event-item.division {
+            color: #88ff88;
+        }
+
+        .event-item.immune {
+            color: #88aaff;
+        }
+
+        .event-item.death {
+            color: #ff8866;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Statistics Panel */
+        .stats-panel {
+            padding: 16px;
+            border-bottom: 1px solid #2a2a4a;
+        }
+
+        .stats-panel h3 {
+            color: #ffaa00;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        .stat-bar {
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .stat-track {
+            height: 8px;
+            background: #1a1a3a;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .stat-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .stat-fill.cells { background: linear-gradient(90deg, #ff6b9d, #c44569); }
+        .stat-fill.bacteria { background: linear-gradient(90deg, #00d9a0, #00a878); }
+        .stat-fill.viruses { background: linear-gradient(90deg, #9b59b6, #6c3483); }
+        .stat-fill.immune { background: linear-gradient(90deg, #5dade2, #2e86ab); }
+
+        /* Bottom Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: linear-gradient(0deg, #1a1a2e 0%, #16162a 100%);
+            border-top: 1px solid #2a2a4a;
+            flex-wrap: wrap;
+        }
+
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            background: #2a2a4a;
+            border: 1px solid #3a3a6a;
+            border-radius: 8px;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .tool-btn:hover {
+            background: #3a3a6a;
+            transform: translateY(-2px);
+        }
+
+        .tool-btn.active {
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .tool-btn .icon {
+            font-size: 1.2rem;
+        }
+
+        .tool-btn.cell { border-color: #ff6b9d; }
+        .tool-btn.cell:hover, .tool-btn.cell.active {
+            background: rgba(255, 107, 157, 0.2);
+            box-shadow: 0 0 10px rgba(255, 107, 157, 0.3);
+        }
+
+        .tool-btn.bacteria { border-color: #00d9a0; }
+        .tool-btn.bacteria:hover, .tool-btn.bacteria.active {
+            background: rgba(0, 217, 160, 0.2);
+            box-shadow: 0 0 10px rgba(0, 217, 160, 0.3);
+        }
+
+        .tool-btn.virus { border-color: #9b59b6; }
+        .tool-btn.virus:hover, .tool-btn.virus.active {
+            background: rgba(155, 89, 182, 0.2);
+            box-shadow: 0 0 10px rgba(155, 89, 182, 0.3);
+        }
+
+        .tool-btn.immune { border-color: #5dade2; }
+        .tool-btn.immune:hover, .tool-btn.immune.active {
+            background: rgba(93, 173, 226, 0.2);
+            box-shadow: 0 0 10px rgba(93, 173, 226, 0.3);
+        }
+
+        .tool-btn.danger {
+            border-color: #e74c3c;
+        }
+
+        .tool-btn.danger:hover {
+            background: rgba(231, 76, 60, 0.2);
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+        }
+
+        .tool-btn.nutrients {
+            border-color: #f1c40f;
+        }
+
+        .tool-btn.nutrients:hover {
+            background: rgba(241, 196, 15, 0.2);
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.3);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .side-panel {
+                display: none;
+            }
+
+            .header {
+                padding: 6px 10px;
+            }
+
+            .logo {
+                font-size: 1rem;
+            }
+
+            .toolbar {
+                gap: 4px;
+                padding: 8px;
+            }
+
+            .tool-btn {
+                padding: 8px 10px;
+                font-size: 0.75rem;
+            }
+
+            .tool-btn span:not(.icon) {
+                display: none;
+            }
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: #1a1a3a;
+            border: 1px solid #3a3a6a;
+            border-radius: 8px;
+            padding: 12px;
+            max-width: 250px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip h4 {
+            color: #00ff88;
+            margin-bottom: 8px;
+        }
+
+        .tooltip .fact {
+            color: #ffaa00;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* Intro Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid #3a3a6a;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .modal h2 {
+            color: #00ff88;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+
+        .modal p {
+            color: #aaa;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .modal-btn {
+            padding: 12px 30px;
+            background: #00ff88;
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🧬</span>
+                <span>Bio-Sim</span>
+            </div>
+            <div class="header-controls">
+                <div class="time-controls">
+                    <button class="time-btn" data-speed="0" title="Pause">⏸</button>
+                    <button class="time-btn active" data-speed="1" title="Normal">1x</button>
+                    <button class="time-btn" data-speed="2" title="Schnell">2x</button>
+                    <button class="time-btn" data-speed="4" title="Sehr schnell">4x</button>
+                </div>
+                <select class="scenario-select" title="Szenario wählen">
+                    <option value="sandbox">Sandbox</option>
+                    <option value="healthy">Gesundes Gewebe</option>
+                    <option value="viral">Viraler Ausbruch</option>
+                    <option value="bacterial">Bakterielle Infektion</option>
+                    <option value="immune">Immunsystem in Aktion</option>
+                    <option value="microbiome">Mikrobiom-Balance</option>
+                </select>
+                <button class="stats-toggle" title="Statistiken anzeigen">📊 Statistik</button>
+                <a href="../index.html" class="back-link">← Zurück</a>
+            </div>
+        </header>
+
+        <!-- Main Area -->
+        <div class="main-area">
+            <div class="canvas-container">
+                <canvas id="simCanvas"></canvas>
+                <div class="tooltip" id="tooltip"></div>
+            </div>
+
+            <!-- Side Panel -->
+            <aside class="side-panel" id="sidePanel">
+                <!-- Info Panel -->
+                <div class="info-panel">
+                    <h3>ℹ️ Information</h3>
+                    <div class="info-content" id="infoContent">
+                        <p class="no-selection">Klicke auf einen Organismus für Details</p>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="stats-panel" id="statsPanel">
+                    <h3>📊 Population</h3>
+                    <div class="stat-bar">
+                        <div class="stat-label">
+                            <span>🔴 Zellen</span>
+                            <span id="cellCount">0</span>
+                        </div>
+                        <div class="stat-track">
+                            <div class="stat-fill cells" id="cellBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-label">
+                            <span>🟢 Bakterien</span>
+                            <span id="bacteriaCount">0</span>
+                        </div>
+                        <div class="stat-track">
+                            <div class="stat-fill bacteria" id="bacteriaBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-label">
+                            <span>🟣 Viren</span>
+                            <span id="virusCount">0</span>
+                        </div>
+                        <div class="stat-track">
+                            <div class="stat-fill viruses" id="virusBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-label">
+                            <span>🔵 Immunzellen</span>
+                            <span id="immuneCount">0</span>
+                        </div>
+                        <div class="stat-track">
+                            <div class="stat-fill immune" id="immuneBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Event Log -->
+                <div class="event-log">
+                    <h3>📜 Ereignisse</h3>
+                    <div class="event-list" id="eventList">
+                        <div class="event-item">Simulation gestartet...</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <button class="tool-btn cell" data-tool="cell">
+                <span class="icon">🔴</span>
+                <span>Zelle</span>
+            </button>
+            <button class="tool-btn bacteria" data-tool="bacteria">
+                <span class="icon">🦠</span>
+                <span>Bakterie</span>
+            </button>
+            <button class="tool-btn virus" data-tool="virus">
+                <span class="icon">🟣</span>
+                <span>Virus</span>
+            </button>
+            <button class="tool-btn immune" data-tool="immune">
+                <span class="icon">🛡️</span>
+                <span>Immunzelle</span>
+            </button>
+            <button class="tool-btn nutrients" data-tool="nutrients">
+                <span class="icon">✨</span>
+                <span>Nährstoffe</span>
+            </button>
+            <button class="tool-btn danger" id="clearBtn">
+                <span class="icon">🗑️</span>
+                <span>Leeren</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Intro Modal -->
+    <div class="modal-overlay" id="introModal">
+        <div class="modal">
+            <h2>🧬 Willkommen im Bio-Sim Labor!</h2>
+            <p>
+                Erforsche die faszinierende Welt der Mikrobiologie!<br><br>
+                Beobachte wie <strong style="color:#ff6b9d">Zellen</strong> sich teilen,
+                <strong style="color:#9b59b6">Viren</strong> Wirtszellen befallen und
+                <strong style="color:#5dade2">Immunzellen</strong> Eindringlinge bekämpfen.<br><br>
+                Klicke auf Organismen für Informationen und füge neue mit der Werkzeugleiste hinzu!
+            </p>
+            <button class="modal-btn" id="startBtn">🔬 Simulation starten</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // DEBUG MODE
+        // ============================================
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // ============================================
+        // BIOLOGICAL FACTS DATABASE
+        // ============================================
+        const BioFacts = {
+            cell: {
+                name: "Eukaryotische Zelle",
+                type: "Körperzelle",
+                size: "10-100 Mikrometer",
+                facts: [
+                    "Der menschliche Körper besteht aus etwa 37 Billionen Zellen!",
+                    "Jede Zelle enthält deine komplette DNA - ca. 2 Meter lang!",
+                    "Rote Blutkörperchen leben nur 120 Tage, Nervenzellen ein Leben lang.",
+                    "Mitochondrien waren ursprünglich eigenständige Bakterien!",
+                    "Eine Zelle kann sich alle 24 Stunden teilen."
+                ]
+            },
+            bacteria: {
+                name: "Bakterium",
+                type: "Prokaryot",
+                size: "0.5-5 Mikrometer",
+                facts: [
+                    "In deinem Darm leben 100 Billionen Bakterien - 10x mehr als Körperzellen!",
+                    "Bakterien können sich alle 20 Minuten teilen.",
+                    "Nur 1% aller Bakterien sind krankheitserregend.",
+                    "Bakterien gibt es seit 3.5 Milliarden Jahren - älter als alle anderen Lebewesen!",
+                    "E. coli Bakterien haben kleine Motoren für ihre Geißeln!"
+                ]
+            },
+            virus: {
+                name: "Virus",
+                type: "Nicht-Lebewesen",
+                size: "20-300 Nanometer",
+                facts: [
+                    "Viren sind keine echten Lebewesen - sie können sich nicht selbst vermehren!",
+                    "Es gibt mehr Viren auf der Erde als Sterne im Universum.",
+                    "Ein Virus besteht nur aus DNA/RNA und einer Proteinhülle.",
+                    "Bakteriophagen sind Viren, die nur Bakterien befallen.",
+                    "Das menschliche Genom enthält 8% virale DNA!"
+                ]
+            },
+            immune: {
+                name: "Immunzelle (Makrophage)",
+                type: "Weißes Blutkörperchen",
+                size: "15-20 Mikrometer",
+                facts: [
+                    "Makrophagen fressen bis zu 100 Bakterien pro Stunde!",
+                    "'Makrophage' bedeutet 'Großer Fresser' auf Griechisch.",
+                    "Sie können Eindringlinge erkennen und 'aufessen' (Phagozytose).",
+                    "Nach dem Verdauen präsentieren sie Teile für andere Immunzellen.",
+                    "Makrophagen leben mehrere Monate und patrouillieren im ganzen Körper."
+                ]
+            }
+        };
+
+        // ============================================
+        // PERLIN NOISE (for organic movement)
+        // ============================================
+        class PerlinNoise {
+            constructor() {
+                this.perm = [];
+                for (let i = 0; i < 256; i++) this.perm[i] = i;
+                for (let i = 255; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.perm[i], this.perm[j]] = [this.perm[j], this.perm[i]];
+                }
+                this.perm = [...this.perm, ...this.perm];
+            }
+
+            fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+            lerp(a, b, t) { return a + t * (b - a); }
+            grad(hash, x) {
+                return (hash & 1) === 0 ? x : -x;
+            }
+
+            noise(x) {
+                const xi = Math.floor(x) & 255;
+                const xf = x - Math.floor(x);
+                const u = this.fade(xf);
+                return this.lerp(
+                    this.grad(this.perm[xi], xf),
+                    this.grad(this.perm[xi + 1], xf - 1),
+                    u
+                );
+            }
+        }
+
+        const perlin = new PerlinNoise();
+
+        // ============================================
+        // EVENT MANAGER
+        // ============================================
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        // ============================================
+        // PARTICLE SYSTEM
+        // ============================================
+        class Particle {
+            constructor(x, y, color, life = 60) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.color = color;
+                this.life = life;
+                this.maxLife = life;
+                this.radius = Math.random() * 3 + 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.life--;
+            }
+
+            draw(ctx) {
+                const alpha = this.life / this.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // NUTRIENT CLASS
+        // ============================================
+        class Nutrient {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 3;
+                this.offset = Math.random() * 1000;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+            }
+
+            update(time) {
+                this.x += this.vx + Math.sin(time * 0.001 + this.offset) * 0.2;
+                this.y += this.vy + Math.cos(time * 0.001 + this.offset) * 0.2;
+            }
+
+            draw(ctx, time) {
+                const pulse = 0.5 + Math.sin(time * 0.003 + this.offset) * 0.5;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * (0.8 + pulse * 0.4), 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 220, 100, ${0.3 + pulse * 0.4})`;
+                ctx.shadowColor = '#ffdc64';
+                ctx.shadowBlur = 8;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // BASE ENTITY CLASS
+        // ============================================
+        class Entity {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.radius = 20;
+                this.energy = 100;
+                this.health = 100;
+                this.age = 0;
+                this.noiseOffset = Math.random() * 1000;
+                this.selected = false;
+                this.dead = false;
+            }
+
+            update(time, bounds, simulation) {
+                this.age++;
+
+                // Organic movement with perlin noise
+                const noiseX = perlin.noise(time * 0.001 + this.noiseOffset) * 0.5;
+                const noiseY = perlin.noise(time * 0.001 + this.noiseOffset + 100) * 0.5;
+
+                this.vx += noiseX * 0.1;
+                this.vy += noiseY * 0.1;
+
+                // Speed limit
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const maxSpeed = this.getMaxSpeed();
+                if (speed > maxSpeed) {
+                    this.vx = (this.vx / speed) * maxSpeed;
+                    this.vy = (this.vy / speed) * maxSpeed;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bounce off walls
+                if (this.x < this.radius) { this.x = this.radius; this.vx *= -0.8; }
+                if (this.x > bounds.width - this.radius) { this.x = bounds.width - this.radius; this.vx *= -0.8; }
+                if (this.y < this.radius) { this.y = this.radius; this.vy *= -0.8; }
+                if (this.y > bounds.height - this.radius) { this.y = bounds.height - this.radius; this.vy *= -0.8; }
+            }
+
+            getMaxSpeed() { return 1; }
+
+            draw(ctx, time) {
+                // Override in subclasses
+            }
+
+            distanceTo(other) {
+                return Math.sqrt((this.x - other.x) ** 2 + (this.y - other.y) ** 2);
+            }
+
+            containsPoint(px, py) {
+                return Math.sqrt((this.x - px) ** 2 + (this.y - py) ** 2) <= this.radius;
+            }
+        }
+
+        // ============================================
+        // CELL CLASS
+        // ============================================
+        class Cell extends Entity {
+            constructor(x, y) {
+                super(x, y);
+                this.type = 'cell';
+                this.radius = 35 + Math.random() * 10;
+                this.infected = false;
+                this.infectionTime = 0;
+                this.divisionProgress = 0;
+                this.membranePhase = Math.random() * Math.PI * 2;
+                this.organelles = [];
+                for (let i = 0; i < 8; i++) {
+                    this.organelles.push({
+                        angle: Math.random() * Math.PI * 2,
+                        dist: Math.random() * 0.6 + 0.2,
+                        size: Math.random() * 3 + 2,
+                        speed: (Math.random() - 0.5) * 0.02
+                    });
+                }
+            }
+
+            getMaxSpeed() { return 0.5; }
+
+            update(time, bounds, simulation) {
+                super.update(time, bounds, simulation);
+
+                // Energy consumption
+                this.energy -= 0.02;
+
+                // Collect nutrients
+                simulation.nutrients = simulation.nutrients.filter(n => {
+                    if (this.distanceTo(n) < this.radius + n.radius) {
+                        this.energy = Math.min(150, this.energy + 10);
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Division when enough energy
+                if (this.energy > 120 && !this.infected && Math.random() < 0.001) {
+                    this.divisionProgress = 1;
+                }
+
+                if (this.divisionProgress > 0) {
+                    this.divisionProgress += 0.01;
+                    if (this.divisionProgress >= 1.5) {
+                        // Create daughter cell
+                        const angle = Math.random() * Math.PI * 2;
+                        const newCell = new Cell(
+                            this.x + Math.cos(angle) * this.radius * 1.5,
+                            this.y + Math.sin(angle) * this.radius * 1.5
+                        );
+                        newCell.energy = this.energy / 2;
+                        this.energy /= 2;
+                        simulation.addEntity(newCell);
+                        simulation.logEvent('Eine Zelle hat sich geteilt! (Mitose)', 'division');
+                        this.divisionProgress = 0;
+                    }
+                }
+
+                // Infection progress
+                if (this.infected) {
+                    this.infectionTime++;
+                    this.health -= 0.3;
+                    if (this.health <= 0 || this.infectionTime > 300) {
+                        // Burst and release viruses
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            const virus = new Virus(
+                                this.x + Math.cos(angle) * this.radius,
+                                this.y + Math.sin(angle) * this.radius
+                            );
+                            virus.vx = Math.cos(angle) * 3;
+                            virus.vy = Math.sin(angle) * 3;
+                            simulation.addEntity(virus);
+                        }
+                        simulation.logEvent('Infizierte Zelle ist geplatzt - Viren freigesetzt!', 'death');
+                        // Create death particles
+                        for (let i = 0; i < 20; i++) {
+                            simulation.particles.push(new Particle(this.x, this.y, '#ff6b9d'));
+                        }
+                        this.dead = true;
+                    }
+                }
+
+                // Death from starvation
+                if (this.energy <= 0) {
+                    this.dead = true;
+                    simulation.logEvent('Eine Zelle ist verhungert', 'death');
+                }
+
+                // Update organelles
+                this.organelles.forEach(o => {
+                    o.angle += o.speed;
+                });
+            }
+
+            draw(ctx, time) {
+                ctx.save();
+
+                // Membrane wave effect
+                this.membranePhase += 0.05;
+
+                // Main cell body with gradient
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3, this.y - this.radius * 0.3, 0,
+                    this.x, this.y, this.radius
+                );
+
+                if (this.infected) {
+                    gradient.addColorStop(0, '#ff9999');
+                    gradient.addColorStop(0.7, '#cc4466');
+                    gradient.addColorStop(1, '#882244');
+                } else {
+                    gradient.addColorStop(0, '#ffb3c6');
+                    gradient.addColorStop(0.7, '#ff6b9d');
+                    gradient.addColorStop(1, '#c44569');
+                }
+
+                // Wavy membrane
+                ctx.beginPath();
+                for (let i = 0; i <= 60; i++) {
+                    const angle = (i / 60) * Math.PI * 2;
+                    const wave = Math.sin(angle * 6 + this.membranePhase) * 3;
+                    const r = this.radius + wave;
+                    const px = this.x + Math.cos(angle) * r;
+                    const py = this.y + Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = this.infected ? '#ff4466' : '#ff6b9d';
+                ctx.shadowBlur = this.selected ? 25 : 15;
+                ctx.fill();
+
+                // Nucleus
+                const nucleusGrad = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.radius * 0.4
+                );
+                nucleusGrad.addColorStop(0, '#884466');
+                nucleusGrad.addColorStop(1, '#552244');
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.35, 0, Math.PI * 2);
+                ctx.fillStyle = nucleusGrad;
+                ctx.shadowBlur = 5;
+                ctx.fill();
+
+                // Organelles (mitochondria, etc.)
+                ctx.shadowBlur = 0;
+                this.organelles.forEach(o => {
+                    const ox = this.x + Math.cos(o.angle) * this.radius * o.dist;
+                    const oy = this.y + Math.sin(o.angle) * this.radius * o.dist;
+                    ctx.beginPath();
+                    ctx.arc(ox, oy, o.size, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 200, 150, 0.6)';
+                    ctx.fill();
+                });
+
+                // Division indicator
+                if (this.divisionProgress > 0) {
+                    ctx.strokeStyle = '#ffff00';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y - this.radius * 1.2);
+                    ctx.lineTo(this.x, this.y + this.radius * 1.2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Selection ring
+                if (this.selected) {
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // BACTERIUM CLASS
+        // ============================================
+        class Bacterium extends Entity {
+            constructor(x, y, isGood = Math.random() > 0.3) {
+                super(x, y);
+                this.type = 'bacteria';
+                this.radius = 12 + Math.random() * 6;
+                this.isGood = isGood;
+                this.flagellaPhase = Math.random() * Math.PI * 2;
+                this.divisionTimer = 0;
+                this.shape = Math.random() > 0.5 ? 'rod' : 'cocci';
+            }
+
+            getMaxSpeed() { return 1.5; }
+
+            update(time, bounds, simulation) {
+                super.update(time, bounds, simulation);
+
+                this.flagellaPhase += 0.3;
+                this.energy -= 0.03;
+
+                // Collect nutrients
+                simulation.nutrients = simulation.nutrients.filter(n => {
+                    if (this.distanceTo(n) < this.radius + n.radius + 5) {
+                        this.energy = Math.min(120, this.energy + 15);
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Division
+                this.divisionTimer++;
+                if (this.energy > 80 && this.divisionTimer > 400 && Math.random() < 0.005) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const newBact = new Bacterium(
+                        this.x + Math.cos(angle) * this.radius * 2,
+                        this.y + Math.sin(angle) * this.radius * 2,
+                        this.isGood
+                    );
+                    newBact.energy = this.energy / 2;
+                    this.energy /= 2;
+                    simulation.addEntity(newBact);
+                    simulation.logEvent(`Bakterie hat sich geteilt (${this.isGood ? 'nützlich' : 'schädlich'})`, 'division');
+                    this.divisionTimer = 0;
+                }
+
+                // Attack cells if harmful
+                if (!this.isGood) {
+                    simulation.entities.forEach(e => {
+                        if (e.type === 'cell' && this.distanceTo(e) < this.radius + e.radius) {
+                            e.health -= 0.5;
+                            if (e.health <= 0 && !e.dead) {
+                                e.dead = true;
+                                simulation.logEvent('Bakterie hat eine Zelle zerstört!', 'death');
+                            }
+                        }
+                    });
+                }
+
+                if (this.energy <= 0) {
+                    this.dead = true;
+                }
+            }
+
+            draw(ctx, time) {
+                ctx.save();
+
+                const color = this.isGood ? '#00d9a0' : '#ff6b6b';
+                const darkColor = this.isGood ? '#00a878' : '#cc4444';
+
+                // Flagella
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+
+                const flagellaCount = 3;
+                for (let i = 0; i < flagellaCount; i++) {
+                    const baseAngle = Math.atan2(this.vy, this.vx) + Math.PI + (i - 1) * 0.3;
+                    ctx.beginPath();
+                    let fx = this.x - Math.cos(baseAngle) * this.radius;
+                    let fy = this.y - Math.sin(baseAngle) * this.radius;
+                    ctx.moveTo(fx, fy);
+
+                    for (let j = 1; j <= 4; j++) {
+                        const wave = Math.sin(this.flagellaPhase + j * 0.8) * 4;
+                        fx -= Math.cos(baseAngle) * 5;
+                        fy -= Math.sin(baseAngle) * 5 + wave;
+                        ctx.lineTo(fx, fy);
+                    }
+                    ctx.stroke();
+                }
+
+                // Body
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3, this.y - this.radius * 0.3, 0,
+                    this.x, this.y, this.radius * 1.5
+                );
+                gradient.addColorStop(0, color);
+                gradient.addColorStop(1, darkColor);
+
+                ctx.beginPath();
+                if (this.shape === 'rod') {
+                    // Rod-shaped (bacillus)
+                    const angle = Math.atan2(this.vy, this.vx);
+                    ctx.ellipse(this.x, this.y, this.radius * 1.5, this.radius, angle, 0, Math.PI * 2);
+                } else {
+                    // Sphere-shaped (cocci)
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = this.selected ? 20 : 10;
+                ctx.fill();
+
+                // Inner texture (ribosomes)
+                ctx.shadowBlur = 0;
+                for (let i = 0; i < 5; i++) {
+                    const rx = this.x + (Math.random() - 0.5) * this.radius;
+                    const ry = this.y + (Math.random() - 0.5) * this.radius;
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, 1.5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fill();
+                }
+
+                // Selection ring
+                if (this.selected) {
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // VIRUS CLASS
+        // ============================================
+        class Virus extends Entity {
+            constructor(x, y) {
+                super(x, y);
+                this.type = 'virus';
+                this.radius = 8 + Math.random() * 4;
+                this.spikeCount = 8 + Math.floor(Math.random() * 4);
+                this.rotationSpeed = (Math.random() - 0.5) * 0.05;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.attached = false;
+                this.attachedTo = null;
+                this.injectProgress = 0;
+            }
+
+            getMaxSpeed() { return 2; }
+
+            update(time, bounds, simulation) {
+                if (!this.attached) {
+                    super.update(time, bounds, simulation);
+                    this.rotation += this.rotationSpeed;
+
+                    // Find and attach to cell
+                    for (const e of simulation.entities) {
+                        if (e.type === 'cell' && !e.infected && this.distanceTo(e) < this.radius + e.radius) {
+                            this.attached = true;
+                            this.attachedTo = e;
+                            simulation.logEvent('Virus hat Zelle befallen! Infektion beginnt...', 'infection');
+                            break;
+                        }
+                    }
+                } else {
+                    // Attached to cell - inject DNA
+                    if (this.attachedTo && !this.attachedTo.dead) {
+                        this.x = this.attachedTo.x + this.attachedTo.radius * 0.8;
+                        this.y = this.attachedTo.y;
+                        this.injectProgress += 0.02;
+
+                        if (this.injectProgress >= 1) {
+                            this.attachedTo.infected = true;
+                            this.dead = true;
+                            simulation.logEvent('Virus-DNA wurde in Zelle injiziert!', 'infection');
+                        }
+                    } else {
+                        this.dead = true;
+                    }
+                }
+            }
+
+            draw(ctx, time) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // Icosahedral body
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#c864ff');
+                gradient.addColorStop(0.5, '#9b59b6');
+                gradient.addColorStop(1, '#6c3483');
+
+                // Draw icosahedron approximation (hexagon)
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const px = Math.cos(angle) * this.radius * 0.8;
+                    const py = Math.sin(angle) * this.radius * 0.8;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = '#9b59b6';
+                ctx.shadowBlur = this.selected ? 20 : 12;
+                ctx.fill();
+
+                // Spike proteins
+                ctx.shadowBlur = 0;
+                for (let i = 0; i < this.spikeCount; i++) {
+                    const angle = (i / this.spikeCount) * Math.PI * 2;
+                    const x1 = Math.cos(angle) * this.radius * 0.8;
+                    const y1 = Math.sin(angle) * this.radius * 0.8;
+                    const x2 = Math.cos(angle) * this.radius * 1.4;
+                    const y2 = Math.sin(angle) * this.radius * 1.4;
+
+                    ctx.strokeStyle = '#e8a0ff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+
+                    // Spike head
+                    ctx.beginPath();
+                    ctx.arc(x2, y2, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ff88cc';
+                    ctx.fill();
+                }
+
+                // Inner structure
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 100, 150, 0.5)';
+                ctx.fill();
+
+                // Injection indicator
+                if (this.attached && this.injectProgress > 0) {
+                    ctx.strokeStyle = '#ff0066';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 1.5, -Math.PI/2, -Math.PI/2 + this.injectProgress * Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+
+                // Selection ring (outside rotation)
+                if (this.selected) {
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // ============================================
+        // IMMUNE CELL CLASS
+        // ============================================
+        class ImmuneCell extends Entity {
+            constructor(x, y) {
+                super(x, y);
+                this.type = 'immune';
+                this.radius = 28 + Math.random() * 8;
+                this.pseudopodPhase = Math.random() * Math.PI * 2;
+                this.target = null;
+                this.eating = false;
+                this.eatProgress = 0;
+                this.blobPoints = [];
+                for (let i = 0; i < 12; i++) {
+                    this.blobPoints.push({
+                        angle: (i / 12) * Math.PI * 2,
+                        offset: Math.random() * 0.3,
+                        speed: (Math.random() - 0.5) * 0.02
+                    });
+                }
+            }
+
+            getMaxSpeed() { return 1.2; }
+
+            update(time, bounds, simulation) {
+                this.pseudopodPhase += 0.03;
+
+                // Update blob shape
+                this.blobPoints.forEach(p => {
+                    p.offset += p.speed;
+                    if (p.offset > 0.4 || p.offset < 0) p.speed *= -1;
+                });
+
+                // Find target
+                if (!this.eating) {
+                    let closest = null;
+                    let closestDist = 200;
+
+                    for (const e of simulation.entities) {
+                        if (e === this) continue;
+                        if (e.type === 'virus' || (e.type === 'bacteria' && !e.isGood) || (e.type === 'cell' && e.infected)) {
+                            const dist = this.distanceTo(e);
+                            if (dist < closestDist) {
+                                closest = e;
+                                closestDist = dist;
+                            }
+                        }
+                    }
+
+                    if (closest) {
+                        this.target = closest;
+                        // Move towards target
+                        const dx = closest.x - this.x;
+                        const dy = closest.y - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        this.vx += (dx / dist) * 0.1;
+                        this.vy += (dy / dist) * 0.1;
+
+                        // Start eating if close enough
+                        if (dist < this.radius + closest.radius) {
+                            this.eating = true;
+                            this.eatProgress = 0;
+                            let targetName = closest.type === 'virus' ? 'Virus' :
+                                           closest.type === 'bacteria' ? 'Bakterie' : 'infizierte Zelle';
+                            simulation.logEvent(`Makrophage verschlingt ${targetName} (Phagozytose)`, 'immune');
+                        }
+                    }
+                }
+
+                super.update(time, bounds, simulation);
+
+                // Eating animation
+                if (this.eating && this.target) {
+                    this.eatProgress += 0.02;
+                    this.target.x = this.x + (this.target.x - this.x) * (1 - this.eatProgress);
+                    this.target.y = this.y + (this.target.y - this.y) * (1 - this.eatProgress);
+
+                    if (this.eatProgress >= 1) {
+                        this.target.dead = true;
+                        simulation.logEvent('Eindringling wurde verdaut!', 'immune');
+                        // Create particles
+                        for (let i = 0; i < 10; i++) {
+                            simulation.particles.push(new Particle(this.x, this.y, '#5dade2'));
+                        }
+                        this.eating = false;
+                        this.target = null;
+                        this.energy = Math.min(150, this.energy + 20);
+                    }
+                }
+
+                this.energy -= 0.02;
+                if (this.energy <= 0) {
+                    this.dead = true;
+                    simulation.logEvent('Immunzelle erschöpft', 'death');
+                }
+            }
+
+            draw(ctx, time) {
+                ctx.save();
+
+                // Amoeba-like body with pseudopods
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.radius * 0.2, this.y - this.radius * 0.2, 0,
+                    this.x, this.y, this.radius
+                );
+                gradient.addColorStop(0, '#a0d8ef');
+                gradient.addColorStop(0.6, '#5dade2');
+                gradient.addColorStop(1, '#2e86ab');
+
+                ctx.beginPath();
+                this.blobPoints.forEach((p, i) => {
+                    const wave = Math.sin(this.pseudopodPhase + p.angle * 3) * 5;
+                    const r = this.radius * (1 + p.offset) + wave;
+                    const px = this.x + Math.cos(p.angle) * r;
+                    const py = this.y + Math.sin(p.angle) * r;
+
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        const prev = this.blobPoints[i - 1];
+                        const prevWave = Math.sin(this.pseudopodPhase + prev.angle * 3) * 5;
+                        const prevR = this.radius * (1 + prev.offset) + prevWave;
+                        const cpx = this.x + Math.cos((p.angle + prev.angle) / 2) * (r + prevR) / 2 * 1.1;
+                        const cpy = this.y + Math.sin((p.angle + prev.angle) / 2) * (r + prevR) / 2 * 1.1;
+                        ctx.quadraticCurveTo(cpx, cpy, px, py);
+                    }
+                });
+                ctx.closePath();
+
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = '#5dade2';
+                ctx.shadowBlur = this.selected ? 25 : 15;
+                ctx.fill();
+
+                // Nucleus
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.25, 0, Math.PI * 2);
+                ctx.fillStyle = '#1a5276';
+                ctx.fill();
+
+                // Eating indicator
+                if (this.eating) {
+                    ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 0.8, 0, this.eatProgress * Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Selection ring
+                if (this.selected) {
+                    ctx.strokeStyle = '#00ff88';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // SIMULATION CLASS
+        // ============================================
+        class Simulation {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.entities = [];
+                this.nutrients = [];
+                this.particles = [];
+                this.time = 0;
+                this.speed = 1;
+                this.running = true;
+                this.selectedEntity = null;
+                this.currentTool = null;
+                this.events = [];
+
+                this.eventManager = new EventManager();
+                this.resize();
+                this.setupEvents();
+            }
+
+            resize() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+            }
+
+            setupEvents() {
+                this.eventManager.add(window, 'resize', () => this.resize());
+
+                this.eventManager.add(this.canvas, 'click', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+
+                    if (this.currentTool) {
+                        this.placeTool(x, y);
+                    } else {
+                        this.selectAt(x, y);
+                    }
+                });
+
+                this.eventManager.add(this.canvas, 'mousemove', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    this.updateTooltip(x, y);
+                });
+            }
+
+            placeTool(x, y) {
+                switch (this.currentTool) {
+                    case 'cell':
+                        this.addEntity(new Cell(x, y));
+                        this.logEvent('Neue Zelle platziert', 'division');
+                        break;
+                    case 'bacteria':
+                        this.addEntity(new Bacterium(x, y));
+                        this.logEvent('Neue Bakterie platziert', 'division');
+                        break;
+                    case 'virus':
+                        this.addEntity(new Virus(x, y));
+                        this.logEvent('Neues Virus platziert', 'infection');
+                        break;
+                    case 'immune':
+                        this.addEntity(new ImmuneCell(x, y));
+                        this.logEvent('Neue Immunzelle platziert', 'immune');
+                        break;
+                    case 'nutrients':
+                        for (let i = 0; i < 10; i++) {
+                            this.nutrients.push(new Nutrient(
+                                x + (Math.random() - 0.5) * 50,
+                                y + (Math.random() - 0.5) * 50
+                            ));
+                        }
+                        break;
+                }
+            }
+
+            selectAt(x, y) {
+                // Deselect previous
+                if (this.selectedEntity) {
+                    this.selectedEntity.selected = false;
+                }
+
+                // Find entity at position
+                this.selectedEntity = null;
+                for (const e of this.entities) {
+                    if (e.containsPoint(x, y)) {
+                        e.selected = true;
+                        this.selectedEntity = e;
+                        break;
+                    }
+                }
+
+                this.updateInfoPanel();
+            }
+
+            updateTooltip(x, y) {
+                const tooltip = document.getElementById('tooltip');
+
+                for (const e of this.entities) {
+                    if (e.containsPoint(x, y)) {
+                        const info = BioFacts[e.type];
+                        tooltip.innerHTML = `
+                            <h4>${info.name}</h4>
+                            <div>Typ: ${info.type}</div>
+                            <div>Größe: ${info.size}</div>
+                            <div class="fact">💡 ${info.facts[Math.floor(this.time / 1000) % info.facts.length]}</div>
+                        `;
+                        tooltip.style.left = (x + 20) + 'px';
+                        tooltip.style.top = (y + 20) + 'px';
+                        tooltip.classList.add('visible');
+                        return;
+                    }
+                }
+
+                tooltip.classList.remove('visible');
+            }
+
+            updateInfoPanel() {
+                const content = document.getElementById('infoContent');
+
+                if (!this.selectedEntity) {
+                    content.innerHTML = '<p class="no-selection">Klicke auf einen Organismus für Details</p>';
+                    return;
+                }
+
+                const e = this.selectedEntity;
+                const info = BioFacts[e.type];
+                const fact = info.facts[Math.floor(Math.random() * info.facts.length)];
+
+                let statusInfo = '';
+                if (e.type === 'cell') {
+                    statusInfo = `
+                        <div class="stat"><span>Energie</span><span>${Math.round(e.energy)}%</span></div>
+                        <div class="stat"><span>Gesundheit</span><span>${Math.round(e.health)}%</span></div>
+                        <div class="stat"><span>Status</span><span>${e.infected ? '🦠 Infiziert' : '✅ Gesund'}</span></div>
+                    `;
+                } else if (e.type === 'bacteria') {
+                    statusInfo = `
+                        <div class="stat"><span>Energie</span><span>${Math.round(e.energy)}%</span></div>
+                        <div class="stat"><span>Typ</span><span>${e.isGood ? '✅ Nützlich' : '⚠️ Schädlich'}</span></div>
+                        <div class="stat"><span>Form</span><span>${e.shape === 'rod' ? 'Stäbchen' : 'Kugel'}</span></div>
+                    `;
+                } else if (e.type === 'virus') {
+                    statusInfo = `
+                        <div class="stat"><span>Status</span><span>${e.attached ? '🔗 Angedockt' : '🔍 Sucht Wirt'}</span></div>
+                        <div class="stat"><span>Spike-Proteine</span><span>${e.spikeCount}</span></div>
+                    `;
+                } else if (e.type === 'immune') {
+                    statusInfo = `
+                        <div class="stat"><span>Energie</span><span>${Math.round(e.energy)}%</span></div>
+                        <div class="stat"><span>Status</span><span>${e.eating ? '🍽️ Frisst' : '🔍 Patrouilliert'}</span></div>
+                    `;
+                }
+
+                content.innerHTML = `
+                    <h4 style="color: #00ff88; margin-bottom: 10px;">${info.name}</h4>
+                    <div class="stat"><span>Typ</span><span>${info.type}</span></div>
+                    <div class="stat"><span>Größe</span><span>${info.size}</span></div>
+                    ${statusInfo}
+                    <div class="fact">💡 ${fact}</div>
+                `;
+            }
+
+            addEntity(entity) {
+                this.entities.push(entity);
+            }
+
+            logEvent(message, type = 'info') {
+                this.events.unshift({ message, type, time: this.time });
+                if (this.events.length > 50) this.events.pop();
+
+                const list = document.getElementById('eventList');
+                const item = document.createElement('div');
+                item.className = `event-item ${type}`;
+                item.textContent = message;
+                list.insertBefore(item, list.firstChild);
+
+                if (list.children.length > 20) {
+                    list.removeChild(list.lastChild);
+                }
+            }
+
+            updateStats() {
+                const counts = { cell: 0, bacteria: 0, virus: 0, immune: 0 };
+                this.entities.forEach(e => counts[e.type]++);
+                const total = Math.max(1, counts.cell + counts.bacteria + counts.virus + counts.immune);
+
+                document.getElementById('cellCount').textContent = counts.cell;
+                document.getElementById('bacteriaCount').textContent = counts.bacteria;
+                document.getElementById('virusCount').textContent = counts.virus;
+                document.getElementById('immuneCount').textContent = counts.immune;
+
+                document.getElementById('cellBar').style.width = (counts.cell / total * 100) + '%';
+                document.getElementById('bacteriaBar').style.width = (counts.bacteria / total * 100) + '%';
+                document.getElementById('virusBar').style.width = (counts.virus / total * 100) + '%';
+                document.getElementById('immuneBar').style.width = (counts.immune / total * 100) + '%';
+            }
+
+            clear() {
+                this.entities = [];
+                this.nutrients = [];
+                this.particles = [];
+                this.selectedEntity = null;
+                this.updateInfoPanel();
+                this.logEvent('Simulation zurückgesetzt');
+            }
+
+            loadScenario(scenario) {
+                this.clear();
+
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                switch (scenario) {
+                    case 'sandbox':
+                        // Empty sandbox
+                        break;
+
+                    case 'healthy':
+                        // Healthy tissue with good bacteria
+                        for (let i = 0; i < 8; i++) {
+                            this.addEntity(new Cell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 5; i++) {
+                            this.addEntity(new Bacterium(Math.random() * w, Math.random() * h, true));
+                        }
+                        for (let i = 0; i < 3; i++) {
+                            this.addEntity(new ImmuneCell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 30; i++) {
+                            this.nutrients.push(new Nutrient(Math.random() * w, Math.random() * h));
+                        }
+                        this.logEvent('Szenario: Gesundes Gewebe geladen');
+                        break;
+
+                    case 'viral':
+                        // Viral outbreak
+                        for (let i = 0; i < 10; i++) {
+                            this.addEntity(new Cell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 8; i++) {
+                            this.addEntity(new Virus(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 2; i++) {
+                            this.addEntity(new ImmuneCell(Math.random() * w, Math.random() * h));
+                        }
+                        this.logEvent('Szenario: Viraler Ausbruch! Immunsystem ist gefordert...');
+                        break;
+
+                    case 'bacterial':
+                        // Bacterial infection
+                        for (let i = 0; i < 8; i++) {
+                            this.addEntity(new Cell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 10; i++) {
+                            this.addEntity(new Bacterium(Math.random() * w, Math.random() * h, false));
+                        }
+                        for (let i = 0; i < 4; i++) {
+                            this.addEntity(new ImmuneCell(Math.random() * w, Math.random() * h));
+                        }
+                        this.logEvent('Szenario: Bakterielle Infektion - Makrophagen zum Einsatz!');
+                        break;
+
+                    case 'immune':
+                        // Immune system showcase
+                        for (let i = 0; i < 5; i++) {
+                            this.addEntity(new Cell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 6; i++) {
+                            this.addEntity(new ImmuneCell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 4; i++) {
+                            this.addEntity(new Virus(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 4; i++) {
+                            this.addEntity(new Bacterium(Math.random() * w, Math.random() * h, false));
+                        }
+                        this.logEvent('Szenario: Immunsystem in Aktion - Beobachte die Phagozytose!');
+                        break;
+
+                    case 'microbiome':
+                        // Microbiome balance
+                        for (let i = 0; i < 5; i++) {
+                            this.addEntity(new Cell(Math.random() * w, Math.random() * h));
+                        }
+                        for (let i = 0; i < 8; i++) {
+                            this.addEntity(new Bacterium(Math.random() * w, Math.random() * h, true));
+                        }
+                        for (let i = 0; i < 4; i++) {
+                            this.addEntity(new Bacterium(Math.random() * w, Math.random() * h, false));
+                        }
+                        for (let i = 0; i < 40; i++) {
+                            this.nutrients.push(new Nutrient(Math.random() * w, Math.random() * h));
+                        }
+                        this.logEvent('Szenario: Mikrobiom - Gute vs. schlechte Bakterien');
+                        break;
+                }
+            }
+
+            update() {
+                if (!this.running || this.speed === 0) return;
+
+                for (let i = 0; i < this.speed; i++) {
+                    this.time++;
+
+                    // Update entities
+                    this.entities.forEach(e => {
+                        e.update(this.time, {
+                            width: this.canvas.width,
+                            height: this.canvas.height
+                        }, this);
+                    });
+
+                    // Remove dead entities
+                    this.entities = this.entities.filter(e => !e.dead);
+
+                    // Update nutrients
+                    this.nutrients.forEach(n => n.update(this.time));
+                    this.nutrients = this.nutrients.filter(n =>
+                        n.x > 0 && n.x < this.canvas.width &&
+                        n.y > 0 && n.y < this.canvas.height
+                    );
+
+                    // Update particles
+                    this.particles.forEach(p => p.update());
+                    this.particles = this.particles.filter(p => p.life > 0);
+
+                    // Spawn nutrients occasionally
+                    if (Math.random() < 0.02 && this.nutrients.length < 100) {
+                        this.nutrients.push(new Nutrient(
+                            Math.random() * this.canvas.width,
+                            Math.random() * this.canvas.height
+                        ));
+                    }
+                }
+
+                // Update selected entity info
+                if (this.selectedEntity && this.selectedEntity.dead) {
+                    this.selectedEntity = null;
+                    this.updateInfoPanel();
+                } else if (this.selectedEntity) {
+                    this.updateInfoPanel();
+                }
+
+                this.updateStats();
+            }
+
+            draw() {
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                // Dark microscope background
+                ctx.fillStyle = '#050510';
+                ctx.fillRect(0, 0, w, h);
+
+                // Subtle gradient vignette
+                const vignette = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h) * 0.7);
+                vignette.addColorStop(0, 'rgba(20, 20, 40, 0)');
+                vignette.addColorStop(1, 'rgba(0, 0, 10, 0.8)');
+                ctx.fillStyle = vignette;
+                ctx.fillRect(0, 0, w, h);
+
+                // Bokeh background particles
+                ctx.globalAlpha = 0.1;
+                for (let i = 0; i < 20; i++) {
+                    const bx = (Math.sin(this.time * 0.0001 + i) * 0.5 + 0.5) * w;
+                    const by = (Math.cos(this.time * 0.0001 + i * 2) * 0.5 + 0.5) * h;
+                    const br = 30 + Math.sin(this.time * 0.001 + i) * 10;
+
+                    const bokeh = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+                    bokeh.addColorStop(0, 'rgba(100, 150, 255, 0.3)');
+                    bokeh.addColorStop(1, 'rgba(100, 150, 255, 0)');
+                    ctx.fillStyle = bokeh;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, br, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                // Draw nutrients
+                this.nutrients.forEach(n => n.draw(ctx, this.time));
+
+                // Draw particles
+                this.particles.forEach(p => p.draw(ctx));
+
+                // Draw entities (sorted by type for proper layering)
+                const drawOrder = ['cell', 'bacteria', 'immune', 'virus'];
+                drawOrder.forEach(type => {
+                    this.entities
+                        .filter(e => e.type === type)
+                        .forEach(e => e.draw(ctx, this.time));
+                });
+            }
+
+            start() {
+                const loop = () => {
+                    this.update();
+                    this.draw();
+                    requestAnimationFrame(loop);
+                };
+                loop();
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('simCanvas');
+            const simulation = new Simulation(canvas);
+
+            // Start button
+            document.getElementById('startBtn').addEventListener('click', () => {
+                document.getElementById('introModal').classList.add('hidden');
+                simulation.loadScenario('healthy');
+                simulation.start();
+            });
+
+            // Time controls
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    simulation.speed = parseInt(btn.dataset.speed);
+                });
+            });
+
+            // Scenario select
+            document.querySelector('.scenario-select').addEventListener('change', (e) => {
+                simulation.loadScenario(e.target.value);
+            });
+
+            // Stats toggle
+            document.querySelector('.stats-toggle').addEventListener('click', function() {
+                const panel = document.getElementById('sidePanel');
+                panel.classList.toggle('hidden');
+                this.classList.toggle('active');
+            });
+
+            // Tool buttons
+            document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tool = btn.dataset.tool;
+
+                    if (simulation.currentTool === tool) {
+                        simulation.currentTool = null;
+                        btn.classList.remove('active');
+                    } else {
+                        document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+                        simulation.currentTool = tool;
+                        btn.classList.add('active');
+                    }
+                });
+            });
+
+            // Clear button
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                simulation.clear();
+            });
+        });
+    </script>
+</body>
+</html>

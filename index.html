@@ -1109,13 +1109,12 @@
         </div>
 
         <!-- Volume Control -->
-        <div style="position: fixed; bottom: 20px; right: 20px; background: rgba(0, 34, 68, 0.9); border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; z-index: 1000; min-width: 200px;">
-            <div style="color: var(--accent-blue); font-family: 'Courier New', monospace; font-size: 12px; margin-bottom: 8px;">🎵 AUDIO CONTROL</div>
+        <div id="volumeControl" style="position: fixed; bottom: 20px; right: 20px; background: rgba(0, 34, 68, 0.9); border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; z-index: 1000; min-width: 200px;">
+            <div style="color: var(--accent-blue); font-family: 'Courier New', monospace; font-size: 12px; margin-bottom: 8px;">🎵 HELLDIVERS AUDIO</div>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="color: var(--accent-blue); font-size: 12px;">🔈</span>
                 <input type="range" id="volumeSlider" min="0" max="100" value="15"
-                       style="flex: 1; height: 4px; background: rgba(0, 128, 255, 0.3); border-radius: 2px; outline: none; cursor: pointer;"
-                       aria-label="Master volume control">
+                       style="flex: 1; height: 4px; background: rgba(0, 128, 255, 0.3); border-radius: 2px; outline: none; cursor: pointer;">
                 <span style="color: var(--accent-blue); font-size: 12px;">🔊</span>
             </div>
             <div style="text-align: center; margin-top: 5px; font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-secondary);">
@@ -1223,6 +1222,12 @@
                         description: "Finde den Ausgang im 3D-Labyrinth! Wähle zwischen Krieger, Magier oder Schurke.",
                         url: "games/maze3d.html",
                         icon: "🏛️"
+                    },
+                    {
+                        title: "Brick Builder 3D",
+                        description: "Baue mit 3D-Bausteinen! 6 Steintypen, 8 Farben, Explodier-Animation und Random-Builds. Drehe die Kamera per Drag!",
+                        url: "games/brick-builder.html",
+                        icon: "🧱"
                     }
                 ]
             },
@@ -1417,10 +1422,22 @@
                 icon: "🧬",
                 games: [
                     {
+                        title: "Bio-Sim: Mikrobiologie-Labor",
+                        description: "Interaktive Biologie-Simulation! Beobachte Zellen, Bakterien, Viren und Immunzellen. Lerne über Zellteilung, Infektion und Phagozytose.",
+                        url: "games/bio-sim.html",
+                        icon: "🦠"
+                    },
+                    {
                         title: "Ecosystem Simulator",
                         description: "NPC-basiertes Ecosystem mit Flocking, Predator-Prey-Dynamik, Ressourcen-Wettbewerb und Stammesverhalten. Emergente Muster beobachten!",
                         url: "games/simulations/ecosystem-simulator.html",
                         icon: "🧬"
+                    },
+                    {
+                        title: "Block Builder Lab",
+                        description: "Modulare Sandbox wie Lego! Kombiniere 7 Blocks (Scene, Physics, Procedural, Export, Analyzer, Controls, Story) um interaktive Demos zu bauen.",
+                        url: "games/block-builder.html",
+                        icon: "🧱"
                     }
                 ]
             }
@@ -1584,131 +1601,141 @@
             });
         }
 
-        // Background Music System
-        class BackgroundMusicSystem {
+        // Helldivers-Inspired Background Music System
+        class HelldiversMusicSystem {
             constructor() {
                 this.audioContext = null;
                 this.isPlaying = false;
                 this.masterGain = null;
-                this.setupAudio();
+                this.loopTimeout = null;
             }
 
-            setupAudio() {
+            initAudio() {
+                if (this.audioContext) return true;
                 try {
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioContext = new AudioContext();
                     this.masterGain = this.audioContext.createGain();
-                    this.masterGain.gain.value = 0.15; // Low volume for background
+                    this.masterGain.gain.value = 0.15;
                     this.masterGain.connect(this.audioContext.destination);
+                    return true;
                 } catch (e) {
-                    console.log('Web Audio API not supported');
+                    console.error('Audio init failed:', e);
+                    return false;
                 }
             }
 
             async start() {
-                if (!this.audioContext || this.isPlaying) return;
+                if (this.isPlaying) return;
+                if (!this.initAudio()) return;
 
-                // Resume audio context if suspended (browser autoplay policy)
                 if (this.audioContext.state === 'suspended') {
                     await this.audioContext.resume();
                 }
-
                 this.isPlaying = true;
-                this.playHelldiversTheme();
-            }
-
-            playHelldiversTheme() {
-                if (!this.audioContext || !this.isPlaying) return;
-
-                const now = this.audioContext.currentTime;
-                const loopDuration = 8; // 8 second loop
-
-                // Deep bass drone for space atmosphere
-                const bass = this.audioContext.createOscillator();
-                const bassGain = this.audioContext.createGain();
-                bass.type = 'sine';
-                bass.frequency.setValueAtTime(55, now); // A1 note
-                bassGain.gain.setValueAtTime(0.3, now);
-                bass.connect(bassGain);
-                bassGain.connect(this.masterGain);
-                bass.start(now);
-                bass.stop(now + loopDuration);
-
-                // Mid bass for rhythm
-                const midBass = this.audioContext.createOscillator();
-                const midBassGain = this.audioContext.createGain();
-                midBass.type = 'triangle';
-                midBass.frequency.setValueAtTime(110, now); // A2 note
-                midBassGain.gain.setValueAtTime(0, now);
-                midBassGain.gain.setValueAtTime(0.2, now + 0.01);
-                midBassGain.gain.setValueAtTime(0, now + 0.3);
-                midBass.connect(midBassGain);
-                midBassGain.connect(this.masterGain);
-                midBass.start(now);
-                midBass.stop(now + loopDuration);
-
-                // Epic synth pad
-                const pad1 = this.audioContext.createOscillator();
-                const pad1Gain = this.audioContext.createGain();
-                pad1.type = 'sawtooth';
-                pad1.frequency.setValueAtTime(220, now); // A3
-                pad1Gain.gain.setValueAtTime(0, now);
-                pad1Gain.gain.linearRampToValueAtTime(0.1, now + 2);
-                pad1Gain.gain.setValueAtTime(0.1, now + 6);
-                pad1Gain.gain.linearRampToValueAtTime(0, now + loopDuration);
-                pad1.connect(pad1Gain);
-                pad1Gain.connect(this.masterGain);
-                pad1.start(now);
-                pad1.stop(now + loopDuration);
-
-                // Higher harmony
-                const pad2 = this.audioContext.createOscillator();
-                const pad2Gain = this.audioContext.createGain();
-                pad2.type = 'sawtooth';
-                pad2.frequency.setValueAtTime(330, now); // E4
-                pad2Gain.gain.setValueAtTime(0, now);
-                pad2Gain.gain.linearRampToValueAtTime(0.08, now + 2.5);
-                pad2Gain.gain.setValueAtTime(0.08, now + 6.5);
-                pad2Gain.gain.linearRampToValueAtTime(0, now + loopDuration);
-                pad2.connect(pad2Gain);
-                pad2Gain.connect(this.masterGain);
-                pad2.start(now);
-                pad2.stop(now + loopDuration);
-
-                // Rhythmic pulse (military feel)
-                const pulse = this.audioContext.createOscillator();
-                const pulseGain = this.audioContext.createGain();
-                pulse.type = 'square';
-                pulse.frequency.setValueAtTime(110, now);
-
-                // Create rhythmic pattern
-                for (let i = 0; i < 8; i++) {
-                    const beatTime = now + i;
-                    pulseGain.gain.setValueAtTime(0, beatTime);
-                    pulseGain.gain.setValueAtTime(0.15, beatTime + 0.01);
-                    pulseGain.gain.setValueAtTime(0, beatTime + 0.1);
-                }
-
-                pulse.connect(pulseGain);
-                pulseGain.connect(this.masterGain);
-                pulse.start(now);
-                pulse.stop(now + loopDuration);
-
-                // Schedule next loop
-                setTimeout(() => {
-                    if (this.isPlaying) {
-                        this.playHelldiversTheme();
-                    }
-                }, loopDuration * 1000);
+                this.playLoop();
             }
 
             stop() {
                 this.isPlaying = false;
+                if (this.loopTimeout) {
+                    clearTimeout(this.loopTimeout);
+                    this.loopTimeout = null;
+                }
             }
 
             setVolume(volume) {
-                if (this.masterGain) {
-                    this.masterGain.gain.value = volume;
+                if (this.masterGain) this.masterGain.gain.value = volume;
+            }
+
+            playTone(freq, startTime, duration, volume, type = 'sawtooth') {
+                if (!this.audioContext) return;
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(volume, startTime + 0.05);
+                gain.gain.linearRampToValueAtTime(volume * 0.7, startTime + duration * 0.8);
+                gain.gain.linearRampToValueAtTime(0, startTime + duration);
+                osc.start(startTime);
+                osc.stop(startTime + duration + 0.1);
+            }
+
+            playDrum(startTime, isKick, volume) {
+                if (!this.audioContext) return;
+                if (isKick) {
+                    const osc = this.audioContext.createOscillator();
+                    const gain = this.audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150, startTime);
+                    osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.1);
+                    gain.gain.setValueAtTime(volume, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.4);
+                } else {
+                    // Snare using noise
+                    const bufferSize = this.audioContext.sampleRate * 0.1;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                    const noise = this.audioContext.createBufferSource();
+                    noise.buffer = buffer;
+                    const gain = this.audioContext.createGain();
+                    const filter = this.audioContext.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.value = 2000;
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.masterGain);
+                    gain.gain.setValueAtTime(volume, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+                    noise.start(startTime);
                 }
+            }
+
+            playLoop() {
+                if (!this.audioContext || !this.isPlaying) return;
+
+                const now = this.audioContext.currentTime;
+                const beat = 0.5; // 120 BPM
+                const bar = beat * 4;
+                const loopLen = bar * 4; // 8 seconds
+
+                // Brass melody (D minor heroic theme)
+                this.playTone(146.83, now, beat * 2, 0.15);              // D3
+                this.playTone(174.61, now + beat * 2, beat * 2, 0.15);   // F3
+                this.playTone(196.00, now + beat * 4, beat * 2, 0.18);   // G3
+                this.playTone(220.00, now + beat * 6, beat * 2, 0.20);   // A3
+                this.playTone(196.00, now + bar * 2, beat * 3, 0.18);    // G3
+                this.playTone(174.61, now + bar * 2 + beat * 3, beat * 3, 0.15); // F3
+                this.playTone(146.83, now + bar * 3.5, beat * 2, 0.15);  // D3
+
+                // String pad chord
+                this.playTone(293.66, now, loopLen, 0.08, 'triangle');   // D4
+                this.playTone(349.23, now, loopLen, 0.06, 'triangle');   // F4
+                this.playTone(440.00, now, loopLen, 0.05, 'triangle');   // A4
+
+                // Bass drone
+                this.playTone(73.42, now, loopLen, 0.12, 'sawtooth');    // D2
+
+                // Military drums
+                for (let b = 0; b < 4; b++) {
+                    const t = now + b * bar;
+                    this.playDrum(t, true, 0.3);                    // Kick on 1
+                    this.playDrum(t + beat, false, 0.2);            // Snare on 2
+                    this.playDrum(t + beat * 2, true, 0.25);        // Kick on 3
+                    this.playDrum(t + beat * 3, false, 0.2);        // Snare on 4
+                }
+
+                this.loopTimeout = setTimeout(() => {
+                    if (this.isPlaying) this.playLoop();
+                }, loopLen * 1000);
             }
         }
 
@@ -1722,9 +1749,7 @@
             setupAudio() {
                 try {
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (e) {
-                    console.log('Web Audio API not supported');
-                }
+                } catch (e) {}
             }
 
             playTone(frequency, duration, type = 'sine') {
@@ -2050,8 +2075,8 @@
             // Initialize button animations
             const animator = new ButtonAnimator();
 
-            // Initialize background music
-            const bgMusic = new BackgroundMusicSystem();
+            // Initialize Helldivers-inspired background music
+            const bgMusic = new HelldiversMusicSystem();
 
             // Volume Control
             const volumeSlider = document.getElementById('volumeSlider');
@@ -2060,26 +2085,21 @@
 
             volumeSlider.addEventListener('input', (e) => {
                 const volume = e.target.value / 100;
-                if (bgMusic.masterGain) {
-                    bgMusic.masterGain.gain.value = volume;
-                }
+                bgMusic.setVolume(volume);
                 volumePercent.textContent = e.target.value;
             });
 
-            musicToggle.addEventListener('click', () => {
+            musicToggle.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent Easter egg from triggering
                 if (bgMusic.isPlaying) {
-                    bgMusic.isPlaying = false;
-                    if (bgMusic.masterGain) {
-                        bgMusic.masterGain.gain.value = 0;
-                    }
+                    bgMusic.stop();
+                    bgMusic.setVolume(0);
                     musicToggle.textContent = '🔇';
                     musicToggle.classList.remove('active');
                 } else {
                     bgMusic.start();
                     const volume = volumeSlider.value / 100;
-                    if (bgMusic.masterGain) {
-                        bgMusic.masterGain.gain.value = volume;
-                    }
+                    bgMusic.setVolume(volume);
                     musicToggle.textContent = '🔊';
                     musicToggle.classList.add('active');
                 }
@@ -2088,17 +2108,13 @@
             // Start music on first user interaction (browser autoplay policy)
             const startMusic = () => {
                 bgMusic.start();
+                musicToggle.classList.add('active');
                 document.removeEventListener('click', startMusic);
                 document.removeEventListener('keydown', startMusic);
             };
 
             document.addEventListener('click', startMusic, { once: true });
             document.addEventListener('keydown', startMusic, { once: true });
-
-            // Try to start immediately (might work if autoplay is allowed)
-            bgMusic.start().catch(() => {
-                console.log('Autoplay prevented - music will start on user interaction');
-            });
 
             // Start auto-animation after a delay
             setTimeout(() => {
