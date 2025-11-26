@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPC Ecosystem Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #left-panel {
+            width: 280px;
+            background: rgba(20, 20, 30, 0.95);
+            padding: 20px;
+            padding-top: 50px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #0a0a0f;
+        }
+
+        #simulation-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        #right-panel {
+            width: 300px;
+            background: rgba(20, 20, 30, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        #right-panel.collapsed {
+            transform: translateX(100%);
+        }
+
+        #stats-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 10, 15, 0.9);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        #graphs-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            background: rgba(10, 10, 15, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        #graphs-panel.visible {
+            display: block;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h3 {
+            font-size: 14px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .preset-btn.active {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        .slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-left: 10px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .behavior-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .species-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .control-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+
+        #population-chart {
+            width: 100%;
+            height: 150px;
+            margin-top: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        .mode-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 8px 15px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: none;
+        }
+
+        .mode-indicator.active {
+            display: block;
+        }
+
+        .toggle-panel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 20px 8px;
+            cursor: pointer;
+            border-radius: 4px 0 0 4px;
+            right: 300px;
+            transition: right 0.3s ease;
+        }
+
+        .toggle-panel-btn.collapsed {
+            right: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        @media (max-width: 900px) {
+            #left-panel {
+                width: 200px;
+                padding: 10px;
+                padding-top: 50px;
+            }
+            #right-panel {
+                width: 200px;
+            }
+            .toggle-panel-btn {
+                right: 200px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            #left-panel, #right-panel, .toggle-panel-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">Simulationen</a>
+
+    <div id="container">
+        <!-- Left Panel: Presets & Behaviors -->
+        <div id="left-panel">
+            <h2>Presets</h2>
+            <button class="preset-btn" data-preset="flocking">Flocking Swarm</button>
+            <button class="preset-btn" data-preset="predator-prey">Predator-Prey</button>
+            <button class="preset-btn" data-preset="resource">Resource Competition</button>
+            <button class="preset-btn" data-preset="tribal">Tribal Wars</button>
+            <button class="preset-btn" data-preset="chaos">Chaos Mode</button>
+
+            <h3>Behaviors</h3>
+            <div class="behavior-toggle">
+                <span>Flocking</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-flocking" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="behavior-toggle">
+                <span>Predator-Prey</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-predator">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="behavior-toggle">
+                <span>Resources</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-resources">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="behavior-toggle">
+                <span>Tribal</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-tribal">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <h3>Interaction Mode</h3>
+            <div class="control-buttons">
+                <button class="control-btn active" data-mode="spawn">Spawn</button>
+                <button class="control-btn" data-mode="force">Force</button>
+                <button class="control-btn" data-mode="food">Food</button>
+                <button class="control-btn" data-mode="wall">Wall</button>
+            </div>
+
+            <h3>Time Control</h3>
+            <div class="control-buttons">
+                <button class="control-btn" id="btn-pause">Pause</button>
+                <button class="control-btn" id="btn-slow">Slow</button>
+                <button class="control-btn" id="btn-normal">Normal</button>
+                <button class="control-btn active" id="btn-fast">Fast</button>
+            </div>
+
+            <div class="control-buttons">
+                <button class="control-btn" id="btn-clear">Clear All</button>
+                <button class="control-btn" id="btn-toggle-graphs">Graphs</button>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div id="canvas-container">
+            <canvas id="simulation-canvas"></canvas>
+
+            <div id="mode-indicator" class="mode-indicator">Spawn Mode</div>
+
+            <div id="stats-overlay">
+                <div class="stat-row">
+                    <span class="stat-label">Total NPCs:</span>
+                    <span class="stat-value" id="stat-total">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="species-indicator" style="background: #3b82f6;"></span>Prey:</span>
+                    <span class="stat-value" id="stat-prey">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="species-indicator" style="background: #ef4444;"></span>Predator:</span>
+                    <span class="stat-value" id="stat-predator">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><span class="species-indicator" style="background: #10b981;"></span>Herbivore:</span>
+                    <span class="stat-value" id="stat-herbivore">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Food Sources:</span>
+                    <span class="stat-value" id="stat-food">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">FPS:</span>
+                    <span class="stat-value" id="stat-fps">60</span>
+                </div>
+            </div>
+
+            <div id="graphs-panel">
+                <h2>Analytics</h2>
+                <canvas id="population-chart"></canvas>
+                <div style="margin-top: 15px;">
+                    <div class="stat-row">
+                        <span class="stat-label">Avg Speed:</span>
+                        <span class="stat-value" id="stat-avg-speed">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Avg Energy:</span>
+                        <span class="stat-value" id="stat-avg-energy">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Births:</span>
+                        <span class="stat-value" id="stat-births">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Deaths:</span>
+                        <span class="stat-value" id="stat-deaths">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Advanced Controls -->
+        <div id="right-panel">
+            <h2>Advanced Settings</h2>
+
+            <h3>Movement</h3>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Max Speed</span>
+                    <span id="val-max-speed">2.5</span>
+                </div>
+                <input type="range" class="slider" id="slider-max-speed" min="0.5" max="5" step="0.1" value="2.5">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Max Force</span>
+                    <span id="val-max-force">0.1</span>
+                </div>
+                <input type="range" class="slider" id="slider-max-force" min="0.01" max="0.5" step="0.01" value="0.1">
+            </div>
+
+            <h3>Flocking</h3>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Separation</span>
+                    <span id="val-separation">1.5</span>
+                </div>
+                <input type="range" class="slider" id="slider-separation" min="0" max="3" step="0.1" value="1.5">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Alignment</span>
+                    <span id="val-alignment">1.0</span>
+                </div>
+                <input type="range" class="slider" id="slider-alignment" min="0" max="3" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Cohesion</span>
+                    <span id="val-cohesion">1.0</span>
+                </div>
+                <input type="range" class="slider" id="slider-cohesion" min="0" max="3" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Perception Radius</span>
+                    <span id="val-perception">50</span>
+                </div>
+                <input type="range" class="slider" id="slider-perception" min="20" max="150" step="5" value="50">
+            </div>
+
+            <h3>Energy & Reproduction</h3>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Energy Drain</span>
+                    <span id="val-energy-drain">0.1</span>
+                </div>
+                <input type="range" class="slider" id="slider-energy-drain" min="0" max="1" step="0.01" value="0.1">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Reproduction Threshold</span>
+                    <span id="val-reproduction">150</span>
+                </div>
+                <input type="range" class="slider" id="slider-reproduction" min="100" max="200" step="5" value="150">
+            </div>
+
+            <h3>Visual</h3>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Trail Length</span>
+                    <span id="val-trail">0.05</span>
+                </div>
+                <input type="range" class="slider" id="slider-trail" min="0" max="0.3" step="0.01" value="0.05">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Glow Intensity</span>
+                    <span id="val-glow">15</span>
+                </div>
+                <input type="range" class="slider" id="slider-glow" min="0" max="30" step="1" value="15">
+            </div>
+        </div>
+
+        <button class="toggle-panel-btn" id="toggle-right-panel">&lt;</button>
+    </div>
+
+    <script>
+// ============================================================================
+// NPC ECOSYSTEM SIMULATOR
+// ============================================================================
+
+class Vector2D {
+    constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+    }
+
+    add(v) {
+        this.x += v.x;
+        this.y += v.y;
+        return this;
+    }
+
+    sub(v) {
+        this.x -= v.x;
+        this.y -= v.y;
+        return this;
+    }
+
+    mult(n) {
+        this.x *= n;
+        this.y *= n;
+        return this;
+    }
+
+    div(n) {
+        if (n !== 0) {
+            this.x /= n;
+            this.y /= n;
+        }
+        return this;
+    }
+
+    mag() {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+
+    normalize() {
+        const m = this.mag();
+        if (m !== 0) {
+            this.div(m);
+        }
+        return this;
+    }
+
+    limit(max) {
+        const mSq = this.x * this.x + this.y * this.y;
+        if (mSq > max * max) {
+            this.normalize();
+            this.mult(max);
+        }
+        return this;
+    }
+
+    setMag(n) {
+        this.normalize();
+        this.mult(n);
+        return this;
+    }
+
+    dist(v) {
+        const dx = this.x - v.x;
+        const dy = this.y - v.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    copy() {
+        return new Vector2D(this.x, this.y);
+    }
+
+    static sub(v1, v2) {
+        return new Vector2D(v1.x - v2.x, v1.y - v2.y);
+    }
+
+    static random2D() {
+        const angle = Math.random() * Math.PI * 2;
+        return new Vector2D(Math.cos(angle), Math.sin(angle));
+    }
+}
+
+// ============================================================================
+// AGENT CLASS
+// ============================================================================
+
+class Agent {
+    constructor(x, y, species = 'prey') {
+        this.pos = new Vector2D(x, y);
+        this.vel = Vector2D.random2D();
+        this.acc = new Vector2D();
+        this.species = species;
+        this.energy = 100;
+        this.maxEnergy = 200;
+        this.size = species === 'predator' ? 6 : 4;
+        this.tribe = Math.floor(Math.random() * 3);
+        this.age = 0;
+        this.dead = false;
+    }
+
+    applyForce(force) {
+        this.acc.add(force);
+    }
+
+    update(config) {
+        this.vel.add(this.acc);
+        this.vel.limit(config.maxSpeed);
+        this.pos.add(this.vel);
+        this.acc.mult(0);
+
+        this.energy -= config.energyDrain;
+        if (this.energy <= 0) {
+            this.dead = true;
+        }
+        if (this.energy > this.maxEnergy) {
+            this.energy = this.maxEnergy;
+        }
+
+        this.age++;
+
+        if (this.pos.x > config.width) this.pos.x = 0;
+        if (this.pos.x < 0) this.pos.x = config.width;
+        if (this.pos.y > config.height) this.pos.y = 0;
+        if (this.pos.y < 0) this.pos.y = config.height;
+    }
+
+    flock(agents, config) {
+        let separation = this.separate(agents, config);
+        let alignment = this.align(agents, config);
+        let cohesion = this.cohere(agents, config);
+
+        separation.mult(config.separationWeight);
+        alignment.mult(config.alignmentWeight);
+        cohesion.mult(config.cohesionWeight);
+
+        this.applyForce(separation);
+        this.applyForce(alignment);
+        this.applyForce(cohesion);
+    }
+
+    separate(agents, config) {
+        let steer = new Vector2D();
+        let count = 0;
+        const desiredSeparation = 25;
+
+        for (let other of agents) {
+            if (other === this || other.dead) continue;
+            let d = this.pos.dist(other.pos);
+            if (d > 0 && d < desiredSeparation) {
+                let diff = Vector2D.sub(this.pos, other.pos);
+                diff.normalize();
+                diff.div(d);
+                steer.add(diff);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            steer.div(count);
+            steer.normalize();
+            steer.mult(config.maxSpeed);
+            steer.sub(this.vel);
+            steer.limit(config.maxForce);
+        }
+
+        return steer;
+    }
+
+    align(agents, config) {
+        let sum = new Vector2D();
+        let count = 0;
+
+        for (let other of agents) {
+            if (other === this || other.dead) continue;
+            let d = this.pos.dist(other.pos);
+            if (d > 0 && d < config.perceptionRadius) {
+                if (config.tribalBehavior && other.tribe !== this.tribe) continue;
+                sum.add(other.vel);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            sum.div(count);
+            sum.normalize();
+            sum.mult(config.maxSpeed);
+            let steer = Vector2D.sub(sum, this.vel);
+            steer.limit(config.maxForce);
+            return steer;
+        }
+
+        return new Vector2D();
+    }
+
+    cohere(agents, config) {
+        let sum = new Vector2D();
+        let count = 0;
+
+        for (let other of agents) {
+            if (other === this || other.dead) continue;
+            let d = this.pos.dist(other.pos);
+            if (d > 0 && d < config.perceptionRadius) {
+                if (config.tribalBehavior && other.tribe !== this.tribe) continue;
+                sum.add(other.pos);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            sum.div(count);
+            return this.seek(sum, config);
+        }
+
+        return new Vector2D();
+    }
+
+    seek(target, config) {
+        let desired = Vector2D.sub(target, this.pos);
+        desired.normalize();
+        desired.mult(config.maxSpeed);
+        let steer = Vector2D.sub(desired, this.vel);
+        steer.limit(config.maxForce);
+        return steer;
+    }
+
+    flee(target, config) {
+        let desired = Vector2D.sub(this.pos, target);
+        desired.normalize();
+        desired.mult(config.maxSpeed);
+        let steer = Vector2D.sub(desired, this.vel);
+        steer.limit(config.maxForce);
+        return steer;
+    }
+
+    hunt(agents, config) {
+        if (this.species !== 'predator') return;
+
+        let closest = null;
+        let closestDist = Infinity;
+
+        for (let other of agents) {
+            if (other.species === 'prey' && !other.dead) {
+                let d = this.pos.dist(other.pos);
+                if (d < closestDist && d < 150) {
+                    closest = other;
+                    closestDist = d;
+                }
+            }
+        }
+
+        if (closest) {
+            let force = this.seek(closest.pos, config);
+            force.mult(2);
+            this.applyForce(force);
+
+            if (closestDist < 10) {
+                closest.dead = true;
+                this.energy += 50;
+            }
+        }
+    }
+
+    evade(agents, config) {
+        if (this.species !== 'prey') return;
+
+        for (let other of agents) {
+            if (other.species === 'predator' && !other.dead) {
+                let d = this.pos.dist(other.pos);
+                if (d < 100) {
+                    let force = this.flee(other.pos, config);
+                    force.mult(3);
+                    this.applyForce(force);
+                }
+            }
+        }
+    }
+
+    seekFood(foodSources, config) {
+        if (this.species === 'predator') return;
+
+        let closest = null;
+        let closestDist = Infinity;
+
+        for (let food of foodSources) {
+            let d = this.pos.dist(food.pos);
+            if (d < closestDist && d < 200) {
+                closest = food;
+                closestDist = d;
+            }
+        }
+
+        if (closest) {
+            let force = this.seek(closest.pos, config);
+            force.mult(1.5);
+            this.applyForce(force);
+
+            if (closestDist < 15) {
+                this.energy += 30;
+                closest.energy -= 30;
+                if (closest.energy <= 0) {
+                    closest.depleted = true;
+                }
+            }
+        }
+    }
+
+    tribalBehavior(agents, config) {
+        for (let other of agents) {
+            if (other === this || other.dead) continue;
+            let d = this.pos.dist(other.pos);
+
+            if (d < 50) {
+                if (other.tribe !== this.tribe) {
+                    let force = this.flee(other.pos, config);
+                    force.mult(1.2);
+                    this.applyForce(force);
+                }
+            }
+        }
+    }
+
+    avoidWalls(walls, config) {
+        for (let wall of walls) {
+            let d = this.distanceToLine(wall.start, wall.end);
+            if (d < 30) {
+                let normal = this.getNormalToLine(wall.start, wall.end);
+                normal.mult(config.maxForce * 2);
+                this.applyForce(normal);
+            }
+        }
+    }
+
+    distanceToLine(p1, p2) {
+        const numerator = Math.abs(
+            (p2.y - p1.y) * this.pos.x -
+            (p2.x - p1.x) * this.pos.y +
+            p2.x * p1.y -
+            p2.y * p1.x
+        );
+        const denominator = Math.sqrt(
+            (p2.y - p1.y) ** 2 + (p2.x - p1.x) ** 2
+        );
+        return numerator / denominator;
+    }
+
+    getNormalToLine(p1, p2) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const normal = new Vector2D(-dy, dx);
+        normal.normalize();
+
+        const testPoint = this.pos.copy();
+        testPoint.add(normal);
+        if (this.distanceToLine(p1, p2) < testPoint.copy().dist(this.pos)) {
+            normal.mult(-1);
+        }
+
+        return normal;
+    }
+
+    tryReproduce(config) {
+        if (this.energy > config.reproductionThreshold && Math.random() < 0.01) {
+            this.energy -= 50;
+            return new Agent(
+                this.pos.x + Math.random() * 20 - 10,
+                this.pos.y + Math.random() * 20 - 10,
+                this.species
+            );
+        }
+        return null;
+    }
+
+    draw(ctx, config) {
+        const alpha = Math.min(this.energy / 100, 1);
+        const radius = this.size + (this.energy / 50);
+
+        ctx.shadowBlur = config.glowIntensity;
+        ctx.shadowColor = this.getColor();
+
+        ctx.fillStyle = this.getColor(alpha);
+        ctx.beginPath();
+        ctx.arc(this.pos.x, this.pos.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+    }
+
+    getColor(alpha = 1) {
+        if (this.species === 'predator') {
+            return `rgba(239, 68, 68, ${alpha})`;
+        } else if (this.species === 'herbivore') {
+            return `rgba(16, 185, 129, ${alpha})`;
+        } else {
+            const colors = [
+                `rgba(59, 130, 246, ${alpha})`,
+                `rgba(168, 85, 247, ${alpha})`,
+                `rgba(236, 72, 153, ${alpha})`
+            ];
+            return colors[this.tribe % colors.length];
+        }
+    }
+}
+
+// ============================================================================
+// FOOD SOURCE CLASS
+// ============================================================================
+
+class FoodSource {
+    constructor(x, y) {
+        this.pos = new Vector2D(x, y);
+        this.energy = 100;
+        this.maxEnergy = 100;
+        this.depleted = false;
+        this.regenRate = 0.5;
+    }
+
+    update() {
+        if (this.energy < this.maxEnergy) {
+            this.energy += this.regenRate;
+        }
+        if (this.energy <= 0) {
+            this.depleted = true;
+        }
+    }
+
+    draw(ctx) {
+        const alpha = this.energy / this.maxEnergy;
+        const radius = 8 + (this.energy / 20);
+
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `rgba(34, 197, 94, ${alpha})`;
+        ctx.fillStyle = `rgba(34, 197, 94, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(this.pos.x, this.pos.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// ============================================================================
+// WALL CLASS
+// ============================================================================
+
+class Wall {
+    constructor(x1, y1, x2, y2) {
+        this.start = new Vector2D(x1, y1);
+        this.end = new Vector2D(x2, y2);
+    }
+
+    draw(ctx) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+        ctx.beginPath();
+        ctx.moveTo(this.start.x, this.start.y);
+        ctx.lineTo(this.end.x, this.end.y);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// ============================================================================
+// MAIN SIMULATION CLASS
+// ============================================================================
+
+class Simulation {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.agents = [];
+        this.foodSources = [];
+        this.walls = [];
+        this.newborns = [];
+
+        this.config = {
+            width: canvas.width,
+            height: canvas.height,
+            maxSpeed: 2.5,
+            maxForce: 0.1,
+            separationWeight: 1.5,
+            alignmentWeight: 1.0,
+            cohesionWeight: 1.0,
+            perceptionRadius: 50,
+            energyDrain: 0.1,
+            reproductionThreshold: 150,
+            trailFade: 0.05,
+            glowIntensity: 15,
+            flockingEnabled: true,
+            predatorPreyEnabled: false,
+            resourcesEnabled: false,
+            tribalBehavior: false
+        };
+
+        this.interactionMode = 'spawn';
+        this.isPaused = false;
+        this.timeScale = 1.5;
+        this.mousePos = new Vector2D();
+        this.mouseDown = false;
+        this.wallStart = null;
+
+        this.stats = {
+            births: 0,
+            deaths: 0,
+            populationHistory: [],
+            maxHistoryLength: 200
+        };
+
+        this.lastFrameTime = performance.now();
+        this.fps = 60;
+
+        this.setupEventListeners();
+        this.initializePopulation();
+    }
+
+    setupEventListeners() {
+        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+        this.canvas.addEventListener('click', (e) => this.onClick(e));
+    }
+
+    onMouseDown(e) {
+        this.mouseDown = true;
+        const rect = this.canvas.getBoundingClientRect();
+        this.mousePos.x = e.clientX - rect.left;
+        this.mousePos.y = e.clientY - rect.top;
+
+        if (this.interactionMode === 'wall') {
+            this.wallStart = this.mousePos.copy();
+        }
+    }
+
+    onMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        this.mousePos.x = e.clientX - rect.left;
+        this.mousePos.y = e.clientY - rect.top;
+
+        if (this.mouseDown) {
+            if (this.interactionMode === 'force') {
+                this.applyMouseForce();
+            } else if (this.interactionMode === 'food' && Math.random() < 0.3) {
+                this.foodSources.push(new FoodSource(this.mousePos.x, this.mousePos.y));
+            }
+        }
+    }
+
+    onMouseUp(e) {
+        this.mouseDown = false;
+
+        if (this.interactionMode === 'wall' && this.wallStart) {
+            this.walls.push(new Wall(
+                this.wallStart.x,
+                this.wallStart.y,
+                this.mousePos.x,
+                this.mousePos.y
+            ));
+            this.wallStart = null;
+        }
+    }
+
+    onClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (this.interactionMode === 'spawn') {
+            const species = e.shiftKey ? 'predator' : (e.altKey ? 'herbivore' : 'prey');
+            for (let i = 0; i < 5; i++) {
+                this.agents.push(new Agent(
+                    x + Math.random() * 20 - 10,
+                    y + Math.random() * 20 - 10,
+                    species
+                ));
+            }
+        }
+    }
+
+    applyMouseForce() {
+        for (let agent of this.agents) {
+            if (agent.dead) continue;
+            let d = agent.pos.dist(this.mousePos);
+            if (d < 150) {
+                let force = agent.seek(this.mousePos, this.config);
+                force.mult(2);
+                agent.applyForce(force);
+            }
+        }
+    }
+
+    initializePopulation() {
+        for (let i = 0; i < 50; i++) {
+            this.agents.push(new Agent(
+                Math.random() * this.config.width,
+                Math.random() * this.config.height,
+                'prey'
+            ));
+        }
+    }
+
+    update() {
+        if (this.isPaused) return;
+
+        for (let agent of this.agents) {
+            if (agent.dead) continue;
+
+            if (this.config.flockingEnabled) {
+                agent.flock(this.agents, this.config);
+            }
+
+            if (this.config.predatorPreyEnabled) {
+                agent.hunt(this.agents, this.config);
+                agent.evade(this.agents, this.config);
+            }
+
+            if (this.config.resourcesEnabled) {
+                agent.seekFood(this.foodSources, this.config);
+            }
+
+            if (this.config.tribalBehavior) {
+                agent.tribalBehavior(this.agents, this.config);
+            }
+
+            if (this.walls.length > 0) {
+                agent.avoidWalls(this.walls, this.config);
+            }
+
+            agent.update(this.config);
+
+            const baby = agent.tryReproduce(this.config);
+            if (baby) {
+                baby.tribe = agent.tribe;
+                this.newborns.push(baby);
+                this.stats.births++;
+            }
+        }
+
+        this.agents.push(...this.newborns);
+        this.newborns = [];
+
+        const beforeCount = this.agents.length;
+        this.agents = this.agents.filter(a => !a.dead);
+        this.stats.deaths += beforeCount - this.agents.length;
+
+        for (let food of this.foodSources) {
+            food.update();
+        }
+        this.foodSources = this.foodSources.filter(f => !f.depleted);
+
+        if (this.stats.populationHistory.length >= this.stats.maxHistoryLength) {
+            this.stats.populationHistory.shift();
+        }
+        this.stats.populationHistory.push(this.getPopulationStats());
+    }
+
+    draw() {
+        this.ctx.fillStyle = `rgba(10, 10, 15, ${this.config.trailFade})`;
+        this.ctx.fillRect(0, 0, this.config.width, this.config.height);
+
+        for (let wall of this.walls) {
+            wall.draw(this.ctx);
+        }
+
+        if (this.wallStart && this.mouseDown && this.interactionMode === 'wall') {
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.wallStart.x, this.wallStart.y);
+            this.ctx.lineTo(this.mousePos.x, this.mousePos.y);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
+
+        for (let food of this.foodSources) {
+            food.draw(this.ctx);
+        }
+
+        for (let agent of this.agents) {
+            if (!agent.dead) {
+                agent.draw(this.ctx, this.config);
+            }
+        }
+
+        const now = performance.now();
+        const delta = now - this.lastFrameTime;
+        this.fps = Math.round(1000 / delta);
+        this.lastFrameTime = now;
+    }
+
+    getPopulationStats() {
+        let prey = 0, predator = 0, herbivore = 0;
+        let totalSpeed = 0, totalEnergy = 0;
+
+        for (let agent of this.agents) {
+            if (agent.dead) continue;
+
+            if (agent.species === 'prey') prey++;
+            else if (agent.species === 'predator') predator++;
+            else if (agent.species === 'herbivore') herbivore++;
+
+            totalSpeed += agent.vel.mag();
+            totalEnergy += agent.energy;
+        }
+
+        const count = this.agents.length;
+
+        return {
+            total: count,
+            prey,
+            predator,
+            herbivore,
+            avgSpeed: count > 0 ? (totalSpeed / count).toFixed(2) : 0,
+            avgEnergy: count > 0 ? (totalEnergy / count).toFixed(1) : 0,
+            food: this.foodSources.length
+        };
+    }
+
+    clearAll() {
+        this.agents = [];
+        this.foodSources = [];
+        this.walls = [];
+        this.newborns = [];
+        this.stats.births = 0;
+        this.stats.deaths = 0;
+        this.stats.populationHistory = [];
+    }
+
+    setPreset(presetName) {
+        this.clearAll();
+
+        switch(presetName) {
+            case 'flocking':
+                this.config.flockingEnabled = true;
+                this.config.predatorPreyEnabled = false;
+                this.config.resourcesEnabled = false;
+                this.config.tribalBehavior = false;
+                for (let i = 0; i < 100; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'prey'
+                    ));
+                }
+                break;
+
+            case 'predator-prey':
+                this.config.flockingEnabled = true;
+                this.config.predatorPreyEnabled = true;
+                this.config.resourcesEnabled = false;
+                this.config.tribalBehavior = false;
+                for (let i = 0; i < 80; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'prey'
+                    ));
+                }
+                for (let i = 0; i < 15; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'predator'
+                    ));
+                }
+                break;
+
+            case 'resource':
+                this.config.flockingEnabled = true;
+                this.config.predatorPreyEnabled = false;
+                this.config.resourcesEnabled = true;
+                this.config.tribalBehavior = false;
+                for (let i = 0; i < 60; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'herbivore'
+                    ));
+                }
+                for (let i = 0; i < 30; i++) {
+                    this.foodSources.push(new FoodSource(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height
+                    ));
+                }
+                break;
+
+            case 'tribal':
+                this.config.flockingEnabled = true;
+                this.config.predatorPreyEnabled = false;
+                this.config.resourcesEnabled = false;
+                this.config.tribalBehavior = true;
+                for (let i = 0; i < 120; i++) {
+                    const agent = new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'prey'
+                    );
+                    agent.tribe = Math.floor(Math.random() * 3);
+                    this.agents.push(agent);
+                }
+                break;
+
+            case 'chaos':
+                this.config.flockingEnabled = true;
+                this.config.predatorPreyEnabled = true;
+                this.config.resourcesEnabled = true;
+                this.config.tribalBehavior = true;
+                for (let i = 0; i < 50; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'prey'
+                    ));
+                }
+                for (let i = 0; i < 30; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'herbivore'
+                    ));
+                }
+                for (let i = 0; i < 10; i++) {
+                    this.agents.push(new Agent(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height,
+                        'predator'
+                    ));
+                }
+                for (let i = 0; i < 20; i++) {
+                    this.foodSources.push(new FoodSource(
+                        Math.random() * this.config.width,
+                        Math.random() * this.config.height
+                    ));
+                }
+                break;
+        }
+    }
+}
+
+// ============================================================================
+// UI CONTROLLER
+// ============================================================================
+
+class UIController {
+    constructor(simulation) {
+        this.sim = simulation;
+        this.setupControls();
+        this.updateLoop();
+    }
+
+    setupControls() {
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = btn.dataset.preset;
+                this.sim.setPreset(preset);
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.updateBehaviorToggles();
+            });
+        });
+
+        document.getElementById('toggle-flocking').addEventListener('change', (e) => {
+            this.sim.config.flockingEnabled = e.target.checked;
+        });
+        document.getElementById('toggle-predator').addEventListener('change', (e) => {
+            this.sim.config.predatorPreyEnabled = e.target.checked;
+        });
+        document.getElementById('toggle-resources').addEventListener('change', (e) => {
+            this.sim.config.resourcesEnabled = e.target.checked;
+        });
+        document.getElementById('toggle-tribal').addEventListener('change', (e) => {
+            this.sim.config.tribalBehavior = e.target.checked;
+        });
+
+        document.querySelectorAll('.control-btn[data-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.sim.interactionMode = btn.dataset.mode;
+                document.querySelectorAll('.control-btn[data-mode]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.updateModeIndicator();
+            });
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            this.sim.isPaused = !this.sim.isPaused;
+            document.getElementById('btn-pause').textContent = this.sim.isPaused ? 'Play' : 'Pause';
+        });
+        document.getElementById('btn-slow').addEventListener('click', () => {
+            this.sim.timeScale = 0.5;
+            this.updateTimeButtons('btn-slow');
+        });
+        document.getElementById('btn-normal').addEventListener('click', () => {
+            this.sim.timeScale = 1.0;
+            this.updateTimeButtons('btn-normal');
+        });
+        document.getElementById('btn-fast').addEventListener('click', () => {
+            this.sim.timeScale = 1.5;
+            this.updateTimeButtons('btn-fast');
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            this.sim.clearAll();
+        });
+        document.getElementById('btn-toggle-graphs').addEventListener('click', () => {
+            document.getElementById('graphs-panel').classList.toggle('visible');
+        });
+
+        this.setupSlider('max-speed', 'maxSpeed');
+        this.setupSlider('max-force', 'maxForce');
+        this.setupSlider('separation', 'separationWeight');
+        this.setupSlider('alignment', 'alignmentWeight');
+        this.setupSlider('cohesion', 'cohesionWeight');
+        this.setupSlider('perception', 'perceptionRadius');
+        this.setupSlider('energy-drain', 'energyDrain');
+        this.setupSlider('reproduction', 'reproductionThreshold');
+        this.setupSlider('trail', 'trailFade');
+        this.setupSlider('glow', 'glowIntensity');
+
+        document.getElementById('toggle-right-panel').addEventListener('click', () => {
+            const panel = document.getElementById('right-panel');
+            const btn = document.getElementById('toggle-right-panel');
+            panel.classList.toggle('collapsed');
+            btn.classList.toggle('collapsed');
+            btn.textContent = panel.classList.contains('collapsed') ? '>' : '<';
+        });
+    }
+
+    setupSlider(id, configKey) {
+        const slider = document.getElementById(`slider-${id}`);
+        const valueDisplay = document.getElementById(`val-${id}`);
+
+        slider.addEventListener('input', () => {
+            const value = parseFloat(slider.value);
+            this.sim.config[configKey] = value;
+            valueDisplay.textContent = value;
+        });
+    }
+
+    updateTimeButtons(activeId) {
+        document.querySelectorAll('#btn-slow, #btn-normal, #btn-fast').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById(activeId).classList.add('active');
+    }
+
+    updateBehaviorToggles() {
+        document.getElementById('toggle-flocking').checked = this.sim.config.flockingEnabled;
+        document.getElementById('toggle-predator').checked = this.sim.config.predatorPreyEnabled;
+        document.getElementById('toggle-resources').checked = this.sim.config.resourcesEnabled;
+        document.getElementById('toggle-tribal').checked = this.sim.config.tribalBehavior;
+    }
+
+    updateModeIndicator() {
+        const indicator = document.getElementById('mode-indicator');
+        const modes = {
+            'spawn': 'Spawn Mode (Click: Prey | Shift: Predator | Alt: Herbivore)',
+            'force': 'Force Mode (Drag to attract)',
+            'food': 'Food Mode (Drag to paint)',
+            'wall': 'Wall Mode (Drag to draw)'
+        };
+        indicator.textContent = modes[this.sim.interactionMode] || '';
+        indicator.classList.add('active');
+    }
+
+    updateStats() {
+        const stats = this.sim.getPopulationStats();
+
+        document.getElementById('stat-total').textContent = stats.total;
+        document.getElementById('stat-prey').textContent = stats.prey;
+        document.getElementById('stat-predator').textContent = stats.predator;
+        document.getElementById('stat-herbivore').textContent = stats.herbivore;
+        document.getElementById('stat-food').textContent = stats.food;
+        document.getElementById('stat-fps').textContent = this.sim.fps;
+
+        document.getElementById('stat-avg-speed').textContent = stats.avgSpeed;
+        document.getElementById('stat-avg-energy').textContent = stats.avgEnergy;
+        document.getElementById('stat-births').textContent = this.sim.stats.births;
+        document.getElementById('stat-deaths').textContent = this.sim.stats.deaths;
+
+        this.drawPopulationChart();
+    }
+
+    drawPopulationChart() {
+        const canvas = document.getElementById('population-chart');
+        const ctx = canvas.getContext('2d');
+        const history = this.sim.stats.populationHistory;
+
+        if (history.length < 2) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const maxPop = Math.max(...history.map(h => h.total), 1);
+        const width = canvas.width;
+        const height = canvas.height;
+        const step = width / (history.length - 1);
+
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        history.forEach((h, i) => {
+            const x = i * step;
+            const y = height - (h.prey / maxPop * height);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+        ctx.beginPath();
+        history.forEach((h, i) => {
+            const x = i * step;
+            const y = height - (h.predator / maxPop * height);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.8)';
+        ctx.beginPath();
+        history.forEach((h, i) => {
+            const x = i * step;
+            const y = height - (h.herbivore / maxPop * height);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    }
+
+    updateLoop() {
+        this.updateStats();
+        requestAnimationFrame(() => this.updateLoop());
+    }
+}
+
+// ============================================================================
+// INITIALIZE
+// ============================================================================
+
+window.addEventListener('load', () => {
+    const canvas = document.getElementById('simulation-canvas');
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    const simulation = new Simulation(canvas);
+    const uiController = new UIController(simulation);
+
+    function animate() {
+        for (let i = 0; i < simulation.timeScale; i++) {
+            simulation.update();
+        }
+        simulation.draw();
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        simulation.config.width = canvas.width;
+        simulation.config.height = canvas.height;
+    });
+});
+    </script>
+</body>
+</html>
