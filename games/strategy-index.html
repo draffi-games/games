@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategie Simulatoren | Games Archive</title>
+    <style>
+        :root {
+            --primary: #c9a227;
+            --secondary: #8b4513;
+            --accent: #d4af37;
+            --danger: #dc143c;
+            --success: #228b22;
+            --bg-dark: #0a0a0f;
+            --bg-card: rgba(20, 20, 30, 0.95);
+            --text: #e0e0e0;
+            --text-muted: #888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background - Medieval Pattern */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(201, 162, 39, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 69, 19, 0.05) 0%, transparent 50%);
+        }
+
+        .shield {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.15;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.15;
+            }
+            90% {
+                opacity: 0.15;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Container */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 3rem 0;
+        }
+
+        .logo {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(201, 162, 39, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+        }
+
+        /* Navigation */
+        .nav {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .nav-link {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: var(--bg-card);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 4px;
+            color: var(--primary);
+            text-decoration: none;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: var(--primary);
+            color: #000;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(201, 162, 39, 0.3);
+        }
+
+        /* Games Grid */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            padding: 2rem 0;
+        }
+
+        /* Game Card */
+        .game-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .game-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 30px rgba(201, 162, 39, 0.2);
+        }
+
+        .game-icon {
+            font-size: 4rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 0 20px rgba(201, 162, 39, 0.5));
+        }
+
+        .game-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .game-desc {
+            font-size: 1rem;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .game-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .tag {
+            padding: 0.3rem 0.8rem;
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--primary);
+        }
+
+        .game-status {
+            text-align: center;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .status-available {
+            color: var(--success);
+        }
+
+        .status-coming-soon {
+            color: var(--accent);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 4rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-pattern" id="bgPattern"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">Strategie Simulatoren</h1>
+            <p class="subtitle">Taktik & Kriegsführung</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav">
+            <a href="../index.html" class="nav-link">Zur Hauptgalerie</a>
+        </nav>
+
+        <!-- Games Grid -->
+        <div class="games-grid" id="gamesGrid">
+            <!-- Games will be dynamically inserted here -->
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Plane deine Strategie und führe deine Armeen zum Sieg</p>
+        </footer>
+    </div>
+
+    <script>
+        // Strategy Games Data
+        const strategyGames = [
+            {
+                title: "AoE4 Battle Simulator",
+                description: "Age of Empires 4 Kampfsimulator! Konfiguriere Armeen, erhalte KI-Counter-Empfehlungen und simuliere epische Schlachten mit Echtzeit-Taktik.",
+                icon: "⚔️",
+                url: "aoe4-battle-sim.html",
+                status: "available",
+                tags: ["AoE4", "RTS", "KI-Strategie", "16 Fraktionen"]
+            },
+            {
+                title: "Weitere Strategie-Spiele",
+                description: "Mehr Strategie-Simulatoren kommen bald! Total War, Civilization, StarCraft und mehr...",
+                icon: "🏰",
+                url: "#",
+                status: "coming-soon",
+                tags: ["Kommt bald"]
+            }
+        ];
+
+        // Create floating shields
+        function createShields() {
+            const container = document.getElementById('bgPattern');
+            const shields = ['⚔️', '🛡️', '🏰', '👑', '🗡️', '🏹', '🐴', '⚙️'];
+            const count = 30;
+
+            for (let i = 0; i < count; i++) {
+                const shield = document.createElement('div');
+                shield.className = 'shield';
+                shield.textContent = shields[Math.floor(Math.random() * shields.length)];
+                shield.style.left = Math.random() * 100 + '%';
+                shield.style.animationDelay = Math.random() * 20 + 's';
+                shield.style.animationDuration = (15 + Math.random() * 15) + 's';
+                container.appendChild(shield);
+            }
+        }
+
+        // Render Games
+        function renderGames() {
+            const grid = document.getElementById('gamesGrid');
+
+            strategyGames.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'game-card';
+
+                const tagsHtml = game.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+
+                card.innerHTML = `
+                    <div class="game-icon">${game.icon}</div>
+                    <h3 class="game-title">${game.title}</h3>
+                    <p class="game-desc">${game.description}</p>
+                    <div class="game-tags">${tagsHtml}</div>
+                    <div class="game-status ${game.status === 'available' ? 'status-available' : 'status-coming-soon'}">
+                        ${game.status === 'available' ? 'Verfügbar' : 'Kommt bald'}
+                    </div>
+                `;
+
+                if (game.status === 'available') {
+                    card.addEventListener('click', () => {
+                        window.location.href = game.url;
+                    });
+                }
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            createShields();
+            renderGames();
+        });
+    </script>
+</body>
+</html>

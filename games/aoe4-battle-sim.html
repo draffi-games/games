@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AoE4 Battle Simulator</title>
+    <style>
+        :root {
+            --primary: #c9a227;
+            --secondary: #8b4513;
+            --accent: #d4af37;
+            --danger: #dc143c;
+            --success: #228b22;
+            --bg-dark: #1a1a1f;
+            --bg-panel: rgba(25, 25, 30, 0.95);
+            --text: #e0e0e0;
+            --text-muted: #888;
+            --border: rgba(201, 162, 39, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(201, 162, 39, 0.4);
+            transform: translateY(-2px);
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 2px;
+            background: var(--border);
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #2a2520 0%, var(--bg-dark) 100%);
+            padding: 12px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .header-controls { display: flex; gap: 10px; }
+
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(201, 162, 39, 0.2);
+            border: 1px solid var(--border);
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        .header-btn:hover {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .panel h2 {
+            font-size: 14px;
+            color: var(--primary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel h3 {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin: 12px 0 8px;
+            text-transform: uppercase;
+        }
+
+        #enemy-panel { border-right: 1px solid var(--border); }
+        #player-panel { border-left: 1px solid var(--border); }
+
+        .faction-select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 13px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .faction-select option { background: var(--bg-dark); }
+
+        .faction-info {
+            padding: 8px;
+            background: rgba(201, 162, 39, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 11px;
+        }
+
+        .faction-info .tier {
+            display: inline-block;
+            padding: 2px 6px;
+            background: var(--primary);
+            color: #000;
+            font-weight: bold;
+            font-size: 9px;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+
+        .faction-info .bonus { color: var(--success); margin-top: 4px; }
+
+        .unit-list { max-height: 250px; overflow-y: auto; }
+
+        .unit-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid transparent;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .unit-row:hover {
+            border-color: var(--border);
+            background: rgba(201, 162, 39, 0.1);
+        }
+
+        .unit-icon { font-size: 18px; width: 26px; text-align: center; }
+        .unit-name { flex: 1; font-size: 12px; }
+
+        .unit-counter { display: flex; align-items: center; gap: 4px; }
+
+        .unit-counter button {
+            width: 22px;
+            height: 22px;
+            background: rgba(201, 162, 39, 0.3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .unit-counter button:hover {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .unit-counter input {
+            width: 36px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 12px;
+            padding: 2px;
+        }
+
+        .army-stats {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .stat-label { color: var(--text-muted); }
+        .stat-value { color: var(--text); font-weight: 600; }
+        .stat-value.power { color: var(--primary); font-size: 16px; }
+
+        .ai-recommendation {
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.2), rgba(0, 0, 0, 0.2));
+            border: 1px solid var(--success);
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .ai-recommendation h4 {
+            color: var(--success);
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .ai-recommendation .explanation {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .apply-recommendation {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            background: var(--success);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+
+        .apply-recommendation:hover { filter: brightness(1.2); }
+
+        #battle-container {
+            position: relative;
+            background: #0d0d12;
+            overflow: hidden;
+        }
+
+        #battle-canvas { width: 100%; height: 100%; }
+
+        .battle-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .battle-btn {
+            padding: 10px 20px;
+            background: rgba(201, 162, 39, 0.2);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+        }
+
+        .battle-btn:hover { background: var(--primary); color: #000; }
+        .battle-btn.start { background: var(--success); border-color: var(--success); color: #fff; }
+        .battle-btn.start:hover { filter: brightness(1.2); }
+        .battle-btn.pause { background: var(--secondary); border-color: var(--secondary); color: #fff; }
+        .battle-btn.command { font-size: 11px; padding: 8px 12px; }
+
+        .speed-control { display: flex; align-items: center; gap: 4px; }
+
+        .speed-btn {
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .speed-btn.active { background: var(--primary); color: #000; }
+
+        .battle-stats {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 25px;
+            padding: 12px 25px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .team-stats { text-align: center; }
+        .team-stats.player { color: #4488ff; }
+        .team-stats.enemy { color: #ff4444; }
+        .team-stats .count { font-size: 24px; font-weight: bold; }
+        .team-stats .label { font-size: 11px; text-transform: uppercase; }
+        .battle-time { text-align: center; color: var(--text); }
+        .battle-time .time { font-size: 20px; font-family: 'Courier New', monospace; }
+
+        .selection-box {
+            position: absolute;
+            border: 2px dashed rgba(68, 136, 255, 0.8);
+            background: rgba(68, 136, 255, 0.1);
+            pointer-events: none;
+            display: none;
+        }
+
+        .battle-result {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+        }
+
+        .battle-result.visible { display: flex; }
+
+        .result-content { text-align: center; padding: 40px; }
+
+        .result-content h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        .result-content.victory h2 { color: var(--success); }
+        .result-content.defeat h2 { color: var(--danger); }
+        .result-stats { margin: 20px 0; font-size: 16px; }
+
+        .restart-btn {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: var(--primary);
+            border: none;
+            color: #000;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        /* Minimap */
+        .minimap {
+            position: absolute;
+            bottom: 70px;
+            right: 15px;
+            width: 150px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .minimap canvas { width: 100%; height: 100%; }
+
+        .console {
+            grid-column: 1 / -1;
+            background: rgba(15, 15, 20, 0.95);
+            padding: 8px 20px;
+            border-top: 1px solid var(--border);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .console-log { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .console-log .event { color: var(--primary); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        @media (max-width: 1100px) {
+            #container { grid-template-columns: 260px 1fr 260px; }
+        }
+
+        @media (max-width: 900px) {
+            #container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto auto auto;
+            }
+            .panel { max-height: 180px; }
+            #battle-container { min-height: 350px; }
+            .minimap { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <a href="strategy-index.html" class="back-link">Strategie Hub</a>
+
+    <div id="container">
+        <header class="header">
+            <h1>Age of Empires 4 - Battle Simulator</h1>
+            <div class="header-controls">
+                <button class="header-btn" id="btn-fullscreen">Vollbild</button>
+                <button class="header-btn" id="btn-reset">Reset</button>
+            </div>
+        </header>
+
+        <div id="enemy-panel" class="panel">
+            <h2>Gegnerische Armee</h2>
+            <h3>Fraktion</h3>
+            <select class="faction-select" id="enemy-faction"></select>
+            <div class="faction-info" id="enemy-faction-info"></div>
+            <h3>Einheiten</h3>
+            <div class="unit-list" id="enemy-units"></div>
+            <div class="army-stats" id="enemy-stats">
+                <div class="stat-row"><span class="stat-label">Gesamtstärke:</span><span class="stat-value power" id="enemy-power">0</span></div>
+                <div class="stat-row"><span class="stat-label">Einheiten:</span><span class="stat-value" id="enemy-count">0</span></div>
+                <div class="stat-row"><span class="stat-label">Infanterie:</span><span class="stat-value" id="enemy-infantry">0</span></div>
+                <div class="stat-row"><span class="stat-label">Kavallerie:</span><span class="stat-value" id="enemy-cavalry">0</span></div>
+                <div class="stat-row"><span class="stat-label">Fernkampf:</span><span class="stat-value" id="enemy-ranged">0</span></div>
+                <div class="stat-row"><span class="stat-label">Belagerung:</span><span class="stat-value" id="enemy-siege">0</span></div>
+            </div>
+        </div>
+
+        <div id="battle-container">
+            <canvas id="battle-canvas"></canvas>
+            <div class="selection-box" id="selection-box"></div>
+            <div class="battle-stats" id="battle-stats" style="display: none;">
+                <div class="team-stats player"><div class="count" id="player-units-count">0</div><div class="label">Spieler</div></div>
+                <div class="battle-time"><div class="time" id="battle-time">00:00</div><div class="label">Zeit</div></div>
+                <div class="team-stats enemy"><div class="count" id="enemy-units-count">0</div><div class="label">Gegner</div></div>
+            </div>
+            <div class="minimap" id="minimap"><canvas id="minimap-canvas"></canvas></div>
+            <div class="battle-controls">
+                <button class="battle-btn start" id="btn-start">Schlacht starten</button>
+                <button class="battle-btn pause" id="btn-pause" style="display: none;">Pause</button>
+                <div class="speed-control">
+                    <button class="speed-btn" data-speed="0.5">0.5x</button>
+                    <button class="speed-btn active" data-speed="1">1x</button>
+                    <button class="speed-btn" data-speed="2">2x</button>
+                    <button class="speed-btn" data-speed="4">4x</button>
+                </div>
+                <button class="battle-btn command" id="btn-flank">Flanke</button>
+                <button class="battle-btn command" id="btn-retreat">Rückzug</button>
+                <button class="battle-btn command" id="btn-focus">Fokus</button>
+            </div>
+            <div class="battle-result" id="battle-result">
+                <div class="result-content" id="result-content">
+                    <h2>SIEG!</h2>
+                    <div class="result-stats" id="result-stats"></div>
+                    <button class="restart-btn" id="btn-restart">Neue Schlacht</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="player-panel" class="panel">
+            <h2>Deine Armee</h2>
+            <h3>Fraktion</h3>
+            <select class="faction-select" id="player-faction"></select>
+            <div class="faction-info" id="player-faction-info"></div>
+            <div class="ai-recommendation" id="ai-recommendation">
+                <h4>KI-Empfehlung</h4>
+                <div class="recommendation-units" id="recommendation-units"></div>
+                <div class="explanation" id="recommendation-explanation">Analysiere gegnerische Armee...</div>
+                <button class="apply-recommendation" id="btn-apply-recommendation">Empfehlung anwenden</button>
+            </div>
+            <h3>Einheiten</h3>
+            <div class="unit-list" id="player-units"></div>
+            <div class="army-stats" id="player-stats">
+                <div class="stat-row"><span class="stat-label">Gesamtstärke:</span><span class="stat-value power" id="player-power">0</span></div>
+                <div class="stat-row"><span class="stat-label">Einheiten:</span><span class="stat-value" id="player-count">0</span></div>
+                <div class="stat-row"><span class="stat-label">Infanterie:</span><span class="stat-value" id="player-infantry">0</span></div>
+                <div class="stat-row"><span class="stat-label">Kavallerie:</span><span class="stat-value" id="player-cavalry">0</span></div>
+                <div class="stat-row"><span class="stat-label">Fernkampf:</span><span class="stat-value" id="player-ranged">0</span></div>
+                <div class="stat-row"><span class="stat-label">Belagerung:</span><span class="stat-value" id="player-siege">0</span></div>
+            </div>
+        </div>
+
+        <div class="console">
+            <div class="console-log" id="console-log"><span class="event">[SYSTEM]</span> Battle Simulator bereit.</div>
+            <div class="console-fps">FPS: <span id="fps-display">60</span></div>
+        </div>
+    </div>
+
+    <script>
+        const DEBUG = false;
+        if (!DEBUG) { console.log = () => {}; console.info = () => {}; }
+
+        // ============================================
+        // VECTOR2D CLASS
+        // ============================================
+        class Vector2D {
+            constructor(x = 0, y = 0) { this.x = x; this.y = y; }
+            add(v) { this.x += v.x; this.y += v.y; return this; }
+            sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+            mult(n) { this.x *= n; this.y *= n; return this; }
+            div(n) { if (n !== 0) { this.x /= n; this.y /= n; } return this; }
+            mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+            normalize() { const m = this.mag(); if (m > 0) this.div(m); return this; }
+            limit(max) { if (this.mag() > max) { this.normalize().mult(max); } return this; }
+            setMag(n) { return this.normalize().mult(n); }
+            dist(v) { return Math.sqrt((this.x - v.x) ** 2 + (this.y - v.y) ** 2); }
+            copy() { return new Vector2D(this.x, this.y); }
+            angle() { return Math.atan2(this.y, this.x); }
+            static sub(v1, v2) { return new Vector2D(v1.x - v2.x, v1.y - v2.y); }
+            static add(v1, v2) { return new Vector2D(v1.x + v2.x, v1.y + v2.y); }
+            static fromAngle(a) { return new Vector2D(Math.cos(a), Math.sin(a)); }
+        }
+
+        // ============================================
+        // GAME DATA
+        // ============================================
+        const FACTIONS = {
+            french: { name: "French", tier: "S", color: "#0055a4", bonuses: { cavalry: { damage: 1.2, chargeBonus: 3 }, description: "Starke Kavallerie mit Charge-Bonus" }},
+            rus: { name: "Rus", tier: "S", color: "#ffd700", bonuses: { cavalry: { damage: 1.1 }, description: "Bounty-System: +5 Gold pro Kill" }},
+            mongols: { name: "Mongols", tier: "S", color: "#ff6b00", bonuses: { cavalry: { speed: 1.15 }, allUnits: { speed: 1.05 }, description: "+15% Kavallerie-Speed" }},
+            english: { name: "English", tier: "A", color: "#c41e3a", bonuses: { ranged: { range: 1.15 }, description: "+15% Longbow Range" }},
+            hre: { name: "Holy Roman Empire", tier: "A", color: "#c0c0c0", bonuses: { infantry: { damage: 1.1, armor: 1 }, description: "Frühe Man-at-Arms, Inspiration Bonus" }},
+            abbasid: { name: "Abbasid Dynasty", tier: "A", color: "#006400", bonuses: { antiCavalry: { damage: 1.2 }, description: "+20% Anti-Kavallerie Schaden" }},
+            chinese: { name: "Chinese", tier: "B", color: "#de2910", bonuses: { siege: { damage: 1.2 }, description: "Starke Belagerung" }},
+            delhi: { name: "Delhi Sultanate", tier: "B", color: "#138808", bonuses: { elephants: { hp: 1.2 }, description: "Mächtige War Elephants" }},
+            malians: { name: "Malians", tier: "B", color: "#228b22", bonuses: { stealth: { ambushDamage: 1.3 }, description: "Stealth und Gift-Pfeile" }},
+            ottomans: { name: "Ottomans", tier: "A", color: "#e30a17", bonuses: { gunpowder: { damage: 1.15 }, description: "Janissary und Great Bombard" }},
+            byzantines: { name: "Byzantines", tier: "B", color: "#800080", bonuses: { greekFire: { aoeDamage: 1.2 }, description: "Griechisches Feuer, Söldner" }},
+            japanese: { name: "Japanese", tier: "A", color: "#bc002d", bonuses: { infantry: { meleeDamage: 1.15 }, description: "Starke Samurai" }},
+            ayyubids: { name: "Ayyubids", tier: "A", color: "#ffc61e", bonuses: { cavalry: { chargeBonus: 2 }, description: "Flexible Kavallerie-Taktiken" }},
+            zhu_xi: { name: "Zhu Xi's Legacy", tier: "B", color: "#aa0000", bonuses: { fireUnits: { damage: 1.15 }, description: "Verbesserte Feuer-Einheiten" }},
+            order_dragon: { name: "Order of the Dragon", tier: "A", color: "#4a0080", bonuses: { gilded: { allStats: 1.1 }, description: "Vergoldete Elite-Einheiten" }},
+            jeanne_darc: { name: "Jeanne d'Arc", tier: "B", color: "#ffffff", bonuses: { hero: { aura: 1.15 }, description: "Held-Einheit mit Inspirations-Aura" }}
+        };
+
+        const UNITS = {
+            spearman: { name: "Spearman", icon: "🔱", category: "infantry", classes: ["infantry", "light", "melee", "anti-cavalry"], hp: 90, attack: 8, attackSpeed: 1.5, meleeArmor: 0, rangedArmor: 0, speed: 1.12, range: 0, power: 15, bonusVs: { cavalry: 18, heavy_cavalry: 24 }},
+            man_at_arms: { name: "Man-at-Arms", icon: "⚔️", category: "infantry", classes: ["infantry", "heavy", "melee"], hp: 155, attack: 12, attackSpeed: 1.25, meleeArmor: 4, rangedArmor: 4, speed: 1.0, range: 0, power: 25, bonusVs: {}},
+            landsknecht: { name: "Landsknecht", icon: "🗡️", category: "infantry", classes: ["infantry", "light", "melee", "splash"], hp: 80, attack: 10, attackSpeed: 1.25, meleeArmor: 0, rangedArmor: 0, speed: 1.12, range: 0, power: 20, bonusVs: {}, splash: 0.5 },
+            archer: { name: "Archer", icon: "🏹", category: "ranged", classes: ["ranged", "light"], hp: 70, attack: 5, attackSpeed: 1.5, meleeArmor: 0, rangedArmor: 0, speed: 1.12, range: 5, power: 12, bonusVs: { light_infantry: 3 }},
+            crossbowman: { name: "Crossbowman", icon: "🎯", category: "ranged", classes: ["ranged", "heavy", "anti-armor"], hp: 80, attack: 12, attackSpeed: 2.0, meleeArmor: 0, rangedArmor: 0, speed: 1.0, range: 5, power: 22, bonusVs: { heavy: 8 }, armorPiercing: 0.5 },
+            handcannoneer: { name: "Handcannoneer", icon: "🔫", category: "ranged", classes: ["ranged", "gunpowder", "anti-armor"], hp: 150, attack: 35, attackSpeed: 2.75, meleeArmor: 0, rangedArmor: 0, speed: 0.88, range: 4.5, power: 45, bonusVs: { heavy: 20 }, armorPiercing: 0.7 },
+            longbowman: { name: "Longbowman", icon: "🎯", category: "ranged", classes: ["ranged", "light"], hp: 80, attack: 6, attackSpeed: 1.38, meleeArmor: 0, rangedArmor: 0, speed: 1.12, range: 7, power: 18, bonusVs: { light_infantry: 4 }},
+            horseman: { name: "Horseman", icon: "🐴", category: "cavalry", classes: ["cavalry", "light", "melee"], hp: 125, attack: 9, attackSpeed: 1.5, meleeArmor: 0, rangedArmor: 1, speed: 1.62, range: 0, power: 20, bonusVs: { ranged: 9 }},
+            knight: { name: "Knight", icon: "🛡️", category: "cavalry", classes: ["cavalry", "heavy", "melee", "heavy_cavalry"], hp: 230, attack: 24, attackSpeed: 1.75, meleeArmor: 4, rangedArmor: 4, speed: 1.5, range: 0, power: 50, bonusVs: {}, chargeBonus: 3 },
+            lancer: { name: "Lancer", icon: "🗡️", category: "cavalry", classes: ["cavalry", "heavy", "melee", "heavy_cavalry", "charge"], hp: 210, attack: 18, attackSpeed: 1.75, meleeArmor: 3, rangedArmor: 3, speed: 1.5, range: 0, power: 45, bonusVs: {}, chargeBonus: 36 },
+            mangonel: { name: "Mangonel", icon: "🪨", category: "siege", classes: ["siege", "ranged", "aoe"], hp: 240, attack: 50, attackSpeed: 5.0, meleeArmor: 0, rangedArmor: 8, speed: 0.62, range: 9, power: 60, bonusVs: {}, aoeRadius: 2.5 },
+            springald: { name: "Springald", icon: "⚙️", category: "siege", classes: ["siege", "ranged", "anti-siege"], hp: 200, attack: 60, attackSpeed: 4.0, meleeArmor: 0, rangedArmor: 8, speed: 0.75, range: 10, power: 55, bonusVs: { siege: 40 }},
+            bombard: { name: "Bombard", icon: "💣", category: "siege", classes: ["siege", "ranged", "gunpowder", "anti-building"], hp: 400, attack: 100, attackSpeed: 6.0, meleeArmor: 0, rangedArmor: 12, speed: 0.5, range: 12, power: 100, bonusVs: { building: 500, siege: 100 }}
+        };
+
+        // ============================================
+        // UNIT RENDERER - Detailed Canvas Sprites
+        // ============================================
+        class UnitRenderer {
+            static drawUnit(ctx, unit, x, y, scale = 1) {
+                const s = scale;
+                const factionColor = FACTIONS[unit.faction]?.color || unit.color;
+                const teamColor = unit.team === 'player' ? '#4488ff' : '#ff4444';
+                const angle = unit.vel.mag() > 0.1 ? unit.vel.angle() : (unit.team === 'player' ? 0 : Math.PI);
+
+                ctx.save();
+                ctx.translate(x, y);
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(0, unit.size * 0.8, unit.size * 0.6, unit.size * 0.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw based on unit type
+                if (unit.classes.includes('cavalry')) {
+                    this.drawCavalry(ctx, unit, factionColor, teamColor, angle, s);
+                } else if (unit.classes.includes('siege')) {
+                    this.drawSiege(ctx, unit, factionColor, teamColor, angle, s);
+                } else if (unit.classes.includes('ranged')) {
+                    this.drawRanged(ctx, unit, factionColor, teamColor, angle, s);
+                } else {
+                    this.drawInfantry(ctx, unit, factionColor, teamColor, angle, s);
+                }
+
+                ctx.restore();
+            }
+
+            static drawInfantry(ctx, unit, factionColor, teamColor, angle, s) {
+                const size = unit.size;
+
+                ctx.rotate(angle);
+
+                // Body (torso)
+                ctx.fillStyle = factionColor;
+                ctx.fillRect(-size * 0.3, -size * 0.5, size * 0.6, size * 0.7);
+
+                // Head
+                ctx.fillStyle = '#e8c9a0';
+                ctx.beginPath();
+                ctx.arc(0, -size * 0.7, size * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Helmet for heavy units
+                if (unit.classes.includes('heavy')) {
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.75, size * 0.28, Math.PI, 0);
+                    ctx.fill();
+                    ctx.fillRect(-size * 0.28, -size * 0.75, size * 0.56, size * 0.1);
+                }
+
+                // Legs
+                ctx.fillStyle = '#4a3728';
+                ctx.fillRect(-size * 0.25, size * 0.2, size * 0.15, size * 0.5);
+                ctx.fillRect(size * 0.1, size * 0.2, size * 0.15, size * 0.5);
+
+                // Shield for Man-at-Arms
+                if (unit.type === 'man_at_arms') {
+                    ctx.fillStyle = teamColor;
+                    ctx.fillRect(-size * 0.55, -size * 0.4, size * 0.2, size * 0.6);
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-size * 0.55, -size * 0.4, size * 0.2, size * 0.6);
+                }
+
+                // Weapon
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                if (unit.type === 'spearman') {
+                    // Long spear
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.3, -size * 0.3);
+                    ctx.lineTo(size * 1.2, -size * 0.3);
+                    ctx.stroke();
+                    // Spear tip
+                    ctx.fillStyle = '#aaa';
+                    ctx.beginPath();
+                    ctx.moveTo(size * 1.2, -size * 0.3);
+                    ctx.lineTo(size * 1.4, -size * 0.3);
+                    ctx.lineTo(size * 1.2, -size * 0.15);
+                    ctx.lineTo(size * 1.2, -size * 0.45);
+                    ctx.fill();
+                } else if (unit.type === 'landsknecht') {
+                    // Two-handed sword
+                    ctx.strokeStyle = '#ccc';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.2, -size * 0.8);
+                    ctx.lineTo(size * 0.8, size * 0.2);
+                    ctx.stroke();
+                    // Crossguard
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.1, -size * 0.3);
+                    ctx.lineTo(size * 0.4, -size * 0.6);
+                    ctx.stroke();
+                } else {
+                    // Sword
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.3, -size * 0.2);
+                    ctx.lineTo(size * 0.8, -size * 0.2);
+                    ctx.stroke();
+                }
+
+                // Team indicator
+                ctx.fillStyle = teamColor;
+                ctx.beginPath();
+                ctx.arc(0, -size, size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            static drawRanged(ctx, unit, factionColor, teamColor, angle, s) {
+                const size = unit.size;
+
+                ctx.rotate(angle);
+
+                // Body
+                ctx.fillStyle = factionColor;
+                ctx.fillRect(-size * 0.25, -size * 0.45, size * 0.5, size * 0.6);
+
+                // Hood/head
+                ctx.fillStyle = '#5a4a3a';
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.3, -size * 0.5);
+                ctx.lineTo(0, -size * 0.9);
+                ctx.lineTo(size * 0.3, -size * 0.5);
+                ctx.fill();
+
+                // Face
+                ctx.fillStyle = '#e8c9a0';
+                ctx.beginPath();
+                ctx.arc(0, -size * 0.55, size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Legs
+                ctx.fillStyle = '#4a3728';
+                ctx.fillRect(-size * 0.2, size * 0.15, size * 0.12, size * 0.4);
+                ctx.fillRect(size * 0.08, size * 0.15, size * 0.12, size * 0.4);
+
+                // Weapon based on type
+                ctx.strokeStyle = '#6b4423';
+                ctx.lineWidth = 2;
+
+                if (unit.type === 'archer' || unit.type === 'longbowman') {
+                    // Bow
+                    ctx.beginPath();
+                    ctx.arc(size * 0.3, 0, size * 0.5, -Math.PI * 0.4, Math.PI * 0.4);
+                    ctx.stroke();
+                    // String
+                    ctx.strokeStyle = '#ddd';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.3 + Math.cos(-Math.PI * 0.4) * size * 0.5, Math.sin(-Math.PI * 0.4) * size * 0.5);
+                    ctx.lineTo(size * 0.3 + Math.cos(Math.PI * 0.4) * size * 0.5, Math.sin(Math.PI * 0.4) * size * 0.5);
+                    ctx.stroke();
+                    // Arrow
+                    ctx.strokeStyle = '#6b4423';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.3, 0);
+                    ctx.lineTo(size * 0.9, 0);
+                    ctx.stroke();
+                } else if (unit.type === 'crossbowman') {
+                    // Crossbow
+                    ctx.strokeStyle = '#6b4423';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.2, 0);
+                    ctx.lineTo(size * 0.7, 0);
+                    ctx.stroke();
+                    // Cross piece
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.4, -size * 0.35);
+                    ctx.lineTo(size * 0.4, size * 0.35);
+                    ctx.stroke();
+                } else if (unit.type === 'handcannoneer') {
+                    // Handcannon
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(size * 0.2, -size * 0.08, size * 0.7, size * 0.16);
+                    // Barrel
+                    ctx.fillStyle = '#333';
+                    ctx.beginPath();
+                    ctx.arc(size * 0.9, 0, size * 0.08, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Team indicator
+                ctx.fillStyle = teamColor;
+                ctx.beginPath();
+                ctx.arc(0, -size, size * 0.12, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            static drawCavalry(ctx, unit, factionColor, teamColor, angle, s) {
+                const size = unit.size;
+
+                ctx.rotate(angle);
+
+                // Horse body
+                ctx.fillStyle = '#6b4423';
+                ctx.beginPath();
+                ctx.ellipse(0, size * 0.1, size * 0.9, size * 0.35, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Horse head
+                ctx.beginPath();
+                ctx.ellipse(size * 0.7, -size * 0.15, size * 0.25, size * 0.2, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Horse legs
+                ctx.fillRect(-size * 0.5, size * 0.3, size * 0.12, size * 0.45);
+                ctx.fillRect(-size * 0.2, size * 0.3, size * 0.12, size * 0.45);
+                ctx.fillRect(size * 0.15, size * 0.3, size * 0.12, size * 0.45);
+                ctx.fillRect(size * 0.4, size * 0.3, size * 0.12, size * 0.45);
+
+                // Horse armor for knights
+                if (unit.classes.includes('heavy')) {
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath();
+                    ctx.ellipse(0, size * 0.05, size * 0.7, size * 0.25, 0, Math.PI, 0);
+                    ctx.fill();
+                }
+
+                // Rider body
+                ctx.fillStyle = factionColor;
+                ctx.fillRect(-size * 0.15, -size * 0.65, size * 0.3, size * 0.5);
+
+                // Rider head
+                ctx.fillStyle = '#e8c9a0';
+                ctx.beginPath();
+                ctx.arc(0, -size * 0.8, size * 0.18, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Helmet for heavy cavalry
+                if (unit.classes.includes('heavy')) {
+                    ctx.fillStyle = '#777';
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.85, size * 0.2, Math.PI, 0);
+                    ctx.fill();
+                }
+
+                // Weapon
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                if (unit.type === 'lancer') {
+                    // Long lance
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.2, -size * 0.5);
+                    ctx.lineTo(size * 1.8, -size * 0.5);
+                    ctx.stroke();
+                    // Lance tip
+                    ctx.fillStyle = '#aaa';
+                    ctx.beginPath();
+                    ctx.moveTo(size * 1.8, -size * 0.5);
+                    ctx.lineTo(size * 2.0, -size * 0.5);
+                    ctx.lineTo(size * 1.8, -size * 0.35);
+                    ctx.lineTo(size * 1.8, -size * 0.65);
+                    ctx.fill();
+                } else {
+                    // Sword
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.2, -size * 0.4);
+                    ctx.lineTo(size * 0.8, -size * 0.4);
+                    ctx.stroke();
+                }
+
+                // Team banner
+                ctx.fillStyle = teamColor;
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.1, -size * 1.0);
+                ctx.lineTo(-size * 0.1, -size * 1.4);
+                ctx.lineTo(size * 0.25, -size * 1.25);
+                ctx.lineTo(-size * 0.1, -size * 1.1);
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.1, -size * 0.7);
+                ctx.lineTo(-size * 0.1, -size * 1.4);
+                ctx.stroke();
+            }
+
+            static drawSiege(ctx, unit, factionColor, teamColor, angle, s) {
+                const size = unit.size;
+
+                ctx.rotate(angle);
+
+                if (unit.type === 'mangonel') {
+                    // Base
+                    ctx.fillStyle = '#5a4a3a';
+                    ctx.fillRect(-size * 0.7, -size * 0.2, size * 1.4, size * 0.5);
+
+                    // Wheels
+                    ctx.fillStyle = '#3a2a1a';
+                    ctx.beginPath();
+                    ctx.arc(-size * 0.5, size * 0.35, size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(size * 0.5, size * 0.35, size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Throwing arm
+                    ctx.strokeStyle = '#4a3a2a';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.2, 0);
+                    ctx.lineTo(size * 0.6, -size * 0.8);
+                    ctx.stroke();
+
+                    // Sling
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.6, -size * 0.8);
+                    ctx.quadraticCurveTo(size * 0.9, -size * 0.5, size * 0.7, -size * 0.3);
+                    ctx.stroke();
+
+                } else if (unit.type === 'springald') {
+                    // Base
+                    ctx.fillStyle = '#5a4a3a';
+                    ctx.fillRect(-size * 0.6, -size * 0.15, size * 1.2, size * 0.4);
+
+                    // Wheels
+                    ctx.fillStyle = '#3a2a1a';
+                    ctx.beginPath();
+                    ctx.arc(-size * 0.4, size * 0.3, size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(size * 0.4, size * 0.3, size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Bow arms
+                    ctx.strokeStyle = '#4a3a2a';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.3, -size * 0.4);
+                    ctx.lineTo(size * 0.3, size * 0.3);
+                    ctx.stroke();
+
+                    // Bolt
+                    ctx.strokeStyle = '#888';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.3, 0);
+                    ctx.lineTo(size * 0.9, 0);
+                    ctx.stroke();
+
+                } else if (unit.type === 'bombard') {
+                    // Base
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(-size * 0.8, -size * 0.1, size * 1.6, size * 0.35);
+
+                    // Wheels
+                    ctx.fillStyle = '#3a2a1a';
+                    ctx.beginPath();
+                    ctx.arc(-size * 0.5, size * 0.35, size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(size * 0.5, size * 0.35, size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Cannon barrel
+                    ctx.fillStyle = '#333';
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.3, -size * 0.25);
+                    ctx.lineTo(size * 1.0, -size * 0.15);
+                    ctx.lineTo(size * 1.0, size * 0.15);
+                    ctx.lineTo(-size * 0.3, size * 0.05);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Barrel opening
+                    ctx.fillStyle = '#222';
+                    ctx.beginPath();
+                    ctx.ellipse(size * 1.0, 0, size * 0.1, size * 0.15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Team indicator
+                ctx.fillStyle = teamColor;
+                ctx.fillRect(-size * 0.15, -size * 0.6, size * 0.3, size * 0.15);
+            }
+        }
+
+        // ============================================
+        // EFFECT CLASSES
+        // ============================================
+        class DamageNumber {
+            constructor(x, y, damage, isCrit = false) {
+                this.x = x;
+                this.y = y;
+                this.damage = damage;
+                this.isCrit = isCrit;
+                this.life = 1.0;
+                this.vy = -2;
+            }
+
+            update(dt) {
+                this.y += this.vy;
+                this.vy += 0.05;
+                this.life -= dt * 1.5;
+                return this.life > 0;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.font = this.isCrit ? 'bold 16px Arial' : '12px Arial';
+                ctx.fillStyle = this.isCrit ? '#ffff00' : '#ff6666';
+                ctx.textAlign = 'center';
+                ctx.fillText(`-${this.damage}`, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, tx, ty, damage, type, team) {
+                this.x = x;
+                this.y = y;
+                this.tx = tx;
+                this.ty = ty;
+                this.damage = damage;
+                this.type = type;
+                this.team = team;
+                this.alive = true;
+
+                const dx = tx - x;
+                const dy = ty - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const speed = type === 'arrow' ? 500 : type === 'bolt' ? 400 : type === 'cannonball' ? 300 : 250;
+                this.vx = (dx / dist) * speed;
+                this.vy = (dy / dist) * speed;
+                this.angle = Math.atan2(dy, dx);
+
+                // For arc trajectory (catapult)
+                this.isArc = type === 'stone';
+                if (this.isArc) {
+                    this.arcHeight = dist * 0.3;
+                    this.progress = 0;
+                    this.startX = x;
+                    this.startY = y;
+                    this.totalDist = dist;
+                }
+            }
+
+            update(dt) {
+                if (this.isArc) {
+                    this.progress += dt * 250 / this.totalDist;
+                    if (this.progress >= 1) {
+                        this.alive = false;
+                        return;
+                    }
+                    this.x = this.startX + (this.tx - this.startX) * this.progress;
+                    const arcOffset = Math.sin(this.progress * Math.PI) * this.arcHeight;
+                    this.y = this.startY + (this.ty - this.startY) * this.progress - arcOffset;
+                } else {
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                    const dx = this.tx - this.x;
+                    const dy = this.ty - this.y;
+                    if (dx * dx + dy * dy < 100) {
+                        this.alive = false;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                if (this.type === 'arrow') {
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-12, 0);
+                    ctx.lineTo(8, 0);
+                    ctx.stroke();
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath();
+                    ctx.moveTo(8, 0);
+                    ctx.lineTo(12, -3);
+                    ctx.lineTo(12, 3);
+                    ctx.fill();
+                } else if (this.type === 'bolt') {
+                    ctx.strokeStyle = '#444';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-10, 0);
+                    ctx.lineTo(10, 0);
+                    ctx.stroke();
+                    ctx.fillStyle = '#666';
+                    ctx.beginPath();
+                    ctx.moveTo(10, 0);
+                    ctx.lineTo(14, -4);
+                    ctx.lineTo(14, 4);
+                    ctx.fill();
+                } else if (this.type === 'cannonball') {
+                    ctx.fillStyle = '#333';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Smoke trail
+                    ctx.fillStyle = 'rgba(100,100,100,0.5)';
+                    ctx.beginPath();
+                    ctx.arc(-8, 0, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.type === 'stone') {
+                    ctx.fillStyle = '#666';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#555';
+                    ctx.beginPath();
+                    ctx.arc(-2, -2, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class DeathEffect {
+            constructor(x, y, unitType) {
+                this.x = x;
+                this.y = y;
+                this.unitType = unitType;
+                this.life = 1.0;
+                this.particles = [];
+
+                for (let i = 0; i < 8; i++) {
+                    this.particles.push({
+                        x: 0,
+                        y: 0,
+                        vx: (Math.random() - 0.5) * 60,
+                        vy: (Math.random() - 0.5) * 60 - 30,
+                        size: 2 + Math.random() * 3,
+                        color: Math.random() > 0.5 ? '#8B0000' : '#444'
+                    });
+                }
+            }
+
+            update(dt) {
+                this.life -= dt * 1.2;
+                for (const p of this.particles) {
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.vy += 60 * dt;
+                }
+                return this.life > 0;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                for (const p of this.particles) {
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x + p.x, this.y + p.y, p.size * this.life, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // UNIT CLASS
+        // ============================================
+        class Unit {
+            constructor(unitType, faction, x, y, team, canvasW, canvasH) {
+                const data = UNITS[unitType];
+                this.id = Math.random().toString(36).substr(2, 9);
+                this.type = unitType;
+                this.faction = faction;
+                this.team = team;
+                this.canvasW = canvasW;
+                this.canvasH = canvasH;
+
+                this.pos = new Vector2D(x, y);
+                this.vel = new Vector2D(0, 0);
+                this.acc = new Vector2D(0, 0);
+
+                this.maxHp = data.hp;
+                this.hp = data.hp;
+                this.baseAttack = data.attack;
+                this.attackSpeed = data.attackSpeed;
+                this.meleeArmor = data.meleeArmor;
+                this.rangedArmor = data.rangedArmor;
+                this.baseSpeed = data.speed;
+                this.range = data.range;
+                this.classes = data.classes;
+                this.bonusVs = { ...data.bonusVs };
+                this.power = data.power;
+
+                this.target = null;
+                this.attackCooldown = 0;
+                this.state = 'idle';
+                this.isCharging = true;
+                this.chargeBonus = data.chargeBonus || 0;
+                this.armorPiercing = data.armorPiercing || 0;
+                this.aoeRadius = data.aoeRadius || 0;
+
+                this.selected = false;
+                this.targetPosition = null;
+
+                this.icon = data.icon;
+                this.size = this.classes.includes('siege') ? 18 : this.classes.includes('cavalry') ? 14 : 11;
+                this.color = team === 'player' ? '#4488ff' : '#ff4444';
+
+                this.applyFactionBonuses();
+            }
+
+            applyFactionBonuses() {
+                const f = FACTIONS[this.faction];
+                if (!f?.bonuses) return;
+                const b = f.bonuses;
+
+                if (b.cavalry && this.classes.includes('cavalry')) {
+                    if (b.cavalry.damage) this.baseAttack *= b.cavalry.damage;
+                    if (b.cavalry.speed) this.baseSpeed *= b.cavalry.speed;
+                    if (b.cavalry.chargeBonus) this.chargeBonus += b.cavalry.chargeBonus;
+                }
+                if (b.infantry && this.classes.includes('infantry')) {
+                    if (b.infantry.damage) this.baseAttack *= b.infantry.damage;
+                    if (b.infantry.meleeDamage) this.baseAttack *= b.infantry.meleeDamage;
+                    if (b.infantry.armor) { this.meleeArmor += b.infantry.armor; this.rangedArmor += b.infantry.armor; }
+                }
+                if (b.ranged && this.classes.includes('ranged')) {
+                    if (b.ranged.range) this.range *= b.ranged.range;
+                }
+                if (b.siege && this.classes.includes('siege')) {
+                    if (b.siege.damage) this.baseAttack *= b.siege.damage;
+                }
+                if (b.antiCavalry && this.classes.includes('anti-cavalry')) {
+                    this.bonusVs.cavalry = (this.bonusVs.cavalry || 0) * (b.antiCavalry.damage || 1);
+                }
+                if (b.allUnits?.speed) this.baseSpeed *= b.allUnits.speed;
+            }
+
+            applyForce(force) { this.acc.add(force); }
+
+            seek(target) {
+                const desired = Vector2D.sub(target, this.pos);
+                desired.setMag(this.baseSpeed * 50);
+                const steer = Vector2D.sub(desired, this.vel);
+                steer.limit(0.5);
+                return steer;
+            }
+
+            separate(units) {
+                const desiredSep = this.size * 2.5;
+                const steer = new Vector2D();
+                let count = 0;
+                for (const other of units) {
+                    if (other === this || other.hp <= 0) continue;
+                    const d = this.pos.dist(other.pos);
+                    if (d > 0 && d < desiredSep) {
+                        const diff = Vector2D.sub(this.pos, other.pos);
+                        diff.normalize().div(d);
+                        steer.add(diff);
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    steer.div(count);
+                    steer.setMag(this.baseSpeed * 50);
+                    steer.sub(this.vel);
+                    steer.limit(0.3);
+                }
+                return steer;
+            }
+
+            findTarget(enemies) {
+                let best = null, bestScore = -Infinity;
+                for (const e of enemies) {
+                    if (e.hp <= 0) continue;
+                    const dist = this.pos.dist(e.pos);
+                    const effRange = this.range > 0 ? this.range * 60 : 40;
+                    if (dist > effRange + 200) continue;
+
+                    let score = 0;
+                    for (const [tc, bonus] of Object.entries(this.bonusVs)) {
+                        if (e.classes.includes(tc)) score += bonus * 10;
+                    }
+                    score += (1 - e.hp / e.maxHp) * 50;
+                    score -= dist * 0.3;
+                    if (e === this.target) score += 20;
+                    if (score > bestScore) { bestScore = score; best = e; }
+                }
+                return best;
+            }
+
+            calculateDamage(target) {
+                let dmg = this.baseAttack;
+                for (const [tc, bonus] of Object.entries(this.bonusVs)) {
+                    if (target.classes.some(c => c.includes(tc))) dmg += bonus;
+                }
+                if (this.isCharging && this.chargeBonus > 0) {
+                    dmg += this.chargeBonus;
+                    this.isCharging = false;
+                }
+                const isRanged = this.range > 0;
+                let armor = isRanged ? target.rangedArmor : target.meleeArmor;
+                if (this.armorPiercing > 0) armor *= (1 - this.armorPiercing);
+                return Math.max(1, Math.floor(dmg - armor));
+            }
+
+            attack(target, simulation) {
+                if (this.attackCooldown > 0) return null;
+
+                const dmg = this.calculateDamage(target);
+                this.attackCooldown = this.attackSpeed;
+
+                // Create projectile for ranged units
+                if (this.range > 0) {
+                    let projType = 'arrow';
+                    if (this.type === 'crossbowman') projType = 'bolt';
+                    else if (this.type === 'handcannoneer' || this.type === 'bombard') projType = 'cannonball';
+                    else if (this.type === 'mangonel') projType = 'stone';
+                    else if (this.type === 'springald') projType = 'bolt';
+
+                    simulation.projectiles.push(new Projectile(
+                        this.pos.x, this.pos.y,
+                        target.pos.x, target.pos.y,
+                        dmg, projType, this.team
+                    ));
+                    return { dmg, delayed: true, target };
+                }
+
+                target.takeDamage(dmg, simulation);
+                return { dmg, delayed: false };
+            }
+
+            takeDamage(dmg, simulation) {
+                this.hp -= dmg;
+                simulation.damageNumbers.push(new DamageNumber(this.pos.x, this.pos.y - this.size, dmg, dmg > 15));
+                if (this.hp <= 0) {
+                    this.hp = 0;
+                    this.state = 'dead';
+                    simulation.deathEffects.push(new DeathEffect(this.pos.x, this.pos.y, this.type));
+                }
+            }
+
+            update(dt, enemies, allies, simulation) {
+                if (this.state === 'dead') return;
+
+                if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+                if (!this.target || this.target.hp <= 0) {
+                    this.target = this.findTarget(enemies);
+                }
+
+                if (this.targetPosition) {
+                    const dist = this.pos.dist(this.targetPosition);
+                    if (dist > 10) {
+                        this.applyForce(this.seek(this.targetPosition));
+                        this.state = 'moving';
+                    } else {
+                        this.targetPosition = null;
+                        this.state = 'idle';
+                    }
+                } else if (this.target) {
+                    const dist = this.pos.dist(this.target.pos);
+                    const atkRange = this.range > 0 ? this.range * 60 : 30;
+                    if (dist <= atkRange) {
+                        this.state = 'attacking';
+                        this.attack(this.target, simulation);
+                    } else {
+                        this.state = 'moving';
+                        this.applyForce(this.seek(this.target.pos));
+                    }
+                }
+
+                this.applyForce(this.separate(allies));
+
+                this.vel.add(this.acc);
+                this.vel.limit(this.baseSpeed * 50);
+                this.pos.add(this.vel.copy().mult(dt));
+                this.acc.mult(0);
+
+                // BOUNDARY CLAMPING - Keep units in battlefield
+                const padding = this.size + 5;
+                this.pos.x = Math.max(padding, Math.min(this.canvasW - padding, this.pos.x));
+                this.pos.y = Math.max(padding, Math.min(this.canvasH - padding, this.pos.y));
+            }
+
+            draw(ctx) {
+                if (this.state === 'dead') return;
+
+                // Selection circle
+                if (this.selected) {
+                    ctx.beginPath();
+                    ctx.arc(this.pos.x, this.pos.y, this.size + 6, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                // Draw detailed unit sprite
+                UnitRenderer.drawUnit(ctx, this, this.pos.x, this.pos.y);
+
+                // Health bar
+                const barW = this.size * 2;
+                const barH = 3;
+                const barY = this.pos.y - this.size - 12;
+                const hpPct = this.hp / this.maxHp;
+
+                ctx.fillStyle = '#222';
+                ctx.fillRect(this.pos.x - barW / 2 - 1, barY - 1, barW + 2, barH + 2);
+                ctx.fillStyle = hpPct > 0.5 ? '#00cc00' : hpPct > 0.25 ? '#cccc00' : '#cc0000';
+                ctx.fillRect(this.pos.x - barW / 2, barY, barW * hpPct, barH);
+            }
+        }
+
+        // ============================================
+        // AI COUNTER SYSTEM
+        // ============================================
+        class AICounterSystem {
+            analyzeArmy(units) {
+                const a = { totalUnits: 0, totalPower: 0, infantry: 0, cavalry: 0, ranged: 0, siege: 0, heavyUnits: 0 };
+                for (const [ut, count] of Object.entries(units)) {
+                    if (count <= 0) continue;
+                    const d = UNITS[ut];
+                    if (!d) continue;
+                    a.totalUnits += count;
+                    a.totalPower += d.power * count;
+                    if (d.category === 'infantry') a.infantry += count;
+                    if (d.category === 'cavalry') a.cavalry += count;
+                    if (d.category === 'ranged') a.ranged += count;
+                    if (d.category === 'siege') a.siege += count;
+                    if (d.classes.includes('heavy')) a.heavyUnits += count;
+                }
+                return a;
+            }
+
+            generateCounter(enemyUnits, enemyFaction, playerFaction) {
+                const a = this.analyzeArmy(enemyUnits);
+                const rec = { units: {}, explanations: [], totalPower: 0 };
+
+                if (a.cavalry > 3) {
+                    rec.units.spearman = Math.ceil(a.cavalry * 1.5);
+                    rec.explanations.push(`${rec.units.spearman} Spearmen gegen ${a.cavalry} Kavallerie (+18 Bonus)`);
+                }
+                if (a.ranged > 3) {
+                    rec.units.horseman = Math.ceil(a.ranged * 1.2);
+                    rec.explanations.push(`${rec.units.horseman} Horsemen gegen ${a.ranged} Fernkämpfer (+9 Bonus)`);
+                }
+                if (a.heavyUnits > 3) {
+                    rec.units.crossbowman = Math.ceil(a.heavyUnits * 1.3);
+                    rec.explanations.push(`${rec.units.crossbowman} Crossbowmen gegen ${a.heavyUnits} schwere Einheiten`);
+                }
+                if (a.infantry > 5 && a.cavalry < 3) {
+                    rec.units.archer = Math.ceil(a.infantry * 0.8);
+                    rec.explanations.push(`${rec.units.archer} Archers gegen ${a.infantry} Infanterie`);
+                }
+                if (a.siege > 0) {
+                    rec.units.knight = (rec.units.knight || 0) + Math.max(5, a.siege * 3);
+                    rec.explanations.push(`${rec.units.knight} Knights gegen ${a.siege} Belagerung`);
+                }
+
+                if (Object.keys(rec.units).length === 0) {
+                    rec.units = { man_at_arms: 10, archer: 10, horseman: 5 };
+                    rec.explanations.push('Ausgewogene Standard-Armee');
+                }
+
+                if (playerFaction === 'english' && rec.units.archer) {
+                    rec.units.longbowman = rec.units.archer;
+                    delete rec.units.archer;
+                    rec.explanations.push('English: Archers durch Longbowmen ersetzt');
+                }
+
+                for (const [ut, count] of Object.entries(rec.units)) {
+                    const d = UNITS[ut];
+                    if (d) rec.totalPower += d.power * count;
+                }
+
+                return rec;
+            }
+        }
+
+        // ============================================
+        // BATTLE SIMULATION
+        // ============================================
+        class BattleSimulation {
+            constructor(canvas, minimapCanvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.minimapCanvas = minimapCanvas;
+                this.minimapCtx = minimapCanvas.getContext('2d');
+
+                this.playerUnits = [];
+                this.enemyUnits = [];
+                this.projectiles = [];
+                this.damageNumbers = [];
+                this.deathEffects = [];
+
+                this.state = 'setup';
+                this.speed = 1;
+                this.battleTime = 0;
+
+                this.selectedUnits = [];
+                this.selectionStart = null;
+                this.isSelecting = false;
+
+                this.lastTime = 0;
+                this.fps = 60;
+
+                // Terrain
+                this.grassPatches = [];
+
+                this.resize();
+                this.setupEventListeners();
+                this.generateTerrain();
+            }
+
+            generateTerrain() {
+                this.grassPatches = [];
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                // Random grass tufts
+                for (let i = 0; i < 500; i++) {
+                    this.grassPatches.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        size: 2 + Math.random() * 3,
+                        color: `hsl(${85 + Math.random() * 30}, ${40 + Math.random() * 20}%, ${25 + Math.random() * 15}%)`
+                    });
+                }
+
+                // Some rocks
+                for (let i = 0; i < 30; i++) {
+                    this.grassPatches.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        size: 3 + Math.random() * 5,
+                        color: `hsl(30, 10%, ${30 + Math.random() * 20}%)`,
+                        isRock: true
+                    });
+                }
+            }
+
+            resize() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                this.minimapCanvas.width = 150;
+                this.minimapCanvas.height = 100;
+                this.generateTerrain();
+            }
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.resize());
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); this.onRightClick(e); });
+            }
+
+            onMouseDown(e) {
+                if (this.state !== 'running' || e.button !== 0) return;
+                const rect = this.canvas.getBoundingClientRect();
+                this.selectionStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                this.isSelecting = true;
+            }
+
+            onMouseMove(e) {
+                if (!this.isSelecting) return;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const box = document.getElementById('selection-box');
+                const minX = Math.min(this.selectionStart.x, x);
+                const minY = Math.min(this.selectionStart.y, y);
+                box.style.display = 'block';
+                box.style.left = minX + 'px';
+                box.style.top = minY + 'px';
+                box.style.width = Math.abs(x - this.selectionStart.x) + 'px';
+                box.style.height = Math.abs(y - this.selectionStart.y) + 'px';
+            }
+
+            onMouseUp(e) {
+                if (!this.isSelecting) return;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                document.getElementById('selection-box').style.display = 'none';
+
+                this.selectedUnits.forEach(u => u.selected = false);
+                this.selectedUnits = [];
+
+                const minX = Math.min(this.selectionStart.x, x);
+                const maxX = Math.max(this.selectionStart.x, x);
+                const minY = Math.min(this.selectionStart.y, y);
+                const maxY = Math.max(this.selectionStart.y, y);
+
+                for (const u of this.playerUnits) {
+                    if (u.hp <= 0) continue;
+                    if (u.pos.x >= minX && u.pos.x <= maxX && u.pos.y >= minY && u.pos.y <= maxY) {
+                        u.selected = true;
+                        this.selectedUnits.push(u);
+                    }
+                }
+
+                this.isSelecting = false;
+                this.selectionStart = null;
+                logEvent(`${this.selectedUnits.length} Einheiten ausgewählt`);
+            }
+
+            onRightClick(e) {
+                if (this.state !== 'running' || this.selectedUnits.length === 0) return;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                for (let i = 0; i < this.selectedUnits.length; i++) {
+                    const u = this.selectedUnits[i];
+                    u.targetPosition = new Vector2D(x + (i % 5 - 2) * 25, y + Math.floor(i / 5) * 25);
+                }
+                logEvent(`Bewegungsbefehl zu (${Math.round(x)}, ${Math.round(y)})`);
+            }
+
+            setupArmies(playerUnits, playerFaction, enemyUnits, enemyFaction) {
+                this.playerUnits = [];
+                this.enemyUnits = [];
+
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                let pi = 0;
+                for (const [ut, count] of Object.entries(playerUnits)) {
+                    for (let i = 0; i < count; i++) {
+                        const x = 80 + (pi % 12) * 28;
+                        const y = 80 + Math.floor(pi / 12) * 28;
+                        this.playerUnits.push(new Unit(ut, playerFaction, x, y, 'player', w, h));
+                        pi++;
+                    }
+                }
+
+                let ei = 0;
+                for (const [ut, count] of Object.entries(enemyUnits)) {
+                    for (let i = 0; i < count; i++) {
+                        const x = w - 80 - (ei % 12) * 28;
+                        const y = 80 + Math.floor(ei / 12) * 28;
+                        this.enemyUnits.push(new Unit(ut, enemyFaction, x, y, 'enemy', w, h));
+                        ei++;
+                    }
+                }
+            }
+
+            start() {
+                this.state = 'running';
+                this.battleTime = 0;
+                this.lastTime = performance.now();
+                this.projectiles = [];
+                this.damageNumbers = [];
+                this.deathEffects = [];
+
+                document.getElementById('battle-stats').style.display = 'flex';
+                document.getElementById('btn-start').style.display = 'none';
+                document.getElementById('btn-pause').style.display = 'inline-block';
+
+                logEvent('Schlacht gestartet!');
+                this.loop();
+            }
+
+            pause() {
+                if (this.state === 'running') {
+                    this.state = 'paused';
+                    document.getElementById('btn-pause').textContent = 'Weiter';
+                } else if (this.state === 'paused') {
+                    this.state = 'running';
+                    this.lastTime = performance.now();
+                    document.getElementById('btn-pause').textContent = 'Pause';
+                    this.loop();
+                }
+            }
+
+            loop() {
+                if (this.state !== 'running') return;
+
+                const now = performance.now();
+                const dt = Math.min((now - this.lastTime) / 1000, 0.1) * this.speed;
+                this.lastTime = now;
+                this.fps = Math.round(1000 / (now - this.lastTime + 1));
+
+                this.battleTime += dt;
+                this.update(dt);
+                this.render();
+                this.renderMinimap();
+                this.updateUI();
+
+                const playerAlive = this.playerUnits.filter(u => u.hp > 0).length;
+                const enemyAlive = this.enemyUnits.filter(u => u.hp > 0).length;
+
+                if (playerAlive === 0 || enemyAlive === 0) {
+                    this.endBattle(playerAlive > 0);
+                    return;
+                }
+
+                requestAnimationFrame(() => this.loop());
+            }
+
+            update(dt) {
+                for (const u of this.playerUnits) u.update(dt, this.enemyUnits, this.playerUnits, this);
+                for (const u of this.enemyUnits) u.update(dt, this.playerUnits, this.enemyUnits, this);
+
+                // Update projectiles and handle hits
+                for (const p of this.projectiles) {
+                    p.update(dt);
+                    if (!p.alive) {
+                        // Find target near impact point and deal damage
+                        const targets = p.team === 'player' ? this.enemyUnits : this.playerUnits;
+                        for (const t of targets) {
+                            if (t.hp <= 0) continue;
+                            const dist = Math.sqrt((t.pos.x - p.tx) ** 2 + (t.pos.y - p.ty) ** 2);
+                            if (dist < 20) {
+                                t.takeDamage(p.damage, this);
+                                break;
+                            }
+                        }
+                    }
+                }
+                this.projectiles = this.projectiles.filter(p => p.alive);
+
+                this.damageNumbers = this.damageNumbers.filter(d => d.update(dt));
+                this.deathEffects = this.deathEffects.filter(e => e.update(dt));
+            }
+
+            render() {
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                // Grass background
+                const gradient = ctx.createLinearGradient(0, 0, w, h);
+                gradient.addColorStop(0, '#2d4a1c');
+                gradient.addColorStop(0.5, '#3a5a25');
+                gradient.addColorStop(1, '#2d4a1c');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, w, h);
+
+                // Draw terrain elements
+                for (const p of this.grassPatches) {
+                    ctx.fillStyle = p.color;
+                    if (p.isRock) {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(p.x, p.y, p.size * 0.5, p.size);
+                    }
+                }
+
+                // Grid overlay
+                ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < w; x += 60) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < h; y += 60) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
+                    ctx.stroke();
+                }
+
+                // Team zones (subtle)
+                ctx.fillStyle = 'rgba(68, 136, 255, 0.08)';
+                ctx.fillRect(0, 0, w / 2, h);
+                ctx.fillStyle = 'rgba(255, 68, 68, 0.08)';
+                ctx.fillRect(w / 2, 0, w / 2, h);
+
+                // Center line
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.setLineDash([8, 8]);
+                ctx.beginPath();
+                ctx.moveTo(w / 2, 0);
+                ctx.lineTo(w / 2, h);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw units (sorted by Y for depth)
+                const allUnits = [...this.playerUnits, ...this.enemyUnits].filter(u => u.hp > 0);
+                allUnits.sort((a, b) => a.pos.y - b.pos.y);
+                for (const u of allUnits) u.draw(ctx);
+
+                // Draw projectiles
+                for (const p of this.projectiles) p.draw(ctx);
+
+                // Draw effects
+                for (const e of this.deathEffects) e.draw(ctx);
+                for (const d of this.damageNumbers) d.draw(ctx);
+            }
+
+            renderMinimap() {
+                const ctx = this.minimapCtx;
+                const mw = this.minimapCanvas.width;
+                const mh = this.minimapCanvas.height;
+                const scaleX = mw / this.canvas.width;
+                const scaleY = mh / this.canvas.height;
+
+                // Background
+                ctx.fillStyle = '#1a3010';
+                ctx.fillRect(0, 0, mw, mh);
+
+                // Player units (blue dots)
+                ctx.fillStyle = '#4488ff';
+                for (const u of this.playerUnits) {
+                    if (u.hp <= 0) continue;
+                    ctx.fillRect(u.pos.x * scaleX - 1, u.pos.y * scaleY - 1, 3, 3);
+                }
+
+                // Enemy units (red dots)
+                ctx.fillStyle = '#ff4444';
+                for (const u of this.enemyUnits) {
+                    if (u.hp <= 0) continue;
+                    ctx.fillRect(u.pos.x * scaleX - 1, u.pos.y * scaleY - 1, 3, 3);
+                }
+            }
+
+            updateUI() {
+                const pa = this.playerUnits.filter(u => u.hp > 0).length;
+                const ea = this.enemyUnits.filter(u => u.hp > 0).length;
+                document.getElementById('player-units-count').textContent = pa;
+                document.getElementById('enemy-units-count').textContent = ea;
+
+                const m = Math.floor(this.battleTime / 60);
+                const s = Math.floor(this.battleTime % 60);
+                document.getElementById('battle-time').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                document.getElementById('fps-display').textContent = this.fps;
+            }
+
+            endBattle(victory) {
+                this.state = 'ended';
+                const rc = document.getElementById('result-content');
+                rc.className = 'result-content ' + (victory ? 'victory' : 'defeat');
+                rc.querySelector('h2').textContent = victory ? 'SIEG!' : 'NIEDERLAGE';
+
+                const pa = this.playerUnits.filter(u => u.hp > 0).length;
+                const m = Math.floor(this.battleTime / 60);
+                const s = Math.floor(this.battleTime % 60);
+
+                document.getElementById('result-stats').innerHTML = `
+                    <div>Verbleibende Einheiten: ${pa}</div>
+                    <div>Kampfzeit: ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}</div>
+                `;
+                document.getElementById('battle-result').classList.add('visible');
+                logEvent(victory ? 'SIEG!' : 'NIEDERLAGE!');
+            }
+
+            reset() {
+                this.state = 'setup';
+                this.playerUnits = [];
+                this.enemyUnits = [];
+                this.projectiles = [];
+                this.damageNumbers = [];
+                this.deathEffects = [];
+                this.selectedUnits = [];
+                this.battleTime = 0;
+
+                document.getElementById('battle-stats').style.display = 'none';
+                document.getElementById('btn-start').style.display = 'inline-block';
+                document.getElementById('btn-pause').style.display = 'none';
+                document.getElementById('btn-pause').textContent = 'Pause';
+                document.getElementById('battle-result').classList.remove('visible');
+
+                this.render();
+            }
+
+            commandFlank() {
+                if (this.selectedUnits.length === 0) { logEvent('Keine Einheiten für Flanke'); return; }
+                const alive = this.enemyUnits.filter(u => u.hp > 0);
+                if (alive.length === 0) return;
+
+                let cx = 0, cy = 0;
+                alive.forEach(u => { cx += u.pos.x; cy += u.pos.y; });
+                cx /= alive.length;
+                cy /= alive.length;
+
+                for (let i = 0; i < this.selectedUnits.length; i++) {
+                    const u = this.selectedUnits[i];
+                    const angle = (Math.PI / 2) + (i / this.selectedUnits.length) * Math.PI;
+                    u.targetPosition = new Vector2D(cx + Math.cos(angle) * 180, cy + Math.sin(angle) * 180);
+                }
+                logEvent(`Flankenangriff mit ${this.selectedUnits.length} Einheiten`);
+            }
+
+            commandRetreat() {
+                if (this.selectedUnits.length === 0) { logEvent('Keine Einheiten für Rückzug'); return; }
+                for (let i = 0; i < this.selectedUnits.length; i++) {
+                    const u = this.selectedUnits[i];
+                    u.targetPosition = new Vector2D(80 + (i % 10) * 25, 80 + Math.floor(i / 10) * 25);
+                    u.target = null;
+                }
+                logEvent(`Rückzug: ${this.selectedUnits.length} Einheiten`);
+            }
+
+            commandFocus() {
+                if (this.selectedUnits.length === 0) { logEvent('Keine Einheiten für Fokus'); return; }
+                const alive = this.enemyUnits.filter(u => u.hp > 0);
+                if (alive.length === 0) return;
+
+                let ax = 0, ay = 0;
+                this.selectedUnits.forEach(u => { ax += u.pos.x; ay += u.pos.y; });
+                ax /= this.selectedUnits.length;
+                ay /= this.selectedUnits.length;
+
+                let nearest = null, minD = Infinity;
+                for (const e of alive) {
+                    const d = Math.sqrt((e.pos.x - ax) ** 2 + (e.pos.y - ay) ** 2);
+                    if (d < minD) { minD = d; nearest = e; }
+                }
+
+                if (nearest) {
+                    for (const u of this.selectedUnits) { u.target = nearest; u.targetPosition = null; }
+                    logEvent(`Fokus-Feuer auf ${UNITS[nearest.type].name}`);
+                }
+            }
+        }
+
+        // ============================================
+        // UI CONTROLLER
+        // ============================================
+        class UIController {
+            constructor(simulation) {
+                this.simulation = simulation;
+                this.aiSystem = new AICounterSystem();
+                this.enemyFaction = 'french';
+                this.playerFaction = 'english';
+                this.enemyUnits = {};
+                this.playerUnits = {};
+                this.init();
+            }
+
+            init() {
+                this.populateFactionSelects();
+                this.populateUnitLists();
+                this.setupEventListeners();
+                this.updateFactionInfo('enemy', this.enemyFaction);
+                this.updateFactionInfo('player', this.playerFaction);
+                this.updateArmyStats('enemy');
+                this.updateArmyStats('player');
+                this.updateRecommendation();
+            }
+
+            populateFactionSelects() {
+                for (const s of ['enemy-faction', 'player-faction']) {
+                    const sel = document.getElementById(s);
+                    for (const [k, f] of Object.entries(FACTIONS)) {
+                        const opt = document.createElement('option');
+                        opt.value = k;
+                        opt.textContent = `[${f.tier}] ${f.name}`;
+                        sel.appendChild(opt);
+                    }
+                }
+                document.getElementById('enemy-faction').value = this.enemyFaction;
+                document.getElementById('player-faction').value = this.playerFaction;
+            }
+
+            populateUnitLists() {
+                for (const side of ['enemy', 'player']) {
+                    const list = document.getElementById(`${side}-units`);
+                    list.innerHTML = '';
+                    for (const [k, u] of Object.entries(UNITS)) {
+                        const row = document.createElement('div');
+                        row.className = 'unit-row';
+                        row.innerHTML = `
+                            <span class="unit-icon">${u.icon}</span>
+                            <span class="unit-name">${u.name}</span>
+                            <div class="unit-counter">
+                                <button class="dec">-</button>
+                                <input type="number" value="0" min="0" max="100">
+                                <button class="inc">+</button>
+                            </div>
+                        `;
+                        const input = row.querySelector('input');
+                        row.querySelector('.dec').onclick = () => { input.value = Math.max(0, +input.value - 1); this.updateUnit(side, k, +input.value); };
+                        row.querySelector('.inc').onclick = () => { input.value = Math.min(100, +input.value + 1); this.updateUnit(side, k, +input.value); };
+                        input.onchange = () => { input.value = Math.max(0, Math.min(100, +input.value || 0)); this.updateUnit(side, k, +input.value); };
+                        list.appendChild(row);
+                        this[`${side}Units`][k] = 0;
+                    }
+                }
+            }
+
+            updateUnit(side, unit, count) {
+                this[`${side}Units`][unit] = count;
+                this.updateArmyStats(side);
+                if (side === 'enemy') this.updateRecommendation();
+            }
+
+            updateFactionInfo(side, fKey) {
+                const f = FACTIONS[fKey];
+                const div = document.getElementById(`${side}-faction-info`);
+                const colors = { S: '#ffd700', A: '#c0c0c0', B: '#cd7f32', C: '#808080' };
+                div.innerHTML = `
+                    <span class="tier" style="background:${colors[f.tier]}">${f.tier}-TIER</span>
+                    <div style="color:${f.color};margin-top:4px;font-weight:bold">${f.name}</div>
+                    <div class="bonus">${f.bonuses.description}</div>
+                `;
+            }
+
+            updateArmyStats(side) {
+                const units = this[`${side}Units`];
+                let power = 0, count = 0, inf = 0, cav = 0, rng = 0, sig = 0;
+                for (const [k, c] of Object.entries(units)) {
+                    if (c <= 0) continue;
+                    const d = UNITS[k];
+                    if (!d) continue;
+                    power += d.power * c;
+                    count += c;
+                    if (d.category === 'infantry') inf += c;
+                    if (d.category === 'cavalry') cav += c;
+                    if (d.category === 'ranged') rng += c;
+                    if (d.category === 'siege') sig += c;
+                }
+                document.getElementById(`${side}-power`).textContent = power;
+                document.getElementById(`${side}-count`).textContent = count;
+                document.getElementById(`${side}-infantry`).textContent = inf;
+                document.getElementById(`${side}-cavalry`).textContent = cav;
+                document.getElementById(`${side}-ranged`).textContent = rng;
+                document.getElementById(`${side}-siege`).textContent = sig;
+            }
+
+            updateRecommendation() {
+                const rec = this.aiSystem.generateCounter(this.enemyUnits, this.enemyFaction, this.playerFaction);
+                const div = document.getElementById('recommendation-units');
+                let html = '';
+                for (const [k, c] of Object.entries(rec.units)) {
+                    const d = UNITS[k];
+                    if (d) html += `<div style="display:flex;justify-content:space-between;margin:3px 0"><span>${d.icon} ${d.name}</span><span style="color:var(--success);font-weight:bold">${c}</span></div>`;
+                }
+                div.innerHTML = html || '<div style="color:var(--text-muted)">Konfiguriere gegnerische Armee</div>';
+                document.getElementById('recommendation-explanation').innerHTML = rec.explanations.map(e => `• ${e}`).join('<br>');
+                this.currentRec = rec;
+            }
+
+            applyRecommendation() {
+                if (!this.currentRec) return;
+                for (const k of Object.keys(this.playerUnits)) this.playerUnits[k] = 0;
+                for (const [k, c] of Object.entries(this.currentRec.units)) this.playerUnits[k] = c;
+                document.querySelectorAll('#player-units .unit-row').forEach(row => {
+                    const unit = [...Object.keys(UNITS)][Array.from(row.parentNode.children).indexOf(row)];
+                    row.querySelector('input').value = this.playerUnits[unit] || 0;
+                });
+                this.updateArmyStats('player');
+                logEvent('KI-Empfehlung angewendet');
+            }
+
+            setupEventListeners() {
+                document.getElementById('enemy-faction').onchange = (e) => {
+                    this.enemyFaction = e.target.value;
+                    this.updateFactionInfo('enemy', this.enemyFaction);
+                    this.updateRecommendation();
+                };
+                document.getElementById('player-faction').onchange = (e) => {
+                    this.playerFaction = e.target.value;
+                    this.updateFactionInfo('player', this.playerFaction);
+                    this.updateRecommendation();
+                };
+                document.getElementById('btn-apply-recommendation').onclick = () => this.applyRecommendation();
+                document.getElementById('btn-start').onclick = () => this.startBattle();
+                document.getElementById('btn-pause').onclick = () => this.simulation.pause();
+                document.getElementById('btn-restart').onclick = () => {
+                    document.getElementById('battle-result').classList.remove('visible');
+                    this.simulation.reset();
+                };
+                document.getElementById('btn-reset').onclick = () => { this.simulation.reset(); logEvent('Schlacht zurückgesetzt'); };
+                document.querySelectorAll('.speed-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.simulation.speed = parseFloat(btn.dataset.speed);
+                    };
+                });
+                document.getElementById('btn-flank').onclick = () => this.simulation.commandFlank();
+                document.getElementById('btn-retreat').onclick = () => this.simulation.commandRetreat();
+                document.getElementById('btn-focus').onclick = () => this.simulation.commandFocus();
+                document.getElementById('btn-fullscreen').onclick = () => {
+                    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+                    else document.exitFullscreen();
+                };
+            }
+
+            startBattle() {
+                const ec = Object.values(this.enemyUnits).reduce((a, b) => a + b, 0);
+                const pc = Object.values(this.playerUnits).reduce((a, b) => a + b, 0);
+                if (ec === 0) { logEvent('Fehler: Gegnerische Armee ist leer!'); return; }
+                if (pc === 0) { logEvent('Fehler: Deine Armee ist leer!'); return; }
+                this.simulation.setupArmies(this.playerUnits, this.playerFaction, this.enemyUnits, this.enemyFaction);
+                this.simulation.start();
+            }
+        }
+
+        function logEvent(msg) {
+            document.getElementById('console-log').innerHTML = `<span class="event">[EVENT]</span> ${msg}`;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('battle-canvas');
+            const minimap = document.getElementById('minimap-canvas');
+            const sim = new BattleSimulation(canvas, minimap);
+            new UIController(sim);
+            sim.render();
+            logEvent('Battle Simulator bereit. Konfiguriere beide Armeen und starte die Schlacht.');
+        });
+    </script>
+</body>
+</html>
