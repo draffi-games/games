@@ -24,29 +24,34 @@
         }
 
         .game-container {
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
             max-width: 1250px;
         }
 
         h1 {
             text-align: center;
             margin-bottom: 15px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            font-size: 2.2em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             color: #ffd700;
+            letter-spacing: 2px;
         }
 
         .game-info {
             display: flex;
             justify-content: space-around;
             margin-bottom: 15px;
-            background: rgba(139, 69, 19, 0.5);
-            padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #8B4513;
+            background: rgba(80, 40, 10, 0.4);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(139, 69, 19, 0.5);
         }
 
         .info-item {
@@ -57,9 +62,11 @@
 
         .info-label {
             display: block;
-            font-size: 0.8em;
-            color: #ddd;
+            font-size: 0.75em;
+            color: rgba(255,255,255,0.5);
             margin-bottom: 5px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         .gold { color: #ffd700; }
@@ -89,16 +96,21 @@
         }
 
         .tower-select {
-            background: rgba(139, 69, 19, 0.5);
+            background: rgba(80, 40, 10, 0.35);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #8B4513;
+            border-radius: 10px;
+            border: 1px solid rgba(139, 69, 19, 0.4);
         }
 
         .tower-select h3 {
             margin-bottom: 10px;
             color: #ffd700;
             text-align: center;
+            font-size: 0.9em;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
         .tower-grid {
@@ -109,8 +121,8 @@
 
         .tower-btn {
             padding: 12px 8px;
-            background: linear-gradient(135deg, #654321 0%, #8B4513 100%);
-            border: 2px solid #ffd700;
+            background: rgba(60, 30, 10, 0.5);
+            border: 1px solid rgba(255, 215, 0, 0.3);
             border-radius: 8px;
             color: #fff;
             font-size: 0.85em;
@@ -121,17 +133,21 @@
         }
 
         .tower-btn:hover:not(:disabled) {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+            transform: translateY(-2px);
+            background: rgba(80, 40, 10, 0.7);
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
         }
 
         .tower-btn.selected {
-            background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%);
-            color: #000;
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 0 15px rgba(255, 215, 0, 0.1);
+            color: #ffd700;
         }
 
         .tower-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.35;
             cursor: not-allowed;
             transform: none;
         }
@@ -154,43 +170,58 @@
         }
 
         .controls {
-            background: rgba(139, 69, 19, 0.5);
+            background: rgba(80, 40, 10, 0.35);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #8B4513;
+            border-radius: 10px;
+            border: 1px solid rgba(139, 69, 19, 0.4);
         }
 
         .control-btn {
             width: 100%;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #228B22 0%, #32CD32 100%);
-            border: 2px solid #fff;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(30, 100, 30, 0.5);
+            border: 1px solid rgba(50, 205, 50, 0.3);
             border-radius: 8px;
             color: #fff;
-            font-size: 1.1em;
+            font-size: 1em;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
         }
 
         .control-btn:hover:not(:disabled) {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(50, 205, 50, 0.5);
+            transform: translateY(-1px);
+            background: rgba(30, 120, 30, 0.7);
+            box-shadow: 0 4px 15px rgba(50, 205, 50, 0.2);
         }
 
         .control-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.35;
             cursor: not-allowed;
             transform: none;
         }
 
         .upgrade-btn {
-            background: linear-gradient(135deg, #4169E1 0%, #1E90FF 100%);
+            background: rgba(40, 60, 150, 0.5);
+            border-color: rgba(65, 105, 225, 0.3);
+        }
+
+        .upgrade-btn:hover:not(:disabled) {
+            background: rgba(40, 60, 180, 0.7);
+            box-shadow: 0 4px 15px rgba(65, 105, 225, 0.25);
         }
 
         .sell-btn {
-            background: linear-gradient(135deg, #B22222 0%, #DC143C 100%);
+            background: rgba(130, 20, 20, 0.5);
+            border-color: rgba(220, 20, 60, 0.3);
+        }
+
+        .sell-btn:hover:not(:disabled) {
+            background: rgba(150, 20, 20, 0.7);
+            box-shadow: 0 4px 15px rgba(220, 20, 60, 0.25);
         }
 
         .selected-tower-info {
@@ -208,71 +239,112 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
 
         .modal-content {
-            background: linear-gradient(135deg, #1a472a 0%, #2d5016 100%);
-            padding: 40px;
-            border-radius: 15px;
-            border: 3px solid #ffd700;
+            background: rgba(20, 50, 30, 0.9);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 45px 55px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
             text-align: center;
-            box-shadow: 0 0 50px rgba(255, 215, 0, 0.5);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
 
         .modal h2 {
-            font-size: 3em;
-            margin-bottom: 20px;
+            font-size: 2.8em;
+            margin-bottom: 15px;
             color: #ffd700;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+            letter-spacing: 4px;
         }
 
         .modal p {
-            font-size: 1.3em;
-            margin-bottom: 30px;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .modal-stats {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin: 20px 0 30px 0;
+        }
+
+        .modal-stat {
+            text-align: center;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .modal-stat-label {
+            font-size: 0.75em;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .modal-stat-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #ffd700;
         }
 
         .modal-btn {
-            padding: 15px 40px;
-            margin: 0 10px;
-            font-size: 1.2em;
+            padding: 14px 35px;
+            margin: 0 8px;
+            font-size: 1em;
             font-weight: bold;
-            border: 2px solid #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.3);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s;
+            letter-spacing: 1px;
         }
 
         .restart-btn {
-            background: linear-gradient(135deg, #228B22 0%, #32CD32 100%);
+            background: rgba(30, 120, 30, 0.6);
             color: #fff;
         }
 
         .menu-btn {
-            background: linear-gradient(135deg, #654321 0%, #8B4513 100%);
-            color: #fff;
+            background: rgba(60, 30, 15, 0.6);
+            color: rgba(255,255,255,0.8);
         }
 
         .modal-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.25);
+            border-color: rgba(255, 215, 0, 0.5);
         }
 
         .back-link {
-            display: block;
+            display: inline-block;
             text-align: center;
             margin-top: 15px;
-            color: #ffd700;
+            color: rgba(255,255,255,0.5);
             text-decoration: none;
-            font-weight: bold;
-            transition: color 0.3s;
+            font-size: 14px;
+            transition: all 0.3s;
+            letter-spacing: 1px;
+            padding: 6px 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
         }
 
         .back-link:hover {
-            color: #fff;
+            color: #ffd700;
+            border-color: rgba(255, 215, 0, 0.3);
         }
 
         .sidebar::-webkit-scrollbar {
@@ -388,21 +460,47 @@
 
     <div id="gameOverModal" class="modal">
         <div class="modal-content">
-            <h2>💀 Niederlage! 💀</h2>
+            <h2>Niederlage</h2>
             <p>Dein Königreich wurde überrannt!</p>
-            <p>Du hast <span id="finalWave">0</span> Wellen überlebt.</p>
-            <button class="modal-btn restart-btn" onclick="location.reload()">🔄 Nochmal spielen</button>
-            <button class="modal-btn menu-btn" onclick="location.href='../index.html'">🏠 Zurück zur Galerie</button>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-label">Wellen</div>
+                    <div class="modal-stat-value"><span id="finalWave">0</span>/15</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-label">Türme</div>
+                    <div class="modal-stat-value" id="finalTowers">0</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-label">Gold</div>
+                    <div class="modal-stat-value" id="finalGold">0</div>
+                </div>
+            </div>
+            <button class="modal-btn restart-btn" onclick="location.reload()">Nochmal spielen</button>
+            <button class="modal-btn menu-btn" onclick="location.href='../index.html'">Zurück zur Galerie</button>
         </div>
     </div>
 
     <div id="victoryModal" class="modal">
         <div class="modal-content">
-            <h2>👑 Sieg! 👑</h2>
-            <p>Glückwunsch! Du hast dein Königreich erfolgreich verteidigt!</p>
-            <p>Du hast alle 15 Wellen überlebt!</p>
-            <button class="modal-btn restart-btn" onclick="location.reload()">🔄 Nochmal spielen</button>
-            <button class="modal-btn menu-btn" onclick="location.href='../index.html'">🏠 Zurück zur Galerie</button>
+            <h2>Sieg!</h2>
+            <p>Dein Königreich wurde erfolgreich verteidigt!</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-label">Wellen</div>
+                    <div class="modal-stat-value">15/15</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-label">Türme</div>
+                    <div class="modal-stat-value" id="victoryTowers">0</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-label">Gold</div>
+                    <div class="modal-stat-value" id="victoryGold">0</div>
+                </div>
+            </div>
+            <button class="modal-btn restart-btn" onclick="location.reload()">Nochmal spielen</button>
+            <button class="modal-btn menu-btn" onclick="location.href='../index.html'">Zurück zur Galerie</button>
         </div>
     </div>
 
@@ -1278,12 +1376,16 @@
         function gameOver() {
             gameRunning = false;
             document.getElementById('finalWave').textContent = currentWave;
+            document.getElementById('finalTowers').textContent = towers.length;
+            document.getElementById('finalGold').textContent = gold;
             document.getElementById('gameOverModal').style.display = 'flex';
         }
 
         // Victory
         function victory() {
             gameRunning = false;
+            document.getElementById('victoryTowers').textContent = towers.length;
+            document.getElementById('victoryGold').textContent = gold;
             document.getElementById('victoryModal').style.display = 'flex';
         }
 

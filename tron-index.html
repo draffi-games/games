@@ -4,862 +4,1068 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRON: ARES GRID | Games Archive</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Dillinger Grid - Red (Primary) */
+            --theme-core: #FF0000;
+            --theme-glow: #FF3333;
+            --theme-dark: #990000;
+
             --dillinger-core: #FF0000;
             --dillinger-glow: #FF3333;
             --dillinger-dark: #990000;
 
-            /* ENCOM Grid - Green */
             --encom-core: #00FF41;
             --encom-glow: #00D936;
             --encom-dark: #009926;
 
-            /* Flynn Grid - Blue */
             --flynn-core: #00D9FF;
             --flynn-glow: #0099CC;
             --flynn-dark: #006699;
 
-            /* Supporting */
-            --white-core: #FFFFFF;
-            --black-bg: #000000;
-            --dark-gray: #0F0F0F;
-            --darker-gray: #050505;
-            --purple-accent: #9933FF;
-            --orange-accent: #FF6600;
+            --bg: #000000;
+            --surface: rgba(0, 0, 0, 0.75);
+            --text: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.4);
 
-            /* Active Theme (Default: Red/Dillinger) */
-            --theme-core: var(--dillinger-core);
-            --theme-glow: var(--dillinger-glow);
-            --theme-dark: var(--dillinger-dark);
+            --font: 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Courier New', monospace;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Rajdhani', 'Orbitron', monospace;
-            background-color: var(--black-bg);
-            color: var(--white-core);
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
             overflow-x: hidden;
-            letter-spacing: 0.05em;
-        }
-
-        /* Grid Background */
-        .grid-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            background-color: var(--black-bg);
-            background-image:
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
-            background-position: -1px -1px;
-        }
-
-        .grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
-            background: radial-gradient(ellipse at center, transparent 0%, var(--black-bg) 100%);
-        }
-
-        /* Canvas for WebGL */
-        #webgl-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            opacity: 0.4;
-        }
-
-        /* Main Container */
-        .container {
-            position: relative;
-            z-index: 2;
             min-height: 100vh;
-            padding: 2rem;
         }
 
-        /* Header */
-        .header {
-            text-align: center;
-            padding: 3rem 0 2rem 0;
-            position: relative;
-        }
-
-        .logo {
-            font-family: 'Orbitron', monospace;
-            font-size: clamp(2.5rem, 8vw, 5rem);
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            color: var(--white-core);
-            text-shadow:
-                0 0 7px var(--white-core),
-                0 0 10px var(--white-core),
-                0 0 21px var(--white-core),
-                0 0 42px var(--theme-core),
-                0 0 82px var(--theme-core),
-                0 0 92px var(--theme-core),
-                0 0 102px var(--theme-core),
-                0 0 151px var(--theme-core);
-            animation: logo-pulse 3s ease-in-out infinite;
-        }
-
-        @keyframes logo-pulse {
-            0%, 100% {
-                text-shadow:
-                    0 0 7px var(--white-core),
-                    0 0 10px var(--white-core),
-                    0 0 21px var(--white-core),
-                    0 0 42px var(--theme-core),
-                    0 0 82px var(--theme-core),
-                    0 0 92px var(--theme-core),
-                    0 0 102px var(--theme-core),
-                    0 0 151px var(--theme-core);
-            }
-            50% {
-                text-shadow:
-                    0 0 10px var(--white-core),
-                    0 0 15px var(--white-core),
-                    0 0 28px var(--white-core),
-                    0 0 56px var(--theme-core),
-                    0 0 110px var(--theme-core),
-                    0 0 120px var(--theme-core),
-                    0 0 130px var(--theme-core),
-                    0 0 180px var(--theme-core);
-            }
-        }
-
-        .subtitle {
-            font-family: 'Rajdhani', monospace;
-            font-size: clamp(1rem, 3vw, 1.5rem);
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: 0.3em;
-            color: var(--theme-glow);
-            margin-top: 1rem;
-            text-shadow:
-                0 0 5px var(--theme-core),
-                0 0 10px var(--theme-core);
-        }
-
-        /* Theme Switcher */
-        .theme-switcher {
+        /* === LOADING / BOOT SEQUENCE === */
+        .boot-screen {
             position: fixed;
-            top: 2rem;
-            right: 2rem;
-            z-index: 1000;
-            display: flex;
-            gap: 1rem;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 1rem;
-            border: 1px solid var(--theme-core);
-            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
-            box-shadow:
-                0 0 10px var(--theme-core),
-                0 0 20px var(--theme-core),
-                inset 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-
-        .theme-btn {
-            width: 50px;
-            height: 50px;
-            background: var(--darker-gray);
-            border: 2px solid;
-            cursor: pointer;
-            font-size: 0.7rem;
-            font-family: 'Orbitron', monospace;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            transition: all 0.3s ease;
-            clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
-            position: relative;
-        }
-
-        .theme-btn.red {
-            border-color: var(--dillinger-core);
-            color: var(--dillinger-core);
-        }
-
-        .theme-btn.green {
-            border-color: var(--encom-core);
-            color: var(--encom-core);
-        }
-
-        .theme-btn.blue {
-            border-color: var(--flynn-core);
-            color: var(--flynn-core);
-        }
-
-        .theme-btn.active {
-            background: var(--theme-core);
-            color: var(--black-bg);
-            box-shadow:
-                0 0 20px var(--theme-core),
-                0 0 40px var(--theme-core),
-                inset 0 0 10px rgba(255, 255, 255, 0.3);
-        }
-
-        .theme-btn:hover {
-            transform: scale(1.1);
-            box-shadow:
-                0 0 15px currentColor,
-                0 0 30px currentColor;
-        }
-
-        /* Audio Control */
-        .audio-control {
-            position: fixed;
-            top: 2rem;
-            left: 2rem;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 1rem;
-            border: 1px solid var(--theme-core);
-            clip-path: polygon(0% 0%, 90% 0%, 100% 100%, 10% 100%);
-            box-shadow:
-                0 0 10px var(--theme-core),
-                0 0 20px var(--theme-core),
-                inset 0 0 20px rgba(0, 0, 0, 0.5);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .audio-control:hover {
-            box-shadow:
-                0 0 20px var(--theme-core),
-                0 0 40px var(--theme-core),
-                inset 0 0 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .audio-icon {
-            font-size: 1.5rem;
-            color: var(--theme-core);
-            text-shadow:
-                0 0 5px var(--theme-core),
-                0 0 10px var(--theme-core);
-        }
-
-        /* Navigation */
-        .nav {
-            text-align: center;
-            margin: 2rem 0;
-        }
-
-        .nav-link {
-            display: inline-block;
-            padding: 1rem 2rem;
-            margin: 0.5rem;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid var(--theme-core);
-            color: var(--theme-glow);
-            text-decoration: none;
-            text-transform: uppercase;
-            font-family: 'Orbitron', monospace;
-            font-weight: 700;
-            letter-spacing: 0.15em;
-            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
-            transition: all 0.3s ease;
-            box-shadow:
-                0 0 10px var(--theme-core),
-                0 0 20px var(--theme-core);
-        }
-
-        .nav-link:hover {
-            background: var(--theme-core);
-            color: var(--black-bg);
-            transform: translateY(-5px);
-            box-shadow:
-                0 0 20px var(--theme-core),
-                0 0 40px var(--theme-core),
-                0 5px 15px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Games Grid */
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            padding: 2rem 0;
-            width: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* Game Card */
-        .game-card {
-            position: relative;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid var(--theme-core);
-            padding: 2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            clip-path: polygon(
-                10% 0%, 90% 0%,
-                100% 10%, 100% 90%,
-                90% 100%, 10% 100%,
-                0% 90%, 0% 10%
-            );
-            box-shadow:
-                0 0 10px var(--theme-core),
-                0 0 20px var(--theme-core),
-                inset 0 0 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .game-card::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(45deg, var(--theme-core), transparent, var(--theme-core));
-            clip-path: polygon(
-                10% 0%, 90% 0%,
-                100% 10%, 100% 90%,
-                90% 100%, 10% 100%,
-                0% 90%, 0% 10%
-            );
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-        }
-
-        .game-card:hover::before {
-            opacity: 1;
-        }
-
-        .game-card:hover {
-            transform: translateY(-10px) scale(1.05);
-            box-shadow:
-                0 0 20px var(--theme-core),
-                0 0 40px var(--theme-core),
-                0 0 60px var(--theme-core),
-                inset 0 0 40px rgba(255, 255, 255, 0.1);
-            border-color: var(--theme-glow);
-        }
-
-        .game-icon {
-            font-size: 3rem;
-            text-align: center;
-            margin-bottom: 1rem;
-            filter: drop-shadow(0 0 10px var(--theme-core));
-        }
-
-        .game-title {
-            font-family: 'Orbitron', monospace;
-            font-size: 1.5rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--white-core);
-            text-align: center;
-            margin-bottom: 1rem;
-            text-shadow:
-                0 0 5px var(--theme-core),
-                0 0 10px var(--theme-core);
-        }
-
-        .game-desc {
-            font-family: 'Rajdhani', monospace;
-            font-size: 1rem;
-            font-weight: 300;
-            color: var(--theme-glow);
-            text-align: center;
-            line-height: 1.6;
-        }
-
-        .game-status {
-            margin-top: 1rem;
-            padding: 0.5rem;
-            text-align: center;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            background: rgba(255, 255, 255, 0.05);
-            border-top: 1px solid var(--theme-core);
-        }
-
-        .status-available {
-            color: var(--encom-core);
-        }
-
-        .status-coming-soon {
-            color: var(--orange-accent);
-        }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            padding: 3rem 2rem;
-            font-family: 'Rajdhani', monospace;
-            font-size: 0.9rem;
-            color: var(--theme-glow);
-            border-top: 1px solid var(--theme-core);
-            margin-top: 4rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .theme-switcher,
-            .audio-control {
-                top: 1rem;
-                padding: 0.5rem;
-            }
-
-            .theme-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 0.6rem;
-            }
-
-            .games-grid {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-                padding: 1rem;
-            }
-
-            .container {
-                padding: 1rem;
-            }
-        }
-
-        /* Reduced Motion */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation: none !important;
-                transition: none !important;
-            }
-        }
-
-        /* Loading Animation */
-        .loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--black-bg);
+            inset: 0;
+            background: var(--bg);
             z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            opacity: 1;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .boot-screen.done {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .boot-terminal {
+            font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+            color: var(--theme-core);
+            text-shadow: 0 0 8px var(--theme-core);
+            max-width: 500px;
+            width: 90%;
+        }
+        .boot-line {
+            opacity: 0;
+            margin-bottom: 0.4rem;
+            animation: bootReveal 0.3s forwards;
+        }
+        .boot-line:nth-child(1) { animation-delay: 0.1s; }
+        .boot-line:nth-child(2) { animation-delay: 0.4s; }
+        .boot-line:nth-child(3) { animation-delay: 0.7s; }
+        .boot-line:nth-child(4) { animation-delay: 1.0s; }
+        .boot-line:nth-child(5) { animation-delay: 1.2s; color: var(--encom-core); text-shadow: 0 0 8px var(--encom-core); }
+        @keyframes bootReveal {
+            to { opacity: 1; }
+        }
+        .boot-bar {
+            margin-top: 1.5rem;
+            width: 100%;
+            height: 2px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+        .boot-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--theme-core);
+            box-shadow: 0 0 10px var(--theme-core);
+            animation: bootFill 1.4s 0.1s ease-out forwards;
+        }
+        @keyframes bootFill {
+            to { width: 100%; }
         }
 
-        .loading.hidden {
+        /* === CANVAS BACKGROUND === */
+        #gridCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* === OVERLAYS === */
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.04) 2px,
+                rgba(0, 0, 0, 0.04) 4px
+            );
+        }
+        .vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%);
+        }
+        .theme-flash {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .theme-flash.active { opacity: 0.12; }
+
+        /* === TOP BAR === */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+        }
+        .exit-grid {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--theme-core);
+            color: var(--theme-core);
+            text-decoration: none;
+            font-family: var(--font);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            transition: background 0.3s, color 0.3s, box-shadow 0.3s, text-shadow 0.3s;
+            box-shadow: 0 0 8px rgba(255,255,255,0.05);
+        }
+        .exit-grid:hover {
+            background: var(--theme-core);
+            color: var(--bg);
+            box-shadow: 0 0 15px var(--theme-core), 0 0 30px var(--theme-core);
+            text-shadow: none;
+        }
+        .exit-grid .arrow { font-size: 1rem; }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.4rem 0.8rem;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 2rem;
+        }
+        .audio-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.2rem;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+        .audio-btn:hover { transform: scale(1.15); }
+        .ctrl-divider {
+            width: 1px;
+            height: 18px;
+            background: rgba(255,255,255,0.15);
+        }
+        .theme-orb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+            padding: 0;
+            background: none;
+        }
+        .theme-orb.red .orb-inner { background: var(--dillinger-core); }
+        .theme-orb.green .orb-inner { background: var(--encom-core); }
+        .theme-orb.blue .orb-inner { background: var(--flynn-core); }
+        .orb-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        .theme-orb.active {
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.25);
+        }
+        .theme-orb.active .orb-inner {
+            box-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
+        }
+        .theme-orb:hover { transform: scale(1.2); }
+
+        /* === MAIN CONTENT === */
+        .main {
+            position: relative;
+            z-index: 2;
+            min-height: 100vh;
+            padding: 6rem 1.5rem 2rem;
+        }
+
+        /* === HEADER === */
+        .header {
+            text-align: center;
+            padding: 3rem 0 1rem;
+        }
+        .logo {
+            font-family: var(--font);
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text);
+            text-shadow:
+                0 0 10px var(--text),
+                0 0 20px var(--text),
+                0 0 40px var(--theme-core),
+                0 0 80px var(--theme-core),
+                0 0 120px var(--theme-core);
+            animation: logoPulse 4s ease-in-out infinite;
+            line-height: 1;
+        }
+        @keyframes logoPulse {
+            0%, 100% {
+                text-shadow:
+                    0 0 10px var(--text),
+                    0 0 20px var(--text),
+                    0 0 40px var(--theme-core),
+                    0 0 80px var(--theme-core),
+                    0 0 120px var(--theme-core);
+            }
+            50% {
+                text-shadow:
+                    0 0 15px var(--text),
+                    0 0 30px var(--text),
+                    0 0 60px var(--theme-core),
+                    0 0 100px var(--theme-core),
+                    0 0 160px var(--theme-core);
+            }
+        }
+        .subtitle {
+            font-size: clamp(0.7rem, 2vw, 1rem);
+            font-weight: 400;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            color: var(--theme-glow);
+            margin-top: 1rem;
+            text-shadow: 0 0 10px var(--theme-core);
+        }
+        .header-line {
+            width: 200px;
+            height: 1px;
+            margin: 2rem auto;
+            background: linear-gradient(90deg, transparent, var(--theme-core), transparent);
+            box-shadow: 0 0 8px var(--theme-core);
+        }
+
+        /* === GAME CARDS GRID === */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 1rem 0 4rem;
+        }
+
+        /* === GAME CARD === */
+        .card {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 1.75rem 1.5rem;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform 0.35s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        .card.visible {
+            animation: cardEnter 0.5s ease forwards;
+        }
+        @keyframes cardEnter {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Corner brackets */
+        .card::before, .card::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            transition: border-color 0.4s ease, width 0.3s ease, height 0.3s ease;
+        }
+        .card::before {
+            top: 0; left: 0;
+            border-top: 2px solid var(--theme-core);
+            border-left: 2px solid var(--theme-core);
+        }
+        .card::after {
+            bottom: 0; right: 0;
+            border-bottom: 2px solid var(--theme-core);
+            border-right: 2px solid var(--theme-core);
+        }
+        .card:hover::before, .card:hover::after {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* Top accent glow line */
+        .card-accent {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--theme-core);
+            box-shadow: 0 0 8px var(--theme-core), 0 0 16px var(--theme-core);
+            transform: scaleX(0.3);
+            transition: transform 0.4s ease;
+            transform-origin: left;
+        }
+        .card:hover .card-accent { transform: scaleX(1); }
+
+        /* Scan line effect on hover */
+        .card-scan {
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent 5%, var(--theme-core) 50%, transparent 95%);
+            box-shadow: 0 0 15px var(--theme-core);
             opacity: 0;
             pointer-events: none;
         }
-
-        .loading-text {
-            font-family: 'Orbitron', monospace;
-            font-size: 2rem;
-            color: var(--theme-core);
-            text-shadow:
-                0 0 10px var(--theme-core),
-                0 0 20px var(--theme-core);
-            animation: loading-pulse 1.5s ease-in-out infinite;
+        .card:hover .card-scan {
+            animation: scanDown 0.8s ease-out forwards;
+        }
+        @keyframes scanDown {
+            0% { top: -5%; opacity: 0.8; }
+            100% { top: 105%; opacity: 0; }
         }
 
-        @keyframes loading-pulse {
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: var(--theme-core);
+            box-shadow:
+                0 0 15px rgba(255,255,255,0.03),
+                0 0 30px var(--theme-dark),
+                0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .card-program-id {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: var(--theme-glow);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            filter: drop-shadow(0 0 8px var(--theme-core));
+            transition: transform 0.3s ease;
+        }
+        .card:hover .card-icon { transform: scale(1.1); }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            text-shadow: 0 0 8px var(--theme-dark);
+        }
+        .card-desc {
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 1.25rem;
+        }
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .card-status {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--encom-core);
+            box-shadow: 0 0 4px var(--encom-core);
+            animation: statusPulse 2s ease-in-out infinite;
+        }
+        @keyframes statusPulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+            50% { opacity: 0.4; }
+        }
+        .status-text { color: var(--encom-core); }
+        .card-action {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--theme-core);
+            opacity: 0.4;
+            transition: opacity 0.3s ease;
+        }
+        .card:hover .card-action { opacity: 1; }
+
+        /* === FOOTER === */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            border-top: 1px solid rgba(255,255,255,0.04);
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .footer-status {
+            color: var(--theme-glow);
+            text-shadow: 0 0 5px var(--theme-dark);
+        }
+        .footer-eol {
+            margin-top: 0.75rem;
+            opacity: 0.3;
+            font-style: italic;
         }
 
-        .loading-bar {
-            width: 300px;
-            height: 4px;
-            background: var(--darker-gray);
-            margin-top: 2rem;
-            position: relative;
+        /* === RESPONSIVE === */
+        @media (max-width: 768px) {
+            .top-bar { padding: 0.75rem 1rem; }
+            .exit-grid { padding: 0.4rem 0.8rem; font-size: 0.65rem; }
+            .controls { gap: 0.5rem; padding: 0.3rem 0.6rem; }
+            .theme-orb { width: 14px; height: 14px; }
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 0.5rem 0 3rem;
+            }
+            .main { padding: 5rem 1rem 1rem; }
+            .header { padding: 2rem 0 0.5rem; }
+        }
+
+        @media (max-width: 480px) {
+            .logo { letter-spacing: 0.1em; }
+            .subtitle { letter-spacing: 0.2em; }
+        }
+
+        /* === GAME LAUNCH OVERLAY === */
+        .game-launch-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .game-launch-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .launch-icon {
+            font-size: 4rem;
+            filter: drop-shadow(0 0 20px var(--theme-core));
+            animation: launchPulse 0.8s ease-in-out infinite;
+        }
+        .launch-text {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4em;
+            color: var(--theme-core);
+            text-shadow: 0 0 10px var(--theme-core);
+        }
+        .launch-bar {
+            width: 200px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.05);
             overflow: hidden;
-            border: 1px solid var(--theme-core);
         }
-
-        .loading-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
+        .launch-bar-fill {
             height: 100%;
+            width: 0%;
             background: var(--theme-core);
             box-shadow: 0 0 10px var(--theme-core);
-            animation: loading-bar 2s ease-in-out infinite;
+            animation: launchFill 0.5s ease-out forwards;
+        }
+        @keyframes launchPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+        @keyframes launchFill {
+            0% { width: 0%; }
+            100% { width: 100%; }
         }
 
-        @keyframes loading-bar {
-            0% { left: -100%; }
-            50% { left: 100%; }
-            100% { left: 100%; }
+        /* === REDUCED MOTION === */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .boot-screen { display: none; }
+            .game-launch-overlay { display: none; }
+            .card { opacity: 1; transform: none; }
         }
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
-    <div class="loading" id="loading">
-        <div class="loading-text">INITIALIZING GRID</div>
-        <div class="loading-bar"></div>
+
+    <!-- Game Launch Overlay -->
+    <div class="game-launch-overlay" id="gameLaunchOverlay">
+        <div class="launch-icon" id="launchIcon"></div>
+        <div class="launch-text">LOADING PROGRAM...</div>
+        <div class="launch-bar"><div class="launch-bar-fill"></div></div>
     </div>
 
-    <!-- WebGL Canvas -->
-    <canvas id="webgl-canvas"></canvas>
-
-    <!-- Grid Background -->
-    <div class="grid-background"></div>
-    <div class="grid-overlay"></div>
-
-    <!-- Audio Control -->
-    <div class="audio-control" id="audioControl">
-        <div class="audio-icon" id="audioIcon">🔊</div>
+    <!-- Boot Sequence -->
+    <div class="boot-screen" id="bootScreen">
+        <div class="boot-terminal">
+            <div class="boot-line">> GRID INTERFACE v4.0</div>
+            <div class="boot-line">> INITIALIZING SYSTEMS...</div>
+            <div class="boot-line">> LOADING PROGRAM DATA...</div>
+            <div class="boot-line">> ESTABLISHING NEURAL UPLINK...</div>
+            <div class="boot-line">> GRID STATUS: ONLINE</div>
+            <div class="boot-bar"><div class="boot-bar-fill"></div></div>
+        </div>
     </div>
 
-    <!-- Theme Switcher -->
-    <div class="theme-switcher">
-        <button class="theme-btn red active" data-theme="red">RED</button>
-        <button class="theme-btn green" data-theme="green">GRN</button>
-        <button class="theme-btn blue" data-theme="blue">BLU</button>
+    <!-- Canvas Background -->
+    <canvas id="gridCanvas"></canvas>
+
+    <!-- Overlays -->
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    <div class="theme-flash" id="themeFlash"></div>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <a href="index.html" class="exit-grid" id="exitGrid">
+            <span class="arrow">&#9667;</span>
+            <span>EXIT GRID</span>
+        </a>
+        <div class="controls">
+            <button class="audio-btn" id="audioBtn" aria-label="Toggle audio">&#x1f50a;</button>
+            <div class="ctrl-divider"></div>
+            <button class="theme-orb red active" data-theme="red" aria-label="Red theme"><div class="orb-inner"></div></button>
+            <button class="theme-orb green" data-theme="green" aria-label="Green theme"><div class="orb-inner"></div></button>
+            <button class="theme-orb blue" data-theme="blue" aria-label="Blue theme"><div class="orb-inner"></div></button>
+        </div>
     </div>
 
-    <!-- Main Container -->
-    <div class="container">
-        <!-- Header -->
+    <!-- Main Content -->
+    <div class="main">
         <header class="header">
             <h1 class="logo">TRON: ARES</h1>
             <p class="subtitle">Grid Games Archive</p>
+            <div class="header-line"></div>
         </header>
 
-        <!-- Navigation -->
-        <nav class="nav">
-            <a href="index.html" class="nav-link">← Main Gallery</a>
-        </nav>
+        <div class="grid" id="gamesGrid"></div>
 
-        <!-- Games Grid -->
-        <div class="games-grid" id="gamesGrid">
-            <!-- Games will be dynamically inserted here -->
-        </div>
-
-        <!-- Footer -->
         <footer class="footer">
-            <p>SYSTEM STATUS: ONLINE | GRID INTEGRITY: 100% | USER PROGRAMS: ACTIVE</p>
-            <p style="margin-top: 1rem; opacity: 0.6;">End of Line.</p>
+            <p class="footer-status">SYSTEM STATUS: ONLINE &nbsp;|&nbsp; GRID INTEGRITY: 100% &nbsp;|&nbsp; USER PROGRAMS: ACTIVE</p>
+            <p class="footer-eol">End of Line.</p>
         </footer>
     </div>
 
     <script>
-        // Games Data
-        const games = [
-            {
-                title: "Light Cycle Racing",
-                description: "Classic light cycle combat on the Grid. Outmaneuver opponents and survive the arena.",
-                icon: "🏍️",
-                url: "games/tron/light-cycle-racing.html",
-                status: "available"
-            },
-            {
-                title: "Disc Wars",
-                description: "Identity disc combat arena. Throw, deflect, and dominate in triangular warfare.",
-                icon: "💿",
-                url: "games/tron/disc-wars.html",
-                status: "available"
-            },
-            {
-                title: "Grid Puzzle",
-                description: "Circuit building and pathfinding challenges. Reconnect the Grid systems.",
-                icon: "🔷",
-                url: "games/tron/grid-puzzle.html",
-                status: "available"
-            },
-            {
-                title: "Tron Snake",
-                description: "Navigate light trails without collision. Grow longer, survive longer.",
-                icon: "🐍",
-                url: "games/tron/tron-snake.html",
-                status: "available"
-            },
-            {
-                title: "Tron Tetris",
-                description: "Neon blocks fall on the Grid. Clear lines, build combos, chase high scores.",
-                icon: "🔲",
-                url: "games/tron/tron-tetris.html",
-                status: "available"
-            },
-            {
-                title: "Memory Grid",
-                description: "Match pairs of Grid elements. Test your program's memory capacity.",
-                icon: "🧠",
-                url: "games/tron/memory-grid.html",
-                status: "available"
-            },
-            {
-                title: "3D Arena WebGL",
-                description: "ULTIMATE 3D light cycle combat with Three.js! Detailed bike models, Turbo-Boost system, smooth controls, and split-screen multiplayer. The definitive TRON experience!",
-                icon: "🌟",
-                url: "games/tron/tron-3d-dual-arena-threejs.html",
-                status: "available"
-            },
-            {
-                title: "AI Arena",
-                description: "Single-player survival arena! Battle intelligent AI opponents in a map filled with obstacles. Wave-based progression with increasing difficulty. Strategic gameplay!",
-                icon: "🤖",
-                url: "games/tron/tron-ai-arena.html",
-                status: "available"
+        // =============================================
+        // Debug Mode - No console.log in production
+        // =============================================
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // =============================================
+        // Event Manager (prevents memory leaks)
+        // =============================================
+        class EventManager {
+            constructor() { this.listeners = []; }
+            add(el, evt, fn, opts) {
+                el.addEventListener(evt, fn, opts);
+                this.listeners.push({ el, evt, fn, opts });
             }
+            removeAll() {
+                this.listeners.forEach(({ el, evt, fn, opts }) => el.removeEventListener(evt, fn, opts));
+                this.listeners = [];
+            }
+        }
+        const events = new EventManager();
+
+        // =============================================
+        // Safe LocalStorage
+        // =============================================
+        function safeGet(key, fallback) {
+            try { const v = localStorage.getItem(key); return v !== null ? v : fallback; }
+            catch(e) { console.error('LocalStorage read failed:', e); return fallback; }
+        }
+        function safeSet(key, val) {
+            try { localStorage.setItem(key, val); }
+            catch(e) { console.error('LocalStorage write failed:', e); }
+        }
+
+        // =============================================
+        // Hex to RGB helper
+        // =============================================
+        function hexToRgb(hex) {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) } : { r:0, g:0, b:0 };
+        }
+
+        // =============================================
+        // Games Data
+        // =============================================
+        const games = [
+            { title: "Light Cycle Racing", description: "Classic light cycle combat on the Grid. Outmaneuver opponents and survive the arena.", icon: "\u{1F3CD}\uFE0F", url: "games/tron/light-cycle-racing.html", status: "available" },
+            { title: "Disc Wars", description: "Identity disc combat arena. Throw, deflect, and dominate in triangular warfare.", icon: "\u{1F4BF}", url: "games/tron/disc-wars.html", status: "available" },
+            { title: "Grid Puzzle", description: "Circuit building and pathfinding challenges. Reconnect the Grid systems.", icon: "\u{1F537}", url: "games/tron/grid-puzzle.html", status: "available" },
+            { title: "Tron Snake", description: "Navigate light trails without collision. Grow longer, survive longer.", icon: "\u{1F40D}", url: "games/tron/tron-snake.html", status: "available" },
+            { title: "Tron Tetris", description: "Neon blocks fall on the Grid. Clear lines, build combos, chase high scores.", icon: "\u{1F532}", url: "games/tron/tron-tetris.html", status: "available" },
+            { title: "Memory Grid", description: "Match pairs of Grid elements. Test your program's memory capacity.", icon: "\u{1F9E0}", url: "games/tron/memory-grid.html", status: "available" },
+            { title: "3D Arena WebGL", description: "Ultimate 3D light cycle combat! Detailed bike models, Turbo-Boost, split-screen multiplayer. The definitive TRON experience.", icon: "\u{1F31F}", url: "games/tron/tron-3d-dual-arena-threejs.html", status: "available" },
+            { title: "AI Arena", description: "Single-player survival! Battle intelligent AI opponents in a map with obstacles. Wave-based progression with increasing difficulty.", icon: "\u{1F916}", url: "games/tron/tron-ai-arena.html", status: "available" }
         ];
 
-        // Audio System - MUST BE FIRST (used by other functions)
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        let audioEnabled = localStorage.getItem('tronAudio') !== 'false';
-        const audioControl = document.getElementById('audioControl');
-        const audioIcon = document.getElementById('audioIcon');
-
-        function updateAudioIcon() {
-            audioIcon.textContent = audioEnabled ? '🔊' : '🔇';
-        }
-
-        updateAudioIcon();
-
-        // Simple Web Audio API sound generation
-        function playSound(type) {
-            if (!audioEnabled) return;
-
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            switch(type) {
-                case 'ui-click':
-                    oscillator.frequency.value = 800;
-                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-                    oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + 0.1);
-                    break;
-                case 'theme-switch':
-                    oscillator.frequency.value = 600;
-                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-                    oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + 0.2);
-                    break;
-                case 'hover':
-                    oscillator.frequency.value = 400;
-                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
-                    oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + 0.05);
-                    break;
-            }
-        }
-
-        // Audio Control Event Listener
-        audioControl.addEventListener('click', () => {
-            audioEnabled = !audioEnabled;
-            localStorage.setItem('tronAudio', audioEnabled);
-            updateAudioIcon();
-            if (audioEnabled) {
-                playSound('ui-click');
-            }
-        });
-
+        // =============================================
         // Theme System
-        const themeButtons = document.querySelectorAll('.theme-btn');
-        const root = document.documentElement;
-
+        // =============================================
         const themes = {
-            red: {
-                core: '#FF0000',
-                glow: '#FF3333',
-                dark: '#990000'
-            },
-            green: {
-                core: '#00FF41',
-                glow: '#00D936',
-                dark: '#009926'
-            },
-            blue: {
-                core: '#00D9FF',
-                glow: '#0099CC',
-                dark: '#006699'
-            }
+            red:   { core: '#FF0000', glow: '#FF3333', dark: '#990000' },
+            green: { core: '#00FF41', glow: '#00D936', dark: '#009926' },
+            blue:  { core: '#00D9FF', glow: '#0099CC', dark: '#006699' }
         };
+        const root = document.documentElement;
+        const themeFlash = document.getElementById('themeFlash');
+        let currentTheme = safeGet('tronTheme', 'red');
 
-        function setTheme(theme) {
-            const colors = themes[theme];
-            root.style.setProperty('--theme-core', colors.core);
-            root.style.setProperty('--theme-glow', colors.glow);
-            root.style.setProperty('--theme-dark', colors.dark);
+        function setTheme(name, flash) {
+            const t = themes[name];
+            if (!t) return;
+            currentTheme = name;
 
-            themeButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === theme);
+            if (flash) {
+                themeFlash.style.background = t.core;
+                themeFlash.classList.add('active');
+                setTimeout(() => themeFlash.classList.remove('active'), 200);
+            }
+
+            root.style.setProperty('--theme-core', t.core);
+            root.style.setProperty('--theme-glow', t.glow);
+            root.style.setProperty('--theme-dark', t.dark);
+
+            document.querySelectorAll('.theme-orb').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === name);
             });
 
-            localStorage.setItem('tronTheme', theme);
+            if (gridWorld) gridWorld.setThemeColor(t.core);
+            safeSet('tronTheme', name);
             playSound('theme-switch');
         }
 
-        themeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                setTheme(btn.dataset.theme);
-            });
+        document.querySelectorAll('.theme-orb').forEach(btn => {
+            events.add(btn, 'click', () => setTheme(btn.dataset.theme, true));
         });
 
-        // Load saved theme
-        const savedTheme = localStorage.getItem('tronTheme') || 'red';
-        setTheme(savedTheme);
+        // =============================================
+        // Audio System
+        // =============================================
+        let audioCtx = null;
+        let audioEnabled = safeGet('tronAudio', 'true') !== 'false';
+        const audioBtn = document.getElementById('audioBtn');
 
-        // Render Games
-        function renderGames() {
-            const grid = document.getElementById('gamesGrid');
-            console.log('Rendering games:', games.length, 'games found');
+        function getAudioCtx() {
+            if (!audioCtx) {
+                try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                catch(e) { audioEnabled = false; }
+            }
+            return audioCtx;
+        }
 
-            games.forEach(game => {
-                console.log('Adding game:', game.title, 'Status:', game.status);
-                const card = document.createElement('div');
-                card.className = 'game-card';
-                card.innerHTML = `
-                    <div class="game-icon">${game.icon}</div>
-                    <h3 class="game-title">${game.title}</h3>
-                    <p class="game-desc">${game.description}</p>
-                    <div class="game-status ${game.status === 'available' ? 'status-available' : 'status-coming-soon'}">
-                        ${game.status === 'available' ? '● AVAILABLE' : '○ COMING SOON'}
-                    </div>
-                `;
+        function updateAudioIcon() {
+            audioBtn.textContent = audioEnabled ? '\u{1F50A}' : '\u{1F507}';
+        }
+        updateAudioIcon();
 
-                card.addEventListener('mouseenter', () => playSound('hover'));
+        function playSound(type) {
+            if (!audioEnabled) return;
+            const ctx = getAudioCtx();
+            if (!ctx) return;
+            try {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                const now = ctx.currentTime;
+                switch(type) {
+                    case 'ui-click':
+                        osc.frequency.value = 800;
+                        gain.gain.setValueAtTime(0.25, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                        osc.start(now); osc.stop(now + 0.1);
+                        break;
+                    case 'theme-switch':
+                        osc.frequency.value = 600;
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                        osc.start(now); osc.stop(now + 0.2);
+                        break;
+                    case 'hover':
+                        osc.frequency.value = 500;
+                        gain.gain.setValueAtTime(0.08, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                        osc.start(now); osc.stop(now + 0.04);
+                        break;
+                }
+            } catch(e) { /* audio failure is non-critical */ }
+        }
 
-                if (game.status === 'available') {
-                    card.addEventListener('click', () => {
-                        playSound('ui-click');
-                        setTimeout(() => {
-                            window.location.href = game.url;
-                        }, 200);
+        events.add(audioBtn, 'click', () => {
+            audioEnabled = !audioEnabled;
+            safeSet('tronAudio', String(audioEnabled));
+            updateAudioIcon();
+            if (audioEnabled) playSound('ui-click');
+        });
+
+        // =============================================
+        // Grid World (Canvas Background)
+        // =============================================
+        let gridWorld = null;
+
+        class GridWorld {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                if (!this.ctx) { console.error('Canvas 2D context unavailable'); return; }
+                this.color = hexToRgb(themes[currentTheme].core);
+                this.particles = [];
+                this.trails = [];
+                this.time = 0;
+                this.w = 0;
+                this.h = 0;
+                this.horizonY = 0;
+                this.vanishX = 0;
+                this.resize();
+                this.initParticles();
+            }
+
+            resize() {
+                this.w = this.canvas.width = window.innerWidth;
+                this.h = this.canvas.height = window.innerHeight;
+                this.horizonY = this.h * 0.33;
+                this.vanishX = this.w / 2;
+            }
+
+            setThemeColor(hex) { this.color = hexToRgb(hex); }
+            rgba(a) { return `rgba(${this.color.r},${this.color.g},${this.color.b},${a})`; }
+
+            initParticles() {
+                this.particles = [];
+                const count = Math.min(60, Math.floor((this.w || 1920) * (this.h || 1080) / 40000));
+                for (let i = 0; i < count; i++) {
+                    this.particles.push({
+                        x: Math.random() * (this.w || 1920),
+                        y: Math.random() * (this.h || 1080),
+                        s: 1 + Math.random() * 2,
+                        vy: -0.15 - Math.random() * 0.4,
+                        vx: (Math.random() - 0.5) * 0.15,
+                        a: 0.08 + Math.random() * 0.3,
+                        p: Math.random() * Math.PI * 2
                     });
                 }
-
-                grid.appendChild(card);
-            });
-        }
-
-        // WebGL Grid Background (Simple version)
-        function initWebGL() {
-            const canvas = document.getElementById('webgl-canvas');
-            const ctx = canvas.getContext('2d');
-
-            function resize() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
             }
 
-            resize();
-            window.addEventListener('resize', resize);
+            drawHorizonGlow() {
+                const ctx = this.ctx;
+                const g = ctx.createRadialGradient(this.vanishX, this.horizonY, 0, this.vanishX, this.horizonY, this.w * 0.35);
+                g.addColorStop(0, this.rgba(0.12));
+                g.addColorStop(1, 'transparent');
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, this.w, this.h);
 
-            let rotation = 0;
+                // Horizon line
+                const lg = ctx.createLinearGradient(0, 0, this.w, 0);
+                lg.addColorStop(0, 'transparent');
+                lg.addColorStop(0.3, this.rgba(0.15));
+                lg.addColorStop(0.5, this.rgba(0.3));
+                lg.addColorStop(0.7, this.rgba(0.15));
+                lg.addColorStop(1, 'transparent');
+                ctx.fillStyle = lg;
+                ctx.fillRect(0, this.horizonY - 1, this.w, 2);
+            }
 
-            function drawGrid() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.save();
+            drawFloor() {
+                const ctx = this.ctx;
+                const { w, h, horizonY, vanishX } = this;
+                const floorH = h - horizonY;
 
-                const centerX = canvas.width / 2;
-                const centerY = canvas.height / 2;
-
-                ctx.translate(centerX, centerY);
-                ctx.rotate(rotation);
-
-                const gridSize = 100;
-                const lineCount = 20;
-
-                // Get current theme color
-                const themeColor = getComputedStyle(root).getPropertyValue('--theme-core').trim();
-                ctx.strokeStyle = themeColor;
-                ctx.lineWidth = 1;
-                ctx.globalAlpha = 0.2;
-
-                // Draw rotating grid
-                for (let i = -lineCount; i <= lineCount; i++) {
-                    const offset = i * gridSize;
-
-                    // Horizontal lines
+                // Horizontal lines with forward scroll
+                const numH = 25;
+                const offset = (this.time * 0.4) % 1;
+                for (let i = 0; i < numH; i++) {
+                    const t = (i + offset) / numH;
+                    const y = horizonY + floorH * t * t;
+                    const a = 0.02 + 0.1 * t * t;
+                    ctx.strokeStyle = this.rgba(a);
+                    ctx.lineWidth = t > 0.6 ? 1 : 0.5;
                     ctx.beginPath();
-                    ctx.moveTo(-canvas.width, offset);
-                    ctx.lineTo(canvas.width, offset);
-                    ctx.stroke();
-
-                    // Vertical lines
-                    ctx.beginPath();
-                    ctx.moveTo(offset, -canvas.height);
-                    ctx.lineTo(offset, canvas.height);
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
                     ctx.stroke();
                 }
 
-                ctx.restore();
-
-                rotation += 0.0005;
-                requestAnimationFrame(drawGrid);
+                // Vertical converging lines
+                const numV = 24;
+                for (let i = -numV; i <= numV; i++) {
+                    const spread = i / numV;
+                    const bottomX = vanishX + spread * w * 0.9;
+                    const dist = Math.abs(spread);
+                    const a = 0.08 * (1 - dist * 0.6);
+                    if (a <= 0) continue;
+                    ctx.strokeStyle = this.rgba(a);
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(vanishX, horizonY);
+                    ctx.lineTo(bottomX, h);
+                    ctx.stroke();
+                }
             }
 
-            drawGrid();
+            drawTrails() {
+                const ctx = this.ctx;
+                // Spawn
+                if (Math.random() < 0.008 && this.trails.length < 6) {
+                    const fromLeft = Math.random() > 0.5;
+                    this.trails.push({
+                        y: this.horizonY + (this.h - this.horizonY) * (0.15 + Math.random() * 0.6),
+                        x: fromLeft ? -180 : this.w + 180,
+                        dir: fromLeft ? 1 : -1,
+                        spd: 4 + Math.random() * 5,
+                        len: 100 + Math.random() * 180,
+                        lw: 1 + Math.random() * 1.5
+                    });
+                }
+                this.trails = this.trails.filter(t => {
+                    t.x += t.spd * t.dir;
+                    if ((t.dir > 0 && t.x > this.w + t.len + 10) || (t.dir < 0 && t.x < -t.len - 10)) return false;
+
+                    const tailX = t.x - t.len * t.dir;
+                    const g = ctx.createLinearGradient(tailX, 0, t.x, 0);
+                    g.addColorStop(0, 'transparent');
+                    g.addColorStop(0.6, this.rgba(0.15));
+                    g.addColorStop(1, this.rgba(0.5));
+                    ctx.strokeStyle = g;
+                    ctx.lineWidth = t.lw;
+                    ctx.beginPath();
+                    ctx.moveTo(tailX, t.y);
+                    ctx.lineTo(t.x, t.y);
+                    ctx.stroke();
+
+                    // Bright head dot
+                    ctx.fillStyle = this.rgba(0.7);
+                    ctx.fillRect(t.x - 1.5 * t.dir, t.y - 1, 3, 2);
+                    return true;
+                });
+            }
+
+            drawParticles() {
+                const ctx = this.ctx;
+                this.particles.forEach(p => {
+                    p.y += p.vy;
+                    p.x += p.vx;
+                    p.p += 0.012;
+                    if (p.y < -10) { p.y = this.h + 10; p.x = Math.random() * this.w; }
+                    if (p.x < -10) p.x = this.w + 10;
+                    if (p.x > this.w + 10) p.x = -10;
+                    const alpha = p.a * (0.4 + 0.6 * Math.sin(p.p));
+                    ctx.fillStyle = this.rgba(alpha);
+                    ctx.fillRect(p.x, p.y, p.s, p.s);
+                });
+            }
+
+            render(dt) {
+                this.time += dt;
+                const ctx = this.ctx;
+                ctx.clearRect(0, 0, this.w, this.h);
+                this.drawHorizonGlow();
+                this.drawFloor();
+                this.drawTrails();
+                this.drawParticles();
+            }
         }
 
-        // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded, rendering games...');
-            renderGames();
-            console.log('Games rendered, initializing WebGL...');
-            initWebGL();
+        // =============================================
+        // Render Game Cards
+        // =============================================
+        function renderCards() {
+            const container = document.getElementById('gamesGrid');
+            games.forEach((game, i) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                const pid = 'PRG_' + String(i + 1).padStart(2, '0');
+                card.innerHTML =
+                    '<div class="card-accent"></div>' +
+                    '<div class="card-scan"></div>' +
+                    '<div class="card-program-id">' + pid + '</div>' +
+                    '<div class="card-icon">' + game.icon + '</div>' +
+                    '<div class="card-title">' + game.title + '</div>' +
+                    '<div class="card-desc">' + game.description + '</div>' +
+                    '<div class="card-footer">' +
+                        '<div class="card-status">' +
+                            '<div class="status-dot"></div>' +
+                            '<span class="status-text">LOADED</span>' +
+                        '</div>' +
+                        '<div class="card-action">&gt; EXECUTE</div>' +
+                    '</div>';
 
-            // Hide loading screen
+                card.style.animationDelay = (i * 0.08) + 's';
+
+                events.add(card, 'mouseenter', () => playSound('hover'));
+                if (game.status === 'available') {
+                    events.add(card, 'click', () => {
+                        playSound('ui-click');
+                        var overlay = document.getElementById('gameLaunchOverlay');
+                        var launchIcon = document.getElementById('launchIcon');
+                        if (overlay && launchIcon) {
+                            launchIcon.textContent = game.icon;
+                            overlay.classList.add('active');
+                            setTimeout(() => { window.location.href = game.url; }, 600);
+                        } else {
+                            window.location.href = game.url;
+                        }
+                    });
+                }
+                container.appendChild(card);
+            });
+        }
+
+        // =============================================
+        // Staggered Card Entrance (Intersection Observer)
+        // =============================================
+        function observeCards() {
+            if (!('IntersectionObserver' in window)) {
+                document.querySelectorAll('.card').forEach(c => c.classList.add('visible'));
+                return;
+            }
+            const obs = new IntersectionObserver((entries) => {
+                entries.forEach(e => {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('visible');
+                        obs.unobserve(e.target);
+                    }
+                });
+            }, { threshold: 0.1 });
+            document.querySelectorAll('.card').forEach(c => obs.observe(c));
+        }
+
+        // =============================================
+        // Boot Sequence & Init
+        // =============================================
+        function init() {
+            // Apply saved theme (no flash on load)
+            setTheme(currentTheme, false);
+
+            // Render cards
+            renderCards();
+
+            // Init canvas
+            const canvas = document.getElementById('gridCanvas');
+            if (canvas && canvas.getContext) {
+                gridWorld = new GridWorld(canvas);
+                gridWorld.setThemeColor(themes[currentTheme].core);
+
+                let lastTime = performance.now();
+                function loop(now) {
+                    const dt = Math.min((now - lastTime) / 1000, 0.1);
+                    lastTime = now;
+                    gridWorld.render(dt);
+                    requestAnimationFrame(loop);
+                }
+                requestAnimationFrame(loop);
+
+                events.add(window, 'resize', () => {
+                    gridWorld.resize();
+                    gridWorld.initParticles();
+                });
+            }
+
+            // End boot sequence
             setTimeout(() => {
-                console.log('Hiding loading screen...');
-                document.getElementById('loading').classList.add('hidden');
-                console.log('Page ready!');
-            }, 500);
-        });
+                const boot = document.getElementById('bootScreen');
+                if (boot) boot.classList.add('done');
+                // Observe cards after boot fades
+                setTimeout(observeCards, 300);
+            }, 1600);
 
-        // Ambient sound (optional - can be annoying, so disabled by default)
-        // Uncomment if you want a continuous ambient hum
-        /*
-        function startAmbientSound() {
-            if (!audioEnabled) return;
-
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            oscillator.frequency.value = 55; // Low hum
-            oscillator.type = 'sine';
-            gainNode.gain.value = 0.02; // Very quiet
-
-            oscillator.start();
+            // Exit grid sound
+            const exitBtn = document.getElementById('exitGrid');
+            if (exitBtn) {
+                events.add(exitBtn, 'click', (e) => {
+                    playSound('ui-click');
+                });
+            }
         }
-        */
+
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>

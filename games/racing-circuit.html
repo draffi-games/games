@@ -25,7 +25,7 @@
 
         #gameContainer {
             position: relative;
-            background: #0a0a0a;
+            background: rgba(10, 10, 10, 0.9);
             border-radius: 15px;
             box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
             padding: 20px;
@@ -33,7 +33,7 @@
         }
 
         #gameCanvas {
-            border: 3px solid #ff4444;
+            border: 2px solid rgba(255, 68, 68, 0.4);
             border-radius: 10px;
             display: block;
             background: #1a4d1a;
@@ -51,22 +51,24 @@
         }
 
         .ui-panel {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px 18px;
             border-radius: 10px;
-            border: 2px solid #ff4444;
-            min-width: 200px;
+            border: 1px solid rgba(255, 68, 68, 0.25);
+            min-width: 180px;
         }
 
         .ui-label {
-            font-size: 12px;
-            color: #aaa;
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
 
         .ui-value {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
             color: #fff;
             font-family: 'Courier New', monospace;
@@ -74,10 +76,12 @@
 
         .ui-value.speed {
             color: #44ff44;
+            text-shadow: 0 0 10px rgba(68, 255, 68, 0.3);
         }
 
         .ui-value.time {
             color: #ffaa00;
+            text-shadow: 0 0 10px rgba(255, 170, 0, 0.3);
         }
 
         #controls {
@@ -86,23 +90,25 @@
         }
 
         button {
-            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            background: rgba(180, 30, 30, 0.6);
             color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            border-radius: 25px;
+            border: 1px solid rgba(255, 68, 68, 0.4);
+            padding: 10px 25px;
+            font-size: 14px;
+            border-radius: 8px;
             cursor: pointer;
             margin: 5px;
             transition: all 0.3s;
             font-weight: bold;
             text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+            letter-spacing: 1px;
         }
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 68, 68, 0.6);
+            background: rgba(200, 40, 40, 0.7);
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+            border-color: rgba(255, 68, 68, 0.6);
         }
 
         button:active {
@@ -110,59 +116,179 @@
         }
 
         .back-link {
-            color: #ff4444;
+            color: rgba(255,255,255,0.5);
             text-decoration: none;
             margin: 10px;
             font-size: 14px;
-            transition: color 0.3s;
+            transition: all 0.3s;
+            padding: 6px 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
         }
 
         .back-link:hover {
-            color: #ff6666;
+            color: #ff4444;
+            border-color: rgba(255, 68, 68, 0.3);
+        }
+
+        /* Start Screen */
+        .start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            border-radius: 15px;
+        }
+
+        .start-overlay.hidden {
+            display: none;
+        }
+
+        .start-overlay h2 {
+            font-size: 3em;
+            color: #ff4444;
+            text-shadow: 0 0 30px rgba(255, 68, 68, 0.4);
+            margin-bottom: 10px;
+            letter-spacing: 6px;
+        }
+
+        .start-overlay .start-sub {
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+            margin-bottom: 30px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .start-overlay .start-controls {
+            color: rgba(255,255,255,0.3);
+            font-size: 13px;
+            margin-top: 25px;
+            letter-spacing: 1px;
+        }
+
+        .start-overlay .start-controls span {
+            display: inline-block;
+            padding: 2px 8px;
+            border: 1px solid rgba(255,68,68,0.3);
+            border-radius: 3px;
+            color: #ff4444;
+            margin: 0 2px;
+            font-size: 12px;
+        }
+
+        .start-overlay .start-btn {
+            padding: 15px 45px;
+            font-size: 18px;
+            background: transparent;
+            border: 2px solid #ff4444;
+            color: #ff4444;
+            letter-spacing: 4px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .start-overlay .start-btn:hover {
+            background: rgba(255, 68, 68, 0.15);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.3);
+            transform: translateY(-2px);
         }
 
         #gameOver {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.95);
-            padding: 40px;
-            border-radius: 20px;
-            border: 3px solid #ff4444;
-            text-align: center;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 15px;
+            text-align: center;
             z-index: 100;
         }
 
+        #gameOver.visible {
+            display: flex;
+        }
+
         #gameOver h2 {
-            font-size: 36px;
-            margin-bottom: 20px;
+            font-size: 2.5em;
+            margin-bottom: 10px;
             color: #ff4444;
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+            letter-spacing: 4px;
         }
 
         #gameOver p {
-            font-size: 18px;
-            margin: 10px 0;
+            font-size: 16px;
+            margin: 8px 0;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .race-stats {
+            display: flex;
+            gap: 25px;
+            margin: 20px 0 25px 0;
+        }
+
+        .race-stat {
+            text-align: center;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+        }
+
+        .race-stat-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .race-stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff4444;
+            font-family: 'Courier New', monospace;
         }
 
         .new-record {
             color: #ffaa00;
             font-weight: bold;
-            animation: pulse 1s infinite;
+            animation: pulse 1.5s ease-in-out infinite;
+            letter-spacing: 2px;
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.02); }
         }
 
         .instructions {
-            margin: 20px 0;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            font-size: 14px;
+            margin: 15px 0;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.5);
         }
 
         .instructions strong {
@@ -251,17 +377,41 @@
             <div class="touch-btn" id="btnRight">►</div>
         </div>
 
+        <div class="start-overlay" id="startOverlay">
+            <h2>RACING CIRCUIT</h2>
+            <div class="start-sub">Top-Down Racing</div>
+            <button class="start-btn" onclick="beginRace()">START RACE</button>
+            <div class="start-controls">
+                <span>W</span> Beschleunigen
+                <span>S</span> Bremsen
+                <span>A</span><span>D</span> Lenken
+                <span>P</span> Pause
+            </div>
+        </div>
+
         <div id="gameOver">
             <h2>Race Complete!</h2>
-            <p id="finalTime"></p>
-            <p id="bestTimeMsg"></p>
+            <div class="race-stats">
+                <div class="race-stat">
+                    <div class="race-stat-label">Total Time</div>
+                    <div class="race-stat-value" id="finalTime">0:00</div>
+                </div>
+                <div class="race-stat">
+                    <div class="race-stat-label">Best Lap</div>
+                    <div class="race-stat-value" id="bestTimeMsg">--:--</div>
+                </div>
+                <div class="race-stat">
+                    <div class="race-stat-label">Laps</div>
+                    <div class="race-stat-value">5</div>
+                </div>
+            </div>
             <button onclick="restartGame()">Race Again</button>
         </div>
     </div>
 
     <div class="instructions">
-        <strong>Controls:</strong> WASD - W Accelerate | S Brake | A D Steer<br>
-        <strong>Goal:</strong> Complete 5 laps as fast as possible!
+        <strong>Steuerung:</strong> WASD - W Beschleunigen | S Bremsen | A D Lenken<br>
+        <strong>Ziel:</strong> 5 Runden so schnell wie möglich!
     </div>
 
     <div id="controls">
@@ -269,7 +419,7 @@
         <button onclick="restartGame()">Restart</button>
         <button onclick="toggleFullscreen()">Fullscreen</button>
         <br>
-        <a href="../index.html" class="back-link">← Back to Games</a>
+        <a href="../index.html" class="back-link">← Zurück zur Galerie</a>
     </div>
 
     <script>
@@ -632,23 +782,38 @@
             gameLoop();
         }
 
+        // Begin race (from start overlay)
+        function beginRace() {
+            document.getElementById('startOverlay').classList.add('hidden');
+            startGame();
+        }
+
         // End game
         function endGame() {
             gameRunning = false;
             const totalTime = Date.now() - gameStartTime;
 
-            document.getElementById('finalTime').textContent = `Total Time: ${formatTime(totalTime)}`;
+            document.getElementById('finalTime').textContent = formatTime(totalTime);
 
             if (bestLapTime !== Infinity) {
                 document.getElementById('bestTimeMsg').innerHTML =
-                    `<span class="new-record">Best Lap: ${formatTime(bestLapTime)}</span>`;
+                    '<span class="new-record">' + formatTime(bestLapTime) + '</span>';
+            } else {
+                document.getElementById('bestTimeMsg').textContent = '--:--';
             }
 
-            document.getElementById('gameOver').style.display = 'block';
+            const gameOverEl = document.getElementById('gameOver');
+            gameOverEl.classList.add('visible');
+            gameOverEl.style.display = 'flex';
         }
 
         // Restart game
         function restartGame() {
+            const gameOverEl = document.getElementById('gameOver');
+            gameOverEl.classList.remove('visible');
+            gameOverEl.style.display = 'none';
+            const startOverlay = document.getElementById('startOverlay');
+            startOverlay.classList.add('hidden');
             startGame();
         }
 
@@ -677,9 +842,6 @@
         updateBestLap();
         drawTrack();
         drawCar();
-
-        // Auto-start
-        setTimeout(startGame, 500);
     </script>
 </body>
 </html>

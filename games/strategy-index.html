@@ -6,15 +6,22 @@
     <title>Strategie Simulatoren | Games Archive</title>
     <style>
         :root {
-            --primary: #c9a227;
-            --secondary: #8b4513;
-            --accent: #d4af37;
-            --danger: #dc143c;
-            --success: #228b22;
-            --bg-dark: #0a0a0f;
-            --bg-card: rgba(20, 20, 30, 0.95);
-            --text: #e0e0e0;
-            --text-muted: #888;
+            --primary: #c8a84e;
+            --primary-dim: rgba(200, 168, 78, 0.15);
+            --accent: #e8c960;
+            --tactical-green: #2a3a2a;
+            --grid-color: rgba(200, 168, 78, 0.07);
+            --grid-line: rgba(200, 168, 78, 0.12);
+            --bg-dark: #0b0e0b;
+            --bg-surface: rgba(18, 24, 18, 0.97);
+            --bg-card: rgba(22, 30, 22, 0.95);
+            --border-subtle: rgba(200, 168, 78, 0.15);
+            --border-active: rgba(200, 168, 78, 0.5);
+            --text: #d4d0c8;
+            --text-bright: #f0ead6;
+            --text-muted: #7a7868;
+            --status-green: #4a8c3f;
+            --status-amber: #c8a84e;
         }
 
         * {
@@ -31,8 +38,8 @@
             overflow-x: hidden;
         }
 
-        /* Animated Background - Medieval Pattern */
-        .bg-pattern {
+        /* Tactical Map Background */
+        .tactical-bg {
             position: fixed;
             top: 0;
             left: 0;
@@ -40,111 +47,211 @@
             height: 100%;
             z-index: 0;
             overflow: hidden;
-            background:
-                radial-gradient(circle at 20% 30%, rgba(201, 162, 39, 0.05) 0%, transparent 50%),
-                radial-gradient(circle at 80% 70%, rgba(139, 69, 19, 0.05) 0%, transparent 50%);
         }
 
-        .shield {
+        .tactical-bg canvas {
             position: absolute;
-            font-size: 24px;
-            opacity: 0.15;
-            animation: float 20s infinite ease-in-out;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
 
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(100vh) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 0.15;
-            }
-            90% {
-                opacity: 0.15;
-            }
-            100% {
-                transform: translateY(-100px) rotate(360deg);
-                opacity: 0;
-            }
+        /* Topographic overlay */
+        .topo-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse at 25% 20%, rgba(200, 168, 78, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 75% 80%, rgba(200, 168, 78, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(42, 58, 42, 0.5) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Scan line effect */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(200, 168, 78, 0.03) 20%,
+                rgba(200, 168, 78, 0.08) 50%,
+                rgba(200, 168, 78, 0.03) 80%,
+                transparent 100%);
+            z-index: 0;
+            animation: scanDown 8s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanDown {
+            0% { top: -3px; }
+            100% { top: 100vh; }
         }
 
         /* Container */
         .container {
             position: relative;
             z-index: 1;
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
         }
 
-        /* Header */
+        /* Header - Command Center Style */
         .header {
             text-align: center;
-            padding: 3rem 0;
+            padding: 3rem 0 2rem;
+            position: relative;
+        }
+
+        .header-frame {
+            display: inline-block;
+            position: relative;
+            padding: 2rem 4rem;
+        }
+
+        .header-frame::before,
+        .header-frame::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: var(--primary);
+            border-style: solid;
+        }
+
+        .header-frame::before {
+            top: 0;
+            left: 0;
+            border-width: 2px 0 0 2px;
+        }
+
+        .header-frame::after {
+            bottom: 0;
+            right: 0;
+            border-width: 0 2px 2px 0;
+        }
+
+        .header-label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         .logo {
-            font-size: clamp(2rem, 6vw, 4rem);
+            font-size: clamp(1.8rem, 5vw, 3.2rem);
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 1rem;
-            text-shadow: 0 0 30px rgba(201, 162, 39, 0.3);
+            letter-spacing: 0.15em;
+            margin-bottom: 0.75rem;
+            line-height: 1.2;
         }
 
         .subtitle {
-            font-size: 1.2rem;
+            font-size: 0.9rem;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.3em;
+            letter-spacing: 0.4em;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .header-line {
+            width: 80%;
+            max-width: 600px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+            margin: 1.5rem auto 0;
         }
 
         /* Navigation */
         .nav {
             text-align: center;
-            margin: 2rem 0;
+            margin: 1.5rem 0 2.5rem;
         }
 
         .nav-link {
-            display: inline-block;
-            padding: 1rem 2rem;
-            background: var(--bg-card);
-            border: 1px solid rgba(201, 162, 39, 0.3);
-            border-radius: 4px;
-            color: var(--primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.8rem 1.8rem;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
             text-decoration: none;
             text-transform: uppercase;
+            font-size: 0.75rem;
             font-weight: 600;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
             transition: all 0.3s ease;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         .nav-link:hover {
-            background: var(--primary);
-            color: #000;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(201, 162, 39, 0.3);
+            color: var(--primary);
+            border-color: var(--border-active);
+            background: var(--primary-dim);
+        }
+
+        .nav-arrow {
+            font-size: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-link:hover .nav-arrow {
+            transform: translateX(-4px);
+        }
+
+        /* Section label */
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 0 0.5rem;
+        }
+
+        .section-label::before,
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-subtle);
+        }
+
+        .section-label span {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--text-muted);
+            font-family: 'Courier New', Courier, monospace;
+            white-space: nowrap;
         }
 
         /* Games Grid */
         .games-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
             gap: 2rem;
-            padding: 2rem 0;
+            padding: 0 0 2rem;
         }
 
-        /* Game Card */
+        /* Tactical Briefing Card */
         .game-card {
             background: var(--bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 2rem;
+            border: 1px solid var(--border-subtle);
+            padding: 0;
             cursor: pointer;
             transition: all 0.4s ease;
             position: relative;
@@ -157,90 +264,187 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(200, 168, 78, 0.03) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
         }
 
         .game-card:hover::before {
-            transform: scaleX(1);
+            opacity: 1;
         }
 
         .game-card:hover {
-            transform: translateY(-10px);
-            border-color: var(--primary);
+            border-color: var(--border-active);
+            transform: translateY(-4px);
             box-shadow:
-                0 20px 40px rgba(0, 0, 0, 0.3),
-                0 0 30px rgba(201, 162, 39, 0.2);
+                0 12px 40px rgba(0, 0, 0, 0.4),
+                0 0 20px rgba(200, 168, 78, 0.08),
+                inset 0 1px 0 rgba(200, 168, 78, 0.1);
+        }
+
+        /* Card Header Strip */
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.8rem 1.5rem;
+            background: rgba(200, 168, 78, 0.06);
+            border-bottom: 1px solid var(--border-subtle);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .card-classification {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+        }
+
+        .card-id {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        /* Card Body */
+        .card-body {
+            padding: 1.8rem 1.5rem 1.5rem;
+        }
+
+        .card-icon-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.2rem;
         }
 
         .game-icon {
-            font-size: 4rem;
-            text-align: center;
-            margin-bottom: 1.5rem;
-            filter: drop-shadow(0 0 20px rgba(201, 162, 39, 0.5));
+            font-size: 2.5rem;
+            line-height: 1;
+            flex-shrink: 0;
         }
 
         .game-title {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            text-align: center;
-            margin-bottom: 1rem;
-            color: white;
+            color: var(--text-bright);
+            line-height: 1.3;
         }
 
         .game-desc {
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: var(--text-muted);
-            text-align: center;
-            line-height: 1.6;
+            line-height: 1.7;
             margin-bottom: 1.5rem;
         }
 
+        /* Tags - Intel Tags */
         .game-tags {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-            justify-content: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         .tag {
-            padding: 0.3rem 0.8rem;
-            background: rgba(201, 162, 39, 0.2);
-            border: 1px solid rgba(201, 162, 39, 0.3);
-            border-radius: 20px;
-            font-size: 0.75rem;
+            padding: 0.25rem 0.7rem;
+            background: transparent;
+            border: 1px solid rgba(200, 168, 78, 0.2);
+            font-size: 0.68rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
             color: var(--primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Card Footer - Status */
+        .card-footer {
+            padding: 0.8rem 1.5rem;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .game-status {
-            text-align: center;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.85rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.15em;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-available .status-dot {
+            background: var(--status-green);
+            box-shadow: 0 0 8px rgba(74, 140, 63, 0.5);
+            animation: pulse-dot 2s ease-in-out infinite;
         }
 
         .status-available {
-            color: var(--success);
+            color: var(--status-green);
+        }
+
+        .status-coming-soon .status-dot {
+            background: var(--status-amber);
         }
 
         .status-coming-soon {
-            color: var(--accent);
+            color: var(--status-amber);
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .card-action {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-family: 'Courier New', Courier, monospace;
+            transition: color 0.3s ease;
+        }
+
+        .game-card:hover .card-action {
+            color: var(--primary);
         }
 
         /* Footer */
         .footer {
             text-align: center;
             padding: 3rem 2rem;
+            margin-top: 3rem;
+            position: relative;
+        }
+
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10%;
+            right: 10%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+        }
+
+        .footer-text {
+            font-size: 0.75rem;
             color: var(--text-muted);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            margin-top: 4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            font-family: 'Courier New', Courier, monospace;
         }
 
         /* Responsive */
@@ -249,56 +453,310 @@
                 padding: 1rem;
             }
 
+            .header-frame {
+                padding: 1.5rem 2rem;
+            }
+
             .games-grid {
                 grid-template-columns: 1fr;
                 gap: 1.5rem;
             }
+
+            .card-body {
+                padding: 1.5rem 1.2rem 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-frame::before,
+            .header-frame::after {
+                width: 24px;
+                height: 24px;
+            }
+
+            .nav-link {
+                font-size: 0.7rem;
+                padding: 0.7rem 1.2rem;
+            }
+        }
+
+        /* === Page Load Animation === */
+        .page-loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-dark);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1.5rem;
+            opacity: 1;
+            transition: opacity 0.6s ease;
+        }
+
+        .page-loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-title {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4em;
+            color: var(--primary);
+        }
+
+        .loading-bar {
+            width: 200px;
+            height: 2px;
+            background: rgba(200, 168, 78, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--primary);
+            animation: loadingSlide 1.2s ease-in-out infinite;
+        }
+
+        @keyframes loadingSlide {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        /* === Card Reveal Animation === */
+        @keyframes cardReveal {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .game-card {
+            opacity: 0;
+            animation: cardReveal 0.5s ease forwards;
+        }
+
+        .game-card:nth-child(1) { animation-delay: 0.1s; }
+        .game-card:nth-child(2) { animation-delay: 0.2s; }
+        .game-card:nth-child(3) { animation-delay: 0.3s; }
+        .game-card:nth-child(4) { animation-delay: 0.4s; }
+        .game-card:nth-child(5) { animation-delay: 0.5s; }
+        .game-card:nth-child(6) { animation-delay: 0.6s; }
+
+        /* === Header Reveal === */
+        @keyframes fadeSlideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header { animation: fadeSlideDown 0.6s ease forwards; }
+        .nav { opacity: 0; animation: fadeSlideDown 0.5s ease 0.2s forwards; }
+        .section-label { opacity: 0; animation: fadeSlideDown 0.5s ease 0.3s forwards; }
+
+        /* === Game Launch Overlay === */
+        .game-launch-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-dark);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .game-launch-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .launch-icon {
+            font-size: 3rem;
+            animation: launchPulse 1s ease-in-out infinite;
+        }
+
+        .launch-text {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: var(--primary);
+        }
+
+        @keyframes launchPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        /* === Micro-interactions === */
+        .game-card:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+
+        .nav-link:active {
+            transform: scale(0.97);
+        }
+
+        /* Focus styles for keyboard navigation */
+        .game-card:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 4px;
+        }
+
+        .nav-link:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 4px;
+        }
+
+        /* Footer reveal */
+        .footer {
+            opacity: 0;
+            animation: fadeSlideDown 0.5s ease 0.5s forwards;
         }
 
         /* Reduced Motion */
         @media (prefers-reduced-motion: reduce) {
-            * {
-                animation: none !important;
-                transition: none !important;
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .scanline {
+                display: none;
+            }
+
+            .page-loading {
+                display: none;
+            }
+
+            .game-card,
+            .header,
+            .nav,
+            .section-label,
+            .footer {
+                opacity: 1;
+                transform: none;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Animated Background -->
-    <div class="bg-pattern" id="bgPattern"></div>
+    <!-- Page Loading Screen -->
+    <div class="page-loading" id="pageLoading">
+        <div class="loading-title">Taktisches Briefing wird geladen...</div>
+        <div class="loading-bar"></div>
+    </div>
+
+    <!-- Game Launch Overlay -->
+    <div class="game-launch-overlay" id="gameLaunchOverlay">
+        <div class="launch-icon" id="launchIcon"></div>
+        <div class="launch-text">Mission wird vorbereitet...</div>
+    </div>
+
+    <!-- Tactical Map Background -->
+    <div class="tactical-bg">
+        <canvas id="tacticalCanvas"></canvas>
+    </div>
+    <div class="topo-overlay"></div>
+    <div class="scanline"></div>
 
     <!-- Main Container -->
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1 class="logo">Strategie Simulatoren</h1>
-            <p class="subtitle">Taktik & Kriegsführung</p>
+            <div class="header-frame">
+                <span class="header-label">Games Archive // Kategorie</span>
+                <h1 class="logo">Strategie Simulatoren</h1>
+                <p class="subtitle">Taktik & Kriegsführung</p>
+            </div>
+            <div class="header-line"></div>
         </header>
 
         <!-- Navigation -->
         <nav class="nav">
-            <a href="../index.html" class="nav-link">Zur Hauptgalerie</a>
+            <a href="../index.html" class="nav-link">
+                <span class="nav-arrow">&larr;</span>
+                Zur Hauptgalerie
+            </a>
         </nav>
 
-        <!-- Games Grid -->
-        <div class="games-grid" id="gamesGrid">
-            <!-- Games will be dynamically inserted here -->
+        <!-- Section Label -->
+        <div class="section-label">
+            <span>Verfügbare Missionen</span>
         </div>
+
+        <!-- Games Grid -->
+        <div class="games-grid" id="gamesGrid"></div>
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Plane deine Strategie und führe deine Armeen zum Sieg</p>
+            <p class="footer-text">Plane deine Strategie und führe deine Armeen zum Sieg</p>
         </footer>
     </div>
 
     <script>
+        // Debug Mode
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Event Manager - prevents memory leaks
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
         // Strategy Games Data
         const strategyGames = [
             {
                 title: "AoE4 Battle Simulator",
                 description: "Age of Empires 4 Kampfsimulator! Konfiguriere Armeen, erhalte KI-Counter-Empfehlungen und simuliere epische Schlachten mit Echtzeit-Taktik.",
-                icon: "⚔️",
+                icon: "\u2694\uFE0F",
                 url: "aoe4-battle-sim.html",
                 status: "available",
                 tags: ["AoE4", "RTS", "KI-Strategie", "16 Fraktionen"]
@@ -306,65 +764,216 @@
             {
                 title: "Weitere Strategie-Spiele",
                 description: "Mehr Strategie-Simulatoren kommen bald! Total War, Civilization, StarCraft und mehr...",
-                icon: "🏰",
+                icon: "\uD83C\uDFF0",
                 url: "#",
                 status: "coming-soon",
                 tags: ["Kommt bald"]
             }
         ];
 
-        // Create floating shields
-        function createShields() {
-            const container = document.getElementById('bgPattern');
-            const shields = ['⚔️', '🛡️', '🏰', '👑', '🗡️', '🏹', '🐴', '⚙️'];
-            const count = 30;
+        // === Tactical Grid Canvas ===
+        function initTacticalCanvas() {
+            const canvas = document.getElementById('tacticalCanvas');
+            if (!canvas) {
+                console.error('Tactical canvas not found');
+                return null;
+            }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Canvas 2D context not available');
+                return null;
+            }
+            return { canvas, ctx };
+        }
 
-            for (let i = 0; i < count; i++) {
-                const shield = document.createElement('div');
-                shield.className = 'shield';
-                shield.textContent = shields[Math.floor(Math.random() * shields.length)];
-                shield.style.left = Math.random() * 100 + '%';
-                shield.style.animationDelay = Math.random() * 20 + 's';
-                shield.style.animationDuration = (15 + Math.random() * 15) + 's';
-                container.appendChild(shield);
+        function drawTacticalGrid(canvas, ctx) {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Dark base
+            ctx.fillStyle = '#0b0e0b';
+            ctx.fillRect(0, 0, w, h);
+
+            // Grid lines
+            const gridSize = 60;
+            ctx.strokeStyle = 'rgba(200, 168, 78, 0.04)';
+            ctx.lineWidth = 0.5;
+
+            for (let x = 0; x < w; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let y = 0; y < h; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // Major grid lines
+            const majorGrid = gridSize * 4;
+            ctx.strokeStyle = 'rgba(200, 168, 78, 0.07)';
+            ctx.lineWidth = 0.8;
+
+            for (let x = 0; x < w; x += majorGrid) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let y = 0; y < h; y += majorGrid) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // Topographic contour lines
+            ctx.strokeStyle = 'rgba(200, 168, 78, 0.035)';
+            ctx.lineWidth = 0.8;
+
+            const cx = w * 0.35;
+            const cy = h * 0.4;
+            for (let r = 40; r < 500; r += 50) {
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, r * 1.3, r, -0.3, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            const cx2 = w * 0.7;
+            const cy2 = h * 0.65;
+            for (let r = 30; r < 350; r += 50) {
+                ctx.beginPath();
+                ctx.ellipse(cx2, cy2, r, r * 1.2, 0.4, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Small crosshair markers at grid intersections
+            ctx.strokeStyle = 'rgba(200, 168, 78, 0.06)';
+            ctx.lineWidth = 0.5;
+            const markerSize = 3;
+
+            for (let x = majorGrid; x < w; x += majorGrid) {
+                for (let y = majorGrid; y < h; y += majorGrid) {
+                    ctx.beginPath();
+                    ctx.moveTo(x - markerSize, y);
+                    ctx.lineTo(x + markerSize, y);
+                    ctx.moveTo(x, y - markerSize);
+                    ctx.lineTo(x, y + markerSize);
+                    ctx.stroke();
+                }
             }
         }
 
         // Render Games
         function renderGames() {
             const grid = document.getElementById('gamesGrid');
+            if (!grid) return;
 
-            strategyGames.forEach(game => {
+            strategyGames.forEach((game, index) => {
                 const card = document.createElement('div');
                 card.className = 'game-card';
 
-                const tagsHtml = game.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                const tagsHtml = game.tags.map(tag => '<span class="tag">' + tag + '</span>').join('');
+                const missionId = 'STR-' + String(index + 1).padStart(3, '0');
 
-                card.innerHTML = `
-                    <div class="game-icon">${game.icon}</div>
-                    <h3 class="game-title">${game.title}</h3>
-                    <p class="game-desc">${game.description}</p>
-                    <div class="game-tags">${tagsHtml}</div>
-                    <div class="game-status ${game.status === 'available' ? 'status-available' : 'status-coming-soon'}">
-                        ${game.status === 'available' ? 'Verfügbar' : 'Kommt bald'}
-                    </div>
-                `;
+                card.innerHTML =
+                    '<div class="card-header">' +
+                        '<span class="card-classification">Taktisches Briefing</span>' +
+                        '<span class="card-id">' + missionId + '</span>' +
+                    '</div>' +
+                    '<div class="card-body">' +
+                        '<div class="card-icon-row">' +
+                            '<div class="game-icon">' + game.icon + '</div>' +
+                            '<h3 class="game-title">' + game.title + '</h3>' +
+                        '</div>' +
+                        '<p class="game-desc">' + game.description + '</p>' +
+                        '<div class="game-tags">' + tagsHtml + '</div>' +
+                    '</div>' +
+                    '<div class="card-footer">' +
+                        '<div class="game-status ' + (game.status === 'available' ? 'status-available' : 'status-coming-soon') + '">' +
+                            '<span class="status-dot"></span>' +
+                            (game.status === 'available' ? 'Einsatzbereit' : 'In Entwicklung') +
+                        '</div>' +
+                        '<span class="card-action">' + (game.status === 'available' ? 'Mission starten \u2192' : '\u2014') + '</span>' +
+                    '</div>';
 
                 if (game.status === 'available') {
-                    card.addEventListener('click', () => {
-                        window.location.href = game.url;
+                    card.style.cursor = 'pointer';
+                    card.setAttribute('tabindex', '0');
+                    card.setAttribute('role', 'button');
+                    card.setAttribute('aria-label', 'Starte ' + game.title);
+                    eventManager.add(card, 'click', function() {
+                        launchGame(game.url, game.icon);
                     });
+                    eventManager.add(card, 'keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            launchGame(game.url, game.icon);
+                        }
+                    });
+                } else {
+                    card.style.cursor = 'default';
+                    card.style.opacity = '0.7';
                 }
 
                 grid.appendChild(card);
             });
         }
 
+        // Game Launch Transition
+        function launchGame(url, icon) {
+            const overlay = document.getElementById('gameLaunchOverlay');
+            const launchIcon = document.getElementById('launchIcon');
+            if (overlay && launchIcon) {
+                launchIcon.textContent = icon;
+                overlay.classList.add('active');
+                setTimeout(function() {
+                    window.location.href = url;
+                }, 600);
+            } else {
+                window.location.href = url;
+            }
+        }
+
+        // Hide loading screen
+        function hideLoading() {
+            const loader = document.getElementById('pageLoading');
+            if (loader) {
+                loader.classList.add('hidden');
+                setTimeout(function() {
+                    loader.style.display = 'none';
+                }, 600);
+            }
+        }
+
         // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
-            createShields();
+        function init() {
+            const setup = initTacticalCanvas();
+            if (setup) {
+                drawTacticalGrid(setup.canvas, setup.ctx);
+                eventManager.add(window, 'resize', function() {
+                    drawTacticalGrid(setup.canvas, setup.ctx);
+                });
+            }
             renderGames();
-        });
+
+            // Hide loading after content is ready
+            setTimeout(hideLoading, 800);
+        }
+
+        eventManager.add(window, 'DOMContentLoaded', init);
     </script>
 </body>
 </html>
