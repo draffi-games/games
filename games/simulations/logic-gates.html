@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Gate Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-dark: #0a0a14;
+            --panel-bg: rgba(12, 12, 24, 0.95);
+            --border: rgba(80, 120, 200, 0.25);
+            --text-primary: #c8d4e8;
+            --text-secondary: #6b7fa0;
+            --accent: #5088dd;
+            --accent-dim: rgba(80, 136, 221, 0.15);
+            --high: #44dd88;
+            --low: #dd4455;
+            --wire-high: #44dd88;
+            --wire-low: #dd4455;
+            --wire-idle: #3a4a6a;
+            --gate-fill: rgba(20, 30, 50, 0.9);
+            --gate-stroke: #5088dd;
+            --gate-selected: #44dd88;
+            --pin-color: #8899bb;
+            --pin-hover: #ffaa44;
+        }
+
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(80, 136, 221, 0.2);
+            border: 1px solid rgba(80, 136, 221, 0.5);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .back-link:hover {
+            background: rgba(80, 136, 221, 0.4);
+            transform: translateY(-2px);
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Left palette */
+        #palette {
+            width: 200px;
+            min-width: 200px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            padding: 50px 10px 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .palette-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 4px;
+            text-align: center;
+        }
+
+        .palette-section {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            padding-left: 4px;
+        }
+
+        .gate-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(80, 136, 221, 0.2);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: grab;
+            font-family: inherit;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .gate-btn:hover {
+            background: rgba(80, 136, 221, 0.25);
+            border-color: rgba(80, 136, 221, 0.5);
+            transform: translateX(3px);
+        }
+
+        .gate-btn:active { cursor: grabbing; }
+
+        .gate-btn .sym {
+            font-size: 14px;
+            font-weight: bold;
+            width: 40px;
+            text-align: center;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .gate-btn .name { flex: 1; }
+
+        .preset-btn {
+            padding: 6px 10px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(80, 136, 221, 0.2);
+            border-radius: 5px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            margin: 2px 0;
+        }
+
+        .preset-btn:hover { background: rgba(80, 136, 221, 0.25); }
+
+        /* Canvas area */
+        #canvas-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(20, 30, 60, 0.3) 0%, transparent 70%),
+                var(--bg-dark);
+        }
+
+        #logic-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Right panel */
+        #info-panel {
+            width: 260px;
+            min-width: 260px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border);
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .info-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-align: center;
+        }
+
+        .info-section {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .info-section h3 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: var(--text-secondary); }
+        .info-value { font-weight: bold; }
+        .info-value.high { color: var(--high); }
+        .info-value.low { color: var(--low); }
+
+        /* Truth table */
+        .truth-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .truth-table th, .truth-table td {
+            padding: 3px 6px;
+            text-align: center;
+            border: 1px solid rgba(80, 136, 221, 0.15);
+        }
+
+        .truth-table th {
+            background: rgba(80, 136, 221, 0.1);
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .truth-table td { color: var(--text-secondary); }
+        .truth-table td.h { color: var(--high); font-weight: bold; }
+        .truth-table td.l { color: var(--low); }
+
+        /* Binary display */
+        .binary-display {
+            background: #0a0a0a;
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .binary-bits {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin: 6px 0;
+        }
+
+        .bit {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .bit.high { background: rgba(68, 221, 136, 0.2); color: var(--high); border: 1px solid var(--high); }
+        .bit.low { background: rgba(221, 68, 85, 0.1); color: var(--low); border: 1px solid rgba(221, 68, 85, 0.3); }
+
+        .decimal-value {
+            font-size: 18px;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Toolbar */
+        #toolbar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px;
+            z-index: 100;
+        }
+
+        .tool-btn {
+            padding: 6px 12px;
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+
+        .tool-btn:hover { color: var(--text-primary); background: var(--accent-dim); }
+        .tool-btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+
+        /* Status bar */
+        #status-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 16px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            z-index: 100;
+            display: flex;
+            gap: 20px;
+        }
+
+        #status-bar .sep { color: rgba(80, 136, 221, 0.3); }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(12, 12, 24, 0.95);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--text-primary);
+            z-index: 200;
+            max-width: 250px;
+            pointer-events: none;
+            display: none;
+            line-height: 1.4;
+        }
+
+        .tooltip.visible { display: block; }
+        .tooltip .tt-title { color: var(--accent); font-weight: bold; margin-bottom: 4px; }
+
+        /* Label input */
+        .label-input {
+            position: absolute;
+            background: var(--bg-dark);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            padding: 4px 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+            outline: none;
+            z-index: 300;
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            #palette { width: 60px; min-width: 60px; padding: 50px 4px 4px; }
+            .gate-btn .name, .palette-title, .palette-section, .preset-btn { display: none; }
+            .gate-btn { justify-content: center; padding: 8px; }
+            .gate-btn .sym { width: auto; }
+            #info-panel { width: 200px; min-width: 200px; }
+        }
+
+        @media (max-width: 600px) {
+            #info-panel { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">&#9664; Simulations</a>
+
+    <div id="app">
+        <div id="palette">
+            <div class="palette-title">Logic Gates</div>
+
+            <div class="palette-section">Input/Output</div>
+            <div class="gate-btn" draggable="true" data-type="input">
+                <span class="sym">IN</span>
+                <span class="name">Input Switch</span>
+            </div>
+            <div class="gate-btn" draggable="true" data-type="output">
+                <span class="sym">OUT</span>
+                <span class="name">Output LED</span>
+            </div>
+
+            <div class="palette-section">Basic Gates</div>
+            <div class="gate-btn" draggable="true" data-type="AND">
+                <span class="sym">AND</span>
+                <span class="name">AND Gate</span>
+            </div>
+            <div class="gate-btn" draggable="true" data-type="OR">
+                <span class="sym">OR</span>
+                <span class="name">OR Gate</span>
+            </div>
+            <div class="gate-btn" draggable="true" data-type="NOT">
+                <span class="sym">NOT</span>
+                <span class="name">NOT Gate</span>
+            </div>
+
+            <div class="palette-section">Compound Gates</div>
+            <div class="gate-btn" draggable="true" data-type="NAND">
+                <span class="sym">NAND</span>
+                <span class="name">NAND Gate</span>
+            </div>
+            <div class="gate-btn" draggable="true" data-type="NOR">
+                <span class="sym">NOR</span>
+                <span class="name">NOR Gate</span>
+            </div>
+            <div class="gate-btn" draggable="true" data-type="XOR">
+                <span class="sym">XOR</span>
+                <span class="name">XOR Gate</span>
+            </div>
+            <div class="gate-btn" draggable="true" data-type="XNOR">
+                <span class="sym">XNOR</span>
+                <span class="name">XNOR Gate</span>
+            </div>
+
+            <div class="palette-section">Presets</div>
+            <button class="preset-btn" data-preset="half-adder">Half Adder</button>
+            <button class="preset-btn" data-preset="full-adder">Full Adder</button>
+            <button class="preset-btn" data-preset="sr-latch">SR Latch</button>
+            <button class="preset-btn" data-preset="4bit-counter">4-Bit Display</button>
+        </div>
+
+        <div id="canvas-wrap">
+            <canvas id="logic-canvas"></canvas>
+
+            <div id="toolbar">
+                <button class="tool-btn active" data-tool="select">Select</button>
+                <button class="tool-btn" data-tool="wire">Wire</button>
+                <button class="tool-btn" data-tool="label">Label</button>
+                <button class="tool-btn" data-tool="delete">Delete</button>
+                <button class="tool-btn" data-tool="clear">Clear</button>
+            </div>
+
+            <div id="status-bar">
+                <span id="status-mode">Mode: Select</span>
+                <span class="sep">|</span>
+                <span id="status-gates">Gates: 0</span>
+                <span class="sep">|</span>
+                <span id="status-mouse">x: 0, y: 0</span>
+            </div>
+
+            <div class="tooltip" id="tooltip">
+                <div class="tt-title"></div>
+                <div class="tt-body"></div>
+            </div>
+
+            <input type="text" class="label-input" id="label-input" placeholder="Label..." maxlength="20">
+        </div>
+
+        <div id="info-panel">
+            <div class="info-title">Inspector</div>
+
+            <div class="info-section" id="selection-info">
+                <h3>Selected Gate</h3>
+                <div class="info-row">
+                    <span class="info-label">Type</span>
+                    <span class="info-value" id="sel-type">None</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Output</span>
+                    <span class="info-value" id="sel-output">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Label</span>
+                    <span class="info-value" id="sel-label">-</span>
+                </div>
+            </div>
+
+            <div class="info-section" id="truth-table-section" style="display:none">
+                <h3>Truth Table</h3>
+                <div id="truth-table-container"></div>
+            </div>
+
+            <div class="info-section binary-display" id="binary-display">
+                <h3>Binary Output</h3>
+                <div class="binary-bits" id="binary-bits">
+                    <div class="bit low">0</div>
+                    <div class="bit low">0</div>
+                    <div class="bit low">0</div>
+                    <div class="bit low">0</div>
+                </div>
+                <div class="decimal-value" id="decimal-value">= 0</div>
+            </div>
+
+            <div class="info-section">
+                <h3>Signal Legend</h3>
+                <div class="info-row">
+                    <span class="info-label">● HIGH (1)</span>
+                    <span class="info-value high">True</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">● LOW (0)</span>
+                    <span class="info-value low">False</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>Keyboard Shortcuts</h3>
+                <div style="font-size:10px; color: var(--text-secondary); line-height: 1.8;">
+                    V - Select mode<br>
+                    W - Wire mode<br>
+                    T - Label mode<br>
+                    Del - Delete selected<br>
+                    Space - Toggle input<br>
+                    1-7 - Place gate (AND..XNOR)<br>
+                    Esc - Cancel / Deselect
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // # Reflect on this choice, future maintainers will
+    const DEBUG = false;
+
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // ── Event Manager ──
+    class EventManager {
+        constructor() { this.listeners = []; }
+        add(el, evt, fn, opts) {
+            el.addEventListener(evt, fn, opts);
+            this.listeners.push({ el, evt, fn, opts });
+        }
+        removeAll() {
+            this.listeners.forEach(({ el, evt, fn, opts }) => el.removeEventListener(evt, fn, opts));
+            this.listeners = [];
+        }
+    }
+
+    // ── Safe localStorage ──
+    function safeGetItem(key, def = null) {
+        try { const v = localStorage.getItem(key); return v !== null ? v : def; }
+        catch { return def; }
+    }
+    function safeSetItem(key, val) {
+        try { localStorage.setItem(key, val); return true; }
+        catch { return false; }
+    }
+
+    // ── Safe Canvas Init ──
+    function initCanvas() {
+        const canvas = document.getElementById('logic-canvas');
+        if (!canvas) { console.error('Canvas not found'); return null; }
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { console.error('No 2D context'); return null; }
+        return { canvas, ctx };
+    }
+
+    const canvasSetup = initCanvas();
+    if (!canvasSetup) {
+        alert('Your browser does not support Canvas. Please use a modern browser.');
+    }
+
+    const { canvas, ctx } = canvasSetup || {};
+    const eventManager = new EventManager();
+
+    // ── Constants ──
+    const GRID = 20;
+    const GATE_W = 80;
+    const GATE_H = 50;
+    const PIN_R = 5;
+    const IO_W = 50;
+    const IO_H = 30;
+
+    // ── Gate Definitions ──
+    const GATE_DEFS = {
+        AND:  { inputs: 2, symbol: '&', fn: (a, b) => a & b, tooltip: 'AND: Output HIGH only when ALL inputs are HIGH' },
+        OR:   { inputs: 2, symbol: '≥1', fn: (a, b) => a | b, tooltip: 'OR: Output HIGH when ANY input is HIGH' },
+        NOT:  { inputs: 1, symbol: '1', fn: (a) => a ^ 1, tooltip: 'NOT: Inverts the input signal' },
+        NAND: { inputs: 2, symbol: '&', fn: (a, b) => (a & b) ^ 1, tooltip: 'NAND: NOT-AND. Output LOW only when ALL inputs HIGH', inverted: true },
+        NOR:  { inputs: 2, symbol: '≥1', fn: (a, b) => (a | b) ^ 1, tooltip: 'NOR: NOT-OR. Output HIGH only when ALL inputs LOW', inverted: true },
+        XOR:  { inputs: 2, symbol: '=1', fn: (a, b) => a ^ b, tooltip: 'XOR: Output HIGH when inputs DIFFER' },
+        XNOR: { inputs: 2, symbol: '=1', fn: (a, b) => (a ^ b) ^ 1, tooltip: 'XNOR: Output HIGH when inputs are SAME', inverted: true },
+    };
+
+    const TRUTH_TABLES = {
+        AND:  [[0,0,0],[0,1,0],[1,0,0],[1,1,1]],
+        OR:   [[0,0,0],[0,1,1],[1,0,1],[1,1,1]],
+        NOT:  [[0,1],[1,0]],
+        NAND: [[0,0,1],[0,1,1],[1,0,1],[1,1,0]],
+        NOR:  [[0,0,1],[0,1,0],[1,0,0],[1,1,0]],
+        XOR:  [[0,0,0],[0,1,1],[1,0,1],[1,1,0]],
+        XNOR: [[0,0,1],[0,1,0],[1,0,0],[1,1,1]],
+    };
+
+    // ── State ──
+    let gates = [];
+    let wires = [];
+    let nextId = 1;
+    let tool = 'select';
+    let selectedId = null;
+    let dragging = null;
+    let dragOffset = { x: 0, y: 0 };
+    let wireStart = null;
+    let hoveredPin = null;
+    let mouseX = 0, mouseY = 0;
+    let animTime = 0;
+    let prefersReducedMotion = false;
+
+    try {
+        prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) { /* ignore */ }
+
+    // ── Helpers ──
+    function snap(v) { return Math.round(v / GRID) * GRID; }
+    function dist(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
+
+    function getGatePins(gate) {
+        const pins = [];
+        if (gate.type === 'input') {
+            pins.push({ x: gate.x + IO_W / 2, y: gate.y, gateId: gate.id, pinType: 'output', pinIdx: 0 });
+        } else if (gate.type === 'output') {
+            pins.push({ x: gate.x - IO_W / 2, y: gate.y, gateId: gate.id, pinType: 'input', pinIdx: 0 });
+        } else {
+            const def = GATE_DEFS[gate.type];
+            const numIn = def.inputs;
+            // Input pins on left
+            for (let i = 0; i < numIn; i++) {
+                const yOff = numIn === 1 ? 0 : (i === 0 ? -12 : 12);
+                pins.push({
+                    x: gate.x - GATE_W / 2,
+                    y: gate.y + yOff,
+                    gateId: gate.id,
+                    pinType: 'input',
+                    pinIdx: i
+                });
+            }
+            // Output pin on right
+            pins.push({
+                x: gate.x + GATE_W / 2 + (gate.type.includes('N') && gate.type !== 'NOT' || gate.type === 'NOT' ? 8 : 0),
+                y: gate.y,
+                gateId: gate.id,
+                pinType: 'output',
+                pinIdx: 0
+            });
+        }
+        return pins;
+    }
+
+    function getAllPins() {
+        const pins = [];
+        gates.forEach(g => getGatePins(g).forEach(p => pins.push(p)));
+        return pins;
+    }
+
+    function findPinAt(x, y, threshold = 14) {
+        let best = null, bestD = threshold;
+        getAllPins().forEach(p => {
+            const d = dist(x, y, p.x, p.y);
+            if (d < bestD) { bestD = d; best = p; }
+        });
+        return best;
+    }
+
+    function findGateAt(x, y) {
+        for (let i = gates.length - 1; i >= 0; i--) {
+            const g = gates[i];
+            let hw, hh;
+            if (g.type === 'input' || g.type === 'output') {
+                hw = IO_W / 2; hh = IO_H / 2;
+            } else {
+                hw = GATE_W / 2; hh = GATE_H / 2;
+            }
+            if (x >= g.x - hw && x <= g.x + hw && y >= g.y - hh && y <= g.y + hh) return g;
+        }
+        return null;
+    }
+
+    function findWireAt(x, y, threshold = 8) {
+        for (const w of wires) {
+            const p1 = getPinPos(w.from);
+            const p2 = getPinPos(w.to);
+            if (!p1 || !p2) continue;
+            const d = distToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+            if (d < threshold) return w;
+        }
+        return null;
+    }
+
+    function distToSegment(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return dist(px, py, x1, y1);
+        let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        return dist(px, py, x1 + t * dx, y1 + t * dy);
+    }
+
+    function getPinPos(ref) {
+        const gate = gates.find(g => g.id === ref.gateId);
+        if (!gate) return null;
+        const pins = getGatePins(gate);
+        const pin = pins.find(p => p.pinType === ref.pinType && p.pinIdx === ref.pinIdx);
+        return pin ? { x: pin.x, y: pin.y } : null;
+    }
+
+    // ── Resize ──
+    function resizeCanvas() {
+        const wrap = document.getElementById('canvas-wrap');
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+    }
+
+    // ── Drawing ──
+    function drawGrid() {
+        const w = canvas.width, h = canvas.height;
+        for (let x = 0; x < w; x += GRID) {
+            ctx.beginPath();
+            ctx.strokeStyle = (x % (GRID * 5) === 0) ? 'rgba(80, 136, 221, 0.1)' : 'rgba(80, 136, 221, 0.04)';
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+        }
+        for (let y = 0; y < h; y += GRID) {
+            ctx.beginPath();
+            ctx.strokeStyle = (y % (GRID * 5) === 0) ? 'rgba(80, 136, 221, 0.1)' : 'rgba(80, 136, 221, 0.04)';
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+    }
+
+    function drawGateBody(gate) {
+        const isSelected = gate.id === selectedId;
+        const def = GATE_DEFS[gate.type];
+
+        ctx.save();
+        ctx.translate(gate.x, gate.y);
+
+        // Draw body shape
+        const hw = GATE_W / 2, hh = GATE_H / 2;
+        ctx.beginPath();
+
+        if (gate.type === 'AND' || gate.type === 'NAND') {
+            ctx.moveTo(-hw, -hh);
+            ctx.lineTo(10, -hh);
+            ctx.arc(10, 0, hh, -Math.PI / 2, Math.PI / 2);
+            ctx.lineTo(-hw, hh);
+            ctx.closePath();
+        } else if (gate.type === 'OR' || gate.type === 'NOR') {
+            ctx.moveTo(-hw, -hh);
+            ctx.quadraticCurveTo(-hw + 20, -hh, hw - 5, 0);
+            ctx.quadraticCurveTo(-hw + 20, hh, -hw, hh);
+            ctx.quadraticCurveTo(-hw + 15, 0, -hw, -hh);
+        } else if (gate.type === 'XOR' || gate.type === 'XNOR') {
+            ctx.moveTo(-hw, -hh);
+            ctx.quadraticCurveTo(-hw + 20, -hh, hw - 5, 0);
+            ctx.quadraticCurveTo(-hw + 20, hh, -hw, hh);
+            ctx.quadraticCurveTo(-hw + 15, 0, -hw, -hh);
+            // Extra curve for XOR
+            ctx.moveTo(-hw - 8, -hh);
+            ctx.quadraticCurveTo(-hw + 7, 0, -hw - 8, hh);
+        } else if (gate.type === 'NOT') {
+            ctx.moveTo(-hw, -hh);
+            ctx.lineTo(hw - 10, 0);
+            ctx.lineTo(-hw, hh);
+            ctx.closePath();
+        }
+
+        ctx.fillStyle = 'rgba(20, 30, 50, 0.9)';
+        ctx.fill();
+        ctx.strokeStyle = isSelected ? '#44dd88' : '#5088dd';
+        ctx.lineWidth = isSelected ? 2.5 : 1.5;
+        ctx.stroke();
+
+        // Inversion bubble
+        if (def.inverted || gate.type === 'NOT') {
+            ctx.beginPath();
+            ctx.arc(hw + 4, 0, 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(20, 30, 50, 0.9)';
+            ctx.fill();
+            ctx.strokeStyle = isSelected ? '#44dd88' : '#5088dd';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        // Symbol text
+        ctx.fillStyle = isSelected ? '#44dd88' : 'rgba(200, 220, 255, 0.7)';
+        ctx.font = 'bold 12px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.symbol, -5, 0);
+
+        // Gate type label above
+        ctx.fillStyle = 'rgba(80, 136, 221, 0.5)';
+        ctx.font = '9px Courier New';
+        ctx.fillText(gate.type, 0, -hh - 8);
+
+        // User label below
+        if (gate.label) {
+            ctx.fillStyle = '#ffaa44';
+            ctx.font = '10px Courier New';
+            ctx.fillText(gate.label, 0, hh + 12);
+        }
+
+        ctx.restore();
+    }
+
+    function drawInputNode(gate) {
+        const isSelected = gate.id === selectedId;
+        const val = gate.value;
+
+        ctx.save();
+        ctx.translate(gate.x, gate.y);
+
+        // Body
+        ctx.beginPath();
+        ctx.roundRect(-IO_W / 2, -IO_H / 2, IO_W, IO_H, 6);
+        ctx.fillStyle = val ? 'rgba(68, 221, 136, 0.15)' : 'rgba(221, 68, 85, 0.1)';
+        ctx.fill();
+        ctx.strokeStyle = isSelected ? '#44dd88' : (val ? '#44dd88' : '#dd4455');
+        ctx.lineWidth = isSelected ? 2.5 : 1.5;
+        ctx.stroke();
+
+        // Value
+        ctx.fillStyle = val ? '#44dd88' : '#dd4455';
+        ctx.font = 'bold 16px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(val ? '1' : '0', 0, 0);
+
+        // Label
+        if (gate.label) {
+            ctx.fillStyle = '#ffaa44';
+            ctx.font = '10px Courier New';
+            ctx.fillText(gate.label, 0, IO_H / 2 + 12);
+        }
+
+        ctx.restore();
+    }
+
+    function drawOutputNode(gate) {
+        const isSelected = gate.id === selectedId;
+        const val = gate._output;
+
+        ctx.save();
+        ctx.translate(gate.x, gate.y);
+
+        // LED-style circle
+        ctx.beginPath();
+        ctx.arc(0, 0, IO_H / 2, 0, Math.PI * 2);
+
+        if (val && !prefersReducedMotion) {
+            const glow = ctx.createRadialGradient(0, 0, 5, 0, 0, IO_H / 2 + 10);
+            glow.addColorStop(0, 'rgba(68, 221, 136, 0.5)');
+            glow.addColorStop(1, 'rgba(68, 221, 136, 0)');
+            ctx.fillStyle = glow;
+            ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, IO_H / 2, 0, Math.PI * 2);
+        ctx.fillStyle = val ? 'rgba(68, 221, 136, 0.25)' : 'rgba(221, 68, 85, 0.1)';
+        ctx.fill();
+        ctx.strokeStyle = isSelected ? '#44dd88' : (val ? '#44dd88' : '#dd4455');
+        ctx.lineWidth = isSelected ? 2.5 : 1.5;
+        ctx.stroke();
+
+        // Value
+        ctx.fillStyle = val ? '#44dd88' : '#dd4455';
+        ctx.font = 'bold 14px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(val ? '1' : '0', 0, 0);
+
+        // Label
+        if (gate.label) {
+            ctx.fillStyle = '#ffaa44';
+            ctx.font = '10px Courier New';
+            ctx.fillText(gate.label, 0, IO_H / 2 + 14);
+        }
+
+        ctx.restore();
+    }
+
+    function drawGate(gate) {
+        if (gate.type === 'input') {
+            drawInputNode(gate);
+        } else if (gate.type === 'output') {
+            drawOutputNode(gate);
+        } else {
+            drawGateBody(gate);
+        }
+
+        // Draw pins
+        const pins = getGatePins(gate);
+        pins.forEach(p => {
+            const isHovered = hoveredPin && hoveredPin.gateId === p.gateId && hoveredPin.pinType === p.pinType && hoveredPin.pinIdx === p.pinIdx;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, PIN_R, 0, Math.PI * 2);
+            ctx.fillStyle = isHovered ? '#ffaa44' : '#8899bb';
+            ctx.fill();
+        });
+    }
+
+    function drawWire(wire) {
+        const p1 = getPinPos(wire.from);
+        const p2 = getPinPos(wire.to);
+        if (!p1 || !p2) return;
+
+        const signal = wire._signal;
+        const color = signal ? '#44dd88' : '#dd4455';
+
+        // Route with right angle
+        const midX = (p1.x + p2.x) / 2;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(midX, p1.y);
+        ctx.lineTo(midX, p2.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = signal ? 2.5 : 1.5;
+        ctx.stroke();
+
+        // Signal propagation dots
+        if (!prefersReducedMotion) {
+            drawSignalDots(p1, p2, midX, signal);
+        }
+    }
+
+    function drawSignalDots(p1, p2, midX, signal) {
+        const segments = [
+            { x1: p1.x, y1: p1.y, x2: midX, y2: p1.y },
+            { x1: midX, y1: p1.y, x2: midX, y2: p2.y },
+            { x1: midX, y1: p2.y, x2: p2.x, y2: p2.y }
+        ];
+
+        let totalLen = 0;
+        segments.forEach(s => totalLen += dist(s.x1, s.y1, s.x2, s.y2));
+        if (totalLen < 10) return;
+
+        const numDots = Math.max(2, Math.floor(totalLen / 25));
+        const speed = 0.002;
+
+        for (let i = 0; i < numDots; i++) {
+            let t = ((i / numDots) + animTime * speed) % 1;
+            let pos = totalLen * t;
+            let px, py;
+
+            let accum = 0;
+            for (const s of segments) {
+                const sLen = dist(s.x1, s.y1, s.x2, s.y2);
+                if (pos <= accum + sLen && sLen > 0) {
+                    const frac = (pos - accum) / sLen;
+                    px = s.x1 + (s.x2 - s.x1) * frac;
+                    py = s.y1 + (s.y2 - s.y1) * frac;
+                    break;
+                }
+                accum += sLen;
+            }
+
+            if (px !== undefined) {
+                ctx.beginPath();
+                ctx.arc(px, py, 2, 0, Math.PI * 2);
+                ctx.fillStyle = signal ? 'rgba(68, 221, 136, 0.7)' : 'rgba(221, 68, 85, 0.4)';
+                ctx.fill();
+            }
+        }
+    }
+
+    function drawWireInProgress() {
+        if (tool !== 'wire' || !wireStart) return;
+        const p = getPinPos(wireStart);
+        if (!p) return;
+
+        const midX = (p.x + mouseX) / 2;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(midX, p.y);
+        ctx.lineTo(midX, mouseY);
+        ctx.lineTo(mouseX, mouseY);
+        ctx.strokeStyle = 'rgba(80, 136, 221, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // ── Simulation ──
+    function simulate() {
+        // Reset all outputs
+        gates.forEach(g => {
+            if (g.type !== 'input') g._output = 0;
+        });
+        wires.forEach(w => w._signal = 0);
+
+        // Iterative propagation (handles feedback loops)
+        for (let iter = 0; iter < 20; iter++) {
+            let changed = false;
+
+            gates.forEach(gate => {
+                if (gate.type === 'input') {
+                    gate._output = gate.value;
+                    return;
+                }
+
+                if (gate.type === 'output') {
+                    // Get input from connected wire
+                    const inputWire = wires.find(w => w.to.gateId === gate.id && w.to.pinType === 'input');
+                    if (inputWire) {
+                        const srcGate = gates.find(g => g.id === inputWire.from.gateId);
+                        const newVal = srcGate ? srcGate._output : 0;
+                        if (gate._output !== newVal) { gate._output = newVal; changed = true; }
+                    }
+                    return;
+                }
+
+                const def = GATE_DEFS[gate.type];
+                if (!def) return;
+
+                // Collect inputs
+                const inputs = [];
+                for (let i = 0; i < def.inputs; i++) {
+                    const inputWire = wires.find(w => w.to.gateId === gate.id && w.to.pinType === 'input' && w.to.pinIdx === i);
+                    if (inputWire) {
+                        const srcGate = gates.find(g => g.id === inputWire.from.gateId);
+                        inputs.push(srcGate ? srcGate._output : 0);
+                    } else {
+                        inputs.push(0);
+                    }
+                }
+
+                const newOutput = def.fn(...inputs);
+                if (gate._output !== newOutput) {
+                    gate._output = newOutput;
+                    changed = true;
+                }
+            });
+
+            // Update wire signals
+            wires.forEach(w => {
+                const srcGate = gates.find(g => g.id === w.from.gateId);
+                w._signal = srcGate ? srcGate._output : 0;
+            });
+
+            if (!changed) break;
+        }
+
+        updateBinaryDisplay();
+    }
+
+    function updateBinaryDisplay() {
+        const outputs = gates.filter(g => g.type === 'output').sort((a, b) => a.y - b.y);
+        const bitsContainer = document.getElementById('binary-bits');
+        const bits = outputs.slice(0, 8).map(o => o._output || 0);
+
+        // Pad to 4 bits minimum
+        while (bits.length < 4) bits.push(0);
+
+        bitsContainer.innerHTML = bits.map(b =>
+            `<div class="bit ${b ? 'high' : 'low'}">${b}</div>`
+        ).join('');
+
+        let decimal = 0;
+        bits.forEach((b, i) => { decimal += b * Math.pow(2, bits.length - 1 - i); });
+        document.getElementById('decimal-value').textContent = '= ' + decimal;
+    }
+
+    // ── Gate Creation ──
+    function addGate(type, x, y) {
+        const gate = {
+            id: nextId++,
+            type: type,
+            x: snap(x),
+            y: snap(y),
+            label: '',
+            _output: 0
+        };
+
+        if (type === 'input') gate.value = 0;
+
+        gates.push(gate);
+        simulate();
+        updateStatusBar();
+        return gate;
+    }
+
+    function addWire(from, to) {
+        // Validate: output -> input only
+        if (from.pinType === to.pinType) return;
+        // Normalize: from should be output, to should be input
+        if (from.pinType === 'input') { const tmp = from; from = to; to = tmp; }
+        // Don't connect same gate
+        if (from.gateId === to.gateId) return;
+        // Don't duplicate
+        const exists = wires.some(w =>
+            w.from.gateId === from.gateId && w.from.pinIdx === from.pinIdx &&
+            w.to.gateId === to.gateId && w.to.pinIdx === to.pinIdx
+        );
+        if (exists) return;
+        // Remove existing wire to same input pin
+        wires = wires.filter(w => !(w.to.gateId === to.gateId && w.to.pinType === to.pinType && w.to.pinIdx === to.pinIdx));
+
+        wires.push({
+            id: nextId++,
+            from: { gateId: from.gateId, pinType: 'output', pinIdx: from.pinIdx },
+            to: { gateId: to.gateId, pinType: 'input', pinIdx: to.pinIdx },
+            _signal: 0
+        });
+        simulate();
+    }
+
+    function deleteGate(id) {
+        gates = gates.filter(g => g.id !== id);
+        wires = wires.filter(w => w.from.gateId !== id && w.to.gateId !== id);
+        if (selectedId === id) selectedId = null;
+        simulate();
+        updateSelectionUI();
+        updateStatusBar();
+    }
+
+    function deleteWire(wire) {
+        wires = wires.filter(w => w.id !== wire.id);
+        simulate();
+    }
+
+    function clearAll() {
+        gates = [];
+        wires = [];
+        selectedId = null;
+        wireStart = null;
+        simulate();
+        updateSelectionUI();
+        updateStatusBar();
+    }
+
+    // ── Selection UI ──
+    function updateSelectionUI() {
+        const gate = gates.find(g => g.id === selectedId);
+        document.getElementById('sel-type').textContent = gate ? gate.type : 'None';
+
+        const outEl = document.getElementById('sel-output');
+        if (gate) {
+            outEl.textContent = gate._output ? 'HIGH (1)' : 'LOW (0)';
+            outEl.className = 'info-value ' + (gate._output ? 'high' : 'low');
+        } else {
+            outEl.textContent = '-';
+            outEl.className = 'info-value';
+        }
+
+        document.getElementById('sel-label').textContent = gate && gate.label ? gate.label : '-';
+
+        // Truth table
+        const ttSection = document.getElementById('truth-table-section');
+        const ttContainer = document.getElementById('truth-table-container');
+        if (gate && TRUTH_TABLES[gate.type]) {
+            ttSection.style.display = '';
+            const tt = TRUTH_TABLES[gate.type];
+            const isUnary = gate.type === 'NOT';
+            let html = '<table class="truth-table"><thead><tr>';
+            if (isUnary) {
+                html += '<th>A</th><th>Out</th>';
+            } else {
+                html += '<th>A</th><th>B</th><th>Out</th>';
+            }
+            html += '</tr></thead><tbody>';
+            tt.forEach(row => {
+                html += '<tr>';
+                row.forEach((v, i) => {
+                    const isOut = i === row.length - 1;
+                    html += `<td class="${v ? 'h' : 'l'}">${v}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            ttContainer.innerHTML = html;
+        } else {
+            ttSection.style.display = 'none';
+        }
+    }
+
+    function updateStatusBar() {
+        document.getElementById('status-gates').textContent = 'Gates: ' + gates.length;
+    }
+
+    // ── Tool Management ──
+    function setTool(t) {
+        tool = t;
+        wireStart = null;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+        document.getElementById('status-mode').textContent = 'Mode: ' + t.charAt(0).toUpperCase() + t.slice(1);
+        canvas.style.cursor = t === 'wire' ? 'crosshair' : t === 'delete' ? 'not-allowed' : t === 'label' ? 'text' : 'default';
+
+        if (t === 'clear') {
+            clearAll();
+            setTool('select');
+        }
+    }
+
+    // ── Presets ──
+    function loadPreset(name) {
+        clearAll();
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        if (name === 'half-adder') {
+            const inA = addGate('input', cx - 200, cy - 60);
+            inA.label = 'A';
+            const inB = addGate('input', cx - 200, cy + 60);
+            inB.label = 'B';
+            const xorG = addGate('XOR', cx - 40, cy - 60);
+            const andG = addGate('AND', cx - 40, cy + 60);
+            const outS = addGate('output', cx + 120, cy - 60);
+            outS.label = 'Sum';
+            const outC = addGate('output', cx + 120, cy + 60);
+            outC.label = 'Carry';
+
+            addWire({ gateId: inA.id, pinType: 'output', pinIdx: 0 }, { gateId: xorG.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inB.id, pinType: 'output', pinIdx: 0 }, { gateId: xorG.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: inA.id, pinType: 'output', pinIdx: 0 }, { gateId: andG.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inB.id, pinType: 'output', pinIdx: 0 }, { gateId: andG.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: xorG.id, pinType: 'output', pinIdx: 0 }, { gateId: outS.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: andG.id, pinType: 'output', pinIdx: 0 }, { gateId: outC.id, pinType: 'input', pinIdx: 0 });
+        } else if (name === 'full-adder') {
+            const inA = addGate('input', cx - 280, cy - 100);
+            inA.label = 'A';
+            const inB = addGate('input', cx - 280, cy);
+            inB.label = 'B';
+            const inCin = addGate('input', cx - 280, cy + 100);
+            inCin.label = 'Cin';
+
+            const xor1 = addGate('XOR', cx - 120, cy - 60);
+            const and1 = addGate('AND', cx - 120, cy + 60);
+            const xor2 = addGate('XOR', cx + 40, cy - 60);
+            const and2 = addGate('AND', cx + 40, cy + 60);
+            const or1 = addGate('OR', cx + 180, cy + 60);
+
+            const outS = addGate('output', cx + 200, cy - 60);
+            outS.label = 'Sum';
+            const outC = addGate('output', cx + 300, cy + 60);
+            outC.label = 'Cout';
+
+            addWire({ gateId: inA.id, pinType: 'output', pinIdx: 0 }, { gateId: xor1.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inB.id, pinType: 'output', pinIdx: 0 }, { gateId: xor1.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: inA.id, pinType: 'output', pinIdx: 0 }, { gateId: and1.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inB.id, pinType: 'output', pinIdx: 0 }, { gateId: and1.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: xor1.id, pinType: 'output', pinIdx: 0 }, { gateId: xor2.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inCin.id, pinType: 'output', pinIdx: 0 }, { gateId: xor2.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: xor1.id, pinType: 'output', pinIdx: 0 }, { gateId: and2.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inCin.id, pinType: 'output', pinIdx: 0 }, { gateId: and2.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: and1.id, pinType: 'output', pinIdx: 0 }, { gateId: or1.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: and2.id, pinType: 'output', pinIdx: 0 }, { gateId: or1.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: xor2.id, pinType: 'output', pinIdx: 0 }, { gateId: outS.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: or1.id, pinType: 'output', pinIdx: 0 }, { gateId: outC.id, pinType: 'input', pinIdx: 0 });
+        } else if (name === 'sr-latch') {
+            const inS = addGate('input', cx - 180, cy - 60);
+            inS.label = 'S (Set)';
+            const inR = addGate('input', cx - 180, cy + 60);
+            inR.label = 'R (Reset)';
+
+            const nor1 = addGate('NOR', cx, cy - 60);
+            const nor2 = addGate('NOR', cx, cy + 60);
+
+            const outQ = addGate('output', cx + 160, cy - 60);
+            outQ.label = 'Q';
+            const outQn = addGate('output', cx + 160, cy + 60);
+            outQn.label = "Q'";
+
+            addWire({ gateId: inS.id, pinType: 'output', pinIdx: 0 }, { gateId: nor1.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: inR.id, pinType: 'output', pinIdx: 0 }, { gateId: nor2.id, pinType: 'input', pinIdx: 1 });
+            // Cross-coupled feedback
+            addWire({ gateId: nor1.id, pinType: 'output', pinIdx: 0 }, { gateId: nor2.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: nor2.id, pinType: 'output', pinIdx: 0 }, { gateId: nor1.id, pinType: 'input', pinIdx: 1 });
+            addWire({ gateId: nor1.id, pinType: 'output', pinIdx: 0 }, { gateId: outQ.id, pinType: 'input', pinIdx: 0 });
+            addWire({ gateId: nor2.id, pinType: 'output', pinIdx: 0 }, { gateId: outQn.id, pinType: 'input', pinIdx: 0 });
+        } else if (name === '4bit-counter') {
+            // 4 inputs + 4 outputs for manual binary display
+            for (let i = 0; i < 4; i++) {
+                const inp = addGate('input', cx - 120, cy - 80 + i * 50);
+                inp.label = 'Bit ' + (3 - i);
+                const outp = addGate('output', cx + 120, cy - 80 + i * 50);
+                outp.label = 'Out ' + (3 - i);
+                addWire(
+                    { gateId: inp.id, pinType: 'output', pinIdx: 0 },
+                    { gateId: outp.id, pinType: 'input', pinIdx: 0 }
+                );
+            }
+        }
+
+        simulate();
+    }
+
+    // ── Label Input ──
+    function showLabelInput(gate) {
+        const input = document.getElementById('label-input');
+        const rect = canvas.getBoundingClientRect();
+        input.style.display = 'block';
+        input.style.left = (rect.left + gate.x - 50) + 'px';
+        input.style.top = (rect.top + gate.y + 30) + 'px';
+        input.value = gate.label || '';
+        input.focus();
+
+        const handler = (e) => {
+            if (e.key === 'Enter' || e.type === 'blur') {
+                gate.label = input.value.trim();
+                input.style.display = 'none';
+                input.removeEventListener('keydown', handler);
+                input.removeEventListener('blur', handler);
+                updateSelectionUI();
+            } else if (e.key === 'Escape') {
+                input.style.display = 'none';
+                input.removeEventListener('keydown', handler);
+                input.removeEventListener('blur', handler);
+            }
+        };
+        input.addEventListener('keydown', handler);
+        input.addEventListener('blur', handler);
+    }
+
+    // ── Tooltip ──
+    function showTooltip(text, title, x, y) {
+        const tt = document.getElementById('tooltip');
+        tt.querySelector('.tt-title').textContent = title || '';
+        tt.querySelector('.tt-body').textContent = text;
+        tt.style.left = (x + 15) + 'px';
+        tt.style.top = (y - 10) + 'px';
+        tt.classList.add('visible');
+    }
+
+    function hideTooltip() {
+        document.getElementById('tooltip').classList.remove('visible');
+    }
+
+    // ── Render Loop ──
+    function render(timestamp) {
+        animTime = timestamp || 0;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGrid();
+        wires.forEach(w => drawWire(w));
+        drawWireInProgress();
+        gates.forEach(g => drawGate(g));
+        requestAnimationFrame(render);
+    }
+
+    // ── Event Handlers ──
+    function getCanvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function handleMouseDown(e) {
+        const pos = getCanvasPos(e);
+        mouseX = pos.x; mouseY = pos.y;
+
+        if (tool === 'select') {
+            const gate = findGateAt(pos.x, pos.y);
+            if (gate) {
+                // Double-click to toggle input
+                if (gate.type === 'input' && e.detail === 2) {
+                    gate.value = gate.value ? 0 : 1;
+                    simulate();
+                    updateSelectionUI();
+                    return;
+                }
+
+                selectedId = gate.id;
+                dragging = gate;
+                dragOffset.x = pos.x - gate.x;
+                dragOffset.y = pos.y - gate.y;
+                updateSelectionUI();
+            } else {
+                selectedId = null;
+                dragging = null;
+                updateSelectionUI();
+            }
+        } else if (tool === 'wire') {
+            const pin = findPinAt(pos.x, pos.y);
+            if (pin) {
+                if (!wireStart) {
+                    wireStart = { gateId: pin.gateId, pinType: pin.pinType, pinIdx: pin.pinIdx };
+                } else {
+                    addWire(wireStart, { gateId: pin.gateId, pinType: pin.pinType, pinIdx: pin.pinIdx });
+                    wireStart = null;
+                }
+            }
+        } else if (tool === 'delete') {
+            const gate = findGateAt(pos.x, pos.y);
+            if (gate) {
+                deleteGate(gate.id);
+            } else {
+                const wire = findWireAt(pos.x, pos.y);
+                if (wire) deleteWire(wire);
+            }
+        } else if (tool === 'label') {
+            const gate = findGateAt(pos.x, pos.y);
+            if (gate) {
+                showLabelInput(gate);
+            }
+        }
+    }
+
+    function handleMouseMove(e) {
+        const pos = getCanvasPos(e);
+        mouseX = pos.x; mouseY = pos.y;
+        document.getElementById('status-mouse').textContent = `x: ${snap(pos.x)}, y: ${snap(pos.y)}`;
+
+        hoveredPin = findPinAt(pos.x, pos.y);
+
+        if (dragging && tool === 'select') {
+            dragging.x = snap(pos.x - dragOffset.x);
+            dragging.y = snap(pos.y - dragOffset.y);
+            simulate();
+        }
+
+        // Tooltip
+        if (tool === 'select') {
+            const gate = findGateAt(pos.x, pos.y);
+            if (gate && GATE_DEFS[gate.type]) {
+                showTooltip(GATE_DEFS[gate.type].tooltip, gate.type + ' Gate', e.clientX, e.clientY);
+            } else if (gate && gate.type === 'input') {
+                showTooltip('Click to toggle between HIGH(1) and LOW(0). Double-click or press Space.', 'Input Switch', e.clientX, e.clientY);
+            } else if (gate && gate.type === 'output') {
+                showTooltip('Displays the signal value. Connect to gate outputs.', 'Output LED', e.clientX, e.clientY);
+            } else {
+                hideTooltip();
+            }
+        }
+    }
+
+    function handleMouseUp() {
+        dragging = null;
+    }
+
+    function handleKeyDown(e) {
+        const key = e.key.toLowerCase();
+        // Don't intercept if label input is active
+        if (document.getElementById('label-input').style.display === 'block') return;
+
+        if (key === 'escape') {
+            wireStart = null;
+            selectedId = null;
+            setTool('select');
+            updateSelectionUI();
+            return;
+        }
+
+        if (key === 'v') setTool('select');
+        else if (key === 'w') setTool('wire');
+        else if (key === 't') setTool('label');
+        else if (key === 'delete' || key === 'backspace') {
+            if (selectedId) {
+                e.preventDefault();
+                deleteGate(selectedId);
+            }
+        } else if (key === ' ') {
+            e.preventDefault();
+            const gate = gates.find(g => g.id === selectedId);
+            if (gate && gate.type === 'input') {
+                gate.value = gate.value ? 0 : 1;
+                simulate();
+                updateSelectionUI();
+            }
+        } else if (key >= '1' && key <= '7') {
+            const gateTypes = ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XOR', 'XNOR'];
+            const idx = parseInt(key) - 1;
+            if (idx < gateTypes.length) {
+                addGate(gateTypes[idx], mouseX || canvas.width / 2, mouseY || canvas.height / 2);
+            }
+        }
+    }
+
+    // ── Drag & Drop from Palette ──
+    function handlePaletteDragStart(e) {
+        const type = e.target.closest('.gate-btn')?.dataset.type;
+        if (!type) return;
+        e.dataTransfer.setData('text/plain', type);
+        e.dataTransfer.effectAllowed = 'copy';
+    }
+
+    function handleCanvasDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    }
+
+    function handleCanvasDrop(e) {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('text/plain');
+        if (type) {
+            const pos = getCanvasPos(e);
+            addGate(type, pos.x, pos.y);
+        }
+    }
+
+    function handlePresetClick(e) {
+        const btn = e.target.closest('.preset-btn');
+        if (!btn) return;
+        loadPreset(btn.dataset.preset);
+    }
+
+    function handleToolbarClick(e) {
+        const btn = e.target.closest('.tool-btn');
+        if (!btn) return;
+        setTool(btn.dataset.tool);
+    }
+
+    // ── Init ──
+    function init() {
+        resizeCanvas();
+
+        eventManager.add(canvas, 'mousedown', handleMouseDown);
+        eventManager.add(canvas, 'mousemove', handleMouseMove);
+        eventManager.add(canvas, 'mouseup', handleMouseUp);
+        eventManager.add(canvas, 'dragover', handleCanvasDragOver);
+        eventManager.add(canvas, 'drop', handleCanvasDrop);
+        eventManager.add(canvas, 'mouseleave', () => { dragging = null; hideTooltip(); });
+
+        eventManager.add(window, 'keydown', handleKeyDown);
+        eventManager.add(window, 'resize', resizeCanvas);
+
+        const palette = document.getElementById('palette');
+        eventManager.add(palette, 'dragstart', handlePaletteDragStart);
+        eventManager.add(palette, 'click', handlePresetClick);
+
+        eventManager.add(document.getElementById('toolbar'), 'click', handleToolbarClick);
+
+        requestAnimationFrame(render);
+
+        const visited = safeGetItem('logic-gates-visited');
+        if (!visited) {
+            safeSetItem('logic-gates-visited', 'true');
+            setTimeout(() => loadPreset('half-adder'), 300);
+        }
+
+        updateStatusBar();
+    }
+
+    init();
+    </script>
+</body>
+</html>

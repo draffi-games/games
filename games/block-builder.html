@@ -37,8 +37,10 @@
             justify-content: space-between;
             align-items: center;
             padding: 10px 20px;
-            background: linear-gradient(180deg, var(--bg-panel), var(--bg-dark));
-            border-bottom: 1px solid rgba(0,212,255,0.2);
+            background: rgba(18, 18, 31, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,212,255,0.15);
         }
 
         .header h1 {
@@ -89,12 +91,14 @@
         /* Sidebar */
         .sidebar {
             width: 220px;
-            background: var(--bg-panel);
+            background: rgba(18, 18, 31, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             padding: 15px;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            border-right: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(0, 212, 255, 0.08);
             overflow-y: auto;
         }
 
@@ -289,7 +293,9 @@
 
         /* Controls Panel */
         .controls-panel {
-            background: linear-gradient(180deg, var(--bg-panel), var(--bg-dark));
+            background: rgba(18, 18, 31, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             padding: 12px 20px;
             border-top: 1px solid rgba(0,212,255,0.1);
             display: none;
@@ -372,13 +378,14 @@
         /* Panels */
         .floating-panel {
             position: absolute;
-            background: rgba(18, 18, 31, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(18, 18, 31, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             padding: 12px;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 0.75rem;
             display: none;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(0, 212, 255, 0.1);
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         }
 
@@ -486,7 +493,9 @@
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             display: none;
             align-items: center;
             justify-content: center;
@@ -494,13 +503,16 @@
         }
         .modal-overlay.visible { display: flex; }
         .modal-content {
-            background: var(--bg-panel);
+            background: rgba(18, 18, 31, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             padding: 25px;
             border-radius: 16px;
             max-width: 550px;
             max-height: 80vh;
             overflow-y: auto;
             border: 1px solid rgba(0,212,255,0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
         .modal-content h2 { margin-bottom: 15px; color: var(--accent); }
         .modal-content h3 { margin: 15px 0 8px; font-size: 0.95rem; }
@@ -520,6 +532,122 @@
         .shortcut-list { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem; }
         .shortcut-list span:nth-child(odd) { color: var(--accent); }
 
+        /* Start Screen */
+        .start-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 18, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        .start-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .start-card {
+            background: rgba(18, 18, 31, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 520px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 212, 255, 0.1);
+        }
+
+        .start-icon {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 12px;
+            animation: startFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes startFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .start-card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, var(--accent), #ff6b9d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .start-card .start-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .start-card p {
+            color: #aaa;
+            line-height: 1.7;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .start-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .start-feature {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 0.8rem;
+            color: #bbb;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .start-feature-icon {
+            font-size: 1.3rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .start-btn {
+            padding: 14px 36px;
+            background: linear-gradient(135deg, var(--accent), #ff6b9d);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        /* prefers-reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            .start-icon, .block-card, .tool-btn, .preset-btn, .modal-btn,
+            .header-btn, .confetti, .toast, .control-btn, .export-btn,
+            .theme-btn {
+                animation: none !important;
+                transition: none !important;
+            }
+            @keyframes blockPulse { 0%, 100% {} }
+            @keyframes fullPowerBg { 0%, 100% {} }
+            @keyframes confettiFall { 0%, 100% {} }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar { width: 170px; padding: 10px; }
@@ -533,9 +661,41 @@
     </style>
 </head>
 <body>
+    <!-- Start Screen -->
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-card">
+            <span class="start-icon">🧱</span>
+            <h2>Block Builder Lab 2.0</h2>
+            <div class="start-subtitle">Modulare Simulations-Sandbox</div>
+            <p>
+                Kombiniere 7 Funktions-Blocks wie Lego-Steine,
+                um interaktive Demos mit Physik, Robotern und Effekten zu bauen!
+            </p>
+            <div class="start-features">
+                <div class="start-feature">
+                    <span class="start-feature-icon">⚡</span>
+                    Physik-Engine
+                </div>
+                <div class="start-feature">
+                    <span class="start-feature-icon">🤖</span>
+                    Robot-Generator
+                </div>
+                <div class="start-feature">
+                    <span class="start-feature-icon">📊</span>
+                    Live-Analytics
+                </div>
+                <div class="start-feature">
+                    <span class="start-feature-icon">💾</span>
+                    Szenen Export
+                </div>
+            </div>
+            <button class="start-btn" id="bbStartBtn">Los geht's!</button>
+        </div>
+    </div>
+
     <header class="header">
         <h1>
-            <a href="../index.html" class="back-link">←</a>
+            <a href="../simulations-index.html" class="back-link">←</a>
             <span>Block Builder Lab 2.0</span>
         </h1>
         <div class="header-buttons">
@@ -740,6 +900,48 @@
     <script>
         const DEBUG = false;
         if (!DEBUG) { console.log = console.warn = console.info = () => {}; }
+
+        // ========== EVENT MANAGER ==========
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
+        // ========== SAFE LOCALSTORAGE ==========
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
 
         // ========== STATE ==========
         const state = {
@@ -1669,28 +1871,31 @@
 
         // ========== EXPORT ==========
         function saveScene() {
-            try {
-                const data = { objects: state.objects, physics, theme: state.theme };
-                localStorage.setItem('blockBuilder_scene', JSON.stringify(data));
+            const data = { objects: state.objects, physics, theme: state.theme };
+            const success = safeSetItem('blockBuilder_scene', JSON.stringify(data));
+            if (success) {
                 showToast('💾 Gespeichert!');
                 addStoryEvent('💾 Szene gespeichert');
-            } catch (e) {
+            } else {
                 showToast('Fehler beim Speichern');
             }
         }
 
         function loadScene() {
-            try {
-                const data = JSON.parse(localStorage.getItem('blockBuilder_scene'));
-                if (data) {
+            const raw = safeGetItem('blockBuilder_scene');
+            if (raw) {
+                try {
+                    const data = JSON.parse(raw);
                     state.objects = data.objects || [];
                     Object.assign(physics, data.physics || {});
                     state.theme = data.theme || 'scifi';
                     updateUI();
                     showToast('📂 Geladen!');
                     addStoryEvent('📂 Szene geladen');
+                } catch (e) {
+                    showToast('Fehler beim Laden');
                 }
-            } catch (e) {
+            } else {
                 showToast('Keine Szene gefunden');
             }
         }
@@ -1814,6 +2019,16 @@
 
         // ========== INIT ==========
         function init() {
+            // Start screen
+            const startOverlay = document.getElementById('startOverlay');
+            const bbStartBtn = document.getElementById('bbStartBtn');
+            if (bbStartBtn && startOverlay) {
+                bbStartBtn.addEventListener('click', () => {
+                    startOverlay.classList.add('hidden');
+                    setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+                });
+            }
+
             updateUI();
             addStoryEvent('🚀 Block Builder Lab 2.0 gestartet!');
             requestAnimationFrame(gameLoop);

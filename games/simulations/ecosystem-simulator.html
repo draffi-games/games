@@ -24,8 +24,10 @@
             left: 10px;
             z-index: 1000;
             padding: 8px 16px;
-            background: rgba(102, 126, 234, 0.3);
-            border: 1px solid rgba(102, 126, 234, 0.6);
+            background: rgba(102, 126, 234, 0.2);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(102, 126, 234, 0.4);
             border-radius: 20px;
             color: #fff;
             text-decoration: none;
@@ -36,8 +38,120 @@
         }
 
         .back-link:hover {
-            background: rgba(102, 126, 234, 0.5);
+            background: rgba(102, 126, 234, 0.4);
             transform: translateY(-2px);
+        }
+
+        /* Start Screen */
+        .start-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 10, 15, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        .start-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .start-card {
+            background: rgba(20, 20, 40, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 520px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(102, 126, 234, 0.1);
+        }
+
+        .start-icon {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 12px;
+            animation: startFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes startFloat {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-8px) scale(1.05); }
+        }
+
+        .start-card h2 {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .start-card .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .start-card p {
+            color: #aaa;
+            line-height: 1.7;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .start-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .start-feature {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 0.8rem;
+            color: #bbb;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .start-feature-icon {
+            font-size: 1.3rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .start-btn {
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 0.5px;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+
+        /* prefers-reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            .start-icon, .preset-btn, .control-btn, .back-link, .toggle-panel-btn {
+                animation: none !important;
+                transition: none !important;
+            }
         }
 
         #container {
@@ -48,11 +162,13 @@
 
         #left-panel {
             width: 280px;
-            background: rgba(20, 20, 30, 0.95);
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             padding: 20px;
             padding-top: 50px;
             overflow-y: auto;
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            border-right: 1px solid rgba(102, 126, 234, 0.1);
         }
 
         #canvas-container {
@@ -69,10 +185,12 @@
 
         #right-panel {
             width: 300px;
-            background: rgba(20, 20, 30, 0.95);
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             padding: 20px;
             overflow-y: auto;
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(102, 126, 234, 0.1);
             transition: transform 0.3s ease;
         }
 
@@ -84,12 +202,15 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            background: rgba(10, 10, 15, 0.9);
+            background: rgba(10, 10, 20, 0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             padding: 15px 20px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.15);
             font-family: 'Courier New', monospace;
             font-size: 13px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
         #graphs-panel {
@@ -97,10 +218,13 @@
             top: 20px;
             right: 20px;
             width: 400px;
-            background: rgba(10, 10, 15, 0.95);
+            background: rgba(10, 10, 20, 0.8);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             padding: 20px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             display: none;
         }
 
@@ -366,7 +490,39 @@
     </style>
 </head>
 <body>
-    <a href="../simulations-index.html" class="back-link">Simulationen</a>
+    <a href="../simulations-index.html" class="back-link">← Simulationen</a>
+
+    <!-- Start Screen -->
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-card">
+            <span class="start-icon">🌍</span>
+            <h2>NPC Ecosystem Simulator</h2>
+            <div class="subtitle">Emergente Verhaltens-Simulation</div>
+            <p>
+                Beobachte wie autonome Agenten in einem dynamischen Ökosystem
+                interagieren — mit Flocking, Raubtier-Beute-Dynamik und Stammeskonflikten.
+            </p>
+            <div class="start-features">
+                <div class="start-feature">
+                    <span class="start-feature-icon">🐦</span>
+                    Schwarmverhalten
+                </div>
+                <div class="start-feature">
+                    <span class="start-feature-icon">🦊</span>
+                    Raubtier & Beute
+                </div>
+                <div class="start-feature">
+                    <span class="start-feature-icon">🌿</span>
+                    Ressourcen-Wettbewerb
+                </div>
+                <div class="start-feature">
+                    <span class="start-feature-icon">⚔️</span>
+                    Stammeskriege
+                </div>
+            </div>
+            <button class="start-btn" id="startBtn">Simulation starten</button>
+        </div>
+    </div>
 
     <div id="container">
         <!-- Left Panel: Presets & Behaviors -->
@@ -574,6 +730,61 @@
     </div>
 
     <script>
+// ============================================================================
+// DEBUG MODE
+// ============================================================================
+const DEBUG = false;
+if (!DEBUG) {
+    const noop = () => {};
+    console.log = noop;
+    console.warn = noop;
+    console.info = noop;
+}
+
+// ============================================================================
+// EVENT MANAGER
+// ============================================================================
+class EventManager {
+    constructor() {
+        this.listeners = [];
+    }
+
+    add(element, event, handler, options) {
+        element.addEventListener(event, handler, options);
+        this.listeners.push({ element, event, handler, options });
+    }
+
+    removeAll() {
+        this.listeners.forEach(({ element, event, handler, options }) => {
+            element.removeEventListener(event, handler, options);
+        });
+        this.listeners = [];
+    }
+}
+
+// ============================================================================
+// SAFE LOCALSTORAGE
+// ============================================================================
+function safeGetItem(key, defaultValue = null) {
+    try {
+        const item = localStorage.getItem(key);
+        return item !== null ? item : defaultValue;
+    } catch (error) {
+        console.error('LocalStorage not available:', error);
+        return defaultValue;
+    }
+}
+
+function safeSetItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        console.error('LocalStorage not available:', error);
+        return false;
+    }
+}
+
 // ============================================================================
 // NPC ECOSYSTEM SIMULATOR
 // ============================================================================
@@ -1091,10 +1302,11 @@ class Simulation {
     }
 
     setupEventListeners() {
-        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-        this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
-        this.canvas.addEventListener('click', (e) => this.onClick(e));
+        this.eventManager = new EventManager();
+        this.eventManager.add(this.canvas, 'mousedown', (e) => this.onMouseDown(e));
+        this.eventManager.add(this.canvas, 'mousemove', (e) => this.onMouseMove(e));
+        this.eventManager.add(this.canvas, 'mouseup', (e) => this.onMouseUp(e));
+        this.eventManager.add(this.canvas, 'click', (e) => this.onClick(e));
     }
 
     onMouseDown(e) {
@@ -1621,6 +1833,9 @@ window.addEventListener('load', () => {
 
     const simulation = new Simulation(canvas);
     const uiController = new UIController(simulation);
+    const globalEventManager = new EventManager();
+
+    let animating = false;
 
     function animate() {
         for (let i = 0; i < simulation.timeScale; i++) {
@@ -1630,9 +1845,24 @@ window.addEventListener('load', () => {
         requestAnimationFrame(animate);
     }
 
-    animate();
+    // Start button
+    const startBtn = document.getElementById('startBtn');
+    const startOverlay = document.getElementById('startOverlay');
 
-    window.addEventListener('resize', () => {
+    if (startBtn && startOverlay) {
+        startBtn.addEventListener('click', () => {
+            startOverlay.classList.add('hidden');
+            setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+            if (!animating) {
+                animating = true;
+                animate();
+            }
+        });
+    } else {
+        animate();
+    }
+
+    globalEventManager.add(window, 'resize', () => {
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
         simulation.config.width = canvas.width;

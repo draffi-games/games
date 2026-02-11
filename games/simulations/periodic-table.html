@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Periodic Table</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0a12;
+            --bg-secondary: rgba(16, 16, 28, 0.95);
+            --bg-card: rgba(25, 25, 45, 0.9);
+            --text-primary: #e8e8f0;
+            --text-secondary: #a0a0b8;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent: #667eea;
+            --accent-glow: rgba(102, 126, 234, 0.4);
+            --alkali: #ff6b6b;
+            --alkaline: #ffa94d;
+            --transition: #ffd43b;
+            --post-transition: #69db7c;
+            --metalloid: #38d9a9;
+            --nonmetal: #4dabf7;
+            --halogen: #748ffc;
+            --noble: #da77f2;
+            --lanthanide: #e599f7;
+            --actinide: #faa2c1;
+            --unknown: #868e96;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .header {
+            text-align: center;
+            padding: 50px 20px 10px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #667eea, #da77f2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 12px 20px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 14px 8px 34px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            width: 220px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .search-box::before {
+            content: '\1F50D';
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.85rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .filter-group label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .filter-group select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .temp-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .temp-control label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .temp-control input[type="range"] {
+            width: 140px;
+            accent-color: var(--accent);
+        }
+
+        .temp-value {
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 0.85rem;
+            min-width: 55px;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 6px 20px 10px;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 3px 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .legend-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .legend-item.active {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            padding: 0 10px 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            gap: 2px;
+            min-width: 900px;
+            max-width: 1300px;
+            width: 100%;
+        }
+
+        .element {
+            position: relative;
+            aspect-ratio: 1;
+            min-width: 0;
+            min-height: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .element:hover {
+            transform: scale(1.15);
+            z-index: 10;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .element.dimmed {
+            opacity: 0.15;
+        }
+
+        .element.highlight {
+            box-shadow: 0 0 12px var(--accent-glow);
+            border-color: var(--accent);
+        }
+
+        .element .number {
+            font-size: clamp(0.45rem, 0.8vw, 0.6rem);
+            color: var(--text-secondary);
+            position: absolute;
+            top: 1px;
+            left: 3px;
+        }
+
+        .element .symbol {
+            font-size: clamp(0.7rem, 1.5vw, 1.1rem);
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .element .name {
+            font-size: clamp(0.35rem, 0.6vw, 0.5rem);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .element .mass {
+            font-size: clamp(0.35rem, 0.55vw, 0.45rem);
+            color: rgba(255,255,255,0.4);
+        }
+
+        .element.state-solid { border-bottom: 2px solid #ffd43b; }
+        .element.state-liquid { border-bottom: 2px solid #4dabf7; }
+        .element.state-gas { border-bottom: 2px solid #ff6b6b; }
+
+        .spacer { visibility: hidden; }
+
+        .lanthanide-label, .actinide-label {
+            grid-column: 1 / 4;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 0;
+            right: -420px;
+            width: 400px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+            z-index: 100;
+        }
+
+        .info-panel.open {
+            right: 0;
+        }
+
+        .info-panel .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .info-header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .info-header .big-symbol {
+            font-size: 3.5rem;
+            font-weight: 800;
+        }
+
+        .info-header .big-name {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .info-header .big-number {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .info-section {
+            margin-bottom: 16px;
+        }
+
+        .info-section h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .info-row .label {
+            color: var(--text-secondary);
+        }
+
+        .info-row .value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .electron-canvas {
+            width: 100%;
+            height: 200px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            margin-top: 10px;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .state-legend {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            padding: 4px 0 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .state-legend span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .state-legend .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.4rem; }
+            .controls { flex-direction: column; align-items: stretch; }
+            .search-box input { width: 100%; }
+            .periodic-table { gap: 1px; min-width: 700px; }
+            .info-panel { width: 100%; right: -100%; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">Back to Simulations</a>
+
+    <div class="header">
+        <h1>Interactive Periodic Table</h1>
+        <p>Explore all 118 elements — click any element for detailed information</p>
+    </div>
+
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search element or symbol...">
+        </div>
+        <div class="filter-group">
+            <label>Color by:</label>
+            <select id="colorMode">
+                <option value="category">Category</option>
+                <option value="state">State at temp</option>
+                <option value="electronegativity">Electronegativity</option>
+                <option value="year">Discovery year</option>
+                <option value="block">Electron block</option>
+            </select>
+        </div>
+        <div class="temp-control">
+            <label>Temperature:</label>
+            <input type="range" id="tempSlider" min="0" max="6000" value="298" step="1">
+            <span class="temp-value" id="tempValue">298 K</span>
+        </div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="state-legend" id="stateLegend">
+        <span><span class="dot" style="background:#ffd43b"></span> Solid</span>
+        <span><span class="dot" style="background:#4dabf7"></span> Liquid</span>
+        <span><span class="dot" style="background:#ff6b6b"></span> Gas</span>
+    </div>
+
+    <div class="table-container">
+        <div class="periodic-table" id="periodicTable"></div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+    <div class="info-panel" id="infoPanel">
+        <button class="close-btn" id="closePanel">&times;</button>
+        <div id="infoPanelContent"></div>
+    </div>
+
+    <script>
+    'use strict';
+
+    const DEBUG = false;
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // --- EventManager ---
+    class EventManager {
+        constructor() { this.listeners = []; }
+        add(el, evt, handler, opts) {
+            el.addEventListener(evt, handler, opts);
+            this.listeners.push({ el, evt, handler, opts });
+        }
+        removeAll() {
+            this.listeners.forEach(({ el, evt, handler, opts }) => {
+                el.removeEventListener(evt, handler, opts);
+            });
+            this.listeners = [];
+        }
+    }
+
+    // --- Safe localStorage ---
+    function safeGetItem(key, def = null) {
+        try { const v = localStorage.getItem(key); return v !== null ? v : def; }
+        catch(e) { console.error('localStorage error:', e); return def; }
+    }
+    function safeSetItem(key, val) {
+        try { localStorage.setItem(key, val); return true; }
+        catch(e) { console.error('localStorage error:', e); return false; }
+    }
+
+    // --- Element Data ---
+    const ELEMENTS = [
+        { z:1, sym:"H", name:"Hydrogen", mass:1.008, category:"nonmetal", block:"s", period:1, group:1, mp:14.01, bp:20.28, en:2.20, config:"1s1", discovered:1766, discoverer:"Henry Cavendish", uses:"Rocket fuel, ammonia production, fuel cells", appearance:"Colorless gas" },
+        { z:2, sym:"He", name:"Helium", mass:4.003, category:"noble", block:"s", period:1, group:18, mp:0.95, bp:4.22, en:0, config:"1s2", discovered:1868, discoverer:"Pierre Janssen", uses:"Balloons, cryogenics, MRI cooling", appearance:"Colorless gas" },
+        { z:3, sym:"Li", name:"Lithium", mass:6.941, category:"alkali", block:"s", period:2, group:1, mp:453.69, bp:1615, en:0.98, config:"[He] 2s1", discovered:1817, discoverer:"Johan August Arfwedson", uses:"Batteries, ceramics, medication", appearance:"Silvery-white metal" },
+        { z:4, sym:"Be", name:"Beryllium", mass:9.012, category:"alkaline", block:"s", period:2, group:2, mp:1560, bp:2742, en:1.57, config:"[He] 2s2", discovered:1798, discoverer:"Louis Nicolas Vauquelin", uses:"Aerospace alloys, X-ray windows", appearance:"Steel-gray metal" },
+        { z:5, sym:"B", name:"Boron", mass:10.81, category:"metalloid", block:"p", period:2, group:13, mp:2349, bp:4200, en:2.04, config:"[He] 2s2 2p1", discovered:1808, discoverer:"Humphry Davy", uses:"Borosilicate glass, detergents", appearance:"Black-brown metalloid" },
+        { z:6, sym:"C", name:"Carbon", mass:12.011, category:"nonmetal", block:"p", period:2, group:14, mp:3823, bp:4098, en:2.55, config:"[He] 2s2 2p2", discovered:-3750, discoverer:"Ancient", uses:"Life chemistry, steel, fuels, nanotech", appearance:"Black (graphite) or clear (diamond)" },
+        { z:7, sym:"N", name:"Nitrogen", mass:14.007, category:"nonmetal", block:"p", period:2, group:15, mp:63.15, bp:77.36, en:3.04, config:"[He] 2s2 2p3", discovered:1772, discoverer:"Daniel Rutherford", uses:"Fertilizers, explosives, food preservation", appearance:"Colorless gas" },
+        { z:8, sym:"O", name:"Oxygen", mass:15.999, category:"nonmetal", block:"p", period:2, group:16, mp:54.36, bp:90.20, en:3.44, config:"[He] 2s2 2p4", discovered:1774, discoverer:"Joseph Priestley", uses:"Respiration, steel making, medical", appearance:"Colorless gas" },
+        { z:9, sym:"F", name:"Fluorine", mass:18.998, category:"halogen", block:"p", period:2, group:17, mp:53.53, bp:85.03, en:3.98, config:"[He] 2s2 2p5", discovered:1886, discoverer:"Henri Moissan", uses:"Toothpaste, Teflon, refrigerants", appearance:"Pale yellow gas" },
+        { z:10, sym:"Ne", name:"Neon", mass:20.180, category:"noble", block:"p", period:2, group:18, mp:24.56, bp:27.07, en:0, config:"[He] 2s2 2p6", discovered:1898, discoverer:"William Ramsay", uses:"Neon signs, lasers, cryogenics", appearance:"Colorless gas (orange glow)" },
+        { z:11, sym:"Na", name:"Sodium", mass:22.990, category:"alkali", block:"s", period:3, group:1, mp:370.87, bp:1156, en:0.93, config:"[Ne] 3s1", discovered:1807, discoverer:"Humphry Davy", uses:"Table salt, street lights, chemical reagent", appearance:"Silvery-white metal" },
+        { z:12, sym:"Mg", name:"Magnesium", mass:24.305, category:"alkaline", block:"s", period:3, group:2, mp:923, bp:1363, en:1.31, config:"[Ne] 3s2", discovered:1755, discoverer:"Joseph Black", uses:"Alloys, fireworks, medicine", appearance:"Shiny gray metal" },
+        { z:13, sym:"Al", name:"Aluminium", mass:26.982, category:"post-transition", block:"p", period:3, group:13, mp:933.47, bp:2792, en:1.61, config:"[Ne] 3s2 3p1", discovered:1825, discoverer:"Hans Christian Oersted", uses:"Aircraft, cans, foil, construction", appearance:"Silvery-white metal" },
+        { z:14, sym:"Si", name:"Silicon", mass:28.086, category:"metalloid", block:"p", period:3, group:14, mp:1687, bp:3538, en:1.90, config:"[Ne] 3s2 3p2", discovered:1824, discoverer:"Jons Jacob Berzelius", uses:"Semiconductors, glass, solar cells", appearance:"Blue-gray metalloid" },
+        { z:15, sym:"P", name:"Phosphorus", mass:30.974, category:"nonmetal", block:"p", period:3, group:15, mp:317.30, bp:553.65, en:2.19, config:"[Ne] 3s2 3p3", discovered:1669, discoverer:"Hennig Brand", uses:"Fertilizers, matches, detergents", appearance:"White/red solid" },
+        { z:16, sym:"S", name:"Sulfur", mass:32.06, category:"nonmetal", block:"p", period:3, group:16, mp:388.36, bp:717.87, en:2.58, config:"[Ne] 3s2 3p4", discovered:-500, discoverer:"Ancient", uses:"Sulfuric acid, rubber, gunpowder", appearance:"Yellow solid" },
+        { z:17, sym:"Cl", name:"Chlorine", mass:35.45, category:"halogen", block:"p", period:3, group:17, mp:171.6, bp:239.11, en:3.16, config:"[Ne] 3s2 3p5", discovered:1774, discoverer:"Carl Wilhelm Scheele", uses:"Water purification, PVC, bleach", appearance:"Yellow-green gas" },
+        { z:18, sym:"Ar", name:"Argon", mass:39.948, category:"noble", block:"p", period:3, group:18, mp:83.80, bp:87.30, en:0, config:"[Ne] 3s2 3p6", discovered:1894, discoverer:"Lord Rayleigh", uses:"Welding, light bulbs, insulation", appearance:"Colorless gas" },
+        { z:19, sym:"K", name:"Potassium", mass:39.098, category:"alkali", block:"s", period:4, group:1, mp:336.53, bp:1032, en:0.82, config:"[Ar] 4s1", discovered:1807, discoverer:"Humphry Davy", uses:"Fertilizers, soap, gunpowder", appearance:"Silvery-white metal" },
+        { z:20, sym:"Ca", name:"Calcium", mass:40.078, category:"alkaline", block:"s", period:4, group:2, mp:1115, bp:1757, en:1.00, config:"[Ar] 4s2", discovered:1808, discoverer:"Humphry Davy", uses:"Cement, bones, steel making", appearance:"Silvery-white metal" },
+        { z:21, sym:"Sc", name:"Scandium", mass:44.956, category:"transition", block:"d", period:4, group:3, mp:1814, bp:3109, en:1.36, config:"[Ar] 3d1 4s2", discovered:1879, discoverer:"Lars Fredrik Nilson", uses:"Aerospace alloys, sports equipment", appearance:"Silvery-white metal" },
+        { z:22, sym:"Ti", name:"Titanium", mass:47.867, category:"transition", block:"d", period:4, group:4, mp:1941, bp:3560, en:1.54, config:"[Ar] 3d2 4s2", discovered:1791, discoverer:"William Gregor", uses:"Aerospace, implants, pigments", appearance:"Silvery-gray metal" },
+        { z:23, sym:"V", name:"Vanadium", mass:50.942, category:"transition", block:"d", period:4, group:5, mp:2183, bp:3680, en:1.63, config:"[Ar] 3d3 4s2", discovered:1801, discoverer:"Andres Manuel del Rio", uses:"Steel alloys, tools", appearance:"Blue-silver metal" },
+        { z:24, sym:"Cr", name:"Chromium", mass:51.996, category:"transition", block:"d", period:4, group:6, mp:2180, bp:2944, en:1.66, config:"[Ar] 3d5 4s1", discovered:1797, discoverer:"Louis Nicolas Vauquelin", uses:"Stainless steel, chrome plating", appearance:"Silvery metal" },
+        { z:25, sym:"Mn", name:"Manganese", mass:54.938, category:"transition", block:"d", period:4, group:7, mp:1519, bp:2334, en:1.55, config:"[Ar] 3d5 4s2", discovered:1774, discoverer:"Johan Gottlieb Gahn", uses:"Steel, batteries, pigments", appearance:"Silvery metal" },
+        { z:26, sym:"Fe", name:"Iron", mass:55.845, category:"transition", block:"d", period:4, group:8, mp:1811, bp:3134, en:1.83, config:"[Ar] 3d6 4s2", discovered:-5000, discoverer:"Ancient", uses:"Steel, construction, tools, magnets", appearance:"Lustrous gray metal" },
+        { z:27, sym:"Co", name:"Cobalt", mass:58.933, category:"transition", block:"d", period:4, group:9, mp:1768, bp:3200, en:1.88, config:"[Ar] 3d7 4s2", discovered:1735, discoverer:"Georg Brandt", uses:"Magnets, batteries, blue pigments", appearance:"Blue-silver metal" },
+        { z:28, sym:"Ni", name:"Nickel", mass:58.693, category:"transition", block:"d", period:4, group:10, mp:1728, bp:3186, en:1.91, config:"[Ar] 3d8 4s2", discovered:1751, discoverer:"Axel Fredrik Cronstedt", uses:"Coins, stainless steel, batteries", appearance:"Lustrous silver metal" },
+        { z:29, sym:"Cu", name:"Copper", mass:63.546, category:"transition", block:"d", period:4, group:11, mp:1357.77, bp:2835, en:1.90, config:"[Ar] 3d10 4s1", discovered:-9000, discoverer:"Ancient", uses:"Wiring, plumbing, electronics", appearance:"Reddish-orange metal" },
+        { z:30, sym:"Zn", name:"Zinc", mass:65.38, category:"transition", block:"d", period:4, group:12, mp:692.68, bp:1180, en:1.65, config:"[Ar] 3d10 4s2", discovered:1746, discoverer:"Andreas Sigismund Marggraf", uses:"Galvanizing, brass, batteries", appearance:"Bluish-silver metal" },
+        { z:31, sym:"Ga", name:"Gallium", mass:69.723, category:"post-transition", block:"p", period:4, group:13, mp:302.91, bp:2477, en:1.81, config:"[Ar] 3d10 4s2 4p1", discovered:1875, discoverer:"Lecoq de Boisbaudran", uses:"Semiconductors, LEDs, solar panels", appearance:"Silvery metal" },
+        { z:32, sym:"Ge", name:"Germanium", mass:72.63, category:"metalloid", block:"p", period:4, group:14, mp:1211.40, bp:3106, en:2.01, config:"[Ar] 3d10 4s2 4p2", discovered:1886, discoverer:"Clemens Winkler", uses:"Fiber optics, infrared optics", appearance:"Grayish-white metalloid" },
+        { z:33, sym:"As", name:"Arsenic", mass:74.922, category:"metalloid", block:"p", period:4, group:15, mp:1090, bp:887, en:2.18, config:"[Ar] 3d10 4s2 4p3", discovered:1250, discoverer:"Albertus Magnus", uses:"Semiconductors, wood preservation", appearance:"Gray metalloid" },
+        { z:34, sym:"Se", name:"Selenium", mass:78.971, category:"nonmetal", block:"p", period:4, group:16, mp:494, bp:958, en:2.55, config:"[Ar] 3d10 4s2 4p4", discovered:1817, discoverer:"Jons Jacob Berzelius", uses:"Electronics, glass, supplements", appearance:"Gray/red solid" },
+        { z:35, sym:"Br", name:"Bromine", mass:79.904, category:"halogen", block:"p", period:4, group:17, mp:265.8, bp:332, en:2.96, config:"[Ar] 3d10 4s2 4p5", discovered:1826, discoverer:"Antoine Jerome Balard", uses:"Flame retardants, photography", appearance:"Reddish-brown liquid" },
+        { z:36, sym:"Kr", name:"Krypton", mass:83.798, category:"noble", block:"p", period:4, group:18, mp:115.79, bp:119.93, en:3.00, config:"[Ar] 3d10 4s2 4p6", discovered:1898, discoverer:"William Ramsay", uses:"Fluorescent lamps, flash photography", appearance:"Colorless gas" },
+        { z:37, sym:"Rb", name:"Rubidium", mass:85.468, category:"alkali", block:"s", period:5, group:1, mp:312.46, bp:961, en:0.82, config:"[Kr] 5s1", discovered:1861, discoverer:"Robert Bunsen", uses:"Atomic clocks, photocells", appearance:"Silvery-white metal" },
+        { z:38, sym:"Sr", name:"Strontium", mass:87.62, category:"alkaline", block:"s", period:5, group:2, mp:1050, bp:1655, en:0.95, config:"[Kr] 5s2", discovered:1790, discoverer:"Adair Crawford", uses:"Fireworks (red), magnets, toothpaste", appearance:"Silvery-yellow metal" },
+        { z:39, sym:"Y", name:"Yttrium", mass:88.906, category:"transition", block:"d", period:5, group:3, mp:1799, bp:3609, en:1.22, config:"[Kr] 4d1 5s2", discovered:1794, discoverer:"Johan Gadolin", uses:"LEDs, superconductors, lasers", appearance:"Silvery metal" },
+        { z:40, sym:"Zr", name:"Zirconium", mass:91.224, category:"transition", block:"d", period:5, group:4, mp:2128, bp:4682, en:1.33, config:"[Kr] 4d2 5s2", discovered:1789, discoverer:"Martin Heinrich Klaproth", uses:"Nuclear reactors, ceramics", appearance:"Grayish-white metal" },
+        { z:41, sym:"Nb", name:"Niobium", mass:92.906, category:"transition", block:"d", period:5, group:5, mp:2750, bp:5017, en:1.6, config:"[Kr] 4d4 5s1", discovered:1801, discoverer:"Charles Hatchett", uses:"Superconducting magnets, jet engines", appearance:"Gray metal" },
+        { z:42, sym:"Mo", name:"Molybdenum", mass:95.95, category:"transition", block:"d", period:5, group:6, mp:2896, bp:4912, en:2.16, config:"[Kr] 4d5 5s1", discovered:1781, discoverer:"Carl Wilhelm Scheele", uses:"High-strength steel alloys", appearance:"Silvery metal" },
+        { z:43, sym:"Tc", name:"Technetium", mass:98, category:"transition", block:"d", period:5, group:7, mp:2430, bp:4538, en:1.9, config:"[Kr] 4d5 5s2", discovered:1937, discoverer:"Emilio Segre", uses:"Medical imaging, radioactive tracers", appearance:"Silvery-gray metal" },
+        { z:44, sym:"Ru", name:"Ruthenium", mass:101.07, category:"transition", block:"d", period:5, group:8, mp:2607, bp:4423, en:2.2, config:"[Kr] 4d7 5s1", discovered:1844, discoverer:"Karl Ernst Claus", uses:"Electronics, catalysis", appearance:"Silvery-white metal" },
+        { z:45, sym:"Rh", name:"Rhodium", mass:102.91, category:"transition", block:"d", period:5, group:9, mp:2237, bp:3968, en:2.28, config:"[Kr] 4d8 5s1", discovered:1803, discoverer:"William Hyde Wollaston", uses:"Catalytic converters, jewelry", appearance:"Silvery-white metal" },
+        { z:46, sym:"Pd", name:"Palladium", mass:106.42, category:"transition", block:"d", period:5, group:10, mp:1828.05, bp:3236, en:2.20, config:"[Kr] 4d10", discovered:1803, discoverer:"William Hyde Wollaston", uses:"Catalytic converters, electronics, jewelry", appearance:"Silvery-white metal" },
+        { z:47, sym:"Ag", name:"Silver", mass:107.87, category:"transition", block:"d", period:5, group:11, mp:1234.93, bp:2435, en:1.93, config:"[Kr] 4d10 5s1", discovered:-5000, discoverer:"Ancient", uses:"Jewelry, electronics, photography", appearance:"Lustrous white metal" },
+        { z:48, sym:"Cd", name:"Cadmium", mass:112.41, category:"transition", block:"d", period:5, group:12, mp:594.22, bp:1040, en:1.69, config:"[Kr] 4d10 5s2", discovered:1817, discoverer:"Friedrich Stromeyer", uses:"Batteries, pigments, coatings", appearance:"Silvery bluish-gray metal" },
+        { z:49, sym:"In", name:"Indium", mass:114.82, category:"post-transition", block:"p", period:5, group:13, mp:429.75, bp:2345, en:1.78, config:"[Kr] 4d10 5s2 5p1", discovered:1863, discoverer:"Ferdinand Reich", uses:"Touchscreens (ITO), solders", appearance:"Silvery-white metal" },
+        { z:50, sym:"Sn", name:"Tin", mass:118.71, category:"post-transition", block:"p", period:5, group:14, mp:505.08, bp:2875, en:1.96, config:"[Kr] 4d10 5s2 5p2", discovered:-3500, discoverer:"Ancient", uses:"Tin cans, solder, alloys", appearance:"Silvery-white metal" },
+        { z:51, sym:"Sb", name:"Antimony", mass:121.76, category:"metalloid", block:"p", period:5, group:15, mp:903.78, bp:1860, en:2.05, config:"[Kr] 4d10 5s2 5p3", discovered:-3000, discoverer:"Ancient", uses:"Flame retardants, batteries, alloys", appearance:"Silvery metalloid" },
+        { z:52, sym:"Te", name:"Tellurium", mass:127.60, category:"metalloid", block:"p", period:5, group:16, mp:722.66, bp:1261, en:2.1, config:"[Kr] 4d10 5s2 5p4", discovered:1783, discoverer:"Franz-Joseph Muller", uses:"Solar cells, thermoelectrics", appearance:"Silvery-white metalloid" },
+        { z:53, sym:"I", name:"Iodine", mass:126.90, category:"halogen", block:"p", period:5, group:17, mp:386.85, bp:457.4, en:2.66, config:"[Kr] 4d10 5s2 5p5", discovered:1811, discoverer:"Bernard Courtois", uses:"Medicine, photography, disinfectant", appearance:"Violet-black solid" },
+        { z:54, sym:"Xe", name:"Xenon", mass:131.29, category:"noble", block:"p", period:5, group:18, mp:161.4, bp:165.03, en:2.6, config:"[Kr] 4d10 5s2 5p6", discovered:1898, discoverer:"William Ramsay", uses:"Headlights, anesthesia, ion engines", appearance:"Colorless gas" },
+        { z:55, sym:"Cs", name:"Cesium", mass:132.91, category:"alkali", block:"s", period:6, group:1, mp:301.59, bp:944, en:0.79, config:"[Xe] 6s1", discovered:1860, discoverer:"Robert Bunsen", uses:"Atomic clocks, drilling fluids", appearance:"Gold-silvery metal" },
+        { z:56, sym:"Ba", name:"Barium", mass:137.33, category:"alkaline", block:"s", period:6, group:2, mp:1000, bp:2170, en:0.89, config:"[Xe] 6s2", discovered:1808, discoverer:"Humphry Davy", uses:"Medical imaging, fireworks (green)", appearance:"Silvery-yellow metal" },
+        { z:57, sym:"La", name:"Lanthanum", mass:138.91, category:"lanthanide", block:"f", period:6, group:3, mp:1193, bp:3737, en:1.10, config:"[Xe] 5d1 6s2", discovered:1839, discoverer:"Carl Gustaf Mosander", uses:"Camera lenses, catalysts", appearance:"Silvery-white metal" },
+        { z:58, sym:"Ce", name:"Cerium", mass:140.12, category:"lanthanide", block:"f", period:6, group:0, mp:1068, bp:3716, en:1.12, config:"[Xe] 4f1 5d1 6s2", discovered:1803, discoverer:"Jons Jacob Berzelius", uses:"Catalytic converters, glass polishing", appearance:"Silvery-white metal" },
+        { z:59, sym:"Pr", name:"Praseodymium", mass:140.91, category:"lanthanide", block:"f", period:6, group:0, mp:1208, bp:3793, en:1.13, config:"[Xe] 4f3 6s2", discovered:1885, discoverer:"Carl Auer von Welsbach", uses:"Magnets, lasers, aircraft engines", appearance:"Silvery metal" },
+        { z:60, sym:"Nd", name:"Neodymium", mass:144.24, category:"lanthanide", block:"f", period:6, group:0, mp:1297, bp:3347, en:1.14, config:"[Xe] 4f4 6s2", discovered:1885, discoverer:"Carl Auer von Welsbach", uses:"Super-strong magnets, lasers", appearance:"Silvery metal" },
+        { z:61, sym:"Pm", name:"Promethium", mass:145, category:"lanthanide", block:"f", period:6, group:0, mp:1315, bp:3273, en:1.13, config:"[Xe] 4f5 6s2", discovered:1945, discoverer:"Marinsky, Glendenin, Coryell", uses:"Nuclear batteries, luminous paint", appearance:"Silvery metal" },
+        { z:62, sym:"Sm", name:"Samarium", mass:150.36, category:"lanthanide", block:"f", period:6, group:0, mp:1345, bp:2067, en:1.17, config:"[Xe] 4f6 6s2", discovered:1879, discoverer:"Lecoq de Boisbaudran", uses:"Magnets, cancer treatment", appearance:"Silvery metal" },
+        { z:63, sym:"Eu", name:"Europium", mass:151.96, category:"lanthanide", block:"f", period:6, group:0, mp:1099, bp:1802, en:1.2, config:"[Xe] 4f7 6s2", discovered:1901, discoverer:"Eugene-Anatole Demarcay", uses:"Red phosphors in TVs, euro banknotes", appearance:"Silvery metal" },
+        { z:64, sym:"Gd", name:"Gadolinium", mass:157.25, category:"lanthanide", block:"f", period:6, group:0, mp:1585, bp:3546, en:1.20, config:"[Xe] 4f7 5d1 6s2", discovered:1880, discoverer:"Jean Charles Galissard", uses:"MRI contrast agent, neutron capture", appearance:"Silvery-white metal" },
+        { z:65, sym:"Tb", name:"Terbium", mass:158.93, category:"lanthanide", block:"f", period:6, group:0, mp:1629, bp:3503, en:1.2, config:"[Xe] 4f9 6s2", discovered:1843, discoverer:"Carl Gustaf Mosander", uses:"Green phosphors, sonar systems", appearance:"Silvery metal" },
+        { z:66, sym:"Dy", name:"Dysprosium", mass:162.50, category:"lanthanide", block:"f", period:6, group:0, mp:1680, bp:2840, en:1.22, config:"[Xe] 4f10 6s2", discovered:1886, discoverer:"Lecoq de Boisbaudran", uses:"Magnets, lasers, nuclear reactors", appearance:"Silvery metal" },
+        { z:67, sym:"Ho", name:"Holmium", mass:164.93, category:"lanthanide", block:"f", period:6, group:0, mp:1734, bp:2993, en:1.23, config:"[Xe] 4f11 6s2", discovered:1878, discoverer:"Jacques-Louis Soret", uses:"Strongest magnets, lasers", appearance:"Silvery metal" },
+        { z:68, sym:"Er", name:"Erbium", mass:167.26, category:"lanthanide", block:"f", period:6, group:0, mp:1802, bp:3141, en:1.24, config:"[Xe] 4f12 6s2", discovered:1842, discoverer:"Carl Gustaf Mosander", uses:"Fiber optics, pink glass coloring", appearance:"Silvery metal" },
+        { z:69, sym:"Tm", name:"Thulium", mass:168.93, category:"lanthanide", block:"f", period:6, group:0, mp:1818, bp:2223, en:1.25, config:"[Xe] 4f13 6s2", discovered:1879, discoverer:"Per Teodor Cleve", uses:"Portable X-ray machines, lasers", appearance:"Silvery metal" },
+        { z:70, sym:"Yb", name:"Ytterbium", mass:173.05, category:"lanthanide", block:"f", period:6, group:0, mp:1097, bp:1469, en:1.1, config:"[Xe] 4f14 6s2", discovered:1878, discoverer:"Jean Charles Galissard", uses:"Atomic clocks, stress gauges", appearance:"Silvery metal" },
+        { z:71, sym:"Lu", name:"Lutetium", mass:174.97, category:"lanthanide", block:"d", period:6, group:3, mp:1925, bp:3675, en:1.27, config:"[Xe] 4f14 5d1 6s2", discovered:1907, discoverer:"Georges Urbain", uses:"PET scan detectors, catalysts", appearance:"Silvery-white metal" },
+        { z:72, sym:"Hf", name:"Hafnium", mass:178.49, category:"transition", block:"d", period:6, group:4, mp:2506, bp:4876, en:1.3, config:"[Xe] 4f14 5d2 6s2", discovered:1923, discoverer:"Dirk Coster", uses:"Nuclear reactors, microchips", appearance:"Steel-gray metal" },
+        { z:73, sym:"Ta", name:"Tantalum", mass:180.95, category:"transition", block:"d", period:6, group:5, mp:3290, bp:5731, en:1.5, config:"[Xe] 4f14 5d3 6s2", discovered:1802, discoverer:"Anders Gustaf Ekeberg", uses:"Capacitors, surgical implants", appearance:"Blue-gray metal" },
+        { z:74, sym:"W", name:"Tungsten", mass:183.84, category:"transition", block:"d", period:6, group:6, mp:3695, bp:5828, en:2.36, config:"[Xe] 4f14 5d4 6s2", discovered:1783, discoverer:"Juan Jose Elhuyar", uses:"Light bulb filaments, cutting tools", appearance:"Steel-gray metal" },
+        { z:75, sym:"Re", name:"Rhenium", mass:186.21, category:"transition", block:"d", period:6, group:7, mp:3459, bp:5869, en:1.9, config:"[Xe] 4f14 5d5 6s2", discovered:1925, discoverer:"Masataka Ogawa", uses:"Jet engines, catalysts", appearance:"Silvery-gray metal" },
+        { z:76, sym:"Os", name:"Osmium", mass:190.23, category:"transition", block:"d", period:6, group:8, mp:3306, bp:5285, en:2.2, config:"[Xe] 4f14 5d6 6s2", discovered:1803, discoverer:"Smithson Tennant", uses:"Fountain pen tips, electrical contacts", appearance:"Bluish-white metal" },
+        { z:77, sym:"Ir", name:"Iridium", mass:192.22, category:"transition", block:"d", period:6, group:9, mp:2719, bp:4701, en:2.20, config:"[Xe] 4f14 5d7 6s2", discovered:1803, discoverer:"Smithson Tennant", uses:"Spark plugs, crucibles", appearance:"Silvery-white metal" },
+        { z:78, sym:"Pt", name:"Platinum", mass:195.08, category:"transition", block:"d", period:6, group:10, mp:2041.4, bp:4098, en:2.28, config:"[Xe] 4f14 5d9 6s1", discovered:1735, discoverer:"Antonio de Ulloa", uses:"Catalytic converters, jewelry, chemotherapy", appearance:"Silvery-white metal" },
+        { z:79, sym:"Au", name:"Gold", mass:196.97, category:"transition", block:"d", period:6, group:11, mp:1337.33, bp:3129, en:2.54, config:"[Xe] 4f14 5d10 6s1", discovered:-6000, discoverer:"Ancient", uses:"Jewelry, electronics, currency", appearance:"Golden yellow metal" },
+        { z:80, sym:"Hg", name:"Mercury", mass:200.59, category:"transition", block:"d", period:6, group:12, mp:234.32, bp:629.88, en:2.00, config:"[Xe] 4f14 5d10 6s2", discovered:-1500, discoverer:"Ancient", uses:"Thermometers, fluorescent lamps", appearance:"Silvery liquid metal" },
+        { z:81, sym:"Tl", name:"Thallium", mass:204.38, category:"post-transition", block:"p", period:6, group:13, mp:577, bp:1746, en:1.62, config:"[Xe] 4f14 5d10 6s2 6p1", discovered:1861, discoverer:"William Crookes", uses:"Electronics, superconductors", appearance:"Silvery-white metal" },
+        { z:82, sym:"Pb", name:"Lead", mass:207.2, category:"post-transition", block:"p", period:6, group:14, mp:600.61, bp:2022, en:1.87, config:"[Xe] 4f14 5d10 6s2 6p2", discovered:-7000, discoverer:"Ancient", uses:"Batteries, radiation shielding", appearance:"Bluish-white metal" },
+        { z:83, sym:"Bi", name:"Bismuth", mass:208.98, category:"post-transition", block:"p", period:6, group:15, mp:544.7, bp:1837, en:2.02, config:"[Xe] 4f14 5d10 6s2 6p3", discovered:1753, discoverer:"Claude Geoffroy", uses:"Pepto-Bismol, cosmetics, alloys", appearance:"Pinkish-silver metal" },
+        { z:84, sym:"Po", name:"Polonium", mass:209, category:"post-transition", block:"p", period:6, group:16, mp:527, bp:1235, en:2.0, config:"[Xe] 4f14 5d10 6s2 6p4", discovered:1898, discoverer:"Marie Curie", uses:"Anti-static devices, nuclear triggers", appearance:"Silvery metal" },
+        { z:85, sym:"At", name:"Astatine", mass:210, category:"halogen", block:"p", period:6, group:17, mp:575, bp:610, en:2.2, config:"[Xe] 4f14 5d10 6s2 6p5", discovered:1940, discoverer:"Dale R. Corson", uses:"Cancer treatment research", appearance:"Unknown (radioactive)" },
+        { z:86, sym:"Rn", name:"Radon", mass:222, category:"noble", block:"p", period:6, group:18, mp:202, bp:211.3, en:2.2, config:"[Xe] 4f14 5d10 6s2 6p6", discovered:1900, discoverer:"Friedrich Ernst Dorn", uses:"Cancer treatment, earthquake prediction", appearance:"Colorless radioactive gas" },
+        { z:87, sym:"Fr", name:"Francium", mass:223, category:"alkali", block:"s", period:7, group:1, mp:300, bp:950, en:0.7, config:"[Rn] 7s1", discovered:1939, discoverer:"Marguerite Perey", uses:"Research only (extremely rare)", appearance:"Unknown (highly radioactive)" },
+        { z:88, sym:"Ra", name:"Radium", mass:226, category:"alkaline", block:"s", period:7, group:2, mp:973, bp:2010, en:0.9, config:"[Rn] 7s2", discovered:1898, discoverer:"Marie & Pierre Curie", uses:"Formerly luminous paint, cancer treatment", appearance:"Silvery-white metal" },
+        { z:89, sym:"Ac", name:"Actinium", mass:227, category:"actinide", block:"f", period:7, group:3, mp:1323, bp:3471, en:1.1, config:"[Rn] 6d1 7s2", discovered:1899, discoverer:"Andre-Louis Debierne", uses:"Neutron source, cancer research", appearance:"Silvery metal" },
+        { z:90, sym:"Th", name:"Thorium", mass:232.04, category:"actinide", block:"f", period:7, group:0, mp:2115, bp:5061, en:1.3, config:"[Rn] 6d2 7s2", discovered:1828, discoverer:"Jons Jacob Berzelius", uses:"Nuclear fuel, gas mantles, welding", appearance:"Silvery metal" },
+        { z:91, sym:"Pa", name:"Protactinium", mass:231.04, category:"actinide", block:"f", period:7, group:0, mp:1841, bp:4300, en:1.5, config:"[Rn] 5f2 6d1 7s2", discovered:1913, discoverer:"Kasimir Fajans", uses:"Research only", appearance:"Silvery metal" },
+        { z:92, sym:"U", name:"Uranium", mass:238.03, category:"actinide", block:"f", period:7, group:0, mp:1405.3, bp:4404, en:1.38, config:"[Rn] 5f3 6d1 7s2", discovered:1789, discoverer:"Martin Heinrich Klaproth", uses:"Nuclear power, weapons, armor", appearance:"Silvery-gray metal" },
+        { z:93, sym:"Np", name:"Neptunium", mass:237, category:"actinide", block:"f", period:7, group:0, mp:917, bp:4273, en:1.36, config:"[Rn] 5f4 6d1 7s2", discovered:1940, discoverer:"Edwin McMillan", uses:"Neutron detection, nuclear waste", appearance:"Silvery metal" },
+        { z:94, sym:"Pu", name:"Plutonium", mass:244, category:"actinide", block:"f", period:7, group:0, mp:912.5, bp:3501, en:1.28, config:"[Rn] 5f6 7s2", discovered:1940, discoverer:"Glenn Seaborg", uses:"Nuclear weapons, space probes (RTG)", appearance:"Silvery metal" },
+        { z:95, sym:"Am", name:"Americium", mass:243, category:"actinide", block:"f", period:7, group:0, mp:1449, bp:2880, en:1.13, config:"[Rn] 5f7 7s2", discovered:1944, discoverer:"Glenn Seaborg", uses:"Smoke detectors", appearance:"Silvery metal" },
+        { z:96, sym:"Cm", name:"Curium", mass:247, category:"actinide", block:"f", period:7, group:0, mp:1613, bp:3383, en:1.28, config:"[Rn] 5f7 6d1 7s2", discovered:1944, discoverer:"Glenn Seaborg", uses:"Space exploration power", appearance:"Silvery metal" },
+        { z:97, sym:"Bk", name:"Berkelium", mass:247, category:"actinide", block:"f", period:7, group:0, mp:1259, bp:2900, en:1.3, config:"[Rn] 5f9 7s2", discovered:1949, discoverer:"Glenn Seaborg", uses:"Research only", appearance:"Silvery metal" },
+        { z:98, sym:"Cf", name:"Californium", mass:251, category:"actinide", block:"f", period:7, group:0, mp:1173, bp:1743, en:1.3, config:"[Rn] 5f10 7s2", discovered:1950, discoverer:"Glenn Seaborg", uses:"Neutron source, cancer treatment", appearance:"Silvery metal" },
+        { z:99, sym:"Es", name:"Einsteinium", mass:252, category:"actinide", block:"f", period:7, group:0, mp:1133, bp:1269, en:1.3, config:"[Rn] 5f11 7s2", discovered:1952, discoverer:"Albert Ghiorso", uses:"Research only", appearance:"Silvery metal" },
+        { z:100, sym:"Fm", name:"Fermium", mass:257, category:"actinide", block:"f", period:7, group:0, mp:1800, bp:3000, en:1.3, config:"[Rn] 5f12 7s2", discovered:1952, discoverer:"Albert Ghiorso", uses:"Research only", appearance:"Unknown" },
+        { z:101, sym:"Md", name:"Mendelevium", mass:258, category:"actinide", block:"f", period:7, group:0, mp:1100, bp:2000, en:1.3, config:"[Rn] 5f13 7s2", discovered:1955, discoverer:"Albert Ghiorso", uses:"Research only", appearance:"Unknown" },
+        { z:102, sym:"No", name:"Nobelium", mass:259, category:"actinide", block:"f", period:7, group:0, mp:1100, bp:2000, en:1.3, config:"[Rn] 5f14 7s2", discovered:1957, discoverer:"Nobel Institute team", uses:"Research only", appearance:"Unknown" },
+        { z:103, sym:"Lr", name:"Lawrencium", mass:266, category:"actinide", block:"d", period:7, group:3, mp:1900, bp:3000, en:1.3, config:"[Rn] 5f14 7s2 7p1", discovered:1961, discoverer:"Albert Ghiorso", uses:"Research only", appearance:"Unknown" },
+        { z:104, sym:"Rf", name:"Rutherfordium", mass:267, category:"transition", block:"d", period:7, group:4, mp:2400, bp:5800, en:0, config:"[Rn] 5f14 6d2 7s2", discovered:1964, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" },
+        { z:105, sym:"Db", name:"Dubnium", mass:268, category:"transition", block:"d", period:7, group:5, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d3 7s2", discovered:1967, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" },
+        { z:106, sym:"Sg", name:"Seaborgium", mass:269, category:"transition", block:"d", period:7, group:6, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d4 7s2", discovered:1974, discoverer:"Albert Ghiorso", uses:"Research only", appearance:"Unknown" },
+        { z:107, sym:"Bh", name:"Bohrium", mass:270, category:"transition", block:"d", period:7, group:7, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d5 7s2", discovered:1981, discoverer:"Peter Armbruster", uses:"Research only", appearance:"Unknown" },
+        { z:108, sym:"Hs", name:"Hassium", mass:277, category:"transition", block:"d", period:7, group:8, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d6 7s2", discovered:1984, discoverer:"Peter Armbruster", uses:"Research only", appearance:"Unknown" },
+        { z:109, sym:"Mt", name:"Meitnerium", mass:278, category:"unknown", block:"d", period:7, group:9, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d7 7s2", discovered:1982, discoverer:"Peter Armbruster", uses:"Research only", appearance:"Unknown" },
+        { z:110, sym:"Ds", name:"Darmstadtium", mass:281, category:"unknown", block:"d", period:7, group:10, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d8 7s2", discovered:1994, discoverer:"Peter Armbruster", uses:"Research only", appearance:"Unknown" },
+        { z:111, sym:"Rg", name:"Roentgenium", mass:282, category:"unknown", block:"d", period:7, group:11, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d9 7s2", discovered:1994, discoverer:"Peter Armbruster", uses:"Research only", appearance:"Unknown" },
+        { z:112, sym:"Cn", name:"Copernicium", mass:285, category:"unknown", block:"d", period:7, group:12, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2", discovered:1996, discoverer:"Sigurd Hofmann", uses:"Research only", appearance:"Unknown" },
+        { z:113, sym:"Nh", name:"Nihonium", mass:286, category:"unknown", block:"p", period:7, group:13, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2 7p1", discovered:2003, discoverer:"RIKEN (Japan)", uses:"Research only", appearance:"Unknown" },
+        { z:114, sym:"Fl", name:"Flerovium", mass:289, category:"unknown", block:"p", period:7, group:14, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2 7p2", discovered:1998, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" },
+        { z:115, sym:"Mc", name:"Moscovium", mass:290, category:"unknown", block:"p", period:7, group:15, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2 7p3", discovered:2003, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" },
+        { z:116, sym:"Lv", name:"Livermorium", mass:293, category:"unknown", block:"p", period:7, group:16, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2 7p4", discovered:2000, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" },
+        { z:117, sym:"Ts", name:"Tennessine", mass:294, category:"unknown", block:"p", period:7, group:17, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2 7p5", discovered:2010, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" },
+        { z:118, sym:"Og", name:"Oganesson", mass:294, category:"unknown", block:"p", period:7, group:18, mp:0, bp:0, en:0, config:"[Rn] 5f14 6d10 7s2 7p6", discovered:2002, discoverer:"Joint Institute Dubna", uses:"Research only", appearance:"Unknown" }
+    ];
+
+    const CATEGORY_COLORS = {
+        alkali: 'var(--alkali)',
+        alkaline: 'var(--alkaline)',
+        transition: 'var(--transition)',
+        'post-transition': 'var(--post-transition)',
+        metalloid: 'var(--metalloid)',
+        nonmetal: 'var(--nonmetal)',
+        halogen: 'var(--halogen)',
+        noble: 'var(--noble)',
+        lanthanide: 'var(--lanthanide)',
+        actinide: 'var(--actinide)',
+        unknown: 'var(--unknown)'
+    };
+
+    const CATEGORY_NAMES = {
+        alkali: 'Alkali Metal',
+        alkaline: 'Alkaline Earth',
+        transition: 'Transition Metal',
+        'post-transition': 'Post-Transition',
+        metalloid: 'Metalloid',
+        nonmetal: 'Nonmetal',
+        halogen: 'Halogen',
+        noble: 'Noble Gas',
+        lanthanide: 'Lanthanide',
+        actinide: 'Actinide',
+        unknown: 'Unknown'
+    };
+
+    // Standard periodic table layout: [row, col] (1-indexed)
+    const LAYOUT = {
+        1:[1,1], 2:[1,18],
+        3:[2,1], 4:[2,2], 5:[2,13], 6:[2,14], 7:[2,15], 8:[2,16], 9:[2,17], 10:[2,18],
+        11:[3,1], 12:[3,2], 13:[3,13], 14:[3,14], 15:[3,15], 16:[3,16], 17:[3,17], 18:[3,18],
+        19:[4,1], 20:[4,2], 21:[4,3], 22:[4,4], 23:[4,5], 24:[4,6], 25:[4,7], 26:[4,8], 27:[4,9], 28:[4,10], 29:[4,11], 30:[4,12], 31:[4,13], 32:[4,14], 33:[4,15], 34:[4,16], 35:[4,17], 36:[4,18],
+        37:[5,1], 38:[5,2], 39:[5,3], 40:[5,4], 41:[5,5], 42:[5,6], 43:[5,7], 44:[5,8], 45:[5,9], 46:[5,10], 47:[5,11], 48:[5,12], 49:[5,13], 50:[5,14], 51:[5,15], 52:[5,16], 53:[5,17], 54:[5,18],
+        55:[6,1], 56:[6,2],
+        71:[6,3], 72:[6,4], 73:[6,5], 74:[6,6], 75:[6,7], 76:[6,8], 77:[6,9], 78:[6,10], 79:[6,11], 80:[6,12], 81:[6,13], 82:[6,14], 83:[6,15], 84:[6,16], 85:[6,17], 86:[6,18],
+        87:[7,1], 88:[7,2],
+        103:[7,3], 104:[7,4], 105:[7,5], 106:[7,6], 107:[7,7], 108:[7,8], 109:[7,9], 110:[7,10], 111:[7,11], 112:[7,12], 113:[7,13], 114:[7,14], 115:[7,15], 116:[7,16], 117:[7,17], 118:[7,18],
+        // Lanthanides row 9
+        57:[9,4], 58:[9,5], 59:[9,6], 60:[9,7], 61:[9,8], 62:[9,9], 63:[9,10], 64:[9,11], 65:[9,12], 66:[9,13], 67:[9,14], 68:[9,15], 69:[9,16], 70:[9,17],
+        // Actinides row 10
+        89:[10,4], 90:[10,5], 91:[10,6], 92:[10,7], 93:[10,8], 94:[10,9], 95:[10,10], 96:[10,11], 97:[10,12], 98:[10,13], 99:[10,14], 100:[10,15], 101:[10,16], 102:[10,17]
+    };
+
+    const eventManager = new EventManager();
+    let currentTemp = 298;
+    let activeCategory = null;
+    let electronAnimFrame = null;
+
+    function getElementState(el, temp) {
+        if (!el.mp || !el.bp) return 'unknown';
+        if (temp < el.mp) return 'solid';
+        if (temp < el.bp) return 'liquid';
+        return 'gas';
+    }
+
+    function getCategoryColor(el) {
+        return CATEGORY_COLORS[el.category] || 'var(--unknown)';
+    }
+
+    function getElectronegativityColor(en) {
+        if (en === 0) return 'var(--unknown)';
+        const t = Math.min(en / 4.0, 1);
+        const r = Math.round(70 + t * 185);
+        const g = Math.round(180 - t * 80);
+        const b = Math.round(240 - t * 200);
+        return `rgb(${r},${g},${b})`;
+    }
+
+    function getYearColor(year) {
+        if (year <= 0) return '#aaa';
+        if (year < 1700) return '#e599f7';
+        if (year < 1800) return '#748ffc';
+        if (year < 1900) return '#4dabf7';
+        if (year < 1950) return '#69db7c';
+        if (year < 2000) return '#ffd43b';
+        return '#ff6b6b';
+    }
+
+    function getBlockColor(block) {
+        const colors = { s: '#ff6b6b', p: '#4dabf7', d: '#ffd43b', f: '#69db7c' };
+        return colors[block] || 'var(--unknown)';
+    }
+
+    function getColor(el, mode) {
+        switch(mode) {
+            case 'category': return getCategoryColor(el);
+            case 'electronegativity': return getElectronegativityColor(el.en);
+            case 'year': return getYearColor(el.discovered);
+            case 'block': return getBlockColor(el.block);
+            case 'state': {
+                const st = getElementState(el, currentTemp);
+                if (st === 'solid') return '#ffd43b';
+                if (st === 'liquid') return '#4dabf7';
+                if (st === 'gas') return '#ff6b6b';
+                return 'var(--unknown)';
+            }
+            default: return getCategoryColor(el);
+        }
+    }
+
+    function buildTable() {
+        const table = document.getElementById('periodicTable');
+        table.innerHTML = '';
+
+        // Build 10 rows x 18 cols grid
+        const totalRows = 10;
+        table.style.gridTemplateRows = `repeat(7, 1fr) 12px repeat(2, 1fr)`;
+
+        for (let row = 1; row <= totalRows; row++) {
+            // Row 8 is a spacer
+            if (row === 8) {
+                for (let col = 1; col <= 18; col++) {
+                    const sp = document.createElement('div');
+                    sp.style.height = '12px';
+                    table.appendChild(sp);
+                }
+                continue;
+            }
+            for (let col = 1; col <= 18; col++) {
+                const el = ELEMENTS.find(e => {
+                    const pos = LAYOUT[e.z];
+                    return pos && pos[0] === row && pos[1] === col;
+                });
+
+                if (row === 9 && col === 1) {
+                    const label = document.createElement('div');
+                    label.className = 'lanthanide-label';
+                    label.textContent = 'Lanthanides';
+                    label.style.gridColumn = '1 / 4';
+                    table.appendChild(label);
+                    col = 3;
+                    continue;
+                }
+                if (row === 10 && col === 1) {
+                    const label = document.createElement('div');
+                    label.className = 'actinide-label';
+                    label.textContent = 'Actinides';
+                    label.style.gridColumn = '1 / 4';
+                    table.appendChild(label);
+                    col = 3;
+                    continue;
+                }
+
+                if (!el) {
+                    const spacer = document.createElement('div');
+                    spacer.className = 'spacer';
+                    table.appendChild(spacer);
+                    continue;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'element';
+                div.dataset.z = el.z;
+                div.innerHTML = `
+                    <span class="number">${el.z}</span>
+                    <span class="symbol">${el.sym}</span>
+                    <span class="name">${el.name}</span>
+                    <span class="mass">${el.mass}</span>
+                `;
+                applyElementStyle(div, el);
+                table.appendChild(div);
+            }
+        }
+    }
+
+    function applyElementStyle(div, el) {
+        const mode = document.getElementById('colorMode').value;
+        const color = getColor(el, mode);
+        div.style.borderLeft = `3px solid ${color}`;
+        div.querySelector('.symbol').style.color = color;
+
+        // State border
+        div.classList.remove('state-solid', 'state-liquid', 'state-gas');
+        const state = getElementState(el, currentTemp);
+        if (state !== 'unknown') {
+            div.classList.add('state-' + state);
+        }
+    }
+
+    function updateAllStyles() {
+        document.querySelectorAll('.element').forEach(div => {
+            const z = parseInt(div.dataset.z);
+            const el = ELEMENTS.find(e => e.z === z);
+            if (el) applyElementStyle(div, el);
+        });
+    }
+
+    function buildLegend() {
+        const legend = document.getElementById('legend');
+        const mode = document.getElementById('colorMode').value;
+        legend.innerHTML = '';
+
+        if (mode === 'category') {
+            Object.entries(CATEGORY_NAMES).forEach(([key, name]) => {
+                const item = document.createElement('div');
+                item.className = 'legend-item' + (activeCategory === key ? ' active' : '');
+                item.innerHTML = `<span class="legend-swatch" style="background:${CATEGORY_COLORS[key]}"></span>${name}`;
+                eventManager.add(item, 'click', () => {
+                    activeCategory = activeCategory === key ? null : key;
+                    filterByCategory();
+                    buildLegend();
+                });
+                legend.appendChild(item);
+            });
+        } else if (mode === 'block') {
+            ['s', 'p', 'd', 'f'].forEach(b => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `<span class="legend-swatch" style="background:${getBlockColor(b)}"></span>${b}-block`;
+                legend.appendChild(item);
+            });
+        } else if (mode === 'year') {
+            const ranges = [
+                ['Ancient', '#aaa'], ['< 1700', '#e599f7'], ['1700s', '#748ffc'],
+                ['1800s', '#4dabf7'], ['1900-1950', '#69db7c'], ['1950-2000', '#ffd43b'], ['2000+', '#ff6b6b']
+            ];
+            ranges.forEach(([label, color]) => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${label}`;
+                legend.appendChild(item);
+            });
+        } else if (mode === 'electronegativity') {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `<span style="background:linear-gradient(90deg, rgb(70,180,240), rgb(255,100,40)); width:80px; height:12px; border-radius:3px; display:inline-block;"></span> Low → High`;
+            legend.appendChild(item);
+        }
+    }
+
+    function filterByCategory() {
+        document.querySelectorAll('.element').forEach(div => {
+            const z = parseInt(div.dataset.z);
+            const el = ELEMENTS.find(e => e.z === z);
+            if (!el) return;
+            if (activeCategory && el.category !== activeCategory) {
+                div.classList.add('dimmed');
+            } else {
+                div.classList.remove('dimmed');
+            }
+        });
+    }
+
+    function searchElements(query) {
+        query = query.toLowerCase().trim();
+        document.querySelectorAll('.element').forEach(div => {
+            const z = parseInt(div.dataset.z);
+            const el = ELEMENTS.find(e => e.z === z);
+            if (!el) return;
+            if (!query) {
+                div.classList.remove('dimmed', 'highlight');
+                return;
+            }
+            const match = el.name.toLowerCase().includes(query) ||
+                          el.sym.toLowerCase().includes(query) ||
+                          String(el.z).includes(query);
+            div.classList.toggle('dimmed', !match);
+            div.classList.toggle('highlight', match);
+        });
+    }
+
+    function getElectronShells(z) {
+        const shells = [];
+        const config = [2, 8, 18, 32, 32, 18, 8];
+        let remaining = z;
+        for (let i = 0; i < config.length && remaining > 0; i++) {
+            const inShell = Math.min(remaining, config[i]);
+            shells.push(inShell);
+            remaining -= inShell;
+        }
+        return shells;
+    }
+
+    function drawElectronShells(canvas, el) {
+        if (electronAnimFrame) cancelAnimationFrame(electronAnimFrame);
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const w = canvas.width = canvas.offsetWidth * 2;
+        const h = canvas.height = canvas.offsetHeight * 2;
+        const cx = w / 2;
+        const cy = h / 2;
+        const shells = getElectronShells(el.z);
+        const maxR = Math.min(cx, cy) - 20;
+        const color = getColor(el, 'category');
+        let time = 0;
+
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+
+            // Nucleus
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 20);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.beginPath();
+            ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(el.sym, cx, cy);
+
+            shells.forEach((count, i) => {
+                const r = 40 + (i / (shells.length)) * (maxR - 40);
+
+                // Shell orbit
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Electrons
+                for (let j = 0; j < count; j++) {
+                    const speed = prefersReduced ? 0 : (0.5 + i * 0.15);
+                    const angle = (j / count) * Math.PI * 2 + time * speed;
+                    const ex = cx + Math.cos(angle) * r;
+                    const ey = cy + Math.sin(angle) * r;
+
+                    const eGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, 6);
+                    eGrad.addColorStop(0, '#fff');
+                    eGrad.addColorStop(0.5, color);
+                    eGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = eGrad;
+                    ctx.fill();
+                }
+
+                // Shell label
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(count + 'e⁻', cx + r + 12, cy);
+            });
+
+            if (!prefersReduced) {
+                time += 0.015;
+                electronAnimFrame = requestAnimationFrame(draw);
+            }
+        }
+
+        draw();
+    }
+
+    function openInfoPanel(el) {
+        const panel = document.getElementById('infoPanel');
+        const overlay = document.getElementById('overlay');
+        const content = document.getElementById('infoPanelContent');
+        const color = getColor(el, 'category');
+        const state = getElementState(el, currentTemp);
+        const yearStr = el.discovered <= 0 ? 'Ancient' : el.discovered;
+
+        content.innerHTML = `
+            <div class="info-header">
+                <div class="big-number">#${el.z}</div>
+                <div class="big-symbol" style="color:${color}">${el.sym}</div>
+                <div class="big-name">${el.name}</div>
+            </div>
+            <div class="info-section">
+                <h3>Properties</h3>
+                <div class="info-row"><span class="label">Category</span><span class="value" style="color:${color}">${CATEGORY_NAMES[el.category]}</span></div>
+                <div class="info-row"><span class="label">Atomic Mass</span><span class="value">${el.mass} u</span></div>
+                <div class="info-row"><span class="label">Electron Config</span><span class="value">${el.config}</span></div>
+                <div class="info-row"><span class="label">Block</span><span class="value">${el.block}-block</span></div>
+                <div class="info-row"><span class="label">Period / Group</span><span class="value">${el.period} / ${el.group || '—'}</span></div>
+                <div class="info-row"><span class="label">Electronegativity</span><span class="value">${el.en || 'N/A'}</span></div>
+            </div>
+            <div class="info-section">
+                <h3>Thermal</h3>
+                <div class="info-row"><span class="label">Melting Point</span><span class="value">${el.mp ? el.mp + ' K' : 'Unknown'}</span></div>
+                <div class="info-row"><span class="label">Boiling Point</span><span class="value">${el.bp ? el.bp + ' K' : 'Unknown'}</span></div>
+                <div class="info-row"><span class="label">State at ${currentTemp} K</span><span class="value">${state.charAt(0).toUpperCase() + state.slice(1)}</span></div>
+            </div>
+            <div class="info-section">
+                <h3>Discovery</h3>
+                <div class="info-row"><span class="label">Discovered</span><span class="value">${yearStr}</span></div>
+                <div class="info-row"><span class="label">By</span><span class="value">${el.discoverer}</span></div>
+            </div>
+            <div class="info-section">
+                <h3>Uses</h3>
+                <p style="font-size:0.85rem;line-height:1.5;color:var(--text-secondary)">${el.uses}</p>
+            </div>
+            <div class="info-section">
+                <h3>Appearance</h3>
+                <p style="font-size:0.85rem;color:var(--text-secondary)">${el.appearance}</p>
+            </div>
+            <div class="info-section">
+                <h3>Electron Shells</h3>
+                <canvas class="electron-canvas" id="electronCanvas"></canvas>
+            </div>
+        `;
+
+        panel.classList.add('open');
+        overlay.classList.add('open');
+
+        requestAnimationFrame(() => {
+            const canvas = document.getElementById('electronCanvas');
+            if (canvas) drawElectronShells(canvas, el);
+        });
+    }
+
+    function closeInfoPanel() {
+        document.getElementById('infoPanel').classList.remove('open');
+        document.getElementById('overlay').classList.remove('open');
+        if (electronAnimFrame) {
+            cancelAnimationFrame(electronAnimFrame);
+            electronAnimFrame = null;
+        }
+    }
+
+    function init() {
+        buildTable();
+        buildLegend();
+
+        // Restore last temp
+        const savedTemp = safeGetItem('pt_temp', '298');
+        currentTemp = parseInt(savedTemp);
+        document.getElementById('tempSlider').value = currentTemp;
+        document.getElementById('tempValue').textContent = currentTemp + ' K';
+        updateAllStyles();
+
+        // Event listeners
+        eventManager.add(document.getElementById('searchInput'), 'input', (e) => {
+            activeCategory = null;
+            searchElements(e.target.value);
+        });
+
+        eventManager.add(document.getElementById('colorMode'), 'change', () => {
+            activeCategory = null;
+            updateAllStyles();
+            buildLegend();
+        });
+
+        eventManager.add(document.getElementById('tempSlider'), 'input', (e) => {
+            currentTemp = parseInt(e.target.value);
+            document.getElementById('tempValue').textContent = currentTemp + ' K';
+            safeSetItem('pt_temp', String(currentTemp));
+            updateAllStyles();
+        });
+
+        eventManager.add(document.getElementById('periodicTable'), 'click', (e) => {
+            const elDiv = e.target.closest('.element');
+            if (!elDiv) return;
+            const z = parseInt(elDiv.dataset.z);
+            const el = ELEMENTS.find(e => e.z === z);
+            if (el) openInfoPanel(el);
+        });
+
+        eventManager.add(document.getElementById('closePanel'), 'click', closeInfoPanel);
+        eventManager.add(document.getElementById('overlay'), 'click', closeInfoPanel);
+
+        eventManager.add(document, 'keydown', (e) => {
+            if (e.key === 'Escape') closeInfoPanel();
+        });
+    }
+
+    init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frequency Lab | Simulations</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-tertiary: #1a1a2e;
+    --accent-cyan: #00f0ff;
+    --accent-magenta: #ff00aa;
+    --accent-purple: #8b5cf6;
+    --accent-green: #00ff88;
+    --accent-orange: #ff8800;
+    --text-primary: #e0e0e0;
+    --text-secondary: #888;
+    --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.3);
+    --glow-magenta: 0 0 10px rgba(255, 0, 170, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+}
+
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.back-link {
+    position: fixed; top: 12px; left: 12px; z-index: 100;
+    color: var(--accent-cyan); text-decoration: none; font-size: 14px;
+    padding: 6px 12px; border: 1px solid rgba(0,240,255,0.3);
+    border-radius: 4px; background: rgba(0,0,0,0.8);
+    transition: all 0.2s;
+}
+.back-link:hover { background: rgba(0,240,255,0.1); box-shadow: var(--glow-cyan); }
+
+header {
+    text-align: center; padding: 20px 10px 10px;
+    background: linear-gradient(180deg, rgba(139,92,246,0.1), transparent);
+}
+header h1 {
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+header p { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+
+.lab-container {
+    max-width: 1200px; margin: 0 auto; padding: 10px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+
+/* Tab navigation */
+.tabs {
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
+}
+.tab-btn {
+    padding: 8px 16px; font-size: 12px; border: 1px solid rgba(0,240,255,0.3);
+    background: transparent; color: var(--text-secondary); border-radius: 4px;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.tab-btn.active {
+    background: rgba(0,240,255,0.15); color: var(--accent-cyan);
+    box-shadow: var(--glow-cyan); border-color: var(--accent-cyan);
+}
+.tab-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Panels */
+.panel {
+    background: var(--bg-secondary); border: 1px solid rgba(139,92,246,0.15);
+    border-radius: 8px; padding: 12px; margin-bottom: 10px;
+}
+.panel h3 {
+    font-size: 12px; color: var(--accent-purple); text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 8px;
+    border-bottom: 1px solid rgba(139,92,246,0.2); padding-bottom: 4px;
+}
+.panel canvas {
+    width: 100%; height: 150px; display: block; border-radius: 4px;
+    background: rgba(0,0,0,0.4);
+}
+
+.info-text {
+    font-size: 11px; color: var(--text-secondary); margin-top: 6px;
+    line-height: 1.5; font-style: italic;
+}
+
+.controls-row {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 8px;
+}
+.control-item {
+    display: flex; align-items: center; gap: 6px;
+}
+.control-item label {
+    font-size: 11px; color: var(--text-secondary); min-width: 70px;
+}
+.control-item input[type="range"] {
+    width: 120px; height: 4px; -webkit-appearance: none; appearance: none;
+    background: var(--bg-tertiary); border-radius: 2px; outline: none;
+}
+.control-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent-cyan); cursor: pointer;
+    box-shadow: var(--glow-cyan);
+}
+.control-item .value {
+    font-size: 10px; color: var(--accent-cyan); min-width: 50px;
+    font-variant-numeric: tabular-nums;
+}
+
+.btn {
+    padding: 6px 14px; font-size: 11px; border: 1px solid rgba(0,240,255,0.3);
+    background: transparent; color: var(--text-secondary); border-radius: 4px;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.btn.active {
+    background: rgba(0,240,255,0.15); color: var(--accent-cyan);
+    box-shadow: var(--glow-cyan);
+}
+.btn.magenta { border-color: rgba(255,0,170,0.3); }
+.btn.magenta:hover, .btn.magenta.active {
+    border-color: var(--accent-magenta); color: var(--accent-magenta);
+    background: rgba(255,0,170,0.15); box-shadow: var(--glow-magenta);
+}
+
+.viz-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+@media (max-width: 650px) { .viz-grid { grid-template-columns: 1fr; } }
+
+/* Chladni pattern */
+.chladni-container { display: flex; flex-direction: column; align-items: center; }
+.chladni-container canvas {
+    width: 280px; height: 280px; border-radius: 50%;
+    border: 2px solid rgba(0,240,255,0.3);
+}
+
+/* Intervals */
+.intervals-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 6px; margin-top: 8px;
+}
+.interval-btn {
+    padding: 8px; font-size: 11px; border: 1px solid rgba(139,92,246,0.3);
+    background: var(--bg-tertiary); color: var(--text-secondary); border-radius: 4px;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+    text-align: center;
+}
+.interval-btn:hover {
+    border-color: var(--accent-purple); color: var(--accent-purple);
+    background: rgba(139,92,246,0.1);
+}
+.interval-btn .ratio { font-size: 9px; color: var(--accent-cyan); display: block; margin-top: 2px; }
+
+/* Mic indicator */
+.mic-status { font-size: 10px; margin-left: 8px; }
+.mic-status.on { color: var(--accent-green); }
+.mic-status.off { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<a href="../simulations-index.html" class="back-link">&#8592; Simulations</a>
+
+<header>
+    <h1>Frequency Lab</h1>
+    <p>Explore sound waves, harmonics, beats, and vibration patterns</p>
+</header>
+
+<div class="lab-container">
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="generator">Tone Generator</button>
+        <button class="tab-btn" data-tab="beats">Beat Frequencies</button>
+        <button class="tab-btn" data-tab="harmonics">Harmonics</button>
+        <button class="tab-btn" data-tab="chladni">Chladni Patterns</button>
+        <button class="tab-btn" data-tab="intervals">Intervals</button>
+        <button class="tab-btn" data-tab="mic">Microphone</button>
+    </div>
+
+    <!-- TAB: Tone Generator -->
+    <div class="tab-panel active" data-panel="generator">
+        <div class="panel">
+            <h3>Tone Generator</h3>
+            <div class="controls-row">
+                <div class="control-item">
+                    <label>Frequency</label>
+                    <input type="range" id="genFreq" min="20" max="2000" step="1" value="440">
+                    <span class="value" id="genFreqVal">440 Hz</span>
+                </div>
+                <div class="control-item">
+                    <label>Volume</label>
+                    <input type="range" id="genVol" min="0" max="1" step="0.01" value="0.3">
+                    <span class="value" id="genVolVal">30%</span>
+                </div>
+                <button class="btn" id="genPlayBtn">&#9654; Play</button>
+                <div class="control-item">
+                    <label>Waveform</label>
+                    <select id="genWave" style="background:var(--bg-tertiary);color:var(--text-primary);border:1px solid rgba(0,240,255,0.3);border-radius:4px;padding:4px;font-family:inherit;font-size:11px;">
+                        <option value="sine">Sine</option>
+                        <option value="square">Square</option>
+                        <option value="sawtooth">Sawtooth</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+            </div>
+            <div class="info-text">
+                A pure tone at a single frequency. A4 = 440 Hz (concert pitch). Humans hear roughly 20 Hz to 20,000 Hz.
+                The waveform shape affects the harmonic content: sine has none, square has odd harmonics, sawtooth has all harmonics.
+            </div>
+        </div>
+
+        <div class="viz-grid">
+            <div class="panel">
+                <h3>Waveform (Time Domain)</h3>
+                <canvas id="genWaveCanvas"></canvas>
+                <div class="info-text">Amplitude vs. time &mdash; shows the shape of the pressure wave</div>
+            </div>
+            <div class="panel">
+                <h3>Spectrum (Frequency Domain)</h3>
+                <canvas id="genSpecCanvas"></canvas>
+                <div class="info-text">Amplitude vs. frequency &mdash; shows which frequencies are present</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Beat Frequencies -->
+    <div class="tab-panel" data-panel="beats">
+        <div class="panel">
+            <h3>Beat Frequencies</h3>
+            <div class="controls-row">
+                <div class="control-item">
+                    <label>Freq 1</label>
+                    <input type="range" id="beat1" min="200" max="600" step="0.5" value="440">
+                    <span class="value" id="beat1Val">440.0 Hz</span>
+                </div>
+                <div class="control-item">
+                    <label>Freq 2</label>
+                    <input type="range" id="beat2" min="200" max="600" step="0.5" value="444">
+                    <span class="value" id="beat2Val">444.0 Hz</span>
+                </div>
+                <button class="btn magenta" id="beatPlayBtn">&#9654; Play Beats</button>
+            </div>
+            <div class="controls-row">
+                <span class="value" id="beatInfo" style="color:var(--accent-magenta);font-size:12px;">Beat frequency: 4.0 Hz</span>
+            </div>
+            <div class="info-text">
+                When two close frequencies overlap, they create "beats" &mdash; periodic volume pulsations.
+                The beat frequency = |f1 - f2|. Tuning instruments uses this phenomenon: beats disappear when frequencies match.
+            </div>
+        </div>
+        <div class="panel">
+            <h3>Combined Waveform</h3>
+            <canvas id="beatCanvas" style="height:180px;"></canvas>
+        </div>
+    </div>
+
+    <!-- TAB: Harmonics -->
+    <div class="tab-panel" data-panel="harmonics">
+        <div class="panel">
+            <h3>Harmonics Visualizer</h3>
+            <div class="controls-row">
+                <div class="control-item">
+                    <label>Fundamental</label>
+                    <input type="range" id="harmFund" min="50" max="500" step="1" value="220">
+                    <span class="value" id="harmFundVal">220 Hz</span>
+                </div>
+                <button class="btn" id="harmPlayBtn">&#9654; Play</button>
+            </div>
+            <div class="controls-row" id="harmSliders" style="flex-direction:column;align-items:stretch;">
+                <!-- Harmonic sliders generated by JS -->
+            </div>
+            <div class="info-text">
+                Harmonics (overtones) are integer multiples of the fundamental frequency.
+                Every musical instrument produces a unique blend of harmonics &mdash; this is what gives each instrument its timbre.
+                The 2nd harmonic (2x) is an octave above, the 3rd (3x) a perfect fifth + octave, etc.
+            </div>
+        </div>
+        <div class="viz-grid">
+            <div class="panel">
+                <h3>Individual Harmonics</h3>
+                <canvas id="harmIndCanvas"></canvas>
+            </div>
+            <div class="panel">
+                <h3>Combined Waveform</h3>
+                <canvas id="harmCombCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Chladni Patterns -->
+    <div class="tab-panel" data-panel="chladni">
+        <div class="panel">
+            <h3>Chladni Vibration Patterns</h3>
+            <div class="controls-row">
+                <div class="control-item">
+                    <label>Mode n</label>
+                    <input type="range" id="chladniN" min="1" max="8" step="1" value="3">
+                    <span class="value" id="chladniNVal">3</span>
+                </div>
+                <div class="control-item">
+                    <label>Mode m</label>
+                    <input type="range" id="chladniM" min="1" max="8" step="1" value="4">
+                    <span class="value" id="chladniMVal">4</span>
+                </div>
+                <button class="btn" id="chladniPlayBtn">&#9654; Play Tone</button>
+            </div>
+            <div class="info-text">
+                Chladni patterns form when a vibrating plate causes particles to settle along nodal lines (zero amplitude).
+                Parameters n and m control the vibration modes. Higher modes = more complex, higher-frequency patterns.
+                f &#8733; (n&sup2; + m&sup2;) for a square plate. Named after physicist Ernst Chladni (1756-1827).
+            </div>
+        </div>
+        <div class="chladni-container">
+            <canvas id="chladniCanvas" width="560" height="560"></canvas>
+            <span class="value" id="chladniFreqLabel" style="margin-top:6px;font-size:11px;">Pattern frequency: ~</span>
+        </div>
+    </div>
+
+    <!-- TAB: Musical Intervals -->
+    <div class="tab-panel" data-panel="intervals">
+        <div class="panel">
+            <h3>Musical Intervals & Ratios</h3>
+            <div class="controls-row">
+                <div class="control-item">
+                    <label>Root Note</label>
+                    <input type="range" id="intervalRoot" min="100" max="600" step="1" value="261">
+                    <span class="value" id="intervalRootVal">261 Hz (C4)</span>
+                </div>
+            </div>
+            <div class="info-text">
+                Musical intervals are defined by frequency ratios. These simple ratios produce consonant (pleasant) sounds.
+                Click an interval to hear the root and the interval note played together.
+            </div>
+            <div class="intervals-grid" id="intervalsGrid">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+        <div class="panel">
+            <h3>Interval Waveform</h3>
+            <canvas id="intervalCanvas" style="height:120px;"></canvas>
+        </div>
+    </div>
+
+    <!-- TAB: Microphone -->
+    <div class="tab-panel" data-panel="mic">
+        <div class="panel">
+            <h3>Microphone Input Analysis</h3>
+            <div class="controls-row">
+                <button class="btn magenta" id="micBtn">&#127908; Enable Mic</button>
+                <span class="mic-status off" id="micStatus">Microphone off</span>
+            </div>
+            <div class="info-text">
+                Analyze ambient sound from your microphone in real-time.
+                Your browser will ask for permission. Audio is processed locally &mdash; nothing is recorded or sent anywhere.
+            </div>
+        </div>
+        <div class="viz-grid">
+            <div class="panel">
+                <h3>Waveform</h3>
+                <canvas id="micWaveCanvas"></canvas>
+            </div>
+            <div class="panel">
+                <h3>Spectrum</h3>
+                <canvas id="micSpecCanvas"></canvas>
+            </div>
+        </div>
+        <div class="panel">
+            <h3>Detected Pitch</h3>
+            <div id="pitchDisplay" style="font-size:24px;color:var(--accent-cyan);text-align:center;padding:10px;">--</div>
+            <div class="info-text" style="text-align:center;">Autocorrelation-based pitch detection. Sing or play a note near the mic.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Reflect on this choice, future maintainers will
+const DEBUG = false;
+if (!DEBUG) {
+    const noop = () => {};
+    console.log = noop;
+    console.warn = noop;
+    console.info = noop;
+}
+
+// Event Manager
+class EventManager {
+    constructor() { this.listeners = []; }
+    add(el, evt, handler, opts) {
+        el.addEventListener(evt, handler, opts);
+        this.listeners.push({ el, evt, handler, opts });
+    }
+    removeAll() {
+        this.listeners.forEach(({ el, evt, handler, opts }) => el.removeEventListener(evt, handler, opts));
+        this.listeners = [];
+    }
+}
+
+// Safe localStorage
+function safeGetItem(key, def = null) {
+    try { const v = localStorage.getItem(key); return v !== null ? v : def; }
+    catch { return def; }
+}
+function safeSetItem(key, val) {
+    try { localStorage.setItem(key, val); return true; }
+    catch { return false; }
+}
+
+const eventManager = new EventManager();
+let audioCtx = null;
+let masterGain;
+
+function ensureAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.3;
+        masterGain.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// ======================= TAB SYSTEM =======================
+function initTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        eventManager.add(btn, 'click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.add('active');
+            resizeAllCanvases();
+        });
+    });
+}
+
+// ======================= TONE GENERATOR =======================
+let genOsc = null, genGain = null, genAnalyserTime = null, genAnalyserFreq = null;
+
+function initGenerator() {
+    const freqSlider = document.getElementById('genFreq');
+    const volSlider = document.getElementById('genVol');
+    const playBtn = document.getElementById('genPlayBtn');
+    const waveSelect = document.getElementById('genWave');
+
+    eventManager.add(freqSlider, 'input', () => {
+        document.getElementById('genFreqVal').textContent = freqSlider.value + ' Hz';
+        if (genOsc) genOsc.frequency.value = parseFloat(freqSlider.value);
+    });
+    eventManager.add(volSlider, 'input', () => {
+        document.getElementById('genVolVal').textContent = Math.round(volSlider.value * 100) + '%';
+        if (genGain) genGain.gain.value = parseFloat(volSlider.value);
+    });
+    eventManager.add(waveSelect, 'change', () => {
+        if (genOsc) genOsc.type = waveSelect.value;
+    });
+    eventManager.add(playBtn, 'click', () => {
+        if (genOsc) { stopGenerator(); return; }
+        startGenerator();
+    });
+}
+
+function startGenerator() {
+    ensureAudio();
+    genAnalyserTime = audioCtx.createAnalyser(); genAnalyserTime.fftSize = 2048;
+    genAnalyserFreq = audioCtx.createAnalyser(); genAnalyserFreq.fftSize = 4096;
+    genGain = audioCtx.createGain();
+    genGain.gain.value = parseFloat(document.getElementById('genVol').value);
+    genOsc = audioCtx.createOscillator();
+    genOsc.type = document.getElementById('genWave').value;
+    genOsc.frequency.value = parseFloat(document.getElementById('genFreq').value);
+    genOsc.connect(genGain);
+    genGain.connect(genAnalyserTime);
+    genGain.connect(genAnalyserFreq);
+    genAnalyserTime.connect(masterGain);
+    genOsc.start();
+    document.getElementById('genPlayBtn').textContent = '\u25A0 Stop';
+    document.getElementById('genPlayBtn').classList.add('active');
+}
+
+function stopGenerator() {
+    if (genOsc) { genOsc.stop(); genOsc.disconnect(); genOsc = null; }
+    if (genGain) { genGain.disconnect(); genGain = null; }
+    genAnalyserTime = null; genAnalyserFreq = null;
+    document.getElementById('genPlayBtn').textContent = '\u25B6 Play';
+    document.getElementById('genPlayBtn').classList.remove('active');
+}
+
+// ======================= BEAT FREQUENCIES =======================
+let beatOsc1 = null, beatOsc2 = null, beatGain = null, beatAnalyser = null;
+
+function initBeats() {
+    const s1 = document.getElementById('beat1');
+    const s2 = document.getElementById('beat2');
+    eventManager.add(s1, 'input', () => {
+        document.getElementById('beat1Val').textContent = parseFloat(s1.value).toFixed(1) + ' Hz';
+        if (beatOsc1) beatOsc1.frequency.value = parseFloat(s1.value);
+        updateBeatInfo();
+    });
+    eventManager.add(s2, 'input', () => {
+        document.getElementById('beat2Val').textContent = parseFloat(s2.value).toFixed(1) + ' Hz';
+        if (beatOsc2) beatOsc2.frequency.value = parseFloat(s2.value);
+        updateBeatInfo();
+    });
+    eventManager.add(document.getElementById('beatPlayBtn'), 'click', () => {
+        if (beatOsc1) { stopBeats(); return; }
+        startBeats();
+    });
+}
+
+function updateBeatInfo() {
+    const f1 = parseFloat(document.getElementById('beat1').value);
+    const f2 = parseFloat(document.getElementById('beat2').value);
+    document.getElementById('beatInfo').textContent = `Beat frequency: ${Math.abs(f1 - f2).toFixed(1)} Hz`;
+}
+
+function startBeats() {
+    ensureAudio();
+    beatAnalyser = audioCtx.createAnalyser(); beatAnalyser.fftSize = 4096;
+    beatGain = audioCtx.createGain(); beatGain.gain.value = 0.2;
+    beatOsc1 = audioCtx.createOscillator();
+    beatOsc1.frequency.value = parseFloat(document.getElementById('beat1').value);
+    beatOsc2 = audioCtx.createOscillator();
+    beatOsc2.frequency.value = parseFloat(document.getElementById('beat2').value);
+    beatOsc1.connect(beatGain); beatOsc2.connect(beatGain);
+    beatGain.connect(beatAnalyser); beatAnalyser.connect(masterGain);
+    beatOsc1.start(); beatOsc2.start();
+    document.getElementById('beatPlayBtn').textContent = '\u25A0 Stop';
+    document.getElementById('beatPlayBtn').classList.add('active');
+}
+
+function stopBeats() {
+    if (beatOsc1) { beatOsc1.stop(); beatOsc1.disconnect(); beatOsc1 = null; }
+    if (beatOsc2) { beatOsc2.stop(); beatOsc2.disconnect(); beatOsc2 = null; }
+    if (beatGain) { beatGain.disconnect(); beatGain = null; }
+    beatAnalyser = null;
+    document.getElementById('beatPlayBtn').textContent = '\u25B6 Play Beats';
+    document.getElementById('beatPlayBtn').classList.remove('active');
+}
+
+// ======================= HARMONICS =======================
+const NUM_HARMONICS = 8;
+let harmOscs = [], harmGains = [], harmMaster = null, harmAnalyser = null;
+let harmonicLevels = [1, 0.5, 0.3, 0.2, 0.15, 0.1, 0.08, 0.06];
+
+function initHarmonics() {
+    const container = document.getElementById('harmSliders');
+    for (let i = 0; i < NUM_HARMONICS; i++) {
+        const row = document.createElement('div');
+        row.className = 'control-item';
+        row.style.marginBottom = '4px';
+        const lbl = document.createElement('label');
+        lbl.textContent = `H${i + 1} (${i + 1}x)`;
+        lbl.style.minWidth = '70px';
+        const slider = document.createElement('input');
+        slider.type = 'range'; slider.min = '0'; slider.max = '1'; slider.step = '0.01';
+        slider.value = harmonicLevels[i]; slider.id = `harm${i}`;
+        slider.style.width = '120px'; slider.style.height = '4px';
+        slider.style.cssText = 'width:120px;height:4px;-webkit-appearance:none;appearance:none;background:var(--bg-tertiary);border-radius:2px;outline:none;flex:1;';
+        const val = document.createElement('span');
+        val.className = 'value'; val.id = `harm${i}Val`;
+        val.textContent = harmonicLevels[i].toFixed(2);
+        row.appendChild(lbl); row.appendChild(slider); row.appendChild(val);
+        container.appendChild(row);
+
+        eventManager.add(slider, 'input', () => {
+            harmonicLevels[i] = parseFloat(slider.value);
+            val.textContent = harmonicLevels[i].toFixed(2);
+            if (harmGains[i]) harmGains[i].gain.value = harmonicLevels[i] * 0.15;
+        });
+    }
+
+    eventManager.add(document.getElementById('harmFund'), 'input', () => {
+        const f = parseFloat(document.getElementById('harmFund').value);
+        document.getElementById('harmFundVal').textContent = f + ' Hz';
+        harmOscs.forEach((osc, i) => { if (osc) osc.frequency.value = f * (i + 1); });
+    });
+
+    eventManager.add(document.getElementById('harmPlayBtn'), 'click', () => {
+        if (harmOscs.length > 0 && harmOscs[0]) { stopHarmonics(); return; }
+        startHarmonics();
+    });
+}
+
+function startHarmonics() {
+    ensureAudio();
+    harmAnalyser = audioCtx.createAnalyser(); harmAnalyser.fftSize = 4096;
+    harmMaster = audioCtx.createGain(); harmMaster.gain.value = 1;
+    harmMaster.connect(harmAnalyser); harmAnalyser.connect(masterGain);
+
+    const fund = parseFloat(document.getElementById('harmFund').value);
+    harmOscs = []; harmGains = [];
+    for (let i = 0; i < NUM_HARMONICS; i++) {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = fund * (i + 1);
+        const g = audioCtx.createGain();
+        g.gain.value = harmonicLevels[i] * 0.15;
+        osc.connect(g); g.connect(harmMaster);
+        osc.start();
+        harmOscs.push(osc); harmGains.push(g);
+    }
+    document.getElementById('harmPlayBtn').textContent = '\u25A0 Stop';
+    document.getElementById('harmPlayBtn').classList.add('active');
+}
+
+function stopHarmonics() {
+    harmOscs.forEach(o => { if (o) { o.stop(); o.disconnect(); } });
+    harmGains.forEach(g => { if (g) g.disconnect(); });
+    harmOscs = []; harmGains = [];
+    if (harmMaster) { harmMaster.disconnect(); harmMaster = null; }
+    harmAnalyser = null;
+    document.getElementById('harmPlayBtn').textContent = '\u25B6 Play';
+    document.getElementById('harmPlayBtn').classList.remove('active');
+}
+
+// ======================= CHLADNI PATTERNS =======================
+let chladniOsc = null, chladniGain = null;
+
+function initChladni() {
+    const nSlider = document.getElementById('chladniN');
+    const mSlider = document.getElementById('chladniM');
+    eventManager.add(nSlider, 'input', () => {
+        document.getElementById('chladniNVal').textContent = nSlider.value;
+        drawChladni();
+    });
+    eventManager.add(mSlider, 'input', () => {
+        document.getElementById('chladniMVal').textContent = mSlider.value;
+        drawChladni();
+    });
+    eventManager.add(document.getElementById('chladniPlayBtn'), 'click', () => {
+        if (chladniOsc) { stopChladni(); return; }
+        playChladni();
+    });
+    drawChladni();
+}
+
+function drawChladni() {
+    const canvas = document.getElementById('chladniCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const n = parseInt(document.getElementById('chladniN').value);
+    const m = parseInt(document.getElementById('chladniM').value);
+
+    const imgData = ctx.createImageData(w, h);
+    const centerX = w / 2, centerY = h / 2;
+    const radius = w / 2 - 4;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const dx = x - centerX, dy = y - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const idx = (y * w + x) * 4;
+
+            if (dist > radius) {
+                imgData.data[idx] = 10; imgData.data[idx + 1] = 10;
+                imgData.data[idx + 2] = 15; imgData.data[idx + 3] = 255;
+                continue;
+            }
+
+            const nx = (x / w) * Math.PI;
+            const ny = (y / h) * Math.PI;
+            // Chladni equation: cos(n*pi*x/L)*cos(m*pi*y/L) - cos(m*pi*x/L)*cos(n*pi*y/L)
+            const val = Math.cos(n * nx * 2) * Math.cos(m * ny * 2) - Math.cos(m * nx * 2) * Math.cos(n * ny * 2);
+            const absVal = Math.abs(val);
+
+            // Nodal lines (where val ≈ 0) show particles
+            if (absVal < 0.08) {
+                // Bright nodal line
+                const brightness = 1 - absVal / 0.08;
+                imgData.data[idx] = Math.floor(0 + 0 * brightness);
+                imgData.data[idx + 1] = Math.floor(180 * brightness + 60);
+                imgData.data[idx + 2] = Math.floor(255 * brightness);
+                imgData.data[idx + 3] = 255;
+            } else {
+                // Dark area
+                const dark = Math.min(absVal * 0.3, 1);
+                imgData.data[idx] = Math.floor(10 + 15 * dark);
+                imgData.data[idx + 1] = Math.floor(10 + 8 * dark);
+                imgData.data[idx + 2] = Math.floor(20 + 20 * dark);
+                imgData.data[idx + 3] = 255;
+            }
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // Frequency label
+    const baseFreq = 100;
+    const freq = baseFreq * (n * n + m * m);
+    document.getElementById('chladniFreqLabel').textContent =
+        `Pattern (n=${n}, m=${m}) \u2248 ${freq} Hz equivalent`;
+}
+
+function playChladni() {
+    ensureAudio();
+    const n = parseInt(document.getElementById('chladniN').value);
+    const m = parseInt(document.getElementById('chladniM').value);
+    const freq = Math.min(100 * (n * n + m * m), 4000);
+
+    chladniGain = audioCtx.createGain(); chladniGain.gain.value = 0.15;
+    chladniOsc = audioCtx.createOscillator();
+    chladniOsc.frequency.value = freq;
+    chladniOsc.connect(chladniGain); chladniGain.connect(masterGain);
+    chladniOsc.start();
+    document.getElementById('chladniPlayBtn').textContent = '\u25A0 Stop';
+    document.getElementById('chladniPlayBtn').classList.add('active');
+}
+
+function stopChladni() {
+    if (chladniOsc) { chladniOsc.stop(); chladniOsc.disconnect(); chladniOsc = null; }
+    if (chladniGain) { chladniGain.disconnect(); chladniGain = null; }
+    document.getElementById('chladniPlayBtn').textContent = '\u25B6 Play Tone';
+    document.getElementById('chladniPlayBtn').classList.remove('active');
+}
+
+// ======================= INTERVALS =======================
+const INTERVALS = [
+    { name: 'Unison', ratio: '1:1', mult: 1 },
+    { name: 'Minor 2nd', ratio: '16:15', mult: 16/15 },
+    { name: 'Major 2nd', ratio: '9:8', mult: 9/8 },
+    { name: 'Minor 3rd', ratio: '6:5', mult: 6/5 },
+    { name: 'Major 3rd', ratio: '5:4', mult: 5/4 },
+    { name: 'Perfect 4th', ratio: '4:3', mult: 4/3 },
+    { name: 'Tritone', ratio: '45:32', mult: 45/32 },
+    { name: 'Perfect 5th', ratio: '3:2', mult: 3/2 },
+    { name: 'Minor 6th', ratio: '8:5', mult: 8/5 },
+    { name: 'Major 6th', ratio: '5:3', mult: 5/3 },
+    { name: 'Minor 7th', ratio: '9:5', mult: 9/5 },
+    { name: 'Major 7th', ratio: '15:8', mult: 15/8 },
+    { name: 'Octave', ratio: '2:1', mult: 2 }
+];
+
+let intervalOscs = [], intervalGains = [], intervalAnalyser = null, intervalMaster = null;
+
+function initIntervals() {
+    const grid = document.getElementById('intervalsGrid');
+    INTERVALS.forEach(int => {
+        const btn = document.createElement('button');
+        btn.className = 'interval-btn';
+        btn.innerHTML = `${int.name}<span class="ratio">${int.ratio}</span>`;
+        eventManager.add(btn, 'click', () => playInterval(int));
+        grid.appendChild(btn);
+    });
+    eventManager.add(document.getElementById('intervalRoot'), 'input', () => {
+        const f = parseFloat(document.getElementById('intervalRoot').value);
+        const note = freqToNote(f);
+        document.getElementById('intervalRootVal').textContent = `${f} Hz (${note})`;
+    });
+}
+
+function freqToNote(freq) {
+    const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const midi = Math.round(12 * Math.log2(freq / 440) + 69);
+    return noteNames[midi % 12] + Math.floor(midi / 12 - 1);
+}
+
+function playInterval(int) {
+    stopInterval();
+    ensureAudio();
+    const root = parseFloat(document.getElementById('intervalRoot').value);
+    intervalAnalyser = audioCtx.createAnalyser(); intervalAnalyser.fftSize = 4096;
+    intervalMaster = audioCtx.createGain(); intervalMaster.gain.value = 1;
+    intervalMaster.connect(intervalAnalyser); intervalAnalyser.connect(masterGain);
+
+    [root, root * int.mult].forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        osc.frequency.value = freq;
+        const g = audioCtx.createGain(); g.gain.value = 0.15;
+        osc.connect(g); g.connect(intervalMaster);
+        osc.start();
+        intervalOscs.push(osc); intervalGains.push(g);
+    });
+
+    // Auto-stop after 2 seconds
+    setTimeout(stopInterval, 2000);
+}
+
+function stopInterval() {
+    intervalOscs.forEach(o => { try { o.stop(); o.disconnect(); } catch {} });
+    intervalGains.forEach(g => { try { g.disconnect(); } catch {} });
+    intervalOscs = []; intervalGains = [];
+    if (intervalMaster) { intervalMaster.disconnect(); intervalMaster = null; }
+    intervalAnalyser = null;
+}
+
+// ======================= MICROPHONE =======================
+let micStream = null, micSource = null, micAnalyserTime = null, micAnalyserFreq = null;
+
+function initMic() {
+    eventManager.add(document.getElementById('micBtn'), 'click', () => {
+        if (micStream) { stopMic(); return; }
+        startMic();
+    });
+}
+
+async function startMic() {
+    try {
+        ensureAudio();
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micSource = audioCtx.createMediaStreamSource(micStream);
+        micAnalyserTime = audioCtx.createAnalyser(); micAnalyserTime.fftSize = 2048;
+        micAnalyserFreq = audioCtx.createAnalyser(); micAnalyserFreq.fftSize = 4096;
+        micSource.connect(micAnalyserTime);
+        micSource.connect(micAnalyserFreq);
+        document.getElementById('micBtn').textContent = '\u25A0 Disable Mic';
+        document.getElementById('micBtn').classList.add('active');
+        document.getElementById('micStatus').textContent = 'Microphone active';
+        document.getElementById('micStatus').className = 'mic-status on';
+    } catch (err) {
+        document.getElementById('micStatus').textContent = 'Mic access denied';
+        console.error('Mic error:', err);
+    }
+}
+
+function stopMic() {
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (micSource) { micSource.disconnect(); micSource = null; }
+    micAnalyserTime = null; micAnalyserFreq = null;
+    document.getElementById('micBtn').textContent = '\uD83C\uDF99 Enable Mic';
+    document.getElementById('micBtn').classList.remove('active');
+    document.getElementById('micStatus').textContent = 'Microphone off';
+    document.getElementById('micStatus').className = 'mic-status off';
+    document.getElementById('pitchDisplay').textContent = '--';
+}
+
+function detectPitch(analyser) {
+    if (!analyser) return null;
+    const bufLen = analyser.fftSize;
+    const buf = new Float32Array(bufLen);
+    analyser.getFloatTimeDomainData(buf);
+
+    // Check for signal
+    let rms = 0;
+    for (let i = 0; i < bufLen; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / bufLen);
+    if (rms < 0.01) return null;
+
+    // Autocorrelation
+    const corrBuf = new Float32Array(bufLen);
+    for (let lag = 0; lag < bufLen; lag++) {
+        let sum = 0;
+        for (let i = 0; i < bufLen - lag; i++) sum += buf[i] * buf[i + lag];
+        corrBuf[lag] = sum;
+    }
+
+    // Find first dip then first peak
+    let d = 0;
+    while (d < bufLen / 2 && corrBuf[d] > 0) d++;
+    let maxVal = -1, maxIdx = d;
+    for (let i = d; i < bufLen / 2; i++) {
+        if (corrBuf[i] > maxVal) { maxVal = corrBuf[i]; maxIdx = i; }
+    }
+    if (maxIdx === 0 || maxVal < 0.01) return null;
+    return audioCtx.sampleRate / maxIdx;
+}
+
+// ======================= DRAWING =======================
+function drawWaveform(canvas, analyser, color) {
+    if (!analyser || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(data);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.shadowBlur = 4; ctx.shadowColor = color;
+    ctx.beginPath();
+
+    const step = data.length / w;
+    for (let i = 0; i < w; i++) {
+        const v = data[Math.floor(i * step)] / 128;
+        const y = (v * h) / 2;
+        i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+}
+
+function drawSpectrumBars(canvas, analyser, color) {
+    if (!analyser || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(0, 0, w, h);
+
+    const bars = Math.min(128, w / 3);
+    const barW = w / bars;
+    const step = data.length / bars;
+
+    for (let i = 0; i < bars; i++) {
+        const val = data[Math.floor(i * step)] / 255;
+        const barH = val * h;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.5 + val * 0.5;
+        ctx.fillRect(i * barW, h - barH, barW - 1, barH);
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawBeatWaveform(canvas) {
+    if (!beatAnalyser || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = new Uint8Array(beatAnalyser.frequencyBinCount);
+    beatAnalyser.getByteTimeDomainData(data);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Envelope
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ff00aa';
+    ctx.shadowBlur = 6; ctx.shadowColor = '#ff00aa';
+    ctx.beginPath();
+    const step = data.length / w;
+    for (let i = 0; i < w; i++) {
+        const v = data[Math.floor(i * step)] / 128;
+        const y = (v * h) / 2;
+        i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Center line
+    ctx.strokeStyle = 'rgba(255,0,170,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+    ctx.stroke();
+}
+
+function drawHarmonicsIndividual(canvas) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, w, h);
+
+    const fund = parseFloat(document.getElementById('harmFund').value);
+    const colors = ['#00f0ff','#ff00aa','#8b5cf6','#00ff88','#ff8800','#ff4444','#44ff44','#ffff00'];
+    const period = 1 / fund;
+    const displayTime = period * 3;
+
+    for (let hi = 0; hi < NUM_HARMONICS; hi++) {
+        if (harmonicLevels[hi] < 0.01) continue;
+        const freq = fund * (hi + 1);
+        ctx.strokeStyle = colors[hi % colors.length];
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        for (let x = 0; x < w; x++) {
+            const t = (x / w) * displayTime;
+            const y = h / 2 - harmonicLevels[hi] * (h * 0.4) * Math.sin(2 * Math.PI * freq * t);
+            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawHarmonicsCombined(canvas) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, w, h);
+
+    const fund = parseFloat(document.getElementById('harmFund').value);
+    const period = 1 / fund;
+    const displayTime = period * 3;
+
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 4; ctx.shadowColor = '#00f0ff';
+    ctx.beginPath();
+    for (let x = 0; x < w; x++) {
+        const t = (x / w) * displayTime;
+        let sum = 0;
+        for (let hi = 0; hi < NUM_HARMONICS; hi++) {
+            sum += harmonicLevels[hi] * Math.sin(2 * Math.PI * fund * (hi + 1) * t);
+        }
+        const totalWeight = harmonicLevels.reduce((a, b) => a + b, 0) || 1;
+        const y = h / 2 - (sum / totalWeight) * (h * 0.4);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+}
+
+function drawIntervalWaveform(canvas) {
+    if (!intervalAnalyser || !canvas) return;
+    drawWaveform(canvas, intervalAnalyser, '#8b5cf6');
+}
+
+// ======================= CANVAS RESIZE =======================
+function resizeCanvas(canvas) {
+    if (!canvas || !canvas.parentElement) return;
+    // Skip chladni canvas - it has fixed dimensions
+    if (canvas.id === 'chladniCanvas') return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+}
+
+const allCanvasIds = [
+    'genWaveCanvas', 'genSpecCanvas', 'beatCanvas',
+    'harmIndCanvas', 'harmCombCanvas', 'intervalCanvas',
+    'micWaveCanvas', 'micSpecCanvas'
+];
+
+function resizeAllCanvases() {
+    allCanvasIds.forEach(id => resizeCanvas(document.getElementById(id)));
+}
+
+// ======================= ANIMATION =======================
+function animate() {
+    // Generator tab
+    const genWaveC = document.getElementById('genWaveCanvas');
+    const genSpecC = document.getElementById('genSpecCanvas');
+    drawWaveform(genWaveC, genAnalyserTime, '#00f0ff');
+    drawSpectrumBars(genSpecC, genAnalyserFreq, '#8b5cf6');
+
+    // Beats tab
+    drawBeatWaveform(document.getElementById('beatCanvas'));
+
+    // Harmonics (mathematical, always draw)
+    drawHarmonicsIndividual(document.getElementById('harmIndCanvas'));
+    drawHarmonicsCombined(document.getElementById('harmCombCanvas'));
+
+    // Intervals
+    drawIntervalWaveform(document.getElementById('intervalCanvas'));
+
+    // Mic
+    drawWaveform(document.getElementById('micWaveCanvas'), micAnalyserTime, '#00ff88');
+    drawSpectrumBars(document.getElementById('micSpecCanvas'), micAnalyserFreq, '#ff8800');
+
+    // Pitch detection
+    if (micAnalyserFreq) {
+        const pitch = detectPitch(micAnalyserFreq);
+        const disp = document.getElementById('pitchDisplay');
+        if (pitch && pitch > 50 && pitch < 2000) {
+            const note = freqToNote(pitch);
+            disp.textContent = `${pitch.toFixed(1)} Hz \u2014 ${note}`;
+        } else {
+            disp.textContent = '--';
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+// ======================= INIT =======================
+function init() {
+    initTabs();
+    initGenerator();
+    initBeats();
+    initHarmonics();
+    initChladni();
+    initIntervals();
+    initMic();
+    resizeAllCanvases();
+    eventManager.add(window, 'resize', resizeAllCanvases);
+    animate();
+}
+
+init();
+</script>
+</body>
+</html>

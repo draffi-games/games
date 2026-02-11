@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #050510;
+            color: #e0e0e0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #side-panel {
+            width: 280px;
+            min-width: 280px;
+            background: rgba(10, 10, 25, 0.97);
+            padding: 16px;
+            padding-top: 50px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(80, 160, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        #canvas-wrap {
+            flex: 1;
+            position: relative;
+            background: #050510;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        h2 {
+            font-size: 16px;
+            color: #58b4ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .section {
+            background: rgba(20, 30, 50, 0.5);
+            border: 1px solid rgba(80, 160, 255, 0.12);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #58b4ff;
+            margin-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #99aabb;
+            margin-bottom: 2px;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            accent-color: #58b4ff;
+            height: 4px;
+        }
+
+        .slider-val {
+            font-size: 11px;
+            color: #58b4ff;
+            min-width: 40px;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 7px 14px;
+            border: 1px solid rgba(80, 160, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(30, 40, 70, 0.5);
+            color: #a0ccff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background: rgba(50, 70, 120, 0.6);
+            border-color: rgba(80, 160, 255, 0.6);
+        }
+
+        .btn.active {
+            background: rgba(60, 100, 180, 0.5);
+            border-color: #58b4ff;
+            color: #fff;
+        }
+
+        .btn.danger {
+            border-color: rgba(255, 80, 80, 0.4);
+            color: #ff9999;
+        }
+
+        .btn.danger:hover {
+            background: rgba(200, 40, 40, 0.3);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 4px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 6px 4px;
+            border: 1px solid rgba(80, 160, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(20, 30, 50, 0.5);
+            color: #8899bb;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.selected {
+            background: rgba(50, 80, 150, 0.5);
+            border-color: #58b4ff;
+            color: #fff;
+        }
+
+        .mode-btn:hover {
+            border-color: rgba(80, 160, 255, 0.5);
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            accent-color: #58b4ff;
+        }
+
+        .checkbox-row label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .hint {
+            font-size: 10px;
+            color: #556677;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .color-legend {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            padding: 4px 0;
+            margin-top: 4px;
+        }
+
+        .color-legend span {
+            color: #667788;
+        }
+
+        .color-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #0044ff, #004488, #000000, #884400, #ff4400);
+            margin-top: 4px;
+        }
+
+        .stats-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 25, 0.85);
+            border: 1px solid rgba(80, 160, 255, 0.15);
+            border-radius: 10px;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #58b4ff;
+            display: flex;
+            gap: 16px;
+            z-index: 5;
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(10, 10, 25, 0.9);
+            border: 1px solid rgba(80, 160, 255, 0.15);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 11px;
+            color: #7788aa;
+            max-width: 320px;
+            line-height: 1.5;
+            z-index: 5;
+        }
+
+        .info-panel strong {
+            color: #58b4ff;
+        }
+
+        .preset-btn {
+            padding: 5px 10px;
+            border: 1px solid rgba(80, 160, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(20, 30, 50, 0.4);
+            color: #58b4ff;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: rgba(40, 60, 100, 0.5);
+            border-color: rgba(80, 160, 255, 0.5);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
+        }
+
+        @media (max-width: 700px) {
+            #side-panel {
+                position: fixed;
+                top: 0;
+                left: -300px;
+                height: 100vh;
+                z-index: 100;
+                transition: left 0.3s ease;
+            }
+            #side-panel.open {
+                left: 0;
+            }
+            .mobile-toggle {
+                display: block !important;
+            }
+        }
+
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            z-index: 200;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(30, 40, 70, 0.9);
+            border: 1px solid rgba(80, 160, 255, 0.4);
+            color: #58b4ff;
+            font-size: 20px;
+            cursor: pointer;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">&larr; Simulations</a>
+
+    <div id="container">
+        <div id="side-panel">
+            <h2>Wave Simulator</h2>
+
+            <div class="section">
+                <div class="section-title">Wave Source</div>
+                <label>Mode:</label>
+                <div class="mode-selector">
+                    <button class="mode-btn selected" data-mode="ripple">Ripple</button>
+                    <button class="mode-btn" data-mode="continuous">Continuous</button>
+                    <button class="mode-btn" data-mode="plane">Plane</button>
+                </div>
+                <div class="hint">Click on the canvas to place wave sources.</div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Wave Properties</div>
+                <label>Frequency</label>
+                <div class="slider-row">
+                    <input type="range" id="freq-slider" min="0.5" max="8" step="0.1" value="3">
+                    <span class="slider-val" id="freq-val">3.0 Hz</span>
+                </div>
+                <label>Amplitude</label>
+                <div class="slider-row">
+                    <input type="range" id="amp-slider" min="0.1" max="2" step="0.05" value="1">
+                    <span class="slider-val" id="amp-val">1.0</span>
+                </div>
+                <label>Wave Speed</label>
+                <div class="slider-row">
+                    <input type="range" id="speed-slider" min="20" max="200" step="5" value="80">
+                    <span class="slider-val" id="speed-val">80</span>
+                </div>
+                <label>Damping</label>
+                <div class="slider-row">
+                    <input type="range" id="damp-slider" min="0" max="0.02" step="0.001" value="0.003">
+                    <span class="slider-val" id="damp-val">0.003</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Visualization</div>
+                <label>Color Map:</label>
+                <div class="mode-selector">
+                    <button class="mode-btn selected" data-color="thermal">Thermal</button>
+                    <button class="mode-btn" data-color="ocean">Ocean</button>
+                    <button class="mode-btn" data-color="neon">Neon</button>
+                </div>
+                <div class="color-bar" id="color-bar"></div>
+                <div class="color-legend">
+                    <span>-A</span>
+                    <span>0</span>
+                    <span>+A</span>
+                </div>
+                <div class="checkbox-row" style="margin-top:8px;">
+                    <input type="checkbox" id="show-sources">
+                    <label for="show-sources">Show Source Markers</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="show-nodes">
+                    <label for="show-nodes">Show Nodes/Antinodes</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="show-3d" checked>
+                    <label for="show-3d">Height Map Effect</label>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Presets</div>
+                <div class="btn-row">
+                    <button class="preset-btn" data-preset="double-slit">Double Slit</button>
+                    <button class="preset-btn" data-preset="interference">Interference</button>
+                </div>
+                <div class="btn-row" style="margin-top:4px;">
+                    <button class="preset-btn" data-preset="standing">Standing Wave</button>
+                    <button class="preset-btn" data-preset="doppler">Doppler</button>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn" id="btn-pause">Pause</button>
+                <button class="btn danger" id="btn-clear">Clear All</button>
+            </div>
+        </div>
+
+        <div id="canvas-wrap">
+            <canvas id="wave-canvas"></canvas>
+            <div class="stats-bar" id="stats-bar">
+                <span>Sources: <strong id="stat-sources">0</strong></span>
+                <span>Time: <strong id="stat-time">0.0</strong>s</span>
+                <span>FPS: <strong id="stat-fps">0</strong></span>
+            </div>
+            <div class="info-panel" id="info-panel">
+                <strong>Wave Physics</strong><br>
+                Waves propagate as: <em>y = A &middot; sin(kx &minus; &omega;t)</em><br>
+                Where <em>k = 2&pi;/&lambda;</em> (wave number) and <em>&omega; = 2&pi;f</em> (angular frequency).
+                <br><br>
+                When waves overlap, their amplitudes add (superposition principle), creating <strong>interference patterns</strong> &mdash; bright regions (constructive) and dark regions (destructive).
+                <br><br>
+                <strong>Controls:</strong> Click to add sources. Scroll to zoom.
+            </div>
+        </div>
+    </div>
+
+    <button class="mobile-toggle" id="mobile-toggle">☰</button>
+
+    <script>
+    'use strict';
+
+    // Debug mode
+    const DEBUG = false;
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // Event Manager
+    class EventManager {
+        constructor() {
+            this.listeners = [];
+        }
+        add(element, event, handler, options) {
+            element.addEventListener(event, handler, options);
+            this.listeners.push({ element, event, handler, options });
+        }
+        removeAll() {
+            this.listeners.forEach(({ element, event, handler, options }) => {
+                element.removeEventListener(event, handler, options);
+            });
+            this.listeners = [];
+        }
+    }
+
+    // Safe localStorage
+    function safeGetItem(key, defaultValue = null) {
+        try {
+            const item = localStorage.getItem(key);
+            return item !== null ? item : defaultValue;
+        } catch (e) {
+            console.error('LocalStorage not available:', e);
+            return defaultValue;
+        }
+    }
+
+    function safeSetItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (e) {
+            console.error('LocalStorage not available:', e);
+            return false;
+        }
+    }
+
+    // Safe canvas init
+    function initCanvas() {
+        const canvas = document.getElementById('wave-canvas');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return null;
+        }
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('Canvas 2D context not available');
+            return null;
+        }
+        return { canvas, ctx };
+    }
+
+    const canvasSetup = initCanvas();
+    if (!canvasSetup) {
+        alert('Your browser does not support Canvas. Please use a modern browser.');
+    }
+
+    const { canvas, ctx } = canvasSetup || {};
+
+    if (canvas && ctx) {
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const eventManager = new EventManager();
+
+        // Simulation resolution (lower = faster, higher = prettier)
+        const PIXEL_SIZE = 3;
+
+        // State
+        let sources = [];
+        let paused = false;
+        let simTime = 0;
+        let mode = 'ripple';
+        let colorScheme = 'thermal';
+
+        let frequency = 3;
+        let amplitude = 1;
+        let waveSpeed = 80;
+        let damping = 0.003;
+
+        let showSourceMarkers = false;
+        let showNodes = false;
+        let showHeightMap = true;
+
+        // Camera
+        let camX = 0, camY = 0, zoom = 1;
+        let isPanning = false;
+        let panStartX, panStartY, camStartX, camStartY;
+
+        // FPS
+        let lastTime = 0;
+        let frameCount = 0;
+        let fps = 0;
+        let fpsTimer = 0;
+
+        // Image data for pixel manipulation
+        let imgData = null;
+        let simW = 0, simH = 0;
+
+        let nextId = 0;
+
+        // Color maps
+        const COLOR_MAPS = {
+            thermal: (v) => {
+                // -1 to 1 => blue -> black -> red
+                if (v < 0) {
+                    const t = -v;
+                    return [Math.floor(t * 20), Math.floor(t * 60), Math.floor(t * 255)];
+                } else {
+                    const t = v;
+                    return [Math.floor(t * 255), Math.floor(t * 60), Math.floor(t * 20)];
+                }
+            },
+            ocean: (v) => {
+                // -1 to 1 => deep blue -> cyan -> white
+                const t = (v + 1) / 2;
+                if (t < 0.5) {
+                    const u = t * 2;
+                    return [Math.floor(u * 20), Math.floor(u * 80 + 20), Math.floor(100 + u * 155)];
+                } else {
+                    const u = (t - 0.5) * 2;
+                    return [Math.floor(20 + u * 235), Math.floor(100 + u * 155), Math.floor(255)];
+                }
+            },
+            neon: (v) => {
+                // -1 to 1 => magenta -> dark -> cyan
+                if (v < 0) {
+                    const t = -v;
+                    return [Math.floor(t * 255), Math.floor(t * 20), Math.floor(t * 200)];
+                } else {
+                    const t = v;
+                    return [Math.floor(t * 20), Math.floor(t * 255), Math.floor(t * 255)];
+                }
+            }
+        };
+
+        function createSource(x, y, type, options = {}) {
+            return {
+                id: nextId++,
+                x, y,
+                type: type || mode,
+                frequency: options.frequency || frequency,
+                amplitude: options.amplitude || amplitude,
+                startTime: simTime,
+                phase: options.phase || 0,
+                moving: options.moving || false,
+                vx: options.vx || 0,
+                vy: options.vy || 0
+            };
+        }
+
+        function resizeCanvas() {
+            const wrap = document.getElementById('canvas-wrap');
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = wrap.clientWidth * dpr;
+            canvas.height = wrap.clientHeight * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            simW = Math.ceil(wrap.clientWidth / PIXEL_SIZE);
+            simH = Math.ceil(wrap.clientHeight / PIXEL_SIZE);
+        }
+
+        function screenToWorld(sx, sy) {
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+            return {
+                x: (sx - w / 2) / zoom + camX,
+                y: (sy - h / 2) / zoom + camY
+            };
+        }
+
+        function worldToScreen(wx, wy) {
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+            return {
+                x: (wx - camX) * zoom + w / 2,
+                y: (wy - camY) * zoom + h / 2
+            };
+        }
+
+        // Compute wave amplitude at a point
+        function computeWave(px, py) {
+            let total = 0;
+
+            for (const src of sources) {
+                const srcX = src.moving ? src.x + src.vx * (simTime - src.startTime) : src.x;
+                const srcY = src.moving ? src.y + src.vy * (simTime - src.startTime) : src.y;
+                const dx = px - srcX;
+                const dy = py - srcY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                const omega = 2 * Math.PI * src.frequency;
+                const k = omega / waveSpeed;
+                const elapsed = simTime - src.startTime;
+
+                if (src.type === 'ripple') {
+                    // Single ripple - expands outward then fades
+                    const waveFront = waveSpeed * elapsed;
+                    const spread = 30;
+                    if (dist > waveFront + spread) continue;
+                    const envelope = Math.exp(-((dist - waveFront) * (dist - waveFront)) / (2 * spread * spread));
+                    const distAtten = 1 / Math.max(1, Math.sqrt(dist * 0.1));
+                    const dampAtten = Math.exp(-damping * dist);
+                    total += src.amplitude * envelope * distAtten * dampAtten * Math.sin(k * dist - omega * simTime + src.phase);
+                } else if (src.type === 'continuous') {
+                    // Continuous circular wave
+                    const distAtten = 1 / Math.max(1, Math.sqrt(dist * 0.05));
+                    const dampAtten = Math.exp(-damping * dist);
+                    total += src.amplitude * distAtten * dampAtten * Math.sin(k * dist - omega * simTime + src.phase);
+                } else if (src.type === 'plane') {
+                    // Plane wave along x direction from source position
+                    const dampAtten = Math.exp(-damping * Math.abs(dx));
+                    total += src.amplitude * dampAtten * Math.sin(k * dx - omega * simTime + src.phase);
+                }
+            }
+
+            return total;
+        }
+
+        // Render the wave field
+        function renderWaves() {
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+            const colorFn = COLOR_MAPS[colorScheme];
+
+            // Use offscreen canvas for pixel manipulation
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = simW;
+            offCanvas.height = simH;
+            const offCtx = offCanvas.getContext('2d');
+            const imgData = offCtx.createImageData(simW, simH);
+            const data = imgData.data;
+
+            for (let sy = 0; sy < simH; sy++) {
+                for (let sx = 0; sx < simW; sx++) {
+                    // Map pixel to world coordinates
+                    const screenX = sx * PIXEL_SIZE;
+                    const screenY = sy * PIXEL_SIZE;
+                    const world = screenToWorld(screenX, screenY);
+
+                    let val = computeWave(world.x, world.y);
+
+                    // Clamp to [-1, 1]
+                    val = Math.max(-1, Math.min(1, val));
+
+                    let [r, g, b] = colorFn(val);
+
+                    // Height map effect: brighten based on value
+                    if (showHeightMap) {
+                        const brightness = 1 + Math.abs(val) * 0.3;
+                        r = Math.min(255, Math.floor(r * brightness));
+                        g = Math.min(255, Math.floor(g * brightness));
+                        b = Math.min(255, Math.floor(b * brightness));
+                    }
+
+                    const idx = (sy * simW + sx) * 4;
+                    data[idx] = r;
+                    data[idx + 1] = g;
+                    data[idx + 2] = b;
+                    data[idx + 3] = 255;
+                }
+            }
+
+            offCtx.putImageData(imgData, 0, 0);
+
+            // Draw scaled to main canvas
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(offCanvas, 0, 0, simW, simH, 0, 0, w, h);
+        }
+
+        function drawSourceMarkers() {
+            if (!showSourceMarkers && sources.length <= 1) return;
+            for (const src of sources) {
+                const srcX = src.moving ? src.x + src.vx * (simTime - src.startTime) : src.x;
+                const srcY = src.moving ? src.y + src.vy * (simTime - src.startTime) : src.y;
+                const s = worldToScreen(srcX, srcY);
+
+                ctx.strokeStyle = '#ffffff88';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Cross
+                ctx.beginPath();
+                ctx.moveTo(s.x - 4, s.y);
+                ctx.lineTo(s.x + 4, s.y);
+                ctx.moveTo(s.x, s.y - 4);
+                ctx.lineTo(s.x, s.y + 4);
+                ctx.stroke();
+
+                // Label
+                ctx.fillStyle = '#ffffff88';
+                ctx.font = '10px monospace';
+                ctx.fillText(src.type[0].toUpperCase() + ' f=' + src.frequency.toFixed(1), s.x + 12, s.y + 4);
+            }
+        }
+
+        function drawNodeIndicators() {
+            if (!showNodes || sources.length < 2) return;
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+
+            // Sample grid at lower resolution for node detection
+            const step = 12;
+            for (let sy = 0; sy < h; sy += step) {
+                for (let sx = 0; sx < w; sx += step) {
+                    const world = screenToWorld(sx, sy);
+                    const val = computeWave(world.x, world.y);
+                    const absVal = Math.abs(val);
+
+                    if (absVal < 0.05) {
+                        // Node
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        function render(timestamp) {
+            const w = canvas.width / (window.devicePixelRatio || 1);
+            const h = canvas.height / (window.devicePixelRatio || 1);
+
+            // FPS
+            frameCount++;
+            fpsTimer += (timestamp - lastTime);
+            if (fpsTimer >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                fpsTimer = 0;
+            }
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+            lastTime = timestamp;
+
+            if (!paused && dt > 0) {
+                simTime += dt;
+            }
+
+            // Clear
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, w, h);
+
+            // Render waves if we have sources
+            if (sources.length > 0) {
+                renderWaves();
+                drawNodeIndicators();
+                drawSourceMarkers();
+            } else {
+                // Show helper text
+                ctx.fillStyle = '#334466';
+                ctx.font = '18px Segoe UI, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Click anywhere to place a wave source', w / 2, h / 2);
+                ctx.font = '13px Segoe UI, sans-serif';
+                ctx.fillText('Choose mode and properties in the panel, then click', w / 2, h / 2 + 30);
+                ctx.textAlign = 'left';
+            }
+
+            // Clean up expired ripples (after they've fully faded)
+            sources = sources.filter(s => {
+                if (s.type === 'ripple') {
+                    const elapsed = simTime - s.startTime;
+                    const maxDist = waveSpeed * elapsed;
+                    return maxDist < 2000; // Remove when wave has traveled far enough
+                }
+                return true;
+            });
+
+            // Stats
+            document.getElementById('stat-sources').textContent = sources.length;
+            document.getElementById('stat-time').textContent = simTime.toFixed(1);
+            document.getElementById('stat-fps').textContent = fps;
+
+            requestAnimationFrame(render);
+        }
+
+        // Event handlers
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            if (e.button === 1 || (e.button === 0 && e.altKey)) {
+                isPanning = true;
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                camStartX = camX;
+                camStartY = camY;
+                canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+                return;
+            }
+
+            if (e.button === 0) {
+                const world = screenToWorld(mx, my);
+                sources.push(createSource(world.x, world.y, mode));
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (isPanning) {
+                const dx = (e.clientX - panStartX) / zoom;
+                const dy = (e.clientY - panStartY) / zoom;
+                camX = camStartX - dx;
+                camY = camStartY - dy;
+            }
+        }
+
+        function handleMouseUp(e) {
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = 'crosshair';
+            }
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            const worldBefore = screenToWorld(mx, my);
+            zoom *= zoomFactor;
+            zoom = Math.max(0.2, Math.min(5, zoom));
+            const worldAfter = screenToWorld(mx, my);
+            camX += worldBefore.x - worldAfter.x;
+            camY += worldBefore.y - worldAfter.y;
+        }
+
+        function updateColorBar() {
+            const bar = document.getElementById('color-bar');
+            const fn = COLOR_MAPS[colorScheme];
+            const steps = 30;
+            let gradient = 'linear-gradient(to right';
+            for (let i = 0; i <= steps; i++) {
+                const v = (i / steps) * 2 - 1;
+                const [r, g, b] = fn(v);
+                gradient += `, rgb(${r},${g},${b})`;
+            }
+            gradient += ')';
+            bar.style.background = gradient;
+        }
+
+        // UI binding
+        function initUI() {
+            // Mode buttons
+            document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
+                eventManager.add(btn, 'click', () => {
+                    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    mode = btn.dataset.mode;
+                });
+            });
+
+            // Color buttons
+            document.querySelectorAll('.mode-btn[data-color]').forEach(btn => {
+                eventManager.add(btn, 'click', () => {
+                    document.querySelectorAll('.mode-btn[data-color]').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    colorScheme = btn.dataset.color;
+                    updateColorBar();
+                });
+            });
+
+            // Sliders
+            const freqSlider = document.getElementById('freq-slider');
+            const ampSlider = document.getElementById('amp-slider');
+            const speedSlider = document.getElementById('speed-slider');
+            const dampSlider = document.getElementById('damp-slider');
+
+            eventManager.add(freqSlider, 'input', () => {
+                frequency = parseFloat(freqSlider.value);
+                document.getElementById('freq-val').textContent = frequency.toFixed(1) + ' Hz';
+            });
+
+            eventManager.add(ampSlider, 'input', () => {
+                amplitude = parseFloat(ampSlider.value);
+                document.getElementById('amp-val').textContent = amplitude.toFixed(2);
+            });
+
+            eventManager.add(speedSlider, 'input', () => {
+                waveSpeed = parseFloat(speedSlider.value);
+                document.getElementById('speed-val').textContent = waveSpeed;
+            });
+
+            eventManager.add(dampSlider, 'input', () => {
+                damping = parseFloat(dampSlider.value);
+                document.getElementById('damp-val').textContent = damping.toFixed(3);
+            });
+
+            // Checkboxes
+            eventManager.add(document.getElementById('show-sources'), 'change', (e) => showSourceMarkers = e.target.checked);
+            eventManager.add(document.getElementById('show-nodes'), 'change', (e) => showNodes = e.target.checked);
+            eventManager.add(document.getElementById('show-3d'), 'change', (e) => showHeightMap = e.target.checked);
+
+            // Pause
+            eventManager.add(document.getElementById('btn-pause'), 'click', () => {
+                paused = !paused;
+                document.getElementById('btn-pause').textContent = paused ? 'Resume' : 'Pause';
+                document.getElementById('btn-pause').classList.toggle('active', paused);
+            });
+
+            // Clear
+            eventManager.add(document.getElementById('btn-clear'), 'click', () => {
+                sources = [];
+                simTime = 0;
+            });
+
+            // Presets
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                eventManager.add(btn, 'click', () => loadPreset(btn.dataset.preset));
+            });
+
+            // Canvas events
+            eventManager.add(canvas, 'mousedown', handleMouseDown);
+            eventManager.add(window, 'mousemove', handleMouseMove);
+            eventManager.add(window, 'mouseup', handleMouseUp);
+            eventManager.add(canvas, 'wheel', handleWheel, { passive: false });
+            eventManager.add(canvas, 'contextmenu', (e) => e.preventDefault());
+
+            // Touch support
+            eventManager.add(canvas, 'touchstart', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = touch.clientX - rect.left;
+                    const my = touch.clientY - rect.top;
+                    const world = screenToWorld(mx, my);
+                    sources.push(createSource(world.x, world.y, mode));
+                }
+            }, { passive: false });
+
+            // Keyboard
+            eventManager.add(window, 'keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    paused = !paused;
+                    document.getElementById('btn-pause').textContent = paused ? 'Resume' : 'Pause';
+                    document.getElementById('btn-pause').classList.toggle('active', paused);
+                } else if (e.code === 'KeyC') {
+                    sources = [];
+                    simTime = 0;
+                } else if (e.code === 'KeyR') {
+                    camX = 0; camY = 0; zoom = 1;
+                }
+            });
+
+            // Resize
+            eventManager.add(window, 'resize', resizeCanvas);
+
+            // Mobile toggle
+            const mobileToggle = document.getElementById('mobile-toggle');
+            if (mobileToggle) {
+                eventManager.add(mobileToggle, 'click', () => {
+                    document.getElementById('side-panel').classList.toggle('open');
+                });
+            }
+        }
+
+        // Presets
+        function loadPreset(name) {
+            sources = [];
+            simTime = 0;
+            camX = 0; camY = 0; zoom = 1;
+
+            switch (name) {
+                case 'double-slit':
+                    // Two continuous sources close together
+                    mode = 'continuous';
+                    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('selected'));
+                    document.querySelector('.mode-btn[data-mode="continuous"]').classList.add('selected');
+
+                    frequency = 4;
+                    document.getElementById('freq-slider').value = 4;
+                    document.getElementById('freq-val').textContent = '4.0 Hz';
+
+                    sources.push(createSource(-20, -40, 'continuous', { frequency: 4 }));
+                    sources.push(createSource(-20, 40, 'continuous', { frequency: 4 }));
+                    break;
+
+                case 'interference':
+                    mode = 'continuous';
+                    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('selected'));
+                    document.querySelector('.mode-btn[data-mode="continuous"]').classList.add('selected');
+
+                    frequency = 3;
+                    document.getElementById('freq-slider').value = 3;
+                    document.getElementById('freq-val').textContent = '3.0 Hz';
+
+                    sources.push(createSource(-100, 0, 'continuous', { frequency: 3 }));
+                    sources.push(createSource(100, 0, 'continuous', { frequency: 3 }));
+                    sources.push(createSource(0, -100, 'continuous', { frequency: 3 }));
+                    break;
+
+                case 'standing':
+                    mode = 'continuous';
+                    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('selected'));
+                    document.querySelector('.mode-btn[data-mode="continuous"]').classList.add('selected');
+
+                    frequency = 3;
+                    document.getElementById('freq-slider').value = 3;
+                    document.getElementById('freq-val').textContent = '3.0 Hz';
+
+                    // Two opposing plane waves create standing waves
+                    sources.push(createSource(-200, 0, 'plane', { frequency: 3 }));
+                    sources.push(createSource(200, 0, 'plane', { frequency: 3, phase: Math.PI }));
+
+                    document.getElementById('show-nodes').checked = true;
+                    showNodes = true;
+                    break;
+
+                case 'doppler':
+                    mode = 'continuous';
+                    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('selected'));
+                    document.querySelector('.mode-btn[data-mode="continuous"]').classList.add('selected');
+
+                    frequency = 3;
+                    waveSpeed = 80;
+                    document.getElementById('freq-slider').value = 3;
+                    document.getElementById('freq-val').textContent = '3.0 Hz';
+                    document.getElementById('speed-slider').value = 80;
+                    document.getElementById('speed-val').textContent = '80';
+
+                    // Moving source
+                    sources.push(createSource(-200, 0, 'continuous', { frequency: 3, moving: true, vx: 30, vy: 0 }));
+                    break;
+            }
+        }
+
+        // Load saved preferences
+        const savedColor = safeGetItem('waveSimulator_color', 'thermal');
+        colorScheme = savedColor;
+        document.querySelectorAll('.mode-btn[data-color]').forEach(b => {
+            b.classList.toggle('selected', b.dataset.color === colorScheme);
+        });
+
+        // Init
+        resizeCanvas();
+        initUI();
+        updateColorBar();
+
+        // Save preferences periodically
+        setInterval(() => {
+            safeSetItem('waveSimulator_color', colorScheme);
+        }, 5000);
+
+        // Start
+        requestAnimationFrame(render);
+    }
+    </script>
+</body>
+</html>

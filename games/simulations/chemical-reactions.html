@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chemical Reaction Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0a12;
+            --bg-secondary: rgba(16, 16, 28, 0.95);
+            --bg-card: rgba(25, 25, 45, 0.9);
+            --text-primary: #e8e8f0;
+            --text-secondary: #a0a0b8;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent: #667eea;
+            --accent-glow: rgba(102, 126, 234, 0.4);
+            --success: #51cf66;
+            --danger: #ff6b6b;
+            --warning: #ffd43b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Left Panel - Atom Palette & Presets */
+        #left-panel {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding-top: 50px;
+        }
+
+        .panel-section {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel-section h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .atom-palette {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .atom-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 4px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: grab;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .atom-btn:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .atom-btn:active { cursor: grabbing; }
+
+        .atom-btn .symbol {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .atom-btn .name {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+        }
+
+        .preset-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            padding: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--accent);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .preset-btn .preset-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 2px;
+        }
+
+        .preset-btn .preset-eq {
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        .preset-btn .preset-type {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Center - Reaction Canvas */
+        #center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #reaction-canvas {
+            flex: 1;
+            cursor: default;
+            background: radial-gradient(circle at center, rgba(20, 20, 40, 1), var(--bg-primary));
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .equation-display {
+            font-family: monospace;
+            font-size: 1.3rem;
+            color: var(--accent);
+            background: rgba(10, 10, 18, 0.85);
+            padding: 10px 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            min-width: 300px;
+            letter-spacing: 1px;
+        }
+
+        .equation-display .arrow { color: var(--warning); margin: 0 8px; }
+        .equation-display .balanced { color: var(--success); }
+        .equation-display .unbalanced { color: var(--danger); }
+
+        .reaction-status {
+            margin-top: 6px;
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .reaction-status.ready { background: rgba(81, 207, 102, 0.2); color: var(--success); }
+        .reaction-status.idle { background: rgba(160, 160, 184, 0.15); color: var(--text-secondary); }
+        .reaction-status.reacting { background: rgba(255, 212, 59, 0.2); color: var(--warning); }
+
+        .toolbar {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 5;
+        }
+
+        .toolbar button {
+            padding: 8px 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            border-color: var(--accent);
+            background: rgba(102, 126, 234, 0.15);
+        }
+
+        .toolbar button.react-btn {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .toolbar button.react-btn:hover {
+            background: rgba(102, 126, 234, 0.5);
+        }
+
+        /* Right Panel - Info & Energy */
+        #right-panel {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding-top: 10px;
+        }
+
+        .info-card {
+            margin: 10px;
+            padding: 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        .info-card h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .info-card p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .energy-diagram {
+            width: 100%;
+            height: 180px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            margin-top: 8px;
+        }
+
+        .molecule-display {
+            width: 100%;
+            height: 120px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            margin-top: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+        }
+
+        .stat-item .stat-val {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-item .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .instructions {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding: 10px 14px;
+            line-height: 1.6;
+        }
+
+        .instructions strong {
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 900px) {
+            #left-panel { width: 200px; }
+            #right-panel { display: none; }
+        }
+
+        @media (max-width: 600px) {
+            #left-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">Back to Simulations</a>
+
+    <div id="app">
+        <div id="left-panel">
+            <div class="panel-section">
+                <h3>Atoms</h3>
+                <div class="atom-palette" id="atomPalette"></div>
+            </div>
+            <div class="panel-section">
+                <h3>Experiment Presets</h3>
+                <div class="preset-list" id="presetList"></div>
+            </div>
+            <div class="instructions">
+                <strong>How to use:</strong><br>
+                1. Click atoms from palette to add to canvas<br>
+                2. Drag atoms to position them<br>
+                3. Select a preset or place atoms manually<br>
+                4. Click <strong>React!</strong> to trigger the reaction<br>
+                5. Watch bonds form and products appear
+            </div>
+        </div>
+
+        <div id="center">
+            <canvas id="reaction-canvas"></canvas>
+            <div class="canvas-overlay">
+                <div class="equation-display" id="equationDisplay">
+                    Place atoms or select a preset
+                </div>
+                <div class="reaction-status idle" id="reactionStatus">Idle</div>
+            </div>
+            <div class="toolbar">
+                <button class="react-btn" id="reactBtn">React!</button>
+                <button id="clearBtn">Clear</button>
+                <button id="undoBtn">Undo</button>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div class="info-card">
+                <h3>Reaction Info</h3>
+                <p id="reactionInfo">Select a preset or add atoms to begin. Chemical reactions rearrange atoms to form new substances with different properties.</p>
+            </div>
+            <div class="info-card">
+                <h3>Energy Diagram</h3>
+                <canvas class="energy-diagram" id="energyCanvas"></canvas>
+                <p style="font-size:0.7rem;color:var(--text-secondary);margin-top:6px;" id="energyLabel">Energy changes will appear during reaction</p>
+            </div>
+            <div class="info-card">
+                <h3>Product Molecule</h3>
+                <canvas class="molecule-display" id="moleculeCanvas"></canvas>
+            </div>
+            <div class="info-card">
+                <h3>Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-val" id="statAtoms">0</div>
+                        <div class="stat-label">Atoms</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-val" id="statBonds">0</div>
+                        <div class="stat-label">Bonds</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-val" id="statReactions">0</div>
+                        <div class="stat-label">Reactions</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-val" id="statProducts">0</div>
+                        <div class="stat-label">Products</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    'use strict';
+
+    const DEBUG = false;
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // --- EventManager ---
+    class EventManager {
+        constructor() { this.listeners = []; }
+        add(el, evt, handler, opts) {
+            el.addEventListener(evt, handler, opts);
+            this.listeners.push({ el, evt, handler, opts });
+        }
+        removeAll() {
+            this.listeners.forEach(({ el, evt, handler, opts }) => el.removeEventListener(evt, handler, opts));
+            this.listeners = [];
+        }
+    }
+
+    // --- Safe localStorage ---
+    function safeGetItem(key, def = null) {
+        try { const v = localStorage.getItem(key); return v !== null ? v : def; } catch(e) { console.error('localStorage error:', e); return def; }
+    }
+    function safeSetItem(key, val) {
+        try { localStorage.setItem(key, val); return true; } catch(e) { console.error('localStorage error:', e); return false; }
+    }
+
+    // --- Atom Data ---
+    const ATOM_DATA = {
+        H:  { name: 'Hydrogen',  color: '#ffffff', radius: 18, mass: 1,  valence: 1 },
+        O:  { name: 'Oxygen',    color: '#ff4444', radius: 22, mass: 16, valence: 2 },
+        N:  { name: 'Nitrogen',  color: '#4488ff', radius: 21, mass: 14, valence: 3 },
+        C:  { name: 'Carbon',    color: '#555555', radius: 22, mass: 12, valence: 4 },
+        Na: { name: 'Sodium',    color: '#aa44ff', radius: 24, mass: 23, valence: 1 },
+        Cl: { name: 'Chlorine',  color: '#44ff44', radius: 23, mass: 35, valence: 1 },
+        S:  { name: 'Sulfur',    color: '#ffdd00', radius: 23, mass: 32, valence: 2 },
+        Fe: { name: 'Iron',      color: '#cc8844', radius: 24, mass: 56, valence: 3 },
+        Ca: { name: 'Calcium',   color: '#88ccaa', radius: 25, mass: 40, valence: 2 }
+    };
+
+    // --- Reaction Presets ---
+    const PRESETS = [
+        {
+            name: 'Water Synthesis',
+            equation: '2H\u2082 + O\u2082 \u2192 2H\u2082O',
+            type: 'Synthesis / Exothermic',
+            atoms: [{sym:'H',x:0.2,y:0.3},{sym:'H',x:0.25,y:0.32},{sym:'H',x:0.2,y:0.6},{sym:'H',x:0.25,y:0.62},{sym:'O',x:0.6,y:0.4},{sym:'O',x:0.65,y:0.55}],
+            products: [{atoms:['H','H','O'], name:'H\u2082O'},{atoms:['H','H','O'], name:'H\u2082O'}],
+            energy: -572,
+            info: 'Hydrogen gas burns in oxygen to form water. This highly exothermic reaction releases 572 kJ/mol and is the basis of hydrogen fuel cells and rocket propulsion.'
+        },
+        {
+            name: 'Combustion of Methane',
+            equation: 'CH\u2084 + 2O\u2082 \u2192 CO\u2082 + 2H\u2082O',
+            type: 'Combustion / Exothermic',
+            atoms: [{sym:'C',x:0.2,y:0.45},{sym:'H',x:0.13,y:0.38},{sym:'H',x:0.27,y:0.38},{sym:'H',x:0.13,y:0.52},{sym:'H',x:0.27,y:0.52},{sym:'O',x:0.55,y:0.3},{sym:'O',x:0.6,y:0.33},{sym:'O',x:0.55,y:0.6},{sym:'O',x:0.6,y:0.63}],
+            products: [{atoms:['C','O','O'], name:'CO\u2082'},{atoms:['H','H','O'], name:'H\u2082O'},{atoms:['H','H','O'], name:'H\u2082O'}],
+            energy: -890,
+            info: 'Methane (natural gas) burns in oxygen producing carbon dioxide and water. This is the primary reaction in gas heating and power generation, releasing 890 kJ/mol.'
+        },
+        {
+            name: 'Salt Formation',
+            equation: '2Na + Cl\u2082 \u2192 2NaCl',
+            type: 'Synthesis / Exothermic',
+            atoms: [{sym:'Na',x:0.2,y:0.35},{sym:'Na',x:0.2,y:0.6},{sym:'Cl',x:0.6,y:0.4},{sym:'Cl',x:0.65,y:0.55}],
+            products: [{atoms:['Na','Cl'], name:'NaCl'},{atoms:['Na','Cl'], name:'NaCl'}],
+            energy: -822,
+            info: 'Sodium metal reacts vigorously with chlorine gas to form sodium chloride (table salt). This is an ionic bond formation — sodium donates an electron to chlorine.'
+        },
+        {
+            name: 'Rust Formation',
+            equation: '4Fe + 3O\u2082 \u2192 2Fe\u2082O\u2083',
+            type: 'Oxidation / Exothermic',
+            atoms: [{sym:'Fe',x:0.15,y:0.3},{sym:'Fe',x:0.22,y:0.45},{sym:'Fe',x:0.15,y:0.6},{sym:'Fe',x:0.22,y:0.72},{sym:'O',x:0.55,y:0.25},{sym:'O',x:0.6,y:0.28},{sym:'O',x:0.55,y:0.45},{sym:'O',x:0.6,y:0.48},{sym:'O',x:0.55,y:0.65},{sym:'O',x:0.6,y:0.68}],
+            products: [{atoms:['Fe','Fe','O','O','O'], name:'Fe\u2082O\u2083'},{atoms:['Fe','Fe','O','O','O'], name:'Fe\u2082O\u2083'}],
+            energy: -1648,
+            info: 'Iron slowly oxidizes in the presence of oxygen and moisture to form iron(III) oxide — rust. This process is responsible for the corrosion of steel structures.'
+        },
+        {
+            name: 'Ammonia Synthesis',
+            equation: 'N\u2082 + 3H\u2082 \u2192 2NH\u2083',
+            type: 'Synthesis / Exothermic',
+            atoms: [{sym:'N',x:0.25,y:0.4},{sym:'N',x:0.3,y:0.5},{sym:'H',x:0.55,y:0.2},{sym:'H',x:0.6,y:0.22},{sym:'H',x:0.55,y:0.4},{sym:'H',x:0.6,y:0.42},{sym:'H',x:0.55,y:0.6},{sym:'H',x:0.6,y:0.62}],
+            products: [{atoms:['N','H','H','H'], name:'NH\u2083'},{atoms:['N','H','H','H'], name:'NH\u2083'}],
+            energy: -92,
+            info: 'The Haber-Bosch process combines nitrogen and hydrogen at high temperature and pressure to form ammonia. This reaction is crucial for producing fertilizers that feed billions.'
+        },
+        {
+            name: 'Acid Neutralization',
+            equation: 'HCl + NaOH \u2192 NaCl + H\u2082O',
+            type: 'Neutralization / Exothermic',
+            atoms: [{sym:'H',x:0.15,y:0.4},{sym:'Cl',x:0.22,y:0.42},{sym:'Na',x:0.55,y:0.35},{sym:'O',x:0.6,y:0.45},{sym:'H',x:0.65,y:0.5}],
+            products: [{atoms:['Na','Cl'], name:'NaCl'},{atoms:['H','O','H'], name:'H\u2082O'}],
+            energy: -57,
+            info: 'Hydrochloric acid reacts with sodium hydroxide (a base) to form salt and water. This neutralization reaction is fundamental to acid-base chemistry and has a pH of 7.'
+        },
+        {
+            name: 'Photosynthesis',
+            equation: '6CO\u2082 + 6H\u2082O \u2192 C\u2086H\u2082\u2086O\u2086 + 6O\u2082',
+            type: 'Endothermic (sunlight required)',
+            atoms: [{sym:'C',x:0.1,y:0.3},{sym:'O',x:0.14,y:0.28},{sym:'O',x:0.14,y:0.34},{sym:'H',x:0.35,y:0.3},{sym:'H',x:0.38,y:0.32},{sym:'O',x:0.4,y:0.3}],
+            products: [{atoms:['C','H','O'], name:'C\u2086H\u2081\u2082O\u2086 (glucose)'},{atoms:['O','O'], name:'O\u2082'}],
+            energy: 2803,
+            info: 'Plants use sunlight energy to convert carbon dioxide and water into glucose and oxygen. This endothermic reaction stores solar energy in chemical bonds — the foundation of life on Earth.'
+        }
+    ];
+
+    // --- State ---
+    const eventManager = new EventManager();
+    let canvas, ctx;
+    let atoms = [];
+    let bonds = [];
+    let particles = [];
+    let dragging = null;
+    let dragOffX = 0, dragOffY = 0;
+    let animFrame = null;
+    let isReacting = false;
+    let currentPreset = null;
+    let reactionCount = parseInt(safeGetItem('cr_reactions', '0'));
+    let productCount = 0;
+    let undoStack = [];
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function initCanvas() {
+        canvas = document.getElementById('reaction-canvas');
+        if (!canvas) { console.error('Canvas not found'); return false; }
+        ctx = canvas.getContext('2d');
+        if (!ctx) { console.error('Canvas context failed'); return false; }
+        resizeCanvas();
+        return true;
+    }
+
+    function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * 2;
+        canvas.height = rect.height * 2;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.scale(2, 2);
+    }
+
+    // --- Atom class ---
+    class Atom {
+        constructor(sym, x, y) {
+            this.sym = sym;
+            this.x = x;
+            this.y = y;
+            this.vx = 0;
+            this.vy = 0;
+            this.data = ATOM_DATA[sym];
+            this.radius = this.data.radius;
+            this.color = this.data.color;
+            this.bonds = 0;
+            this.targetX = null;
+            this.targetY = null;
+            this.opacity = 1;
+            this.scale = 1;
+            this.glow = 0;
+        }
+    }
+
+    // --- Build UI ---
+    function buildAtomPalette() {
+        const palette = document.getElementById('atomPalette');
+        palette.innerHTML = '';
+        Object.entries(ATOM_DATA).forEach(([sym, data]) => {
+            const btn = document.createElement('div');
+            btn.className = 'atom-btn';
+            btn.innerHTML = `<span class="symbol" style="color:${data.color}">${sym}</span><span class="name">${data.name}</span>`;
+            eventManager.add(btn, 'click', () => addAtom(sym));
+            palette.appendChild(btn);
+        });
+    }
+
+    function buildPresetList() {
+        const list = document.getElementById('presetList');
+        list.innerHTML = '';
+        PRESETS.forEach((preset, i) => {
+            const btn = document.createElement('div');
+            btn.className = 'preset-btn';
+            btn.innerHTML = `
+                <div class="preset-name">${preset.name}</div>
+                <div class="preset-eq">${preset.equation}</div>
+                <div class="preset-type">${preset.type}</div>
+            `;
+            eventManager.add(btn, 'click', () => loadPreset(i));
+            list.appendChild(btn);
+        });
+    }
+
+    function addAtom(sym, x, y) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = x || (rect.width * 0.3 + Math.random() * rect.width * 0.4);
+        const cy = y || (rect.height * 0.3 + Math.random() * rect.height * 0.4);
+        const atom = new Atom(sym, cx, cy);
+        atom.scale = 0.01;
+        atoms.push(atom);
+        saveUndoState();
+        updateStats();
+        updateEquation();
+    }
+
+    function loadPreset(index) {
+        clearAll(false);
+        currentPreset = PRESETS[index];
+        const rect = canvas.getBoundingClientRect();
+
+        currentPreset.atoms.forEach(a => {
+            const atom = new Atom(a.sym, a.x * rect.width, a.y * rect.height);
+            atom.scale = 0.01;
+            atoms.push(atom);
+        });
+
+        document.getElementById('reactionInfo').textContent = currentPreset.info;
+        document.getElementById('equationDisplay').innerHTML = formatEquation(currentPreset.equation);
+        updateStatus('ready', 'Ready to React');
+        updateStats();
+        drawEnergyDiagram(currentPreset.energy, false);
+    }
+
+    function formatEquation(eq) {
+        return eq
+            .replace(/\u2192/g, '<span class="arrow">\u2192</span>')
+            .replace(/(\d+)/g, '<sub>$1</sub>');
+    }
+
+    function clearAll(resetInfo = true) {
+        atoms = [];
+        bonds = [];
+        particles = [];
+        dragging = null;
+        isReacting = false;
+        currentPreset = null;
+        productCount = 0;
+        undoStack = [];
+        if (resetInfo) {
+            document.getElementById('reactionInfo').textContent = 'Select a preset or add atoms to begin.';
+            document.getElementById('equationDisplay').textContent = 'Place atoms or select a preset';
+        }
+        updateStatus('idle', 'Idle');
+        updateStats();
+        clearCanvas(document.getElementById('energyCanvas'));
+        clearCanvas(document.getElementById('moleculeCanvas'));
+        document.getElementById('energyLabel').textContent = 'Energy changes will appear during reaction';
+    }
+
+    function clearCanvas(c) {
+        const cx = c.getContext('2d');
+        if (cx) {
+            c.width = c.offsetWidth * 2;
+            c.height = c.offsetHeight * 2;
+            cx.clearRect(0, 0, c.width, c.height);
+        }
+    }
+
+    function saveUndoState() {
+        undoStack.push(atoms.map(a => ({ sym: a.sym, x: a.x, y: a.y })));
+        if (undoStack.length > 20) undoStack.shift();
+    }
+
+    function undo() {
+        if (undoStack.length < 2) return;
+        undoStack.pop();
+        const state = undoStack[undoStack.length - 1];
+        atoms = state.map(s => new Atom(s.sym, s.x, s.y));
+        bonds = [];
+        particles = [];
+        updateStats();
+    }
+
+    function updateStatus(type, text) {
+        const el = document.getElementById('reactionStatus');
+        el.className = 'reaction-status ' + type;
+        el.textContent = text;
+    }
+
+    function updateStats() {
+        document.getElementById('statAtoms').textContent = atoms.length;
+        document.getElementById('statBonds').textContent = bonds.length;
+        document.getElementById('statReactions').textContent = reactionCount;
+        document.getElementById('statProducts').textContent = productCount;
+    }
+
+    function updateEquation() {
+        if (currentPreset) return;
+        const counts = {};
+        atoms.forEach(a => { counts[a.sym] = (counts[a.sym] || 0) + 1; });
+        const parts = Object.entries(counts).map(([sym, n]) => (n > 1 ? n : '') + sym);
+        document.getElementById('equationDisplay').textContent = parts.join(' + ') || 'Place atoms or select a preset';
+    }
+
+    // --- Reaction Animation ---
+    function triggerReaction() {
+        if (isReacting || atoms.length === 0) return;
+        isReacting = true;
+        updateStatus('reacting', 'Reacting...');
+
+        const rect = canvas.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+
+        // Move atoms toward center
+        atoms.forEach((a, i) => {
+            const angle = (i / atoms.length) * Math.PI * 2;
+            const dist = 30 + Math.random() * 20;
+            a.targetX = cx + Math.cos(angle) * dist;
+            a.targetY = cy + Math.sin(angle) * dist;
+            a.glow = 1;
+        });
+
+        // Spawn particles
+        for (let i = 0; i < 40; i++) {
+            particles.push({
+                x: cx, y: cy,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                color: atoms.length > 0 ? atoms[Math.floor(Math.random() * atoms.length)].color : '#fff',
+                size: 2 + Math.random() * 4
+            });
+        }
+
+        // After animation, show products
+        setTimeout(() => {
+            formProducts(cx, cy);
+            reactionCount++;
+            safeSetItem('cr_reactions', String(reactionCount));
+            isReacting = false;
+            updateStatus('idle', 'Reaction Complete!');
+            updateStats();
+
+            if (currentPreset) {
+                drawEnergyDiagram(currentPreset.energy, true);
+                drawProductMolecule();
+            }
+        }, 1500);
+    }
+
+    function formProducts(cx, cy) {
+        if (!currentPreset) {
+            // Generic: just form bonds between nearby atoms
+            bonds = [];
+            for (let i = 0; i < atoms.length; i++) {
+                for (let j = i + 1; j < atoms.length; j++) {
+                    const dx = atoms[i].x - atoms[j].x;
+                    const dy = atoms[i].y - atoms[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 80 && atoms[i].bonds < atoms[i].data.valence && atoms[j].bonds < atoms[j].data.valence) {
+                        bonds.push({ a: i, b: j, strength: 1 });
+                        atoms[i].bonds++;
+                        atoms[j].bonds++;
+                    }
+                }
+            }
+            productCount += bonds.length;
+            return;
+        }
+
+        // Preset products: rearrange atoms into product molecules
+        atoms = [];
+        bonds = [];
+        const products = currentPreset.products;
+        const spacing = 100;
+        const startX = cx - ((products.length - 1) * spacing) / 2;
+
+        products.forEach((prod, pi) => {
+            const px = startX + pi * spacing;
+            const py = cy;
+            const prodAtoms = prod.atoms;
+            const baseIdx = atoms.length;
+
+            prodAtoms.forEach((sym, ai) => {
+                const angle = (ai / prodAtoms.length) * Math.PI * 2 - Math.PI / 2;
+                const r = prodAtoms.length === 1 ? 0 : 25;
+                const atom = new Atom(sym, px + Math.cos(angle) * r, py + Math.sin(angle) * r);
+                atom.glow = 0.5;
+                atoms.push(atom);
+            });
+
+            // Connect atoms within molecule
+            for (let i = 0; i < prodAtoms.length; i++) {
+                for (let j = i + 1; j < prodAtoms.length; j++) {
+                    if (atoms[baseIdx + i].bonds < atoms[baseIdx + i].data.valence &&
+                        atoms[baseIdx + j].bonds < atoms[baseIdx + j].data.valence) {
+                        bonds.push({ a: baseIdx + i, b: baseIdx + j, strength: 1 });
+                        atoms[baseIdx + i].bonds++;
+                        atoms[baseIdx + j].bonds++;
+                    }
+                }
+            }
+
+            productCount++;
+        });
+
+        // Burst particles for products
+        for (let i = 0; i < 60; i++) {
+            particles.push({
+                x: cx, y: cy,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.5) * 12,
+                life: 1,
+                color: ['#667eea', '#da77f2', '#ffd43b', '#51cf66'][Math.floor(Math.random() * 4)],
+                size: 2 + Math.random() * 5
+            });
+        }
+    }
+
+    // --- Energy Diagram ---
+    function drawEnergyDiagram(energy, reacted) {
+        const c = document.getElementById('energyCanvas');
+        c.width = c.offsetWidth * 2;
+        c.height = c.offsetHeight * 2;
+        const cx = c.getContext('2d');
+        if (!cx) return;
+
+        cx.scale(2, 2);
+        const w = c.offsetWidth;
+        const h = c.offsetHeight;
+        const isExo = energy < 0;
+
+        // Background
+        cx.fillStyle = 'rgba(0,0,0,0)';
+        cx.fillRect(0, 0, w, h);
+
+        const reactantY = isExo ? h * 0.3 : h * 0.65;
+        const productY = isExo ? h * 0.65 : h * 0.3;
+        const peakY = Math.min(reactantY, productY) - 30;
+        const margin = 30;
+
+        // Axes
+        cx.strokeStyle = 'rgba(255,255,255,0.2)';
+        cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(margin, 10);
+        cx.lineTo(margin, h - 15);
+        cx.lineTo(w - 10, h - 15);
+        cx.stroke();
+
+        cx.fillStyle = 'rgba(255,255,255,0.4)';
+        cx.font = '9px sans-serif';
+        cx.save();
+        cx.translate(12, h / 2);
+        cx.rotate(-Math.PI / 2);
+        cx.textAlign = 'center';
+        cx.fillText('Energy', 0, 0);
+        cx.restore();
+        cx.textAlign = 'center';
+        cx.fillText('Reaction Progress', w / 2, h - 3);
+
+        if (!reacted) {
+            // Show just the labels
+            cx.fillStyle = 'rgba(255,255,255,0.3)';
+            cx.textAlign = 'center';
+            cx.font = '10px sans-serif';
+            cx.fillText('Click React! to see', w / 2, h / 2 - 5);
+            cx.fillText('energy changes', w / 2, h / 2 + 10);
+            return;
+        }
+
+        // Energy curve
+        cx.beginPath();
+        cx.moveTo(margin + 10, reactantY);
+        cx.lineTo(margin + 30, reactantY);
+        cx.quadraticCurveTo(w * 0.35, reactantY, w * 0.45, peakY);
+        cx.quadraticCurveTo(w * 0.55, peakY, w * 0.65, productY);
+        cx.lineTo(w - 15, productY);
+        cx.strokeStyle = isExo ? 'var(--danger)' : 'var(--accent)';
+        cx.lineWidth = 2;
+        cx.stroke();
+
+        // Reactant level
+        cx.setLineDash([4, 4]);
+        cx.strokeStyle = 'rgba(255,255,255,0.2)';
+        cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(margin, reactantY);
+        cx.lineTo(w - 10, reactantY);
+        cx.stroke();
+        cx.setLineDash([]);
+
+        // Labels
+        cx.fillStyle = '#fff';
+        cx.font = 'bold 9px sans-serif';
+        cx.textAlign = 'left';
+        cx.fillText('Reactants', margin + 8, reactantY - 6);
+        cx.textAlign = 'right';
+        cx.fillText('Products', w - 15, productY - 6);
+
+        // Energy arrow
+        const arrowX = w - 40;
+        cx.strokeStyle = isExo ? var_css('--success') : var_css('--warning');
+        cx.lineWidth = 2;
+        cx.beginPath();
+        cx.moveTo(arrowX, reactantY);
+        cx.lineTo(arrowX, productY);
+        cx.stroke();
+
+        // Arrow head
+        const dir = productY > reactantY ? 1 : -1;
+        cx.beginPath();
+        cx.moveTo(arrowX - 4, productY - dir * 8);
+        cx.lineTo(arrowX, productY);
+        cx.lineTo(arrowX + 4, productY - dir * 8);
+        cx.stroke();
+
+        // Energy value
+        cx.fillStyle = isExo ? '#51cf66' : '#ffd43b';
+        cx.font = 'bold 10px sans-serif';
+        cx.textAlign = 'center';
+        cx.fillText((energy > 0 ? '+' : '') + energy + ' kJ', arrowX, (reactantY + productY) / 2 + 4);
+
+        // Activation energy peak
+        cx.fillStyle = 'rgba(255,255,255,0.5)';
+        cx.font = '8px sans-serif';
+        cx.fillText('Ea', w * 0.45, peakY - 8);
+
+        document.getElementById('energyLabel').textContent = isExo
+            ? `Exothermic: releases ${Math.abs(energy)} kJ/mol as heat`
+            : `Endothermic: absorbs ${energy} kJ/mol (requires energy input)`;
+    }
+
+    function var_css(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    // --- Product Molecule Drawing ---
+    function drawProductMolecule() {
+        if (!currentPreset || !currentPreset.products.length) return;
+        const c = document.getElementById('moleculeCanvas');
+        c.width = c.offsetWidth * 2;
+        c.height = c.offsetHeight * 2;
+        const cx = c.getContext('2d');
+        if (!cx) return;
+
+        cx.scale(2, 2);
+        const w = c.offsetWidth;
+        const h = c.offsetHeight;
+        const prod = currentPreset.products[0];
+        const pAtoms = prod.atoms;
+        const centerX = w / 2;
+        const centerY = h / 2;
+        const r = Math.min(w, h) * 0.25;
+
+        // Draw bonds
+        cx.strokeStyle = 'rgba(102, 126, 234, 0.6)';
+        cx.lineWidth = 3;
+        const positions = pAtoms.map((sym, i) => {
+            const angle = (i / pAtoms.length) * Math.PI * 2 - Math.PI / 2;
+            const dist = pAtoms.length === 1 ? 0 : r;
+            return { x: centerX + Math.cos(angle) * dist, y: centerY + Math.sin(angle) * dist, sym };
+        });
+
+        // Connect central atom to others
+        if (positions.length > 1) {
+            for (let i = 1; i < positions.length; i++) {
+                cx.beginPath();
+                cx.moveTo(positions[0].x, positions[0].y);
+                cx.lineTo(positions[i].x, positions[i].y);
+                cx.stroke();
+            }
+        }
+
+        // Draw atoms
+        positions.forEach(p => {
+            const data = ATOM_DATA[p.sym];
+            const grad = cx.createRadialGradient(p.x - 3, p.y - 3, 0, p.x, p.y, 15);
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(0.3, data.color);
+            grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+            cx.beginPath();
+            cx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+            cx.fillStyle = grad;
+            cx.fill();
+            cx.fillStyle = '#fff';
+            cx.font = 'bold 10px sans-serif';
+            cx.textAlign = 'center';
+            cx.textBaseline = 'middle';
+            cx.fillText(p.sym, p.x, p.y);
+        });
+
+        // Product name
+        cx.fillStyle = 'var(--text-secondary)';
+        cx.font = '11px sans-serif';
+        cx.fillText(prod.name, centerX, h - 8);
+    }
+
+    // --- Main Render Loop ---
+    function render() {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Update particles
+        particles = particles.filter(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vx *= 0.96;
+            p.vy *= 0.96;
+            p.life -= 0.02;
+            return p.life > 0;
+        });
+
+        // Draw particles
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life * 0.7;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        // Draw bonds
+        bonds.forEach(b => {
+            const a1 = atoms[b.a];
+            const a2 = atoms[b.b];
+            if (!a1 || !a2) return;
+
+            ctx.strokeStyle = 'rgba(102, 126, 234, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(a1.x, a1.y);
+            ctx.lineTo(a2.x, a2.y);
+            ctx.stroke();
+
+            // Bond glow
+            ctx.strokeStyle = 'rgba(102, 126, 234, 0.15)';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(a1.x, a1.y);
+            ctx.lineTo(a2.x, a2.y);
+            ctx.stroke();
+        });
+
+        // Update and draw atoms
+        atoms.forEach(a => {
+            // Animate scale in
+            if (a.scale < 1) a.scale = Math.min(1, a.scale + 0.08);
+
+            // Move toward target
+            if (a.targetX !== null) {
+                a.x += (a.targetX - a.x) * 0.06;
+                a.y += (a.targetY - a.y) * 0.06;
+                if (Math.abs(a.x - a.targetX) < 1 && Math.abs(a.y - a.targetY) < 1) {
+                    a.targetX = null;
+                    a.targetY = null;
+                }
+            }
+
+            // Gentle float
+            if (!prefersReduced && !isReacting && a.targetX === null) {
+                a.x += Math.sin(Date.now() * 0.001 + a.y * 0.01) * 0.2;
+                a.y += Math.cos(Date.now() * 0.0012 + a.x * 0.01) * 0.15;
+            }
+
+            // Glow decay
+            if (a.glow > 0) a.glow = Math.max(0, a.glow - 0.01);
+
+            const r = a.radius * a.scale;
+
+            // Glow effect
+            if (a.glow > 0) {
+                const glowGrad = ctx.createRadialGradient(a.x, a.y, r, a.x, a.y, r * 2.5);
+                glowGrad.addColorStop(0, a.color + Math.round(a.glow * 80).toString(16).padStart(2, '0'));
+                glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, r * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = glowGrad;
+                ctx.fill();
+            }
+
+            // Atom body
+            const grad = ctx.createRadialGradient(a.x - r * 0.3, a.y - r * 0.3, 0, a.x, a.y, r);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.35, a.color);
+            grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Symbol
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.round(r * 0.85)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(a.sym, a.x, a.y);
+        });
+
+        animFrame = requestAnimationFrame(render);
+    }
+
+    // --- Input Handling ---
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function getTouchPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+
+    function findAtomAt(x, y) {
+        for (let i = atoms.length - 1; i >= 0; i--) {
+            const a = atoms[i];
+            const dx = x - a.x;
+            const dy = y - a.y;
+            if (dx * dx + dy * dy < a.radius * a.radius) return i;
+        }
+        return -1;
+    }
+
+    function onPointerDown(x, y) {
+        const idx = findAtomAt(x, y);
+        if (idx >= 0) {
+            dragging = idx;
+            dragOffX = x - atoms[idx].x;
+            dragOffY = y - atoms[idx].y;
+            atoms[idx].targetX = null;
+            atoms[idx].targetY = null;
+            canvas.style.cursor = 'grabbing';
+        }
+    }
+
+    function onPointerMove(x, y) {
+        if (dragging !== null) {
+            atoms[dragging].x = x - dragOffX;
+            atoms[dragging].y = y - dragOffY;
+        } else {
+            const idx = findAtomAt(x, y);
+            canvas.style.cursor = idx >= 0 ? 'grab' : 'default';
+        }
+    }
+
+    function onPointerUp() {
+        if (dragging !== null) {
+            saveUndoState();
+            dragging = null;
+            canvas.style.cursor = 'default';
+        }
+    }
+
+    // --- Init ---
+    function init() {
+        if (!initCanvas()) {
+            document.body.innerHTML = '<p style="color:red;padding:40px;">Canvas not supported. Please use a modern browser.</p>';
+            return;
+        }
+
+        buildAtomPalette();
+        buildPresetList();
+
+        // Canvas events
+        eventManager.add(canvas, 'mousedown', e => { e.preventDefault(); onPointerDown(...Object.values(getMousePos(e))); });
+        eventManager.add(canvas, 'mousemove', e => { onPointerMove(...Object.values(getMousePos(e))); });
+        eventManager.add(canvas, 'mouseup', onPointerUp);
+        eventManager.add(canvas, 'mouseleave', onPointerUp);
+
+        eventManager.add(canvas, 'touchstart', e => { e.preventDefault(); onPointerDown(...Object.values(getTouchPos(e))); }, { passive: false });
+        eventManager.add(canvas, 'touchmove', e => { e.preventDefault(); onPointerMove(...Object.values(getTouchPos(e))); }, { passive: false });
+        eventManager.add(canvas, 'touchend', onPointerUp);
+
+        // Buttons
+        eventManager.add(document.getElementById('reactBtn'), 'click', triggerReaction);
+        eventManager.add(document.getElementById('clearBtn'), 'click', () => clearAll(true));
+        eventManager.add(document.getElementById('undoBtn'), 'click', undo);
+
+        // Resize
+        eventManager.add(window, 'resize', () => {
+            resizeCanvas();
+        });
+
+        // Keyboard
+        eventManager.add(document, 'keydown', e => {
+            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); triggerReaction(); }
+            if (e.key === 'Escape') clearAll(true);
+            if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        });
+
+        updateStats();
+        render();
+    }
+
+    init();
+    </script>
+</body>
+</html>

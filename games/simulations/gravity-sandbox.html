@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Sandbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #050510;
+            color: #e0e0e0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #side-panel {
+            width: 280px;
+            min-width: 280px;
+            background: rgba(10, 10, 25, 0.97);
+            padding: 16px;
+            padding-top: 50px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(100, 130, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        #canvas-wrap {
+            flex: 1;
+            position: relative;
+            background: #050510;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        h2 {
+            font-size: 16px;
+            color: #8fa4ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .section {
+            background: rgba(30, 30, 60, 0.5);
+            border: 1px solid rgba(100, 130, 255, 0.12);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #6e8aff;
+            margin-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #99aabb;
+            margin-bottom: 2px;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            accent-color: #6e8aff;
+            height: 4px;
+        }
+
+        .slider-val {
+            font-size: 11px;
+            color: #8fa4ff;
+            min-width: 40px;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 7px 14px;
+            border: 1px solid rgba(100, 130, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(40, 40, 80, 0.5);
+            color: #c0ccff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background: rgba(70, 70, 140, 0.6);
+            border-color: rgba(100, 130, 255, 0.6);
+        }
+
+        .btn.active {
+            background: rgba(80, 100, 200, 0.5);
+            border-color: #6e8aff;
+            color: #fff;
+        }
+
+        .btn.danger {
+            border-color: rgba(255, 80, 80, 0.4);
+            color: #ff9999;
+        }
+
+        .btn.danger:hover {
+            background: rgba(200, 40, 40, 0.3);
+        }
+
+        .preset-btn {
+            padding: 5px 10px;
+            border: 1px solid rgba(100, 130, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(30, 30, 60, 0.4);
+            color: #8fa4ff;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: rgba(60, 60, 120, 0.5);
+            border-color: rgba(100, 130, 255, 0.5);
+        }
+
+        .stats-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 25, 0.85);
+            border: 1px solid rgba(100, 130, 255, 0.15);
+            border-radius: 10px;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #8fa4ff;
+            display: flex;
+            gap: 16px;
+            z-index: 5;
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(10, 10, 25, 0.9);
+            border: 1px solid rgba(100, 130, 255, 0.15);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 11px;
+            color: #7788aa;
+            max-width: 300px;
+            line-height: 1.5;
+            z-index: 5;
+        }
+
+        .info-panel strong {
+            color: #8fa4ff;
+        }
+
+        .body-type-selector {
+            display: flex;
+            gap: 4px;
+        }
+
+        .body-type-btn {
+            flex: 1;
+            padding: 6px 4px;
+            border: 1px solid rgba(100, 130, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(20, 20, 50, 0.5);
+            color: #8899bb;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .body-type-btn.selected {
+            background: rgba(60, 70, 140, 0.5);
+            border-color: #6e8aff;
+            color: #fff;
+        }
+
+        .body-type-btn:hover {
+            border-color: rgba(100, 130, 255, 0.5);
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            accent-color: #6e8aff;
+        }
+
+        .checkbox-row label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .hint {
+            font-size: 10px;
+            color: #556677;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
+        }
+
+        @media (max-width: 700px) {
+            #side-panel {
+                position: fixed;
+                top: 0;
+                left: -300px;
+                height: 100vh;
+                z-index: 100;
+                transition: left 0.3s ease;
+            }
+            #side-panel.open {
+                left: 0;
+            }
+            .mobile-toggle {
+                display: block !important;
+            }
+        }
+
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            z-index: 200;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(40, 40, 80, 0.9);
+            border: 1px solid rgba(100, 130, 255, 0.4);
+            color: #8fa4ff;
+            font-size: 20px;
+            cursor: pointer;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">&larr; Simulations</a>
+
+    <div id="container">
+        <div id="side-panel">
+            <h2>Gravity Sandbox</h2>
+
+            <div class="section">
+                <div class="section-title">Place Body</div>
+                <label>Type:</label>
+                <div class="body-type-selector">
+                    <button class="body-type-btn selected" data-type="planet">Planet</button>
+                    <button class="body-type-btn" data-type="star">Star</button>
+                    <button class="body-type-btn" data-type="moon">Moon</button>
+                    <button class="body-type-btn" data-type="black-hole">B.Hole</button>
+                </div>
+                <div class="hint">Click canvas to place. Drag to set velocity.</div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Physics</div>
+                <label>Gravity Strength</label>
+                <div class="slider-row">
+                    <input type="range" id="gravity-slider" min="0.1" max="5" step="0.1" value="1">
+                    <span class="slider-val" id="gravity-val">1.0</span>
+                </div>
+                <label>Time Speed</label>
+                <div class="slider-row">
+                    <input type="range" id="time-slider" min="0.1" max="4" step="0.1" value="1">
+                    <span class="slider-val" id="time-val">1.0x</span>
+                </div>
+                <label>Trail Length</label>
+                <div class="slider-row">
+                    <input type="range" id="trail-slider" min="0" max="500" step="10" value="200">
+                    <span class="slider-val" id="trail-val">200</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Display</div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="show-trails" checked>
+                    <label for="show-trails">Orbital Trails</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="show-velocity">
+                    <label for="show-velocity">Velocity Vectors</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="show-forces">
+                    <label for="show-forces">Force Lines</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="show-grid">
+                    <label for="show-grid">Space Grid</label>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Presets</div>
+                <div class="btn-row">
+                    <button class="preset-btn" data-preset="solar">Solar System</button>
+                    <button class="preset-btn" data-preset="binary">Binary Stars</button>
+                </div>
+                <div class="btn-row" style="margin-top:4px;">
+                    <button class="preset-btn" data-preset="chaos">Chaos</button>
+                    <button class="preset-btn" data-preset="orbit">Simple Orbit</button>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn" id="btn-pause">Pause</button>
+                <button class="btn danger" id="btn-clear">Clear All</button>
+            </div>
+        </div>
+
+        <div id="canvas-wrap">
+            <canvas id="sim-canvas"></canvas>
+            <div class="stats-bar" id="stats-bar">
+                <span>Bodies: <strong id="stat-count">0</strong></span>
+                <span>Energy: <strong id="stat-energy">0</strong></span>
+                <span>FPS: <strong id="stat-fps">0</strong></span>
+            </div>
+            <div class="info-panel" id="info-panel">
+                <strong>Gravity Sandbox</strong><br>
+                Newton's law of universal gravitation governs the motion:
+                <em>F = G &middot; m₁ &middot; m₂ / r²</em><br>
+                Every body attracts every other body. Place celestial objects and watch orbital mechanics unfold.
+                <br><br>
+                <strong>Controls:</strong> Click to place, drag to set initial velocity. Scroll to zoom. Middle-click drag to pan.
+            </div>
+        </div>
+    </div>
+
+    <button class="mobile-toggle" id="mobile-toggle">☰</button>
+
+    <script>
+    'use strict';
+
+    // Debug mode - no console.log in production
+    const DEBUG = false;
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // Event Manager - prevents memory leaks
+    class EventManager {
+        constructor() {
+            this.listeners = [];
+        }
+        add(element, event, handler, options) {
+            element.addEventListener(event, handler, options);
+            this.listeners.push({ element, event, handler, options });
+        }
+        removeAll() {
+            this.listeners.forEach(({ element, event, handler, options }) => {
+                element.removeEventListener(event, handler, options);
+            });
+            this.listeners = [];
+        }
+    }
+
+    // Safe localStorage
+    function safeGetItem(key, defaultValue = null) {
+        try {
+            const item = localStorage.getItem(key);
+            return item !== null ? item : defaultValue;
+        } catch (e) {
+            console.error('LocalStorage not available:', e);
+            return defaultValue;
+        }
+    }
+
+    function safeSetItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (e) {
+            console.error('LocalStorage not available:', e);
+            return false;
+        }
+    }
+
+    // Safe canvas init
+    function initCanvas() {
+        const canvas = document.getElementById('sim-canvas');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return null;
+        }
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('Canvas 2D context not available');
+            return null;
+        }
+        return { canvas, ctx };
+    }
+
+    const canvasSetup = initCanvas();
+    if (!canvasSetup) {
+        alert('Your browser does not support Canvas. Please use a modern browser.');
+    }
+
+    const { canvas, ctx } = canvasSetup || {};
+
+    if (canvas && ctx) {
+        // Reduced motion preference
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const eventManager = new EventManager();
+        const G_BASE = 800;
+        const SOFTENING = 4;
+        const MIN_DIST = 3;
+
+        let bodies = [];
+        let paused = false;
+        let selectedType = 'planet';
+        let gravityMult = 1;
+        let timeSpeed = 1;
+        let trailLen = 200;
+        let showTrails = true;
+        let showVelocity = false;
+        let showForces = false;
+        let showGrid = false;
+
+        // Camera
+        let camX = 0, camY = 0, zoom = 1;
+        let isPanning = false;
+        let panStartX, panStartY, camStartX, camStartY;
+
+        // Placement
+        let placing = false;
+        let placeX, placeY;
+        let dragX, dragY;
+
+        // Stars background
+        let stars = [];
+
+        // FPS tracking
+        let lastTime = 0;
+        let frameCount = 0;
+        let fps = 0;
+        let fpsTimer = 0;
+
+        const BODY_TYPES = {
+            'moon':       { mass: 2,    radius: 3,  color: '#aabbcc', glow: '#667788' },
+            'planet':     { mass: 10,   radius: 6,  color: '#4488ff', glow: '#2244aa' },
+            'star':       { mass: 80,   radius: 14, color: '#ffcc44', glow: '#ff8800' },
+            'black-hole': { mass: 300,  radius: 10, color: '#220033', glow: '#8800ff' }
+        };
+
+        const PLANET_COLORS = [
+            '#4488ff', '#44ccaa', '#ff6688', '#cc88ff', '#88ff44',
+            '#ff8844', '#44aaff', '#ffaa44', '#88ccff', '#ff44aa'
+        ];
+
+        let nextId = 0;
+
+        function createBody(x, y, vx, vy, type) {
+            const bt = BODY_TYPES[type];
+            const color = type === 'planet' ? PLANET_COLORS[Math.floor(Math.random() * PLANET_COLORS.length)] : bt.color;
+            return {
+                id: nextId++,
+                x, y, vx, vy,
+                mass: bt.mass,
+                radius: bt.radius,
+                type,
+                color,
+                glow: bt.glow,
+                trail: [],
+                alive: true
+            };
+        }
+
+        function resizeCanvas() {
+            const wrap = document.getElementById('canvas-wrap');
+            canvas.width = wrap.clientWidth * window.devicePixelRatio;
+            canvas.height = wrap.clientHeight * window.devicePixelRatio;
+            ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+            generateStars();
+        }
+
+        function generateStars() {
+            stars = [];
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            for (let i = 0; i < 300; i++) {
+                stars.push({
+                    x: Math.random() * w * 3 - w,
+                    y: Math.random() * h * 3 - h,
+                    size: Math.random() * 1.5 + 0.3,
+                    brightness: Math.random() * 0.5 + 0.3
+                });
+            }
+        }
+
+        function screenToWorld(sx, sy) {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            return {
+                x: (sx - w / 2) / zoom + camX,
+                y: (sy - h / 2) / zoom + camY
+            };
+        }
+
+        function worldToScreen(wx, wy) {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            return {
+                x: (wx - camX) * zoom + w / 2,
+                y: (wy - camY) * zoom + h / 2
+            };
+        }
+
+        // Physics
+        function updatePhysics(dt) {
+            const G = G_BASE * gravityMult;
+            const n = bodies.length;
+
+            // Compute forces
+            for (let i = 0; i < n; i++) {
+                if (!bodies[i].alive) continue;
+                let ax = 0, ay = 0;
+                for (let j = 0; j < n; j++) {
+                    if (i === j || !bodies[j].alive) continue;
+                    const dx = bodies[j].x - bodies[i].x;
+                    const dy = bodies[j].y - bodies[i].y;
+                    const distSq = dx * dx + dy * dy + SOFTENING * SOFTENING;
+                    const dist = Math.sqrt(distSq);
+                    const force = G * bodies[j].mass / distSq;
+                    ax += force * dx / dist;
+                    ay += force * dy / dist;
+                }
+                bodies[i].vx += ax * dt;
+                bodies[i].vy += ay * dt;
+            }
+
+            // Update positions and trails
+            for (let i = 0; i < n; i++) {
+                if (!bodies[i].alive) continue;
+                bodies[i].x += bodies[i].vx * dt;
+                bodies[i].y += bodies[i].vy * dt;
+
+                if (showTrails && !prefersReducedMotion) {
+                    bodies[i].trail.push({ x: bodies[i].x, y: bodies[i].y });
+                    if (bodies[i].trail.length > trailLen) {
+                        bodies[i].trail.splice(0, bodies[i].trail.length - trailLen);
+                    }
+                }
+            }
+
+            // Collisions / merging
+            for (let i = 0; i < n; i++) {
+                if (!bodies[i].alive) continue;
+                for (let j = i + 1; j < n; j++) {
+                    if (!bodies[j].alive) continue;
+                    const dx = bodies[j].x - bodies[i].x;
+                    const dy = bodies[j].y - bodies[i].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = (bodies[i].radius + bodies[j].radius) * 0.6;
+                    if (dist < minDist) {
+                        // Merge into the heavier body
+                        let big = bodies[i].mass >= bodies[j].mass ? bodies[i] : bodies[j];
+                        let small = big === bodies[i] ? bodies[j] : bodies[i];
+                        const totalMass = big.mass + small.mass;
+                        big.vx = (big.vx * big.mass + small.vx * small.mass) / totalMass;
+                        big.vy = (big.vy * big.mass + small.vy * small.mass) / totalMass;
+                        big.mass = totalMass;
+                        big.radius = Math.min(big.radius + small.radius * 0.3, 40);
+                        small.alive = false;
+                    }
+                }
+            }
+
+            bodies = bodies.filter(b => b.alive);
+        }
+
+        function computeEnergy() {
+            let ke = 0;
+            for (const b of bodies) {
+                ke += 0.5 * b.mass * (b.vx * b.vx + b.vy * b.vy);
+            }
+            return ke;
+        }
+
+        // Rendering
+        function drawStarfield() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            for (const s of stars) {
+                const sx = ((s.x - camX * 0.1) % (w * 2) + w * 3) % (w * 2) - w * 0.5;
+                const sy = ((s.y - camY * 0.1) % (h * 2) + h * 3) % (h * 2) - h * 0.5;
+                ctx.fillStyle = `rgba(200, 210, 255, ${s.brightness})`;
+                ctx.beginPath();
+                ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawGrid() {
+            if (!showGrid) return;
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            const gridSize = 80;
+            ctx.strokeStyle = 'rgba(60, 70, 120, 0.15)';
+            ctx.lineWidth = 0.5;
+
+            const startWorld = screenToWorld(0, 0);
+            const endWorld = screenToWorld(w, h);
+            const gx0 = Math.floor(startWorld.x / gridSize) * gridSize;
+            const gy0 = Math.floor(startWorld.y / gridSize) * gridSize;
+
+            for (let x = gx0; x < endWorld.x; x += gridSize) {
+                const s = worldToScreen(x, 0);
+                ctx.beginPath();
+                ctx.moveTo(s.x, 0);
+                ctx.lineTo(s.x, h);
+                ctx.stroke();
+            }
+            for (let y = gy0; y < endWorld.y; y += gridSize) {
+                const s = worldToScreen(0, y);
+                ctx.beginPath();
+                ctx.moveTo(0, s.y);
+                ctx.lineTo(w, s.y);
+                ctx.stroke();
+            }
+        }
+
+        function drawTrails() {
+            if (!showTrails) return;
+            for (const b of bodies) {
+                if (b.trail.length < 2) continue;
+                ctx.beginPath();
+                for (let i = 0; i < b.trail.length; i++) {
+                    const s = worldToScreen(b.trail[i].x, b.trail[i].y);
+                    const alpha = (i / b.trail.length) * 0.6;
+                    if (i === 0) {
+                        ctx.moveTo(s.x, s.y);
+                    } else {
+                        ctx.lineTo(s.x, s.y);
+                    }
+                }
+                ctx.strokeStyle = b.color + '88';
+                ctx.lineWidth = Math.max(1, b.radius * zoom * 0.2);
+                ctx.stroke();
+            }
+        }
+
+        function drawBodies() {
+            for (const b of bodies) {
+                const s = worldToScreen(b.x, b.y);
+                const r = Math.max(2, b.radius * zoom);
+
+                // Glow
+                if (!prefersReducedMotion) {
+                    const glowSize = r * 3;
+                    const grad = ctx.createRadialGradient(s.x, s.y, r * 0.5, s.x, s.y, glowSize);
+                    grad.addColorStop(0, b.glow + '60');
+                    grad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, glowSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Body
+                ctx.fillStyle = b.color;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Black hole special rendering
+                if (b.type === 'black-hole') {
+                    ctx.strokeStyle = '#aa44ff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, r + 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#6600cc44';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, r + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Inner highlight for stars
+                if (b.type === 'star') {
+                    const innerGrad = ctx.createRadialGradient(s.x - r * 0.2, s.y - r * 0.2, 0, s.x, s.y, r);
+                    innerGrad.addColorStop(0, '#ffffee');
+                    innerGrad.addColorStop(0.5, b.color);
+                    innerGrad.addColorStop(1, b.glow);
+                    ctx.fillStyle = innerGrad;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawVelocityVectors() {
+            if (!showVelocity) return;
+            ctx.lineWidth = 1.5;
+            for (const b of bodies) {
+                const s = worldToScreen(b.x, b.y);
+                const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+                if (speed < 0.1) continue;
+                const scale = 10 * zoom;
+                const ex = s.x + b.vx * scale;
+                const ey = s.y + b.vy * scale;
+
+                ctx.strokeStyle = '#44ff88';
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(ex, ey);
+                ctx.stroke();
+
+                // Arrowhead
+                const angle = Math.atan2(ey - s.y, ex - s.x);
+                const aLen = 6;
+                ctx.beginPath();
+                ctx.moveTo(ex, ey);
+                ctx.lineTo(ex - aLen * Math.cos(angle - 0.4), ey - aLen * Math.sin(angle - 0.4));
+                ctx.moveTo(ex, ey);
+                ctx.lineTo(ex - aLen * Math.cos(angle + 0.4), ey - aLen * Math.sin(angle + 0.4));
+                ctx.stroke();
+            }
+        }
+
+        function drawForceLines() {
+            if (!showForces) return;
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < bodies.length; i++) {
+                for (let j = i + 1; j < bodies.length; j++) {
+                    const a = bodies[i], b = bodies[j];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const force = G_BASE * gravityMult * a.mass * b.mass / (dist * dist + SOFTENING * SOFTENING);
+                    const alpha = Math.min(0.5, force / 5000);
+                    if (alpha < 0.02) continue;
+
+                    const sa = worldToScreen(a.x, a.y);
+                    const sb = worldToScreen(b.x, b.y);
+                    ctx.strokeStyle = `rgba(255, 180, 80, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.moveTo(sa.x, sa.y);
+                    ctx.lineTo(sb.x, sb.y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawPlacementPreview() {
+            if (!placing) return;
+            const s = worldToScreen(placeX, placeY);
+            const bt = BODY_TYPES[selectedType];
+            const r = bt.radius * zoom;
+
+            ctx.strokeStyle = '#ffffff44';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Velocity preview line
+            const rect = canvas.getBoundingClientRect();
+            if (dragX !== undefined) {
+                const dx = placeX - (dragX - rect.left);
+                const dy = placeY - (dragY - rect.top);
+                ctx.strokeStyle = '#ff4444aa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(s.x + (placeX * zoom - dragX + rect.left + canvas.width / window.devicePixelRatio / 2 - camX * zoom) * 0, s.y);
+                // Simpler: just draw from placement to current mouse
+                const ms = { x: dragX - rect.left, y: dragY - rect.top };
+                ctx.moveTo(s.x, s.y);
+                const velX = (s.x - ms.x) * 0.3;
+                const velY = (s.y - ms.y) * 0.3;
+                ctx.lineTo(s.x + velX, s.y + velY);
+                ctx.stroke();
+            }
+        }
+
+        function render(timestamp) {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+
+            // FPS counter
+            frameCount++;
+            fpsTimer += (timestamp - lastTime);
+            if (fpsTimer >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                fpsTimer = 0;
+            }
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.05) * timeSpeed;
+            lastTime = timestamp;
+
+            // Physics
+            if (!paused && dt > 0) {
+                updatePhysics(dt);
+            }
+
+            // Clear
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, w, h);
+
+            // Render layers
+            drawStarfield();
+            drawGrid();
+            drawTrails();
+            drawForceLines();
+            drawBodies();
+            drawVelocityVectors();
+            drawPlacementPreview();
+
+            // Update stats
+            document.getElementById('stat-count').textContent = bodies.length;
+            document.getElementById('stat-energy').textContent = Math.round(computeEnergy()).toLocaleString();
+            document.getElementById('stat-fps').textContent = fps;
+
+            requestAnimationFrame(render);
+        }
+
+        // Event handlers
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            if (e.button === 1 || (e.button === 0 && e.altKey)) {
+                // Pan
+                isPanning = true;
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                camStartX = camX;
+                camStartY = camY;
+                canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+                return;
+            }
+
+            if (e.button === 0) {
+                const world = screenToWorld(mx, my);
+                placing = true;
+                placeX = world.x;
+                placeY = world.y;
+                dragX = e.clientX;
+                dragY = e.clientY;
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (isPanning) {
+                const dx = (e.clientX - panStartX) / zoom;
+                const dy = (e.clientY - panStartY) / zoom;
+                camX = camStartX - dx;
+                camY = camStartY - dy;
+                return;
+            }
+
+            if (placing) {
+                dragX = e.clientX;
+                dragY = e.clientY;
+            }
+        }
+
+        function handleMouseUp(e) {
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = 'crosshair';
+                return;
+            }
+
+            if (placing) {
+                const rect = canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+                const endScreen = { x: mx, y: my };
+                const startScreen = worldToScreen(placeX, placeY);
+
+                // Velocity from drag distance
+                const vx = (startScreen.x - endScreen.x) * 0.02 / zoom;
+                const vy = (startScreen.y - endScreen.y) * 0.02 / zoom;
+
+                bodies.push(createBody(placeX, placeY, vx, vy, selectedType));
+                placing = false;
+                dragX = undefined;
+                dragY = undefined;
+            }
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // Zoom toward mouse position
+            const worldBefore = screenToWorld(mx, my);
+            zoom *= zoomFactor;
+            zoom = Math.max(0.05, Math.min(10, zoom));
+            const worldAfter = screenToWorld(mx, my);
+            camX += worldBefore.x - worldAfter.x;
+            camY += worldBefore.y - worldAfter.y;
+        }
+
+        // UI binding
+        function initUI() {
+            // Body type buttons
+            document.querySelectorAll('.body-type-btn').forEach(btn => {
+                eventManager.add(btn, 'click', () => {
+                    document.querySelectorAll('.body-type-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedType = btn.dataset.type;
+                });
+            });
+
+            // Sliders
+            const gravSlider = document.getElementById('gravity-slider');
+            const timeSlider = document.getElementById('time-slider');
+            const trailSlider = document.getElementById('trail-slider');
+
+            eventManager.add(gravSlider, 'input', () => {
+                gravityMult = parseFloat(gravSlider.value);
+                document.getElementById('gravity-val').textContent = gravityMult.toFixed(1);
+            });
+
+            eventManager.add(timeSlider, 'input', () => {
+                timeSpeed = parseFloat(timeSlider.value);
+                document.getElementById('time-val').textContent = timeSpeed.toFixed(1) + 'x';
+            });
+
+            eventManager.add(trailSlider, 'input', () => {
+                trailLen = parseInt(trailSlider.value);
+                document.getElementById('trail-val').textContent = trailLen;
+            });
+
+            // Checkboxes
+            eventManager.add(document.getElementById('show-trails'), 'change', (e) => {
+                showTrails = e.target.checked;
+                if (!showTrails) bodies.forEach(b => b.trail = []);
+            });
+            eventManager.add(document.getElementById('show-velocity'), 'change', (e) => showVelocity = e.target.checked);
+            eventManager.add(document.getElementById('show-forces'), 'change', (e) => showForces = e.target.checked);
+            eventManager.add(document.getElementById('show-grid'), 'change', (e) => showGrid = e.target.checked);
+
+            // Pause
+            eventManager.add(document.getElementById('btn-pause'), 'click', () => {
+                paused = !paused;
+                document.getElementById('btn-pause').textContent = paused ? 'Resume' : 'Pause';
+                document.getElementById('btn-pause').classList.toggle('active', paused);
+            });
+
+            // Clear
+            eventManager.add(document.getElementById('btn-clear'), 'click', () => {
+                bodies = [];
+                nextId = 0;
+            });
+
+            // Presets
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                eventManager.add(btn, 'click', () => loadPreset(btn.dataset.preset));
+            });
+
+            // Canvas events
+            eventManager.add(canvas, 'mousedown', handleMouseDown);
+            eventManager.add(window, 'mousemove', handleMouseMove);
+            eventManager.add(window, 'mouseup', handleMouseUp);
+            eventManager.add(canvas, 'wheel', handleWheel, { passive: false });
+            eventManager.add(canvas, 'contextmenu', (e) => e.preventDefault());
+
+            // Touch support
+            let touchStartData = null;
+            eventManager.add(canvas, 'touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                if (e.touches.length === 1) {
+                    const mx = touch.clientX - rect.left;
+                    const my = touch.clientY - rect.top;
+                    const world = screenToWorld(mx, my);
+                    placing = true;
+                    placeX = world.x;
+                    placeY = world.y;
+                    dragX = touch.clientX;
+                    dragY = touch.clientY;
+                    touchStartData = { x: touch.clientX, y: touch.clientY };
+                } else if (e.touches.length === 2) {
+                    placing = false;
+                    const t0 = e.touches[0];
+                    const t1 = e.touches[1];
+                    touchStartData = {
+                        dist: Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
+                        zoom: zoom,
+                        cx: (t0.clientX + t1.clientX) / 2,
+                        cy: (t0.clientY + t1.clientY) / 2,
+                        camX, camY
+                    };
+                }
+            }, { passive: false });
+
+            eventManager.add(canvas, 'touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1 && placing) {
+                    dragX = e.touches[0].clientX;
+                    dragY = e.touches[0].clientY;
+                } else if (e.touches.length === 2 && touchStartData && touchStartData.dist) {
+                    const t0 = e.touches[0];
+                    const t1 = e.touches[1];
+                    const newDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+                    zoom = touchStartData.zoom * (newDist / touchStartData.dist);
+                    zoom = Math.max(0.05, Math.min(10, zoom));
+                }
+            }, { passive: false });
+
+            eventManager.add(canvas, 'touchend', (e) => {
+                if (placing && touchStartData) {
+                    const rect = canvas.getBoundingClientRect();
+                    const lastTouch = e.changedTouches[0];
+                    const mx = lastTouch.clientX - rect.left;
+                    const my = lastTouch.clientY - rect.top;
+                    const endScreen = { x: mx, y: my };
+                    const startScreen = worldToScreen(placeX, placeY);
+                    const vx = (startScreen.x - endScreen.x) * 0.02 / zoom;
+                    const vy = (startScreen.y - endScreen.y) * 0.02 / zoom;
+                    bodies.push(createBody(placeX, placeY, vx, vy, selectedType));
+                    placing = false;
+                    touchStartData = null;
+                }
+            });
+
+            // Keyboard
+            eventManager.add(window, 'keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    paused = !paused;
+                    document.getElementById('btn-pause').textContent = paused ? 'Resume' : 'Pause';
+                    document.getElementById('btn-pause').classList.toggle('active', paused);
+                } else if (e.code === 'KeyC') {
+                    bodies = [];
+                } else if (e.code === 'KeyR') {
+                    camX = 0; camY = 0; zoom = 1;
+                }
+            });
+
+            // Resize
+            eventManager.add(window, 'resize', resizeCanvas);
+
+            // Mobile toggle
+            const mobileToggle = document.getElementById('mobile-toggle');
+            if (mobileToggle) {
+                eventManager.add(mobileToggle, 'click', () => {
+                    document.getElementById('side-panel').classList.toggle('open');
+                });
+            }
+        }
+
+        // Presets
+        function loadPreset(name) {
+            bodies = [];
+            nextId = 0;
+            camX = 0; camY = 0; zoom = 1;
+
+            switch (name) {
+                case 'solar':
+                    bodies.push(createBody(0, 0, 0, 0, 'star'));
+                    bodies[0].mass = 200;
+                    bodies[0].radius = 18;
+
+                    const orbitData = [
+                        { dist: 80, speed: 3.5, type: 'planet' },
+                        { dist: 130, speed: 2.7, type: 'planet' },
+                        { dist: 200, speed: 2.0, type: 'planet' },
+                        { dist: 280, speed: 1.6, type: 'planet' },
+                    ];
+
+                    for (const o of orbitData) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const x = Math.cos(angle) * o.dist;
+                        const y = Math.sin(angle) * o.dist;
+                        const vx = -Math.sin(angle) * o.speed;
+                        const vy = Math.cos(angle) * o.speed;
+                        const b = createBody(x, y, vx, vy, o.type);
+                        b.mass = 3 + Math.random() * 8;
+                        b.radius = 4 + Math.random() * 3;
+                        bodies.push(b);
+                    }
+                    zoom = 0.7;
+                    break;
+
+                case 'binary':
+                    bodies.push(createBody(-60, 0, 0, 2.5, 'star'));
+                    bodies.push(createBody(60, 0, 0, -2.5, 'star'));
+                    bodies[0].mass = 100;
+                    bodies[1].mass = 100;
+                    zoom = 0.8;
+                    break;
+
+                case 'chaos':
+                    for (let i = 0; i < 30; i++) {
+                        const x = (Math.random() - 0.5) * 400;
+                        const y = (Math.random() - 0.5) * 400;
+                        const vx = (Math.random() - 0.5) * 2;
+                        const vy = (Math.random() - 0.5) * 2;
+                        const types = ['moon', 'planet', 'planet', 'planet'];
+                        bodies.push(createBody(x, y, vx, vy, types[Math.floor(Math.random() * types.length)]));
+                    }
+                    zoom = 0.6;
+                    break;
+
+                case 'orbit':
+                    bodies.push(createBody(0, 0, 0, 0, 'star'));
+                    bodies[0].mass = 150;
+                    bodies.push(createBody(120, 0, 0, 3.2, 'planet'));
+                    zoom = 0.8;
+                    break;
+            }
+        }
+
+        // Load saved state
+        const savedGravity = safeGetItem('gravitySandbox_gravity', '1');
+        const savedTime = safeGetItem('gravitySandbox_time', '1');
+        gravityMult = parseFloat(savedGravity);
+        timeSpeed = parseFloat(savedTime);
+
+        // Init
+        resizeCanvas();
+        initUI();
+
+        // Sync saved values to UI
+        document.getElementById('gravity-slider').value = gravityMult;
+        document.getElementById('gravity-val').textContent = gravityMult.toFixed(1);
+        document.getElementById('time-slider').value = timeSpeed;
+        document.getElementById('time-val').textContent = timeSpeed.toFixed(1) + 'x';
+
+        // Save state periodically
+        setInterval(() => {
+            safeSetItem('gravitySandbox_gravity', gravityMult.toString());
+            safeSetItem('gravitySandbox_time', timeSpeed.toString());
+        }, 5000);
+
+        // Start rendering
+        requestAnimationFrame(render);
+    }
+    </script>
+</body>
+</html>

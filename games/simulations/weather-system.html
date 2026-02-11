@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather System Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #060610;
+            color: #e0e0e0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.6);
+            border-radius: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Controls */
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            background: rgba(8, 12, 28, 0.93);
+            border: 1px solid rgba(80, 130, 200, 0.25);
+            border-radius: 12px;
+            padding: 16px;
+            width: 270px;
+            backdrop-filter: blur(10px);
+            max-height: calc(100vh - 30px);
+            overflow-y: auto;
+        }
+
+        #controls h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #5599dd;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(80, 130, 200, 0.2);
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #7799bb;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group label .val {
+            color: #aaccee;
+            font-weight: 500;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            accent-color: #4488cc;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .toggle-row span {
+            font-size: 12px;
+            color: #8899bb;
+        }
+
+        .toggle {
+            position: relative;
+            width: 36px;
+            height: 18px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 9px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: rgba(68, 136, 204, 0.6);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 14px; height: 14px;
+            background: #ddd;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(18px);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .ctrl-btn {
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            color: #99aabb;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .ctrl-btn:hover, .ctrl-btn.active {
+            background: rgba(68, 136, 204, 0.35);
+            border-color: rgba(68, 136, 204, 0.5);
+            color: #fff;
+        }
+
+        /* Info overlay */
+        #info-overlay {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(8, 12, 28, 0.93);
+            border: 1px solid rgba(80, 130, 200, 0.25);
+            border-radius: 10px;
+            padding: 12px 20px;
+            max-width: 600px;
+            font-size: 12px;
+            color: #8899bb;
+            text-align: center;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+
+        #info-overlay h4 {
+            color: #6699cc;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        /* Status */
+        #status-bar {
+            position: fixed;
+            bottom: 8px;
+            right: 10px;
+            z-index: 100;
+            font-size: 10px;
+            color: #334466;
+            font-family: 'Courier New', monospace;
+        }
+
+        #weather-stats {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 16px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stat-chip {
+            background: rgba(8, 12, 28, 0.85);
+            border: 1px solid rgba(80, 130, 200, 0.2);
+            border-radius: 8px;
+            padding: 6px 12px;
+            backdrop-filter: blur(6px);
+        }
+
+        .stat-chip .label { color: #556688; }
+        .stat-chip .value { color: #aaccee; font-weight: 600; }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+
+        @media (max-width: 768px) {
+            #controls { width: 210px; padding: 10px; }
+            #weather-stats { font-size: 9px; gap: 6px; }
+            .stat-chip { padding: 4px 8px; }
+        }
+
+        #controls::-webkit-scrollbar { width: 4px; }
+        #controls::-webkit-scrollbar-thumb { background: rgba(68,136,204,0.3); border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <a href="../simulations-index.html" class="back-link">&#8592; Simulations</a>
+
+    <canvas id="weather-canvas"></canvas>
+
+    <div id="weather-stats">
+        <div class="stat-chip"><span class="label">Temp </span><span class="value" id="stat-temp">20°C</span></div>
+        <div class="stat-chip"><span class="label">Humidity </span><span class="value" id="stat-humidity">50%</span></div>
+        <div class="stat-chip"><span class="label">Wind </span><span class="value" id="stat-wind">5 m/s</span></div>
+        <div class="stat-chip"><span class="label">Pressure </span><span class="value" id="stat-pressure">1013 hPa</span></div>
+        <div class="stat-chip"><span class="label">Time </span><span class="value" id="stat-time">12:00</span></div>
+    </div>
+
+    <div id="controls">
+        <h3>Weather Controls</h3>
+
+        <div class="control-group">
+            <label>Temperature <span class="val" id="temp-val">20°C</span></label>
+            <input type="range" id="ctrl-temp" min="-20" max="45" value="20" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>Humidity <span class="val" id="humidity-val">50%</span></label>
+            <input type="range" id="ctrl-humidity" min="0" max="100" value="50" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>Wind Speed <span class="val" id="wind-val">5 m/s</span></label>
+            <input type="range" id="ctrl-wind" min="0" max="30" value="5" step="0.5">
+        </div>
+
+        <div class="control-group">
+            <label>Terrain Height <span class="val" id="terrain-val">50%</span></label>
+            <input type="range" id="ctrl-terrain" min="10" max="90" value="50" step="1">
+        </div>
+
+        <div class="control-group">
+            <label>Time Speed</label>
+            <div class="btn-row">
+                <button class="ctrl-btn" data-tspeed="0">Pause</button>
+                <button class="ctrl-btn active" data-tspeed="1">1x</button>
+                <button class="ctrl-btn" data-tspeed="5">5x</button>
+                <button class="ctrl-btn" data-tspeed="20">20x</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Display</label>
+            <div class="toggle-row">
+                <span>Wind Particles</span>
+                <div class="toggle active" id="toggle-wind"></div>
+            </div>
+            <div class="toggle-row">
+                <span>Temperature Map</span>
+                <div class="toggle active" id="toggle-temp-map"></div>
+            </div>
+            <div class="toggle-row">
+                <span>Pressure Systems</span>
+                <div class="toggle" id="toggle-pressure"></div>
+            </div>
+            <div class="toggle-row">
+                <span>Info Overlays</span>
+                <div class="toggle" id="toggle-info"></div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Presets</label>
+            <div class="btn-row">
+                <button class="ctrl-btn" id="preset-clear">Clear Sky</button>
+                <button class="ctrl-btn" id="preset-storm">Storm</button>
+                <button class="ctrl-btn" id="preset-snow">Snow</button>
+                <button class="ctrl-btn" id="preset-fog">Fog</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-overlay">
+        <h4 id="info-title"></h4>
+        <p id="info-text"></p>
+    </div>
+
+    <div id="status-bar">
+        <span id="fps-display">60 FPS</span>
+    </div>
+
+    <script>
+    'use strict';
+
+    // Debug mode
+    const DEBUG = false;
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // Safe localStorage
+    function safeGetItem(key, defaultValue = null) {
+        try {
+            const item = localStorage.getItem(key);
+            return item !== null ? item : defaultValue;
+        } catch (e) {
+            console.error('LocalStorage unavailable:', e);
+            return defaultValue;
+        }
+    }
+
+    function safeSetItem(key, value) {
+        try { localStorage.setItem(key, value); return true; }
+        catch (e) { console.error('LocalStorage unavailable:', e); return false; }
+    }
+
+    // Event Manager
+    class EventManager {
+        constructor() { this.listeners = []; }
+        add(element, event, handler, options) {
+            element.addEventListener(event, handler, options);
+            this.listeners.push({ element, event, handler, options });
+        }
+        removeAll() {
+            this.listeners.forEach(({ element, event, handler, options }) => {
+                element.removeEventListener(event, handler, options);
+            });
+            this.listeners = [];
+        }
+    }
+
+    // Safe canvas
+    function initCanvas() {
+        const canvas = document.getElementById('weather-canvas');
+        if (!canvas) { console.error('Canvas not found'); return null; }
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { console.error('2D context unavailable'); return null; }
+        return { canvas, ctx };
+    }
+
+    // ========== MAIN ==========
+    (function() {
+        const setup = initCanvas();
+        if (!setup) {
+            document.body.innerHTML = '<p style="padding:40px;color:#f66;">Canvas not supported.</p>';
+            return;
+        }
+
+        const { canvas, ctx } = setup;
+        const events = new EventManager();
+
+        let W, H;
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // Simulation state
+        let temperature = 20;
+        let humidity = 50;
+        let windSpeed = 5;
+        let terrainHeight = 0.5;
+        let timeSpeed = 1;
+        let simTime = 0.5; // 0-1 day cycle, starts at noon
+        let showWindParticles = true;
+        let showTempMap = true;
+        let showPressure = false;
+        let showInfo = false;
+
+        // Derived weather state
+        let cloudCover = 0;
+        let precipRate = 0;
+        let precipType = 'rain'; // rain or snow
+        let pressure = 1013;
+        let dewPoint = 0;
+        let fogDensity = 0;
+
+        // Terrain
+        let terrainPoints = [];
+        let waterLevel = 0;
+
+        // Particles
+        let windParticles = [];
+        let rainDrops = [];
+        let snowFlakes = [];
+        let evapParticles = [];
+        let clouds = [];
+
+        // FPS
+        let frameCount = 0, lastFpsTime = performance.now(), fps = 60;
+
+        function resize() {
+            const dpr = window.devicePixelRatio || 1;
+            W = window.innerWidth;
+            H = window.innerHeight;
+            canvas.width = W * dpr;
+            canvas.height = H * dpr;
+            canvas.style.width = W + 'px';
+            canvas.style.height = H + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            generateTerrain();
+        }
+
+        // ========== TERRAIN ==========
+        function generateTerrain() {
+            terrainPoints = [];
+            const baseY = H * (1 - terrainHeight * 0.5);
+            waterLevel = H * 0.82;
+            const segments = Math.ceil(W / 4);
+
+            for (let i = 0; i <= segments; i++) {
+                const x = (i / segments) * W;
+                const nx = i / segments;
+                // Multi-octave noise for natural terrain
+                let y = baseY;
+                y += Math.sin(nx * Math.PI * 2) * H * 0.06;
+                y += Math.sin(nx * Math.PI * 5 + 1.3) * H * 0.03;
+                y += Math.sin(nx * Math.PI * 11 + 2.7) * H * 0.015;
+                y += Math.sin(nx * Math.PI * 23 + 0.5) * H * 0.007;
+
+                // Mountain peak
+                const mountainCenter = 0.35;
+                const mountainWidth = 0.18;
+                const dist = Math.abs(nx - mountainCenter);
+                if (dist < mountainWidth) {
+                    const peak = (1 - dist / mountainWidth);
+                    y -= peak * peak * H * 0.15 * terrainHeight;
+                }
+
+                // Second mountain
+                const m2Center = 0.72;
+                const m2Width = 0.12;
+                const d2 = Math.abs(nx - m2Center);
+                if (d2 < m2Width) {
+                    const peak = (1 - d2 / m2Width);
+                    y -= peak * peak * H * 0.1 * terrainHeight;
+                }
+
+                terrainPoints.push({ x, y: Math.min(y, H) });
+            }
+        }
+
+        // ========== WEATHER PHYSICS ==========
+        function updateWeather(dt) {
+            // Day-night cycle
+            simTime += dt * timeSpeed * 0.00008;
+            if (simTime > 1) simTime -= 1;
+
+            // Dew point calculation
+            dewPoint = temperature - ((100 - humidity) / 5);
+
+            // Cloud cover based on humidity and temperature difference to dew point
+            const tempDewDiff = temperature - dewPoint;
+            cloudCover = Math.max(0, Math.min(1, (humidity / 100) * (1 - tempDewDiff / 30)));
+
+            // Pressure system
+            pressure = 1013 + (temperature - 20) * 0.5 - humidity * 0.1 + windSpeed * 0.3;
+
+            // Precipitation
+            if (humidity > 70 && cloudCover > 0.5) {
+                precipRate = ((humidity - 70) / 30) * cloudCover;
+                precipType = temperature < 2 ? 'snow' : 'rain';
+            } else {
+                precipRate = Math.max(0, precipRate - 0.01);
+            }
+
+            // Fog: high humidity, low wind, near dew point
+            if (humidity > 85 && windSpeed < 3 && Math.abs(temperature - dewPoint) < 3) {
+                fogDensity = Math.min(0.8, fogDensity + 0.005);
+            } else {
+                fogDensity = Math.max(0, fogDensity - 0.01);
+            }
+
+            // Night cooling effect (automatic)
+            const sunAngle = Math.sin(simTime * Math.PI * 2 - Math.PI / 2);
+            const nightCool = sunAngle < 0 ? sunAngle * 2 : 0;
+
+            // Update stat displays
+            const hours = Math.floor(simTime * 24);
+            const mins = Math.floor((simTime * 24 - hours) * 60);
+            document.getElementById('stat-temp').textContent = Math.round(temperature + nightCool) + '°C';
+            document.getElementById('stat-humidity').textContent = Math.round(humidity) + '%';
+            document.getElementById('stat-wind').textContent = windSpeed.toFixed(1) + ' m/s';
+            document.getElementById('stat-pressure').textContent = Math.round(pressure) + ' hPa';
+            document.getElementById('stat-time').textContent =
+                String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+        }
+
+        // ========== PARTICLES ==========
+        function updateWindParticles(dt) {
+            // Spawn
+            const targetCount = Math.floor(windSpeed * 15);
+            while (windParticles.length < targetCount) {
+                windParticles.push({
+                    x: Math.random() * W,
+                    y: Math.random() * H * 0.75,
+                    size: Math.random() * 1.5 + 0.5,
+                    alpha: Math.random() * 0.2 + 0.05,
+                    speedMult: 0.7 + Math.random() * 0.6
+                });
+            }
+            while (windParticles.length > targetCount) windParticles.pop();
+
+            // Update
+            windParticles.forEach(p => {
+                p.x += windSpeed * p.speedMult * dt * 0.03;
+                // Slight vertical wave
+                p.y += Math.sin(p.x * 0.01 + simTime * 20) * 0.3;
+                if (p.x > W + 10) { p.x = -10; p.y = Math.random() * H * 0.75; }
+                if (p.x < -10) { p.x = W + 10; p.y = Math.random() * H * 0.75; }
+            });
+        }
+
+        function updateRain(dt) {
+            const targetCount = Math.floor(precipRate * 200);
+            if (precipType !== 'rain') {
+                rainDrops.length = 0;
+                return;
+            }
+
+            while (rainDrops.length < targetCount) {
+                rainDrops.push({
+                    x: Math.random() * W,
+                    y: Math.random() * -100,
+                    speed: 8 + Math.random() * 6,
+                    length: 8 + Math.random() * 12,
+                    alpha: 0.2 + Math.random() * 0.3
+                });
+            }
+            while (rainDrops.length > targetCount + 10) rainDrops.pop();
+
+            rainDrops.forEach(d => {
+                d.x += windSpeed * dt * 0.015;
+                d.y += d.speed * dt * 0.2;
+                if (d.y > getTerrainY(d.x) || d.y > H) {
+                    d.y = -20;
+                    d.x = Math.random() * W;
+                }
+            });
+        }
+
+        function updateSnow(dt) {
+            const targetCount = Math.floor(precipRate * 120);
+            if (precipType !== 'snow') {
+                snowFlakes.length = 0;
+                return;
+            }
+
+            while (snowFlakes.length < targetCount) {
+                snowFlakes.push({
+                    x: Math.random() * W,
+                    y: Math.random() * -50,
+                    size: 1 + Math.random() * 3,
+                    speed: 1 + Math.random() * 2,
+                    wobble: Math.random() * Math.PI * 2,
+                    wobbleSpeed: 0.01 + Math.random() * 0.03,
+                    alpha: 0.4 + Math.random() * 0.4
+                });
+            }
+            while (snowFlakes.length > targetCount + 10) snowFlakes.pop();
+
+            snowFlakes.forEach(s => {
+                s.wobble += s.wobbleSpeed * dt;
+                s.x += Math.sin(s.wobble) * 0.8 + windSpeed * dt * 0.008;
+                s.y += s.speed * dt * 0.1;
+                if (s.y > getTerrainY(s.x) || s.y > H) {
+                    s.y = -10;
+                    s.x = Math.random() * W;
+                }
+            });
+        }
+
+        function updateEvaporation(dt) {
+            // Evaporation particles rise from water surfaces
+            const evapRate = Math.max(0, (temperature / 45) * (1 - humidity / 100));
+            const targetCount = Math.floor(evapRate * 40);
+
+            while (evapParticles.length < targetCount) {
+                // Spawn near water bodies (low terrain)
+                const x = Math.random() * W;
+                const ty = getTerrainY(x);
+                if (ty > waterLevel - 20) {
+                    evapParticles.push({
+                        x: x,
+                        y: ty,
+                        alpha: 0.3 + Math.random() * 0.2,
+                        speed: 0.3 + Math.random() * 0.5,
+                        life: 1
+                    });
+                }
+            }
+            while (evapParticles.length > targetCount + 5) evapParticles.pop();
+
+            evapParticles.forEach(p => {
+                p.y -= p.speed * dt * 0.04;
+                p.x += (Math.sin(p.y * 0.02) + windSpeed * 0.1) * dt * 0.01;
+                p.life -= 0.003 * dt * 0.1;
+                p.alpha = p.life * 0.3;
+            });
+
+            evapParticles = evapParticles.filter(p => p.life > 0 && p.y > 0);
+        }
+
+        function updateClouds(dt) {
+            const targetCount = Math.floor(cloudCover * 8) + 1;
+
+            while (clouds.length < targetCount) {
+                clouds.push({
+                    x: Math.random() * W * 1.5 - W * 0.25,
+                    y: H * 0.12 + Math.random() * H * 0.2,
+                    width: 100 + Math.random() * 200,
+                    height: 30 + Math.random() * 50,
+                    puffs: generateCloudPuffs(),
+                    alpha: 0.4 + Math.random() * 0.3,
+                    speed: 0.5 + Math.random() * 1.5
+                });
+            }
+            while (clouds.length > targetCount) clouds.shift();
+
+            clouds.forEach(c => {
+                c.x += (windSpeed * c.speed * dt * 0.005);
+                if (c.x > W + c.width) c.x = -c.width * 2;
+                if (c.x < -c.width * 2) c.x = W + c.width;
+                // Darken clouds based on precipitation
+                c.darkness = precipRate * 0.5;
+            });
+        }
+
+        function generateCloudPuffs() {
+            const puffs = [];
+            const count = 4 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < count; i++) {
+                puffs.push({
+                    ox: (Math.random() - 0.5) * 120,
+                    oy: (Math.random() - 0.5) * 30,
+                    r: 20 + Math.random() * 40
+                });
+            }
+            return puffs;
+        }
+
+        function getTerrainY(x) {
+            if (terrainPoints.length < 2) return H;
+            const seg = (x / W) * (terrainPoints.length - 1);
+            const i = Math.floor(seg);
+            const f = seg - i;
+            if (i < 0) return terrainPoints[0].y;
+            if (i >= terrainPoints.length - 1) return terrainPoints[terrainPoints.length - 1].y;
+            return terrainPoints[i].y * (1 - f) + terrainPoints[i + 1].y * f;
+        }
+
+        // ========== DRAWING ==========
+        function drawSky() {
+            const sunAngle = Math.sin(simTime * Math.PI * 2 - Math.PI / 2);
+            const dayFactor = Math.max(0, sunAngle);
+            const nightFactor = Math.max(0, -sunAngle);
+
+            // Sky gradient
+            const grad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+            if (dayFactor > 0.1) {
+                // Daytime
+                const r = Math.floor(30 + dayFactor * 100 * (1 - cloudCover * 0.5));
+                const g = Math.floor(60 + dayFactor * 140 * (1 - cloudCover * 0.4));
+                const b = Math.floor(100 + dayFactor * 155 * (1 - cloudCover * 0.3));
+                grad.addColorStop(0, `rgb(${r * 0.6}, ${g * 0.6}, ${b})`);
+                grad.addColorStop(0.5, `rgb(${r}, ${g}, ${b * 0.9})`);
+                grad.addColorStop(1, `rgb(${Math.min(255, r + 50)}, ${Math.min(255, g + 30)}, ${b * 0.7})`);
+            } else {
+                // Night
+                const f = nightFactor;
+                grad.addColorStop(0, `rgb(${5 + f * 5}, ${5 + f * 8}, ${15 + f * 20})`);
+                grad.addColorStop(0.5, `rgb(${8 + f * 10}, ${10 + f * 15}, ${25 + f * 30})`);
+                grad.addColorStop(1, `rgb(${12 + f * 8}, ${15 + f * 12}, ${30 + f * 20})`);
+            }
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Stars at night
+            if (nightFactor > 0.2) {
+                const starAlpha = (nightFactor - 0.2) * 1.25 * (1 - cloudCover * 0.8);
+                for (let i = 0; i < 80; i++) {
+                    const sx = (Math.sin(i * 127.1 + 3.7) * 0.5 + 0.5) * W;
+                    const sy = (Math.sin(i * 311.7 + 1.3) * 0.5 + 0.5) * H * 0.5;
+                    const twinkle = prefersReducedMotion ? 1 : (0.5 + 0.5 * Math.sin(simTime * 200 + i * 7));
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 0.8 + Math.sin(i * 41.3) * 0.5, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(200, 210, 240, ${starAlpha * twinkle * 0.6})`;
+                    ctx.fill();
+                }
+            }
+
+            // Sun/Moon
+            const sunX = W * 0.5 + Math.cos(simTime * Math.PI * 2 - Math.PI / 2) * W * 0.35;
+            const sunY = H * 0.45 - sunAngle * H * 0.35;
+            if (dayFactor > 0) {
+                // Sun
+                if (showTempMap) {
+                    const sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 80);
+                    sunGlow.addColorStop(0, `rgba(255, 240, 180, ${dayFactor * 0.3})`);
+                    sunGlow.addColorStop(1, 'rgba(255, 200, 100, 0)');
+                    ctx.beginPath();
+                    ctx.arc(sunX, sunY, 80, 0, Math.PI * 2);
+                    ctx.fillStyle = sunGlow;
+                    ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(sunX, sunY, 18, 0, Math.PI * 2);
+                const sunGrad = ctx.createRadialGradient(sunX, sunY, 3, sunX, sunY, 18);
+                sunGrad.addColorStop(0, '#fffbe0');
+                sunGrad.addColorStop(0.5, '#ffdd44');
+                sunGrad.addColorStop(1, '#ffaa22');
+                ctx.fillStyle = sunGrad;
+                ctx.fill();
+            } else if (nightFactor > 0.2) {
+                // Moon
+                const moonX = W * 0.5 - Math.cos(simTime * Math.PI * 2 - Math.PI / 2) * W * 0.3;
+                const moonY = H * 0.2 + nightFactor * H * 0.05;
+                const moonAlpha = Math.min(1, (nightFactor - 0.2) * 2) * (1 - cloudCover * 0.7);
+                ctx.beginPath();
+                ctx.arc(moonX, moonY, 14, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(220, 225, 240, ${moonAlpha * 0.9})`;
+                ctx.fill();
+                // Moon glow
+                const moonGlow = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, 50);
+                moonGlow.addColorStop(0, `rgba(180, 200, 230, ${moonAlpha * 0.15})`);
+                moonGlow.addColorStop(1, 'rgba(150, 180, 220, 0)');
+                ctx.beginPath();
+                ctx.arc(moonX, moonY, 50, 0, Math.PI * 2);
+                ctx.fillStyle = moonGlow;
+                ctx.fill();
+            }
+        }
+
+        function drawTerrain() {
+            if (terrainPoints.length < 2) return;
+
+            // Main terrain
+            ctx.beginPath();
+            ctx.moveTo(0, H);
+            terrainPoints.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(W, H);
+            ctx.closePath();
+
+            const dayFactor = Math.max(0, Math.sin(simTime * Math.PI * 2 - Math.PI / 2));
+            const terrGrad = ctx.createLinearGradient(0, H * 0.5, 0, H);
+
+            if (precipType === 'snow' && precipRate > 0.3) {
+                // Snowy terrain
+                terrGrad.addColorStop(0, `rgb(${180 + dayFactor * 60}, ${185 + dayFactor * 55}, ${190 + dayFactor * 50})`);
+                terrGrad.addColorStop(0.3, `rgb(${80 + dayFactor * 40}, ${100 + dayFactor * 40}, ${80 + dayFactor * 30})`);
+                terrGrad.addColorStop(1, `rgb(${30 + dayFactor * 20}, ${40 + dayFactor * 25}, ${30 + dayFactor * 15})`);
+            } else {
+                terrGrad.addColorStop(0, `rgb(${40 + dayFactor * 50}, ${60 + dayFactor * 60}, ${35 + dayFactor * 35})`);
+                terrGrad.addColorStop(0.4, `rgb(${30 + dayFactor * 35}, ${50 + dayFactor * 45}, ${25 + dayFactor * 25})`);
+                terrGrad.addColorStop(1, `rgb(${20 + dayFactor * 15}, ${30 + dayFactor * 20}, ${15 + dayFactor * 10})`);
+            }
+
+            ctx.fillStyle = terrGrad;
+            ctx.fill();
+
+            // Water bodies
+            const waterY = Math.max(waterLevel, H * 0.78);
+            ctx.beginPath();
+            ctx.moveTo(0, waterY);
+            // Gentle waves
+            for (let x = 0; x <= W; x += 8) {
+                const wave = prefersReducedMotion ? 0 : Math.sin(x * 0.02 + simTime * 30) * 2 + Math.sin(x * 0.05 + simTime * 50) * 1;
+                const ty = getTerrainY(x);
+                if (ty > waterY - 5) {
+                    ctx.lineTo(x, waterY + wave);
+                }
+            }
+            ctx.lineTo(W, H);
+            ctx.lineTo(0, H);
+            ctx.closePath();
+
+            const waterGrad = ctx.createLinearGradient(0, waterY, 0, H);
+            waterGrad.addColorStop(0, `rgba(${30 + dayFactor * 40}, ${60 + dayFactor * 80}, ${120 + dayFactor * 80}, 0.7)`);
+            waterGrad.addColorStop(1, `rgba(${15 + dayFactor * 20}, ${30 + dayFactor * 40}, ${60 + dayFactor * 50}, 0.85)`);
+            ctx.fillStyle = waterGrad;
+            ctx.fill();
+        }
+
+        function drawTemperatureMap() {
+            if (!showTempMap) return;
+            const dayFactor = Math.max(0, Math.sin(simTime * Math.PI * 2 - Math.PI / 2));
+            const effTemp = temperature + (dayFactor - 0.5) * 8;
+
+            // Subtle gradient showing temperature zones
+            for (let y = 0; y < H * 0.7; y += 30) {
+                const altitude = y / (H * 0.7);
+                const tempAtAlt = effTemp - altitude * 30; // Lapse rate ~6.5°C/km simplified
+                let r, g, b;
+                if (tempAtAlt > 25) { r = 200; g = 80; b = 60; }
+                else if (tempAtAlt > 10) { r = 180; g = 160; b = 60; }
+                else if (tempAtAlt > 0) { r = 60; g = 150; b = 180; }
+                else { r = 60; g = 100; b = 200; }
+
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.03)`;
+                ctx.fillRect(0, y, W, 30);
+            }
+        }
+
+        function drawClouds() {
+            clouds.forEach(c => {
+                const dayFactor = Math.max(0.1, Math.sin(simTime * Math.PI * 2 - Math.PI / 2));
+                const brightness = Math.floor(200 * dayFactor * (1 - c.darkness * 0.6));
+                const grayVal = Math.max(40, brightness);
+
+                c.puffs.forEach(p => {
+                    const px = c.x + p.ox * (c.width / 120);
+                    const py = c.y + p.oy * (c.height / 30);
+                    const pr = p.r * (c.width / 150);
+
+                    const grad = ctx.createRadialGradient(px, py, pr * 0.2, px, py, pr);
+                    grad.addColorStop(0, `rgba(${grayVal}, ${grayVal + 5}, ${grayVal + 10}, ${c.alpha * 0.7})`);
+                    grad.addColorStop(0.6, `rgba(${grayVal - 20}, ${grayVal - 15}, ${grayVal - 10}, ${c.alpha * 0.4})`);
+                    grad.addColorStop(1, `rgba(${grayVal - 40}, ${grayVal - 35}, ${grayVal - 30}, 0)`);
+                    ctx.beginPath();
+                    ctx.arc(px, py, pr, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                });
+            });
+        }
+
+        function drawWindParticles() {
+            if (!showWindParticles || windSpeed < 0.5) return;
+            windParticles.forEach(p => {
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - windSpeed * 2, p.y);
+                ctx.strokeStyle = `rgba(180, 200, 230, ${p.alpha})`;
+                ctx.lineWidth = p.size;
+                ctx.stroke();
+            });
+        }
+
+        function drawRain() {
+            if (precipType !== 'rain') return;
+            ctx.strokeStyle = 'rgba(150, 180, 220, 0.35)';
+            ctx.lineWidth = 1;
+            rainDrops.forEach(d => {
+                ctx.beginPath();
+                ctx.moveTo(d.x, d.y);
+                ctx.lineTo(d.x + windSpeed * 0.5, d.y + d.length);
+                ctx.globalAlpha = d.alpha;
+                ctx.stroke();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        function drawSnow() {
+            if (precipType !== 'snow') return;
+            snowFlakes.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(230, 235, 245, ${s.alpha})`;
+                ctx.fill();
+            });
+        }
+
+        function drawEvaporation() {
+            evapParticles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(140, 180, 220, ${p.alpha})`;
+                ctx.fill();
+            });
+        }
+
+        function drawPressureSystems() {
+            if (!showPressure) return;
+            // Low pressure on left, high on right (simplified)
+            const lpX = W * 0.25;
+            const lpY = H * 0.3;
+            const hpX = W * 0.75;
+            const hpY = H * 0.3;
+
+            // Low pressure (L)
+            ctx.beginPath();
+            ctx.arc(lpX, lpY, 40, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.25)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+            ctx.font = 'bold 24px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('L', lpX, lpY);
+
+            // Draw isobars around L (counterclockwise)
+            for (let ring = 1; ring <= 3; ring++) {
+                ctx.beginPath();
+                ctx.arc(lpX, lpY, 40 + ring * 30, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 100, 100, ${0.12 / ring})`;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // High pressure (H)
+            ctx.beginPath();
+            ctx.arc(hpX, hpY, 40, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(100, 150, 255, 0.25)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(100, 150, 255, 0.5)';
+            ctx.fillText('H', hpX, hpY);
+
+            for (let ring = 1; ring <= 3; ring++) {
+                ctx.beginPath();
+                ctx.arc(hpX, hpY, 40 + ring * 30, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(100, 150, 255, ${0.12 / ring})`;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Wind arrows between systems
+            const arrowY = (lpY + hpY) / 2 + 60;
+            ctx.strokeStyle = 'rgba(200, 200, 200, 0.15)';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 5; i++) {
+                const ax = lpX + 80 + i * (hpX - lpX - 160) / 4;
+                ctx.beginPath();
+                ctx.moveTo(ax - 15, arrowY);
+                ctx.lineTo(ax + 15, arrowY);
+                ctx.lineTo(ax + 10, arrowY - 5);
+                ctx.moveTo(ax + 15, arrowY);
+                ctx.lineTo(ax + 10, arrowY + 5);
+                ctx.stroke();
+            }
+        }
+
+        function drawFog() {
+            if (fogDensity <= 0) return;
+            for (let y = H * 0.5; y < H; y += 20) {
+                const density = fogDensity * (1 - (H - y) / (H * 0.5)) * 0.3;
+                ctx.fillStyle = `rgba(180, 190, 200, ${density})`;
+                ctx.fillRect(0, y, W, 20);
+            }
+        }
+
+        function drawInfoOverlays() {
+            if (!showInfo) {
+                document.getElementById('info-overlay').style.display = 'none';
+                return;
+            }
+
+            const overlay = document.getElementById('info-overlay');
+            overlay.style.display = 'block';
+
+            let title = 'Weather Phenomena';
+            let text = '';
+
+            if (precipRate > 0.3 && precipType === 'rain') {
+                title = 'Precipitation: Rain';
+                text = 'Water vapor condenses in clouds when humidity exceeds saturation point. Droplets grow by collision and fall as rain when heavy enough. Current conditions: ' + Math.round(precipRate * 100) + '% intensity.';
+            } else if (precipRate > 0.3 && precipType === 'snow') {
+                title = 'Precipitation: Snow';
+                text = 'When temperatures drop below 2°C, water vapor forms ice crystals instead of liquid droplets. These crystals aggregate into snowflakes with unique hexagonal structures.';
+            } else if (fogDensity > 0.1) {
+                title = 'Fog Formation';
+                text = 'Fog forms when air temperature approaches the dew point (' + Math.round(dewPoint) + '°C) with low wind speed. Water vapor condenses near the surface, reducing visibility.';
+            } else if (cloudCover > 0.6) {
+                title = 'Cloud Cover';
+                text = 'High humidity (' + Math.round(humidity) + '%) causes extensive cloud formation. Warm air rises, cools adiabatically, and water vapor condenses at the dew point altitude.';
+            } else {
+                title = 'Water Cycle';
+                text = 'The water cycle drives weather: Solar energy evaporates surface water → Rising moist air cools and condenses into clouds → Precipitation returns water to the surface → Collection and runoff.';
+            }
+
+            document.getElementById('info-title').textContent = title;
+            document.getElementById('info-text').textContent = text;
+        }
+
+        // ========== MAIN LOOP ==========
+        let lastTime = performance.now();
+
+        function loop(now) {
+            const dt = Math.min(now - lastTime, 50);
+            lastTime = now;
+
+            updateWeather(dt);
+            updateWindParticles(dt);
+            updateRain(dt);
+            updateSnow(dt);
+            updateEvaporation(dt);
+            updateClouds(dt);
+
+            // Draw
+            ctx.clearRect(0, 0, W, H);
+            drawSky();
+            drawTemperatureMap();
+            drawClouds();
+            drawPressureSystems();
+            drawWindParticles();
+            drawRain();
+            drawSnow();
+            drawTerrain();
+            drawEvaporation();
+            drawFog();
+            drawInfoOverlays();
+
+            // FPS
+            frameCount++;
+            if (now - lastFpsTime > 1000) {
+                fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+                frameCount = 0;
+                lastFpsTime = now;
+                document.getElementById('fps-display').textContent = fps + ' FPS';
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // ========== EVENTS ==========
+        function setupEvents() {
+            events.add(window, 'resize', resize);
+
+            // Sliders
+            events.add(document.getElementById('ctrl-temp'), 'input', (e) => {
+                temperature = parseFloat(e.target.value);
+                document.getElementById('temp-val').textContent = temperature + '°C';
+            });
+
+            events.add(document.getElementById('ctrl-humidity'), 'input', (e) => {
+                humidity = parseFloat(e.target.value);
+                document.getElementById('humidity-val').textContent = humidity + '%';
+            });
+
+            events.add(document.getElementById('ctrl-wind'), 'input', (e) => {
+                windSpeed = parseFloat(e.target.value);
+                document.getElementById('wind-val').textContent = windSpeed.toFixed(1) + ' m/s';
+            });
+
+            events.add(document.getElementById('ctrl-terrain'), 'input', (e) => {
+                terrainHeight = parseFloat(e.target.value) / 100;
+                document.getElementById('terrain-val').textContent = Math.round(terrainHeight * 100) + '%';
+                generateTerrain();
+            });
+
+            // Time speed
+            document.querySelectorAll('[data-tspeed]').forEach(btn => {
+                events.add(btn, 'click', () => {
+                    timeSpeed = parseFloat(btn.dataset.tspeed);
+                    document.querySelectorAll('[data-tspeed]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // Toggles
+            function setupToggle(id, getter, setter) {
+                const el = document.getElementById(id);
+                if (getter()) el.classList.add('active');
+                else el.classList.remove('active');
+                events.add(el, 'click', () => {
+                    setter(!getter());
+                    el.classList.toggle('active');
+                });
+            }
+
+            setupToggle('toggle-wind', () => showWindParticles, v => showWindParticles = v);
+            setupToggle('toggle-temp-map', () => showTempMap, v => showTempMap = v);
+            setupToggle('toggle-pressure', () => showPressure, v => showPressure = v);
+            setupToggle('toggle-info', () => showInfo, v => showInfo = v);
+
+            // Presets
+            events.add(document.getElementById('preset-clear'), 'click', () => {
+                setSlider('ctrl-temp', 28); temperature = 28;
+                setSlider('ctrl-humidity', 25); humidity = 25;
+                setSlider('ctrl-wind', 3); windSpeed = 3;
+                document.getElementById('temp-val').textContent = '28°C';
+                document.getElementById('humidity-val').textContent = '25%';
+                document.getElementById('wind-val').textContent = '3.0 m/s';
+            });
+
+            events.add(document.getElementById('preset-storm'), 'click', () => {
+                setSlider('ctrl-temp', 22); temperature = 22;
+                setSlider('ctrl-humidity', 95); humidity = 95;
+                setSlider('ctrl-wind', 25); windSpeed = 25;
+                document.getElementById('temp-val').textContent = '22°C';
+                document.getElementById('humidity-val').textContent = '95%';
+                document.getElementById('wind-val').textContent = '25.0 m/s';
+            });
+
+            events.add(document.getElementById('preset-snow'), 'click', () => {
+                setSlider('ctrl-temp', -5); temperature = -5;
+                setSlider('ctrl-humidity', 85); humidity = 85;
+                setSlider('ctrl-wind', 4); windSpeed = 4;
+                document.getElementById('temp-val').textContent = '-5°C';
+                document.getElementById('humidity-val').textContent = '85%';
+                document.getElementById('wind-val').textContent = '4.0 m/s';
+            });
+
+            events.add(document.getElementById('preset-fog'), 'click', () => {
+                setSlider('ctrl-temp', 8); temperature = 8;
+                setSlider('ctrl-humidity', 98); humidity = 98;
+                setSlider('ctrl-wind', 1); windSpeed = 1;
+                document.getElementById('temp-val').textContent = '8°C';
+                document.getElementById('humidity-val').textContent = '98%';
+                document.getElementById('wind-val').textContent = '1.0 m/s';
+            });
+
+            // Keyboard
+            events.add(window, 'keydown', (e) => {
+                if (e.key === ' ') { e.preventDefault(); timeSpeed = timeSpeed === 0 ? 1 : 0; updateTimeButtons(); }
+                if (e.key === 'i' || e.key === 'I') { showInfo = !showInfo; document.getElementById('toggle-info').classList.toggle('active'); }
+            });
+        }
+
+        function setSlider(id, value) {
+            document.getElementById(id).value = value;
+        }
+
+        function updateTimeButtons() {
+            document.querySelectorAll('[data-tspeed]').forEach(b => {
+                b.classList.toggle('active', parseFloat(b.dataset.tspeed) === timeSpeed);
+            });
+        }
+
+        // ========== INIT ==========
+        resize();
+        setupEvents();
+        requestAnimationFrame(loop);
+    })();
+    </script>
+</body>
+</html>
