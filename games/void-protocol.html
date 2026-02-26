@@ -1,0 +1,4361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VOID PROTOCOL: Ground Zero</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#050608;overflow:hidden;font-family:'Courier New',monospace;color:#0df;user-select:none}
+canvas{display:block;cursor:none}
+#overlay{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;z-index:10;pointer-events:none}
+#overlay.active{pointer-events:all}
+.panel{display:none;flex-direction:column;align-items:center;background:rgba(5,6,8,0.95);border:1px solid #0df;padding:40px;min-width:400px;max-width:500px;box-shadow:0 0 40px rgba(0,221,255,0.15)}
+.panel.show{display:flex}
+.panel h1{font-size:28px;color:#0df;text-shadow:0 0 20px rgba(0,221,255,0.5);margin-bottom:8px;letter-spacing:4px}
+.panel h2{font-size:16px;color:#08a;margin-bottom:24px;letter-spacing:2px}
+.panel p{font-size:13px;color:#899;margin-bottom:16px;text-align:center;line-height:1.6}
+.btn{background:transparent;border:1px solid #0df;color:#0df;padding:12px 32px;font-family:inherit;font-size:14px;cursor:pointer;margin:6px;letter-spacing:2px;transition:all 0.2s;min-width:180px}
+.btn:hover{background:rgba(0,221,255,0.15);box-shadow:0 0 15px rgba(0,221,255,0.3)}
+.btn.sel{background:rgba(0,221,255,0.2);box-shadow:0 0 10px rgba(0,221,255,0.2)}
+.diff-row{display:flex;gap:8px;margin-bottom:16px}
+.stat-line{font-size:13px;color:#899;margin:4px 0}
+.stat-line span{color:#0df}
+.controls-info{font-size:11px;color:#566;margin-top:16px;text-align:center;line-height:1.8}
+#menuPanel .subtitle{color:#f44;font-size:11px;letter-spacing:3px;margin-bottom:20px}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+<canvas id="lc" style="display:none"></canvas>
+<div id="overlay" class="active">
+<div id="menuPanel" class="panel show">
+<h1>VOID PROTOCOL</h1>
+<h2>GROUND ZERO</h2>
+<div class="subtitle">ANDROID CONTAINMENT FAILURE</div>
+<p>Navigate the facility. Find keycards. Hack the terminal.<br>Escape before the countdown ends.</p>
+<div class="diff-row">
+<button class="btn sel" onclick="setDiff(0)">EASY</button>
+<button class="btn" onclick="setDiff(1)">NORMAL</button>
+<button class="btn" onclick="setDiff(2)">HARD</button>
+</div>
+<button class="btn" onclick="startGame()">INITIATE PROTOCOL</button>
+<div class="controls-info">
+WASD Move | Mouse Aim | Click Shoot | Shift Sprint<br>
+E Interact | Q/Scroll Switch Weapon | 1-6 Select | Tab Map
+</div>
+</div>
+<div id="pausePanel" class="panel">
+<h1>PAUSED</h1>
+<p>System halted.</p>
+<button class="btn" onclick="resumeGame()">RESUME</button>
+<button class="btn" onclick="quitToMenu()">QUIT</button>
+</div>
+<div id="deathPanel" class="panel">
+<h1>SYSTEM FAILURE</h1>
+<p>You have been terminated.</p>
+<div id="deathStats"></div>
+<button class="btn" onclick="startGame()">RETRY</button>
+<button class="btn" onclick="quitToMenu()">QUIT</button>
+</div>
+<div id="winPanel" class="panel">
+<h1>LEVEL CLEAR</h1>
+<p id="winMsg">Proceeding to next sector...</p>
+<div id="winStats"></div>
+<button class="btn" onclick="nextLevel()">CONTINUE</button>
+</div>
+<div id="victoryPanel" class="panel">
+<h1>PROTOCOL COMPLETE</h1>
+<h2>FACILITY SECURED</h2>
+<div id="victoryStats"></div>
+<button class="btn" onclick="quitToMenu()">MAIN MENU</button>
+</div>
+</div>
+<script>
+"use strict";
+const DEBUG=false;
+if(!DEBUG){const n=()=>{};console.log=n;console.warn=n;console.info=n}
+
+// ========== CONSTANTS ==========
+const T=32; // tile size
+const ST_MENU=0,ST_PLAY=1,ST_PAUSE=2,ST_DEAD=3,ST_WIN=4,ST_VICTORY=5;
+const TILE_VOID=0,TILE_WALL=1,TILE_FLOOR=2,TILE_DOOR_B=3,TILE_DOOR_R=4,TILE_DOOR_G=5,TILE_TERMINAL=6,TILE_EXIT=7,TILE_FLOOR2=8,TILE_FLOOR3=9,TILE_FLOOR4=10;
+const ROOM_START=0,ROOM_EXIT=1,ROOM_SERVER=2,ROOM_ARMORY=3,ROOM_STORAGE=4,ROOM_BOSS=5,ROOM_PATROL=6;
+const EN_SCOUT=0,EN_SENTINEL=1,EN_HEAVY=2,EN_COMMANDER=3;
+
+let difficulty=0;
+function hashR(x,y,s){let n=Math.sin(x*12.9898+y*78.233+s*45.164)*43758.5453;return n-Math.floor(n);}
+const DIFF=[
+  {name:'EASY',hpMul:0.7,dmgMul:0.7,reactMul:1.4,countdowns:[70,60,50]},
+  {name:'NORMAL',hpMul:1,dmgMul:1,reactMul:1,countdowns:[60,50,40]},
+  {name:'HARD',hpMul:1.3,dmgMul:1.3,reactMul:0.7,countdowns:[50,40,30]}
+];
+
+// ========== CANVAS SETUP ==========
+const gc=document.getElementById('gc');
+const ctx=gc.getContext('2d');
+const lc=document.getElementById('lc');
+const lctx=lc.getContext('2d');
+let W,H;
+function resize(){
+  W=window.innerWidth;H=window.innerHeight;
+  gc.width=W;gc.height=H;
+  lc.width=W;lc.height=H;
+}
+resize();
+window.addEventListener('resize',resize);
+
+// ========== INPUT ==========
+const keys={};
+let mouseX=W/2,mouseY=H/2;
+let mouseDown=false;
+let scrollDelta=0;
+window.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='Tab'||e.code==='Escape')e.preventDefault();
+  if(state===ST_PLAY&&e.code==='Escape')pauseGame();
+  if(state===ST_PAUSE&&e.code==='Escape')resumeGame();
+  if(e.code==='Tab'&&state===ST_PLAY)showMap=true;
+  // weapon select 1-6
+  if(state===ST_PLAY&&e.code>='Digit1'&&e.code<='Digit6'){
+    let idx=parseInt(e.code[5])-1;
+    if(idx<weapons.length&&(idx===0||player.ammo[idx]>0))player.curWeapon=idx;
+  }
+  if(state===ST_PLAY&&e.code==='KeyQ'){
+    cycleWeapon(1);
+  }
+});
+window.addEventListener('keyup',e=>{
+  keys[e.code]=false;
+  if(e.code==='Tab')showMap=false;
+});
+window.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY});
+window.addEventListener('mousedown',e=>{if(e.button===0)mouseDown=true});
+window.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false});
+window.addEventListener('wheel',e=>{
+  if(state===ST_PLAY)cycleWeapon(e.deltaY>0?1:-1);
+});
+window.addEventListener('contextmenu',e=>e.preventDefault());
+
+function cycleWeapon(dir){
+  let c=player.curWeapon;
+  for(let i=0;i<6;i++){
+    c=(c+dir+6)%6;
+    if(c===0||player.ammo[c]>0){player.curWeapon=c;break;}
+  }
+}
+
+// ========== GAME STATE ==========
+let state=ST_MENU;
+let gameTime=0;
+let level=1;
+let showMap=false;
+let camX=0,camY=0;
+let shakeX=0,shakeY=0,shakeMag=0;
+let dmgFlash=0;
+let chromatic=0;
+let totalKills=0,totalTime=0,levelKills=0;
+let mapW=0,mapH=0;
+let map=[];
+let rooms=[];
+let explored=[];
+let floorDetail=[];
+let decals=[];
+let particles=[];
+let projectiles=[];
+let enemies=[];
+let pickups=[];
+let damageNums=[];
+let killFeed=[];
+let atmParticles=[];
+let barrels=[];
+let toxicPools=[];
+let flickerTimer=0,flickerDuration=0,flickering=false;
+let lastRoom=null,roomAlert='',roomAlertTimer=0;
+let stats={shotsFired:0,shotsHit:0,dmgDealt:0,dmgTaken:0,bestStreak:0};
+let airdrops=[];
+let airdropTimer=0;
+let powerUp={type:null,timer:0}; // active power-up: 'speed','damage','shield'
+let secretWalls=[]; // destructible wall tiles hiding secret rooms
+let collapseTimer=180; // 3 min until structure collapse
+let collapseTriggered=false;
+let collapseWalls=[]; // wall tiles that will collapse into rubble
+let alarmActive=false,alarmTimer=0;
+let miniBossThreshold=15; // kills until next mini-boss spawn
+let lastHitAngle=0,lastHitTimer=0; // damage direction indicator
+let toxicDmgAccum=0; // accumulates fractional toxic damage
+let corpses=[]; // enemy death debris
+let lockedDoorMsg='',lockedDoorTimer=0;
+let countdownActive=false;
+let countdownTime=0;
+let terminalHacked=false;
+let hackProgress=0;
+let exitOpen=false;
+let player={};
+let bossInView=null;
+let killStreak=0,killStreakTimer=0;
+
+// ========== WEAPONS ==========
+const weapons=[
+  {name:'PISTOL',dmg:8,rate:0.3,ammo:Infinity,auto:false,spread:0.02,projSpd:800,projLife:0.6,color:'#ff0',type:'bullet',pellets:1,range:500,pierce:false},
+  {name:'SMG',dmg:10,rate:0.08,ammo:250,auto:true,spread:0.08,projSpd:750,projLife:0.5,color:'#ff4',type:'bullet',pellets:1,range:400,pierce:false},
+  {name:'SHOTGUN',dmg:7,rate:0.6,ammo:24,auto:false,spread:0.15,projSpd:700,projLife:0.35,color:'#fa0',type:'bullet',pellets:8,range:250,pierce:false},
+  {name:'PLASMA',dmg:22,rate:0.35,ammo:60,auto:true,spread:0.03,projSpd:500,projLife:0.8,color:'#4af',type:'plasma',pellets:1,range:400,pierce:false,splash:40},
+  {name:'FLAMER',dmg:5,rate:0.03,ammo:200,auto:true,spread:0.2,projSpd:350,projLife:0.25,color:'#f80',type:'flame',pellets:1,range:150,pierce:false},
+  {name:'RAILGUN',dmg:55,rate:1.2,ammo:10,auto:false,spread:0,projSpd:9999,projLife:0.01,color:'#fff',type:'rail',pellets:1,range:800,pierce:true}
+];
+
+// ========== TEXTURE GENERATION ==========
+const texCache={};
+function genTex(key,w,h,fn){
+  if(texCache[key])return texCache[key];
+  const c=document.createElement('canvas');
+  c.width=w;c.height=h;
+  const x=c.getContext('2d');
+  fn(x,w,h);
+  texCache[key]=c;
+  return c;
+}
+
+function genFloorTex(variant){
+  return genTex('floor'+variant,T,T,(x,w,h)=>{
+    const bases=['#1a1c20','#1c1a18','#181c1a','#1a1a1e'];
+    x.fillStyle=bases[variant]||bases[0];
+    x.fillRect(0,0,w,h);
+    // tile grid lines
+    x.strokeStyle='rgba(255,255,255,0.04)';
+    x.lineWidth=1;
+    x.strokeRect(0.5,0.5,w-1,h-1);
+    // noise
+    for(let i=0;i<30;i++){
+      let bri=Math.random()*0.06;
+      x.fillStyle=`rgba(${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${Math.random()>0.5?255:0},${bri})`;
+      x.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);
+    }
+    // subtle pattern based on variant
+    if(variant===1){
+      x.fillStyle='rgba(80,60,40,0.08)';
+      x.fillRect(w/4,0,w/2,h);
+    }
+    if(variant===2){
+      x.strokeStyle='rgba(0,255,150,0.03)';
+      x.beginPath();x.moveTo(0,h/2);x.lineTo(w,h/2);x.stroke();
+    }
+    if(variant===3){
+      x.fillStyle='rgba(100,80,120,0.05)';
+      for(let j=0;j<3;j++){x.fillRect(Math.random()*w,Math.random()*h,4,4)}
+    }
+  });
+}
+
+function genWallTex(variant){
+  return genTex('wall'+variant,T,T,(x,w,h)=>{
+    const bases=['#2a2e34','#342a2a','#2a342e'];
+    x.fillStyle=bases[variant]||bases[0];
+    x.fillRect(0,0,w,h);
+    // brick pattern
+    x.strokeStyle='rgba(0,0,0,0.3)';
+    x.lineWidth=1;
+    x.strokeRect(1,1,w-2,h/2-1);
+    x.strokeRect(w/2,h/2,w/2-1,h/2-1);
+    x.strokeRect(0,h/2,-1+w/2,h/2-1);
+    // highlight
+    x.fillStyle='rgba(255,255,255,0.03)';
+    x.fillRect(2,2,w-4,3);
+    // noise
+    for(let i=0;i<20;i++){
+      x.fillStyle=`rgba(0,0,0,${Math.random()*0.15})`;
+      x.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*3,1+Math.random()*3);
+    }
+  });
+}
+
+function genDoorTex(color){
+  return genTex('door_'+color,T,T,(x,w,h)=>{
+    x.fillStyle='#1a1a2a';
+    x.fillRect(0,0,w,h);
+    x.fillStyle=color;
+    x.globalAlpha=0.4;
+    x.fillRect(4,2,w-8,h-4);
+    x.globalAlpha=0.8;
+    x.fillRect(w/2-2,4,4,h-8);
+    x.globalAlpha=1;
+    // lock icon
+    x.fillStyle=color;
+    x.beginPath();x.arc(w/2,h/2,5,0,Math.PI*2);x.fill();
+    x.fillStyle='#000';
+    x.fillRect(w/2-2,h/2-1,4,4);
+    // border
+    x.strokeStyle=color;
+    x.lineWidth=2;
+    x.strokeRect(2,1,w-4,h-2);
+  });
+}
+
+function genTerminalTex(){
+  return genTex('terminal',T,T,(x,w,h)=>{
+    x.fillStyle='#1a2a1a';
+    x.fillRect(0,0,w,h);
+    x.fillStyle='#0f0';
+    x.globalAlpha=0.3;
+    x.fillRect(4,4,w-8,h-8);
+    x.globalAlpha=1;
+    // screen
+    x.fillStyle='#0a0';
+    x.fillRect(6,6,w-12,h-16);
+    // text lines
+    x.fillStyle='#0f0';
+    for(let i=0;i<3;i++){
+      x.fillRect(8,8+i*4,8+Math.random()*8,2);
+    }
+    // keyboard
+    x.fillStyle='#1a3a1a';
+    x.fillRect(6,h-8,w-12,5);
+    x.strokeStyle='#0f0';
+    x.lineWidth=1;
+    x.strokeRect(3,3,w-6,h-6);
+  });
+}
+
+function genExitTex(){
+  return genTex('exit',T,T,(x,w,h)=>{
+    x.fillStyle='#1a1a2a';
+    x.fillRect(0,0,w,h);
+    x.strokeStyle='#0df';
+    x.lineWidth=2;
+    x.strokeRect(2,2,w-4,h-4);
+    // arrow
+    x.fillStyle='#0df';
+    x.beginPath();
+    x.moveTo(w/2,6);x.lineTo(w-8,h/2);x.lineTo(w/2,h-6);x.closePath();
+    x.fill();
+    x.fillStyle='#0df';
+    x.globalAlpha=0.3;
+    x.fillRect(4,4,w-8,h-8);
+    x.globalAlpha=1;
+  });
+}
+
+// Pre-generate textures
+let floorTexes,wallTexes,doorTexes,terminalTex,exitTex;
+function initTextures(){
+  floorTexes=[genFloorTex(0),genFloorTex(1),genFloorTex(2),genFloorTex(3)];
+  wallTexes=[genWallTex(0),genWallTex(1),genWallTex(2)];
+  doorTexes={b:genDoorTex('#44f'),r:genDoorTex('#f44'),g:genDoorTex('#fd0')};
+  terminalTex=genTerminalTex();
+  exitTex=genExitTex();
+}
+initTextures();
+
+// Floor detail overlays
+function genCrackTex(){
+  return genTex('crack'+Math.random(),T,T,(x,w,h)=>{
+    x.strokeStyle='rgba(0,0,0,0.3)';
+    x.lineWidth=1;
+    x.beginPath();
+    let cx=Math.random()*w,cy=Math.random()*h;
+    x.moveTo(cx,cy);
+    for(let i=0;i<4;i++){
+      cx+=Math.random()*12-6;cy+=Math.random()*12-6;
+      x.lineTo(cx,cy);
+    }
+    x.stroke();
+  });
+}
+
+function genCableTex(){
+  return genTex('cable'+Math.random(),T,T,(x,w,h)=>{
+    const colors=['#440','#044','#404'];
+    x.strokeStyle=colors[Math.floor(Math.random()*3)];
+    x.lineWidth=2;
+    x.globalAlpha=0.25;
+    x.beginPath();
+    if(Math.random()>0.5){x.moveTo(0,h*Math.random());x.lineTo(w,h*Math.random())}
+    else{x.moveTo(w*Math.random(),0);x.lineTo(w*Math.random(),h)}
+    x.stroke();
+    x.globalAlpha=1;
+  });
+}
+
+function genDrainTex(){
+  return genTex('drain'+Math.random(),T,T,(x,w,h)=>{
+    x.fillStyle='rgba(0,0,0,0.25)';
+    x.beginPath();x.arc(w/2,h/2,6,0,Math.PI*2);x.fill();
+    x.strokeStyle='rgba(0,0,0,0.2)';
+    x.lineWidth=1;
+    x.beginPath();x.moveTo(w/2-4,h/2-4);x.lineTo(w/2+4,h/2+4);x.stroke();
+    x.beginPath();x.moveTo(w/2+4,h/2-4);x.lineTo(w/2-4,h/2+4);x.stroke();
+  });
+}
+
+// ========== OBJECT POOL ==========
+function Pool(createFn,max){
+  this.create=createFn;
+  this.max=max;
+  this.pool=[];
+  this.active=[];
+}
+Pool.prototype.get=function(){
+  let o;
+  if(this.pool.length>0){
+    o=this.pool.pop();
+  } else if(this.active.length>=this.max){
+    o=this.active.shift();
+  } else {
+    o=this.create();
+  }
+  this.active.push(o);
+  return o;
+};
+Pool.prototype.ret=function(o){
+  let idx=this.active.indexOf(o);
+  if(idx>=0)this.active.splice(idx,1);
+  if(this.pool.length<this.max)this.pool.push(o);
+};
+Pool.prototype.clear=function(){
+  this.pool=this.pool.concat(this.active);
+  this.active=[];
+};
+
+const particlePool=new Pool(()=>({x:0,y:0,vx:0,vy:0,life:0,maxLife:1,r:0,g:0,b:0,size:2,grav:false,type:'spark'}),500);
+const projPool=new Pool(()=>({x:0,y:0,vx:0,vy:0,life:0,maxLife:1,dmg:0,friendly:true,type:'bullet',color:'#ff0',trail:[],pierce:false,splashR:0}),100);
+
+// ========== DECAL SYSTEM ==========
+const MAX_DECALS=200;
+function addDecal(x,y,type,size,color){
+  if(decals.length>=MAX_DECALS)decals.shift();
+  decals.push({x,y,type,size,color:color||'rgba(20,40,50,0.4)',alpha:0.6});
+}
+
+// ========== DAMAGE NUMBERS ==========
+function addDmgNum(x,y,dmg,crit){
+  damageNums.push({x:x+(Math.random()-0.5)*10,y,dmg:Math.round(dmg),life:0.8,maxLife:0.8,
+    vy:-60-Math.random()*20,vx:(Math.random()-0.5)*30,
+    color:crit?'#f44':dmg>20?'#ff0':'#fff'});
+}
+
+// ========== KILL FEED ==========
+function addKillFeed(msg){
+  killFeed.push({msg,life:5,maxLife:5});
+  if(killFeed.length>5)killFeed.shift();
+}
+
+// ========== LEVEL GENERATION ==========
+function generateLevel(lvl){
+  mapW=64+lvl*8;
+  mapH=64+lvl*8;
+  map=new Array(mapW*mapH).fill(TILE_VOID);
+  explored=new Array(mapW*mapH).fill(false);
+  floorDetail=new Array(mapW*mapH).fill(null);
+  rooms=[];
+  decals=[];
+  
+  // BSP
+  let leaves=[];
+  function splitBSP(x,y,w,h,depth){
+    if(depth<=0||w<12||h<12||(w<16&&h<16)){
+      leaves.push({x,y,w,h});
+      return;
+    }
+    let horiz=Math.random()>0.5;
+    if(w>h*1.3)horiz=false;
+    if(h>w*1.3)horiz=true;
+    if(horiz){
+      let split=y+5+Math.floor(Math.random()*(h-10));
+      splitBSP(x,y,w,split-y,depth-1);
+      splitBSP(x,split,w,h-(split-y),depth-1);
+    } else {
+      let split=x+5+Math.floor(Math.random()*(w-10));
+      splitBSP(x,y,split-x,h,depth-1);
+      splitBSP(split,y,w-(split-x),h,depth-1);
+    }
+  }
+  
+  let depth=lvl>=3?5:4;
+  splitBSP(2,2,mapW-4,mapH-4,depth);
+  
+  // Create rooms from leaves
+  for(let leaf of leaves){
+    let rw=5+Math.floor(Math.random()*(leaf.w-6));
+    let rh=5+Math.floor(Math.random()*(leaf.h-6));
+    if(rw>leaf.w-2)rw=leaf.w-2;
+    if(rh>leaf.h-2)rh=leaf.h-2;
+    let rx=leaf.x+1+Math.floor(Math.random()*(leaf.w-rw-1));
+    let ry=leaf.y+1+Math.floor(Math.random()*(leaf.h-rh-1));
+    rooms.push({x:rx,y:ry,w:rw,h:rh,cx:rx+Math.floor(rw/2),cy:ry+Math.floor(rh/2),type:ROOM_PATROL,connected:false,lightColor:null,enemies:[]});
+  }
+  
+  // Assign room types
+  rooms[0].type=ROOM_START;
+  // find farthest room from start for exit
+  let maxDist=0,exitIdx=1;
+  for(let i=1;i<rooms.length;i++){
+    let dx=rooms[i].cx-rooms[0].cx,dy=rooms[i].cy-rooms[0].cy;
+    let d=dx*dx+dy*dy;
+    if(d>maxDist){maxDist=d;exitIdx=i;}
+  }
+  rooms[exitIdx].type=ROOM_EXIT;
+  
+  // Server room - medium distance
+  let dists=rooms.map((r,i)=>{
+    let dx=r.cx-rooms[0].cx,dy=r.cy-rooms[0].cy;
+    return {i,d:Math.sqrt(dx*dx+dy*dy)};
+  }).sort((a,b)=>a.d-b.d);
+  let serverIdx=dists[Math.floor(dists.length*0.5)].i;
+  if(serverIdx===exitIdx)serverIdx=dists[Math.floor(dists.length*0.4)].i;
+  rooms[serverIdx].type=ROOM_SERVER;
+  
+  // Boss room on lvl 2+
+  if(lvl>=2){
+    let bossIdx=dists[Math.floor(dists.length*0.7)].i;
+    if(bossIdx===exitIdx||bossIdx===serverIdx)bossIdx=dists[Math.floor(dists.length*0.6)].i;
+    if(bossIdx!==0&&bossIdx!==exitIdx&&bossIdx!==serverIdx)rooms[bossIdx].type=ROOM_BOSS;
+  }
+  
+  // Armory + storage
+  let unassigned=rooms.filter((r,i)=>r.type===ROOM_PATROL&&i!==0);
+  if(unassigned.length>0){unassigned[0].type=ROOM_ARMORY}
+  if(unassigned.length>1){unassigned[1].type=ROOM_STORAGE}
+  
+  // Room light colors
+  for(let r of rooms){
+    switch(r.type){
+      case ROOM_SERVER:r.lightColor='rgba(0,180,80,0.08)';break;
+      case ROOM_ARMORY:r.lightColor='rgba(200,150,50,0.08)';break;
+      case ROOM_BOSS:r.lightColor='rgba(120,40,180,0.06)';break;
+      case ROOM_EXIT:r.lightColor='rgba(0,200,255,0.07)';break;
+      case ROOM_START:r.lightColor='rgba(100,200,255,0.05)';break;
+      default:r.lightColor='rgba(80,120,180,0.04)';
+    }
+  }
+  
+  // Carve rooms
+  for(let r of rooms){
+    for(let yy=r.y;yy<r.y+r.h;yy++){
+      for(let xx=r.x;xx<r.x+r.w;xx++){
+        if(xx>0&&xx<mapW-1&&yy>0&&yy<mapH-1){
+          let variant=0;
+          if(r.type===ROOM_SERVER)variant=2;
+          else if(r.type===ROOM_ARMORY)variant=1;
+          else if(r.type===ROOM_BOSS)variant=3;
+          else variant=Math.random()>0.7?Math.floor(Math.random()*4):0;
+          map[yy*mapW+xx]=[TILE_FLOOR,TILE_FLOOR2,TILE_FLOOR3,TILE_FLOOR4][variant];
+        }
+      }
+    }
+  }
+  
+  // MST connect rooms
+  let connected=new Set([0]);
+  let edgeList=[];
+  for(let i=0;i<rooms.length;i++){
+    for(let j=i+1;j<rooms.length;j++){
+      let dx=rooms[i].cx-rooms[j].cx,dy=rooms[i].cy-rooms[j].cy;
+      edgeList.push({i,j,d:Math.sqrt(dx*dx+dy*dy)});
+    }
+  }
+  edgeList.sort((a,b)=>a.d-b.d);
+  
+  function carveCorridor(r1,r2){
+    let x1=r1.cx,y1=r1.cy,x2=r2.cx,y2=r2.cy;
+    let cx=x1,cy=y1;
+    // L-shaped corridor, 3 tiles wide
+    while(cx!==x2){
+      for(let w=-1;w<=1;w++){
+        let yy=cy+w;
+        if(cx>=1&&cx<mapW-1&&yy>=1&&yy<mapH-1){
+          if(map[yy*mapW+cx]===TILE_VOID)map[yy*mapW+cx]=TILE_FLOOR;
+        }
+      }
+      cx+=cx<x2?1:-1;
+    }
+    while(cy!==y2){
+      for(let w=-1;w<=1;w++){
+        let xx=cx+w;
+        if(xx>=1&&xx<mapW-1&&cy>=1&&cy<mapH-1){
+          if(map[cy*mapW+xx]===TILE_VOID)map[cy*mapW+xx]=TILE_FLOOR;
+        }
+      }
+      cy+=cy<y2?1:-1;
+    }
+  }
+  
+  // Prim's MST
+  while(connected.size<rooms.length){
+    let best=null;
+    for(let e of edgeList){
+      let ci=connected.has(e.i),cj=connected.has(e.j);
+      if(ci!==cj){best=e;break;}
+    }
+    if(!best)break;
+    connected.add(best.i);
+    connected.add(best.j);
+    carveCorridor(rooms[best.i],rooms[best.j]);
+    rooms[best.i].connected=true;
+    rooms[best.j].connected=true;
+  }
+  
+  // Extra loops
+  let extras=2+Math.floor(Math.random()*2);
+  for(let e=0;e<extras&&edgeList.length>0;e++){
+    let idx=Math.floor(Math.random()*Math.min(edgeList.length,rooms.length));
+    let edge=edgeList[idx];
+    carveCorridor(rooms[edge.i],rooms[edge.j]);
+  }
+  
+  // Build walls around floors
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      if(isFloorTile(map[y*mapW+x]))continue;
+      let adj=false;
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0)continue;
+          let nx=x+dx,ny=y+dy;
+          if(nx>=0&&nx<mapW&&ny>=0&&ny<mapH&&isFloorTile(map[ny*mapW+nx]))adj=true;
+        }
+      }
+      if(adj)map[y*mapW+x]=TILE_WALL;
+    }
+  }
+  
+  // Place terminal in server room
+  let sr=rooms.find(r=>r.type===ROOM_SERVER);
+  if(sr)map[sr.cy*mapW+sr.cx]=TILE_TERMINAL;
+  
+  // Place exit
+  let er=rooms.find(r=>r.type===ROOM_EXIT);
+  if(er)map[er.cy*mapW+er.cx]=TILE_EXIT;
+  
+  // Place doors
+  // Blue door near server room entrance
+  placeDoor(sr,TILE_DOOR_B);
+  // Red door near boss on lvl2+
+  if(lvl>=2){
+    let br=rooms.find(r=>r.type===ROOM_BOSS);
+    if(br)placeDoor(br,TILE_DOOR_R);
+  }
+  // Gold door near exit on lvl3
+  if(lvl>=3)placeDoor(er,TILE_DOOR_G);
+  
+  // Floor details
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      if(isFloorTile(map[y*mapW+x])&&Math.random()<0.08){
+        let r=Math.random();
+        if(r<0.4)floorDetail[y*mapW+x]='crack';
+        else if(r<0.7)floorDetail[y*mapW+x]='cable';
+        else floorDetail[y*mapW+x]='drain';
+      }
+    }
+  }
+  
+  // Place pickups
+  placePickups(lvl);
+
+  // Place enemies
+  placeEnemies(lvl);
+
+  // Place explosive barrels
+  placeBarrels(lvl);
+
+  // Place toxic pools
+  placeToxicPools(lvl);
+
+  // Secret room behind destructible wall in storage
+  placeSecretRoom(lvl);
+
+  // Structure collapse walls (thin wall sections that break after 3 min)
+  placeCollapseWalls();
+}
+
+function isFloorTile(t){return t===TILE_FLOOR||t===TILE_FLOOR2||t===TILE_FLOOR3||t===TILE_FLOOR4||t===TILE_TERMINAL||t===TILE_EXIT}
+function isWalkable(t){return isFloorTile(t)}
+function isDoor(t){return t===TILE_DOOR_B||t===TILE_DOOR_R||t===TILE_DOOR_G}
+
+function placeDoor(room,doorType){
+  if(!room)return;
+  // Find corridor entry to room
+  let edges=[];
+  for(let y=room.y;y<room.y+room.h;y++){
+    for(let x=room.x;x<room.x+room.w;x++){
+      // Check if this is a room edge tile adjacent to corridor
+      if(x===room.x||x===room.x+room.w-1||y===room.y||y===room.y+room.h-1){
+        for(let d of [{dx:-1,dy:0},{dx:1,dy:0},{dx:0,dy:-1},{dx:0,dy:1}]){
+          let nx=x+d.dx,ny=y+d.dy;
+          if(nx>=0&&nx<mapW&&ny>=0&&ny<mapH){
+            if(isFloorTile(map[ny*mapW+nx])&&!isInRoom(nx,ny,room)){
+              edges.push({x,y});
+            }
+          }
+        }
+      }
+    }
+  }
+  if(edges.length>0){
+    let e=edges[Math.floor(Math.random()*edges.length)];
+    map[e.y*mapW+e.x]=doorType;
+  }
+}
+
+function isInRoom(x,y,room){
+  return x>=room.x&&x<room.x+room.w&&y>=room.y&&y<room.y+room.h;
+}
+
+function placePickups(lvl){
+  pickups=[];
+  // Keycards
+  let sr=rooms.find(r=>r.type===ROOM_SERVER);
+  let armory=rooms.find(r=>r.type===ROOM_ARMORY);
+  let storage=rooms.find(r=>r.type===ROOM_STORAGE);
+  let patrolRooms=rooms.filter(r=>r.type===ROOM_PATROL);
+  
+  // Blue keycard in a patrol room or storage
+  let bkRoom=patrolRooms.length>0?patrolRooms[0]:(storage||rooms[Math.min(2,rooms.length-1)]);
+  pickups.push({x:bkRoom.cx*T+T/2,y:bkRoom.cy*T+T/2,type:'keycard',subtype:'blue',collected:false});
+  
+  // Red keycard if lvl>=2
+  if(lvl>=2){
+    let rkRoom=patrolRooms.length>1?patrolRooms[1]:(armory||bkRoom);
+    pickups.push({x:rkRoom.cx*T+T/2,y:(rkRoom.cy+1)*T+T/2,type:'keycard',subtype:'red',collected:false});
+  }
+  // Gold keycard if lvl>=3
+  if(lvl>=3){
+    let gkRoom=patrolRooms.length>2?patrolRooms[2]:(storage||bkRoom);
+    pickups.push({x:(gkRoom.cx+1)*T+T/2,y:gkRoom.cy*T+T/2,type:'keycard',subtype:'gold',collected:false});
+  }
+  
+  // Health + armor + ammo in armory
+  if(armory){
+    pickups.push({x:(armory.cx-1)*T+T/2,y:armory.cy*T+T/2,type:'health',amount:40,collected:false});
+    pickups.push({x:(armory.cx+1)*T+T/2,y:armory.cy*T+T/2,type:'armor',amount:30,collected:false});
+    pickups.push({x:armory.cx*T+T/2,y:(armory.cy+1)*T+T/2,type:'ammo',weaponIdx:2,amount:12,collected:false});
+    pickups.push({x:armory.cx*T+T/2,y:(armory.cy-1)*T+T/2,type:'ammo',weaponIdx:3,amount:20,collected:false});
+  }
+  
+  // Scatter pickups in patrol rooms (FIXED: weaponIdx 1-5, not 0)
+  for(let pr of patrolRooms){
+    if(Math.random()<0.6){
+      pickups.push({x:(pr.cx+1)*T+T/2,y:(pr.cy+1)*T+T/2,type:'health',amount:20,collected:false});
+    }
+    if(Math.random()<0.4){
+      let wIdx=1+Math.floor(Math.random()*5);
+      pickups.push({x:(pr.cx-1)*T+T/2,y:(pr.cy-1)*T+T/2,type:'ammo',weaponIdx:wIdx,amount:Math.floor(weapons[wIdx].ammo*0.15),collected:false});
+    }
+  }
+  
+  // Weapon pickups
+  if(storage){
+    pickups.push({x:storage.cx*T+T/2,y:storage.cy*T+T/2,type:'weapon',weaponIdx:1+Math.floor(Math.random()*3),collected:false});
+  }
+  if(patrolRooms.length>2){
+    let wr=patrolRooms[patrolRooms.length-1];
+    pickups.push({x:wr.cx*T+T/2,y:wr.cy*T+T/2,type:'weapon',weaponIdx:3+Math.floor(Math.random()*3),collected:false});
+  }
+}
+
+function placeEnemies(lvl){
+  enemies=[];
+  let diff=DIFF[difficulty];
+  for(let room of rooms){
+    if(room.type===ROOM_START)continue;
+    let count=0;
+    let types=[];
+    switch(room.type){
+      case ROOM_PATROL:
+        count=2+Math.floor(Math.random()*3)+lvl+difficulty;
+        types=[EN_SCOUT,EN_SCOUT,EN_SENTINEL];
+        if(lvl>=2)types.push(EN_HEAVY);
+        if(difficulty>=2)types.push(EN_SENTINEL);
+        break;
+      case ROOM_SERVER:
+        count=3+lvl;
+        types=[EN_SENTINEL,EN_SENTINEL,EN_SCOUT];
+        break;
+      case ROOM_ARMORY:
+        count=2+lvl;
+        types=[EN_SCOUT,EN_HEAVY];
+        break;
+      case ROOM_STORAGE:
+        count=1+lvl;
+        types=[EN_SCOUT,EN_SENTINEL];
+        break;
+      case ROOM_BOSS:
+        count=2+lvl;
+        types=[EN_SCOUT,EN_SENTINEL];
+        // Commander
+        enemies.push(createEnemy(room.cx*T+T/2,room.cy*T+T/2,EN_COMMANDER,diff,room));
+        break;
+      case ROOM_EXIT:
+        count=1;
+        types=[EN_SCOUT];
+        break;
+    }
+    for(let i=0;i<count;i++){
+      let ex=room.x+1+Math.floor(Math.random()*(room.w-2));
+      let ey=room.y+1+Math.floor(Math.random()*(room.h-2));
+      if(isFloorTile(map[ey*mapW+ex])){
+        let type=types[Math.floor(Math.random()*types.length)];
+        enemies.push(createEnemy(ex*T+T/2,ey*T+T/2,type,diff,room));
+      }
+    }
+  }
+}
+
+function createEnemy(x,y,type,diff,room){
+  const stats=[
+    {hp:12,spd:110,dmg:8,size:10,react:0.8,range:30,ranged:false,name:'SCOUT'},
+    {hp:28,spd:70,dmg:12,size:14,react:1.2,range:250,ranged:true,name:'SENTINEL'},
+    {hp:70,spd:40,dmg:20,size:20,react:1.5,range:40,ranged:false,name:'HEAVY'},
+    {hp:400,spd:55,dmg:15,size:24,react:1.0,range:300,ranged:true,name:'COMMANDER'}
+  ];
+  let s=stats[type];
+  let e={
+    x,y,type,room,
+    hp:Math.round(s.hp*diff.hpMul),
+    maxHp:Math.round(s.hp*diff.hpMul),
+    spd:s.spd,
+    dmg:Math.round(s.dmg*diff.dmgMul),
+    size:s.size,
+    react:s.react*diff.reactMul,
+    range:s.range,
+    ranged:s.ranged,
+    name:s.name,
+    alive:true,
+    alert:false,
+    alertTimer:0,
+    attackCD:0,
+    angle:Math.random()*Math.PI*2,
+    patrolAngle:Math.random()*Math.PI*2,
+    patrolTimer:0,
+    hitFlash:0,
+    vx:0,vy:0,
+    walkCycle:Math.random()*Math.PI*2
+  };
+  if(type===EN_HEAVY){
+    e.chargeCD=4+Math.random()*2;
+    e.charging=false;
+    e.chargeAngle=0;
+    e.chargeTimer=0;
+    e.chargeWindup=0;
+  }
+  if(type===EN_SENTINEL){
+    e.windupTimer=0;
+    e.windupTarget=null;
+  }
+  if(type===EN_COMMANDER){
+    e.shieldHp=100;
+    e.maxShield=100;
+    e.spawnCD=5;
+    e.maxSpawnCD=5;
+    e.spawnCount=0;
+    e.teleportCD=8+Math.random()*4;
+  }
+  return e;
+}
+
+// ========== EXPLOSIVE BARRELS ==========
+function placeBarrels(lvl){
+  barrels=[];
+  for(let room of rooms){
+    if(room.type===ROOM_START||room.type===ROOM_EXIT)continue;
+    let count=room.type===ROOM_ARMORY?2:room.type===ROOM_STORAGE?3:Math.random()<0.5?1:0;
+    count+=Math.floor(lvl*0.5);
+    for(let i=0;i<count;i++){
+      let bx=room.x+1+Math.floor(Math.random()*(room.w-2));
+      let by=room.y+1+Math.floor(Math.random()*(room.h-2));
+      if(isFloorTile(map[by*mapW+bx])){
+        barrels.push({x:bx*T+T/2,y:by*T+T/2,hp:15,alive:true,chainDelay:0});
+      }
+    }
+  }
+}
+
+function explodeBarrel(b){
+  if(!b.alive)return;
+  b.alive=false;
+  let radius=80,dmg=60;
+  // Explosion visuals
+  particles.push({x:b.x,y:b.y,life:0.3,maxLife:0.3,type:'flash',radius:40,r:255,g:180,b:50});
+  particles.push({x:b.x,y:b.y,life:0.5,maxLife:0.5,type:'shockwave',radius:0,maxRadius:radius,r:255,g:100,b:0});
+  spawnSparks(b.x,b.y,25,'#f80');
+  spawnSparks(b.x,b.y,15,'#ff4');
+  shakeMag=Math.max(shakeMag,8);
+  chromatic=Math.max(chromatic,0.2);
+  addDecal(b.x,b.y,'scorch',12);
+  for(let i=0;i<3;i++)addDecal(b.x+(Math.random()-0.5)*30,b.y+(Math.random()-0.5)*30,'scorch',5+Math.random()*4);
+  // Smoke particles
+  for(let i=0;i<8;i++){
+    let a=Math.random()*Math.PI*2,spd=20+Math.random()*40;
+    atmParticles.push({x:b.x,y:b.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-10,
+      life:1+Math.random(),maxLife:2,size:8+Math.random()*8,type:'smoke',alpha:0.2});
+  }
+  // Damage enemies
+  for(let e of enemies){
+    if(!e.alive)continue;
+    let dx=e.x-b.x,dy=e.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<radius){damageEnemy(e,dmg*(1-d/radius))}
+  }
+  // Damage player
+  let pdx=player.x-b.x,pdy=player.y-b.y,pd=Math.sqrt(pdx*pdx+pdy*pdy);
+  if(pd<radius&&player.alive)damagePlayer(Math.round(dmg*(1-pd/radius)*0.6),b.x,b.y);
+  // Chain reaction
+  for(let ob of barrels){
+    if(!ob.alive||ob===b)continue;
+    let dx=ob.x-b.x,dy=ob.y-b.y;
+    if(Math.sqrt(dx*dx+dy*dy)<radius*1.2){ob.chainDelay=0.1+Math.random()*0.15;}
+  }
+  addKillFeed('BARREL EXPLODED');
+}
+
+// ========== TOXIC POOLS ==========
+function placeToxicPools(lvl){
+  toxicPools=[];
+  for(let room of rooms){
+    if(room.type===ROOM_START||room.type===ROOM_EXIT)continue;
+    let chance=room.type===ROOM_STORAGE?0.7:room.type===ROOM_BOSS?0.5:0.2;
+    if(Math.random()>chance)continue;
+    let count=room.type===ROOM_STORAGE?2+lvl:1+Math.floor(lvl*0.5);
+    for(let i=0;i<count;i++){
+      let px=room.x+2+Math.floor(Math.random()*(room.w-4));
+      let py=room.y+2+Math.floor(Math.random()*(room.h-4));
+      if(isFloorTile(map[py*mapW+px])){
+        let radius=16+Math.random()*12;
+        toxicPools.push({x:px*T+T/2,y:py*T+T/2,radius,phase:Math.random()*Math.PI*2});
+      }
+    }
+  }
+}
+
+// ========== SECRET ROOM ==========
+function placeSecretRoom(lvl){
+  secretWalls=[];
+  let storage=rooms.find(r=>r.type===ROOM_STORAGE);
+  if(!storage)return;
+  // Try to place a 4x4 secret chamber adjacent to storage
+  let dirs=[{dx:0,dy:1},{dx:0,dy:-1},{dx:1,dy:0},{dx:-1,dy:0}];
+  for(let dir of dirs){
+    let wallX=dir.dx>0?storage.x+storage.w:dir.dx<0?storage.x-1:storage.x+Math.floor(storage.w/2);
+    let wallY=dir.dy>0?storage.y+storage.h:dir.dy<0?storage.y-1:storage.y+Math.floor(storage.h/2);
+    let secX=wallX+dir.dx*2;
+    let secY=wallY+dir.dy*2;
+    // Check if secret room area is all void
+    let canPlace=true;
+    for(let sy=secY-1;sy<=secY+2;sy++){
+      for(let sx=secX-1;sx<=secX+2;sx++){
+        if(sx<1||sx>=mapW-1||sy<1||sy>=mapH-1){canPlace=false;break}
+        if(map[sy*mapW+sx]!==TILE_VOID&&map[sy*mapW+sx]!==TILE_WALL){canPlace=false;break}
+      }
+      if(!canPlace)break;
+    }
+    if(!canPlace)continue;
+    // Carve the secret chamber
+    for(let sy=secY-1;sy<=secY+2;sy++){
+      for(let sx=secX-1;sx<=secX+2;sx++){
+        map[sy*mapW+sx]=TILE_FLOOR4;
+      }
+    }
+    // Build walls around it
+    for(let sy=secY-2;sy<=secY+3;sy++){
+      for(let sx=secX-2;sx<=secX+3;sx++){
+        if(sx<0||sx>=mapW||sy<0||sy>=mapH)continue;
+        if(map[sy*mapW+sx]===TILE_VOID){
+          let adj=false;
+          for(let dy2=-1;dy2<=1;dy2++){
+            for(let dx2=-1;dx2<=1;dx2++){
+              let nx=sx+dx2,ny=sy+dy2;
+              if(nx>=0&&nx<mapW&&ny>=0&&ny<mapH&&isFloorTile(map[ny*mapW+nx]))adj=true;
+            }
+          }
+          if(adj)map[sy*mapW+sx]=TILE_WALL;
+        }
+      }
+    }
+    // Mark the connecting wall as destructible
+    if(wallX>=0&&wallX<mapW&&wallY>=0&&wallY<mapH){
+      map[wallY*mapW+wallX]=TILE_WALL;
+      secretWalls.push({x:wallX,y:wallY,hp:30,maxHp:30});
+    }
+    // Also make neighboring wall tile destructible for wider entrance
+    let nwx=wallX+(dir.dy!==0?1:0),nwy=wallY+(dir.dx!==0?1:0);
+    if(nwx>=0&&nwx<mapW&&nwy>=0&&nwy<mapH&&map[nwy*mapW+nwx]===TILE_WALL){
+      secretWalls.push({x:nwx,y:nwy,hp:30,maxHp:30});
+    }
+    // Place special loot in secret room
+    let cx=secX*T+T/2,cy=secY*T+T/2;
+    pickups.push({x:cx,y:cy,type:'weapon',weaponIdx:5,collected:false}); // Railgun
+    pickups.push({x:cx-T,y:cy,type:'health',amount:50,collected:false});
+    pickups.push({x:cx+T,y:cy,type:'armor',amount:50,collected:false});
+    pickups.push({x:cx,y:cy+T,type:'powerup',subtype:'damage',collected:false});
+    break;
+  }
+}
+
+// ========== COLLAPSE WALLS ==========
+function placeCollapseWalls(){
+  collapseWalls=[];
+  // Find thin wall sections (wall tile with floor on opposite sides)
+  let candidates=[];
+  for(let y=2;y<mapH-2;y++){
+    for(let x=2;x<mapW-2;x++){
+      if(map[y*mapW+x]!==TILE_WALL)continue;
+      // Horizontal thin wall: floor above AND below
+      if(isFloorTile(map[(y-1)*mapW+x])&&isFloorTile(map[(y+1)*mapW+x])){
+        candidates.push({x,y,dir:'h'});
+      }
+      // Vertical thin wall: floor left AND right
+      if(isFloorTile(map[y*mapW+x-1])&&isFloorTile(map[y*mapW+x+1])){
+        candidates.push({x,y,dir:'v'});
+      }
+    }
+  }
+  if(candidates.length<3)return;
+  // Pick a cluster of 2-3 adjacent candidates far from player start
+  let sr=rooms.find(r=>r.type===ROOM_START)||rooms[0];
+  candidates.sort((a,b)=>{
+    let da=(a.x-sr.cx)**2+(a.y-sr.cy)**2;
+    let db=(b.x-sr.cx)**2+(b.y-sr.cy)**2;
+    return db-da;
+  });
+  // Pick from top candidates
+  let picked=candidates[Math.floor(Math.random()*Math.min(5,candidates.length))];
+  collapseWalls.push({x:picked.x,y:picked.y});
+  // Find adjacent walls in same direction
+  for(let c of candidates){
+    if(c===picked)continue;
+    let dx=Math.abs(c.x-picked.x),dy=Math.abs(c.y-picked.y);
+    if(dx+dy<=1&&collapseWalls.length<3){
+      collapseWalls.push({x:c.x,y:c.y});
+    }
+  }
+}
+
+// ========== PLAYER INIT ==========
+function initPlayer(){
+  let sr=rooms.find(r=>r.type===ROOM_START)||rooms[0];
+  player={
+    x:sr.cx*T+T/2,
+    y:sr.cy*T+T/2,
+    angle:0,
+    hp:100,maxHp:100,
+    armor:0,maxArmor:100,
+    stamina:100,maxStamina:100,
+    spd:150,
+    sprintMul:1.8,
+    curWeapon:0,
+    ammo:[Infinity,0,0,0,0,0],
+    weaponCD:0,
+    keycards:{blue:false,red:false,gold:false},
+    size:12,
+    alive:true,
+    invuln:1.5 // brief spawn invulnerability
+  };
+}
+
+// ========== COLLISION ==========
+function tileAt(px,py){
+  let tx=Math.floor(px/T),ty=Math.floor(py/T);
+  if(tx<0||tx>=mapW||ty<0||ty>=mapH)return TILE_VOID;
+  return map[ty*mapW+tx];
+}
+
+function canWalk(px,py,size){
+  let r=size||5;
+  let corners=[
+    {x:px-r,y:py-r},{x:px+r,y:py-r},
+    {x:px-r,y:py+r},{x:px+r,y:py+r}
+  ];
+  for(let c of corners){
+    let t=tileAt(c.x,c.y);
+    if(!isWalkable(t)&&!isDoor(t))return false;
+    if(isDoor(t)){
+      // check if player has keycard
+      if(t===TILE_DOOR_B&&!player.keycards.blue){if(lockedDoorTimer<=0){lockedDoorMsg='REQUIRES BLUE KEYCARD';lockedDoorTimer=1.5;}return false}
+      if(t===TILE_DOOR_R&&!player.keycards.red){if(lockedDoorTimer<=0){lockedDoorMsg='REQUIRES RED KEYCARD';lockedDoorTimer=1.5;}return false}
+      if(t===TILE_DOOR_G&&!player.keycards.gold){if(lockedDoorTimer<=0){lockedDoorMsg='REQUIRES GOLD KEYCARD';lockedDoorTimer=1.5;}return false}
+      // open door
+      let tx=Math.floor(c.x/T),ty=Math.floor(c.y/T);
+      let doorColor=t===TILE_DOOR_B?'#44f':t===TILE_DOOR_R?'#f44':'#fd0';
+      let doorName=t===TILE_DOOR_B?'BLUE':t===TILE_DOOR_R?'RED':'GOLD';
+      map[ty*mapW+tx]=TILE_FLOOR;
+      spawnSparks(tx*T+T/2,ty*T+T/2,12,doorColor);
+      addKillFeed(doorName+' DOOR UNLOCKED');
+      shakeMag=Math.max(shakeMag,2);
+    }
+  }
+  return true;
+}
+
+function enemyBlocked(x,y,sz){
+  let r=sz*0.4;
+  let cs=[{x:x-r,y:y-r},{x:x+r,y:y-r},{x:x-r,y:y+r},{x:x+r,y:y+r}];
+  for(let c of cs){let t=tileAt(c.x,c.y);if(t===TILE_WALL||t===TILE_VOID||isDoor(t))return true}
+  return false;
+}
+
+function lineOfSight(x1,y1,x2,y2){
+  let dx=x2-x1,dy=y2-y1;
+  let dist=Math.sqrt(dx*dx+dy*dy);
+  let steps=Math.ceil(dist/8);
+  for(let i=0;i<=steps;i++){
+    let t=i/steps;
+    let x=x1+dx*t,y=y1+dy*t;
+    let tile=tileAt(x,y);
+    if(tile===TILE_WALL||tile===TILE_VOID)return false;
+    if(isDoor(tile))return false;
+  }
+  return true;
+}
+
+// ========== SHOOTING ==========
+function playerShoot(){
+  let w=weapons[player.curWeapon];
+  if(player.weaponCD>0)return;
+  if(w.ammo!==Infinity&&player.ammo[player.curWeapon]<=0){
+    // Auto-switch to pistol when trying to fire empty weapon
+    if(player.curWeapon!==0){player.curWeapon=0;addKillFeed('NO AMMO - PISTOL');}
+    return;
+  }
+  
+  player.weaponCD=w.rate;
+  stats.shotsFired+=w.pellets;
+  if(w.ammo!==Infinity){
+    player.ammo[player.curWeapon]--;
+  }
+
+  let angle=player.angle;
+  
+  if(w.type==='rail'){
+    fireRail(player.x,player.y,angle,w);
+    shakeMag=Math.max(shakeMag,4);
+    // Railgun is very loud - alert enemies in huge radius
+    for(let e of enemies){
+      if(!e.alive||e.alert)continue;
+      let ndx=e.x-player.x,ndy=e.y-player.y;
+      if(Math.sqrt(ndx*ndx+ndy*ndy)<500){e.alert=true;e.alertTimer=8+Math.random()*3;}
+    }
+    return;
+  }
+  
+  for(let p=0;p<w.pellets;p++){
+    let a=angle+(Math.random()-0.5)*w.spread*2;
+    let proj=projPool.get();
+    proj.x=player.x+Math.cos(a)*15;
+    proj.y=player.y+Math.sin(a)*15;
+    proj.vx=Math.cos(a)*w.projSpd;
+    proj.vy=Math.sin(a)*w.projSpd;
+    proj.life=w.projLife;
+    proj.maxLife=w.projLife;
+    proj.dmg=w.dmg*(powerUp.type==='damage'?2:1);
+    proj.friendly=true;
+    proj.type=w.type;
+    proj.color=powerUp.type==='damage'?'#f4f':w.color;
+    proj.trail=[];
+    proj.pierce=w.pierce;
+    proj.splashR=w.splash||0;
+  }
+  
+  // Muzzle flash
+  let mfx=player.x+Math.cos(player.angle)*(player.size+8);
+  let mfy=player.y+Math.sin(player.angle)*(player.size+8);
+  particles.push({x:mfx,y:mfy,life:0.06,maxLife:0.06,type:'flash',radius:w.pellets>1?20:12,r:255,g:240,b:180});
+  spawnSparks(mfx,mfy,w.pellets>1?4:2,w.color);
+
+  // Gunshot noise alerts nearby enemies (weapon-specific radius)
+  let noiseR=w.type==='flame'?80:w.pellets>1?350:w.type==='rail'?500:w.type==='plasma'?250:200;
+  for(let e of enemies){
+    if(!e.alive||e.alert)continue;
+    let ndx=e.x-player.x,ndy=e.y-player.y;
+    if(Math.sqrt(ndx*ndx+ndy*ndy)<noiseR){
+      e.alert=true;
+      e.alertTimer=6+Math.random()*3;
+    }
+  }
+
+  // Recoil shake
+  shakeMag=Math.max(shakeMag,w.pellets>1?3:1.5);
+}
+
+function fireRail(ox,oy,angle,w){
+  let dx=Math.cos(angle),dy=Math.sin(angle);
+  let hitEnts=[];
+  for(let d=0;d<w.range;d+=4){
+    let x=ox+dx*d,y=oy+dy*d;
+    let tile=tileAt(x,y);
+    if(tile===TILE_WALL||tile===TILE_VOID){
+      addDecal(x,y,'scorch',4,'rgba(200,200,255,0.5)');
+      spawnSparks(x,y,5,'#fff');
+      break;
+    }
+    for(let e of enemies){
+      if(!e.alive)continue;
+      let ex=e.x-x,ey=e.y-y;
+      if(Math.sqrt(ex*ex+ey*ey)<e.size&&!hitEnts.includes(e)){
+        hitEnts.push(e);
+        damageEnemy(e,w.dmg*(powerUp.type==='damage'?2:1));
+      }
+    }
+    for(let b of barrels){
+      if(!b.alive)continue;
+      let bx=b.x-x,by=b.y-y;
+      if(Math.sqrt(bx*bx+by*by)<14){b.hp-=w.dmg*(powerUp.type==='damage'?2:1);if(b.hp<=0)explodeBarrel(b)}
+    }
+  }
+  // Visual rail trail
+  particles.push({x:ox,y:oy,vx:dx,vy:dy,life:0.2,maxLife:0.2,type:'rail',range:w.range,color:'#fff'});
+}
+
+function enemyShoot(e){
+  let angle=Math.atan2(player.y-e.y,player.x-e.x);
+  let proj=projPool.get();
+  let spread=(Math.random()-0.5)*0.1;
+  let muzzleX=e.x+Math.cos(angle)*e.size;
+  let muzzleY=e.y+Math.sin(angle)*e.size;
+  proj.x=muzzleX;
+  proj.y=muzzleY;
+  let spd=e.type===EN_COMMANDER?350:300;
+  proj.vx=Math.cos(angle+spread)*spd;
+  proj.vy=Math.sin(angle+spread)*spd;
+  proj.life=0.8;
+  proj.maxLife=0.8;
+  proj.dmg=e.dmg;
+  proj.friendly=false;
+  proj.type='enemy';
+  proj.color=e.type===EN_COMMANDER?'#a4f':'#f44';
+  proj.trail=[];
+  proj.pierce=false;
+  proj.splashR=0;
+  // Enemy muzzle flash
+  particles.push({x:muzzleX,y:muzzleY,life:0.05,maxLife:0.05,type:'flash',radius:8,r:255,g:100,b:80});
+}
+
+// ========== DAMAGE ==========
+function damageEnemy(e,dmg){
+  if(!e.alive)return;
+  let actualDmg=dmg;
+  if(e.type===EN_COMMANDER&&e.shieldHp>0){
+    let shieldDmg=Math.min(e.shieldHp,dmg);
+    e.shieldHp-=shieldDmg;
+    actualDmg=dmg-shieldDmg;
+    if(shieldDmg>0)spawnSparks(e.x,e.y,3,'#a4f');
+  }
+  e.hp-=actualDmg;
+  e.hitFlash=0.1;
+  stats.shotsHit++;
+  stats.dmgDealt+=actualDmg;
+  e.alert=true;
+  e.alertTimer=10;
+  addDmgNum(e.x,e.y-e.size,actualDmg,actualDmg>20);
+  // Scout dodge on hit (with cooldown to prevent glitchy rapid dodges)
+  if(e.type===EN_SCOUT&&e.alive&&Math.random()<0.5&&(!e.dodgeCD||e.dodgeCD<=0)){
+    let dodgeAngle=Math.atan2(player.y-e.y,player.x-e.x)+Math.PI/2*(Math.random()>0.5?1:-1);
+    let nx=e.x+Math.cos(dodgeAngle)*20,ny=e.y+Math.sin(dodgeAngle)*20;
+    if(isWalkable(tileAt(nx,ny))){e.x=nx;e.y=ny;e.dodgeCD=0.3;}
+  }
+  
+  // Alert nearby
+  for(let other of enemies){
+    if(other===e||!other.alive)continue;
+    let dx=other.x-e.x,dy=other.y-e.y;
+    if(Math.sqrt(dx*dx+dy*dy)<200){other.alert=true;other.alertTimer=8}
+  }
+  
+  if(e.hp<=0)killEnemy(e);
+}
+
+function killEnemy(e){
+  e.alive=false;
+  levelKills++;
+  totalKills++;
+  // Create corpse debris at death position
+  let corpseTint=e.type===EN_SCOUT?'#556677':e.type===EN_SENTINEL?'#443333':e.type===EN_HEAVY?'#443320':'#332244';
+  corpses.push({x:e.x,y:e.y,type:e.type,size:e.size,angle:Math.random()*Math.PI*2,
+    life:15,maxLife:15,tint:corpseTint,chunks:[]});
+  let c=corpses[corpses.length-1];
+  for(let i=0;i<3+e.size/5;i++){
+    c.chunks.push({ox:(Math.random()-0.5)*e.size*1.2,oy:(Math.random()-0.5)*e.size*1.2,
+      w:2+Math.random()*4,h:2+Math.random()*3,a:Math.random()*Math.PI*2});
+  }
+  if(corpses.length>30)corpses.shift();
+
+  // Kill streak
+  if(killStreakTimer>0)killStreak++;
+  else killStreak=1;
+  killStreakTimer=2;
+  stats.bestStreak=Math.max(stats.bestStreak,killStreak);
+  if(killStreak===2)addKillFeed('DOUBLE KILL');
+  else if(killStreak===3)addKillFeed('TRIPLE KILL');
+  else if(killStreak===5){addKillFeed('KILLING SPREE');chromatic=0.2;shakeMag=Math.max(shakeMag,6);}
+  else if(killStreak===8){addKillFeed('RAMPAGE');chromatic=0.3;shakeMag=Math.max(shakeMag,8);}
+  else if(killStreak>=10&&killStreak%5===0){addKillFeed('UNSTOPPABLE x'+killStreak);chromatic=0.4;}
+  else addKillFeed(e.name+' DESTROYED');
+  
+  // Death explosion
+  let sparkCount=e.type===EN_COMMANDER?80:30+e.size;
+  for(let i=0;i<sparkCount;i++){
+    let a=Math.random()*Math.PI*2;
+    let spd=50+Math.random()*200;
+    let p=particlePool.get();
+    p.x=e.x;p.y=e.y;
+    p.vx=Math.cos(a)*spd;p.vy=Math.sin(a)*spd;
+    p.life=0.3+Math.random()*0.5;p.maxLife=p.life;
+    let colors=[[255,200,50],[255,150,0],[255,255,200]];
+    let c=colors[Math.floor(Math.random()*3)];
+    p.r=c[0];p.g=c[1];p.b=c[2];
+    p.size=1+Math.random()*3;p.grav=true;p.type='spark';
+  }
+  // Metal chunks
+  let chunkCount=e.type===EN_COMMANDER?20:10;
+  for(let i=0;i<chunkCount;i++){
+    let a=Math.random()*Math.PI*2;
+    let spd=30+Math.random()*120;
+    let p=particlePool.get();
+    p.x=e.x;p.y=e.y;
+    p.vx=Math.cos(a)*spd;p.vy=Math.sin(a)*spd;
+    p.life=0.5+Math.random()*0.5;p.maxLife=p.life;
+    p.r=80;p.g=90;p.b=100;
+    p.size=2+Math.random()*3;p.grav=true;p.type='chunk';
+  }
+  // Flash
+  particles.push({x:e.x,y:e.y,life:0.15,maxLife:0.15,type:'flash',radius:e.size*3,r:255,g:220,b:150});
+  
+  // Decals
+  for(let i=0;i<3+Math.floor(Math.random()*3);i++){
+    addDecal(e.x+(Math.random()-0.5)*20,e.y+(Math.random()-0.5)*20,
+      Math.random()>0.5?'oil':'scorch',3+Math.random()*5);
+  }
+  
+  // Screen shake
+  shakeMag=Math.max(shakeMag,e.type===EN_COMMANDER?12:e.size*0.4);
+  chromatic=Math.max(chromatic,0.1);
+  
+  // Enemy loot drops (30% chance)
+  if(Math.random()<0.3){
+    let lootType=e.type===EN_HEAVY?'health':e.type===EN_SENTINEL?'ammo':Math.random()<0.5?'health':'ammo';
+    if(lootType==='health'){
+      pickups.push({x:e.x+(Math.random()-0.5)*10,y:e.y+(Math.random()-0.5)*10,
+        type:'health',amount:e.type===EN_HEAVY?25:10,collected:false});
+    } else {
+      let wIdx=1+Math.floor(Math.random()*5);
+      pickups.push({x:e.x+(Math.random()-0.5)*10,y:e.y+(Math.random()-0.5)*10,
+        type:'ammo',weaponIdx:wIdx,amount:Math.floor(weapons[wIdx].ammo*0.08),collected:false});
+    }
+  }
+  // Commander always drops big loot
+  if(e.type===EN_COMMANDER){
+    pickups.push({x:e.x-15,y:e.y,type:'health',amount:50,collected:false});
+    pickups.push({x:e.x+15,y:e.y,type:'armor',amount:40,collected:false});
+    let wIdx=3+Math.floor(Math.random()*3);
+    pickups.push({x:e.x,y:e.y+15,type:'weapon',weaponIdx:wIdx,collected:false});
+  }
+
+  // Mini-boss spawn every 15 kills
+  if(totalKills>=miniBossThreshold){
+    miniBossThreshold+=15;
+    // Spawn a Rogue Heavy near a random room (not start)
+    let spawnRooms=rooms.filter(r=>r.type!==ROOM_START&&r.type!==ROOM_EXIT);
+    if(spawnRooms.length>0){
+      let sr=spawnRooms[Math.floor(Math.random()*spawnRooms.length)];
+      let rh=createEnemy(sr.cx*T+T/2,sr.cy*T+T/2,EN_HEAVY,DIFF[difficulty],sr);
+      rh.hp=Math.round(rh.maxHp*2.5);rh.maxHp=rh.hp;
+      rh.dmg=Math.round(rh.dmg*1.5);
+      rh.size=Math.round(rh.size*1.3);
+      rh.name='ROGUE HEAVY';
+      rh.rogue=true;
+      rh.alert=true;rh.alertTimer=30;
+      enemies.push(rh);
+      addKillFeed('WARNING: ROGUE HEAVY DEPLOYED');
+      particles.push({x:sr.cx*T+T/2,y:sr.cy*T+T/2,life:0.4,maxLife:0.4,type:'shockwave',radius:0,maxRadius:100,r:255,g:136,b:0});
+    }
+  }
+
+  // Commander death: shockwave + stun scouts
+  if(e.type===EN_COMMANDER){
+    particles.push({x:e.x,y:e.y,life:0.5,maxLife:0.5,type:'shockwave',radius:0,maxRadius:200,r:170,g:68,b:255});
+    for(let other of enemies){
+      if(!other.alive||other===e)continue;
+      let dx=other.x-e.x,dy=other.y-e.y;
+      if(Math.sqrt(dx*dx+dy*dy)<200){other.alertTimer=-2;}
+    }
+  }
+}
+
+function damagePlayer(dmg,srcX,srcY){
+  if(player.invuln>0||!player.alive)return;
+  let actual=dmg;
+  if(player.armor>0){
+    let absorbed=Math.min(player.armor,dmg*0.6);
+    player.armor-=absorbed;
+    actual=dmg-absorbed;
+  }
+  player.hp-=actual;
+  stats.dmgTaken+=actual;
+  dmgFlash=0.3;
+  chromatic=0.15;
+  shakeMag=Math.max(shakeMag,3);
+  player.invuln=0.1;
+  // Damage direction indicator
+  if(srcX!==undefined&&srcY!==undefined){
+    lastHitAngle=Math.atan2(srcY-player.y,srcX-player.x);
+    lastHitTimer=0.8;
+  } else {lastHitTimer=0.5;}
+  if(player.hp<=0){
+    player.hp=0;
+    player.alive=false;
+    gameOver();
+  }
+}
+
+function spawnSparks(x,y,count,color){
+  for(let i=0;i<count;i++){
+    let a=Math.random()*Math.PI*2;
+    let spd=40+Math.random()*100;
+    let p=particlePool.get();
+    p.x=x;p.y=y;
+    p.vx=Math.cos(a)*spd;p.vy=Math.sin(a)*spd;
+    p.life=0.2+Math.random()*0.3;p.maxLife=p.life;
+    let c=hexToRgb(color||'#ff0');
+    p.r=c.r;p.g=c.g;p.b=c.b;
+    p.size=1+Math.random()*2;p.grav=false;p.type='spark';
+  }
+}
+
+function hexToRgb(hex){
+  if(hex.length===4){
+    let r=parseInt(hex[1]+hex[1],16);
+    let g=parseInt(hex[2]+hex[2],16);
+    let b=parseInt(hex[3]+hex[3],16);
+    return {r,g,b};
+  }
+  let r=parseInt(hex.slice(1,3),16)||255;
+  let g=parseInt(hex.slice(3,5),16)||200;
+  let b=parseInt(hex.slice(5,7),16)||0;
+  return {r,g,b};
+}
+
+// ========== GAME FLOW ==========
+function setDiff(d){
+  difficulty=d;
+  document.querySelectorAll('.diff-row .btn').forEach((b,i)=>{
+    b.classList.toggle('sel',i===d);
+  });
+}
+
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+  let el=document.getElementById(id);
+  if(el)el.classList.add('show');
+  let ov=document.getElementById('overlay');
+  ov.classList.toggle('active',id!==null&&id!=='none');
+}
+
+function startGame(){
+  state=ST_PLAY;
+  level=1;
+  totalKills=0;
+  totalTime=0;
+  showPanel('none');
+  initLevel();
+}
+
+function initLevel(){
+  levelKills=0;
+  killStreak=0;killStreakTimer=0;
+  countdownActive=false;
+  countdownTime=0;
+  terminalHacked=false;
+  hackProgress=0;
+  exitOpen=false;
+  particles=[];
+  projectiles=[];
+  damageNums=[];
+  killFeed=[];
+  atmParticles=[];
+  barrels=[];
+  toxicPools=[];
+  flickerTimer=30+Math.random()*30;
+  flickering=false;flickerDuration=0;
+  lastRoom=null;roomAlert='';roomAlertTimer=0;
+  if(level===1)stats={shotsFired:0,shotsHit:0,dmgDealt:0,dmgTaken:0,bestStreak:0};
+  airdrops=[];
+  airdropTimer=45+Math.random()*30;
+  powerUp={type:null,timer:0};
+  secretWalls=[];
+  collapseTimer=180;
+  collapseTriggered=false;
+  collapseWalls=[];
+  alarmActive=false;alarmTimer=0;
+  miniBossThreshold=15;
+  lastHitAngle=0;lastHitTimer=0;
+  toxicDmgAccum=0;
+  lockedDoorMsg='';lockedDoorTimer=0;
+  corpses=[];
+  particlePool.clear();
+  projPool.clear();
+  bossInView=null;
+  
+  generateLevel(level);
+  initPlayer();
+  
+  // Give starting ammo based on level
+  if(level>=2){player.ammo[1]=100;player.ammo[2]=12}
+  if(level>=3){player.ammo[3]=30;player.ammo[4]=80}
+}
+
+function nextLevel(){
+  level++;
+  if(level>3){
+    victory();
+    return;
+  }
+  showPanel('none');
+  state=ST_PLAY;
+  initLevel();
+}
+
+function pauseGame(){
+  if(state!==ST_PLAY)return;
+  state=ST_PAUSE;
+  showPanel('pausePanel');
+}
+
+function resumeGame(){
+  state=ST_PLAY;
+  showPanel('none');
+}
+
+function gameOver(){
+  state=ST_DEAD;
+  let ds=document.getElementById('deathStats');
+  let mins=Math.floor(totalTime/60);
+  let secs=Math.floor(totalTime%60);
+  let deathCause=countdownActive&&countdownTime<=0?'Time expired':'Destroyed by androids';
+  let accuracy=stats.shotsFired>0?Math.round(stats.shotsHit/stats.shotsFired*100):0;
+  ds.innerHTML=`<p class="stat-line" style="color:#f44">${deathCause}</p>
+    <p class="stat-line">Kills: <span>${totalKills}</span></p>
+    <p class="stat-line">Sector: <span>${level}/3</span></p>
+    <p class="stat-line">Time survived: <span>${mins}:${secs.toString().padStart(2,'0')}</span></p>
+    <p class="stat-line">Accuracy: <span>${accuracy}%</span> | Best Streak: <span>${stats.bestStreak}</span></p>
+    <p class="stat-line">Damage Dealt: <span>${Math.round(stats.dmgDealt)}</span> | Taken: <span>${Math.round(stats.dmgTaken)}</span></p>
+    <p class="stat-line">Difficulty: <span>${DIFF[difficulty].name}</span></p>`;
+  showPanel('deathPanel');
+}
+
+function winLevel(){
+  state=ST_WIN;
+  let ws=document.getElementById('winStats');
+  let exploredPct=Math.round(explored.filter(Boolean).length/explored.length*100);
+  let hpPct=Math.round(player.hp/player.maxHp*100);
+  ws.innerHTML=`<p class="stat-line">Kills this level: <span>${levelKills}</span></p>
+    <p class="stat-line">Total kills: <span>${totalKills}</span></p>
+    <p class="stat-line">HP remaining: <span style="color:${hpPct>50?'#0f0':hpPct>25?'#fa0':'#f00'}">${hpPct}%</span></p>
+    <p class="stat-line">Explored: <span>${exploredPct}%</span></p>
+    <p class="stat-line">Difficulty: <span>${DIFF[difficulty].name}</span></p>`;
+  document.getElementById('winMsg').textContent=level>=3?'All sectors cleared!':'Proceeding to next sector...';
+  showPanel('winPanel');
+}
+
+function victory(){
+  state=ST_VICTORY;
+  let vs=document.getElementById('victoryStats');
+  let mins=Math.floor(totalTime/60);
+  let secs=Math.floor(totalTime%60);
+  let rating=totalKills>40?'S':totalKills>30?'A':totalKills>20?'B':totalKills>10?'C':'D';
+  if(totalTime<180&&totalKills>20)rating='S+';
+  let vAccuracy=stats.shotsFired>0?Math.round(stats.shotsHit/stats.shotsFired*100):0;
+  vs.innerHTML=`<p class="stat-line">Total kills: <span>${totalKills}</span></p>
+    <p class="stat-line">Total time: <span>${mins}:${secs.toString().padStart(2,'0')}</span></p>
+    <p class="stat-line">Accuracy: <span>${vAccuracy}%</span> | Best Streak: <span>${stats.bestStreak}</span></p>
+    <p class="stat-line">Damage Dealt: <span>${Math.round(stats.dmgDealt)}</span> | Taken: <span>${Math.round(stats.dmgTaken)}</span></p>
+    <p class="stat-line">Difficulty: <span>${DIFF[difficulty].name}</span></p>
+    <p class="stat-line" style="font-size:24px;margin-top:10px">Rating: <span style="color:#fd0;font-size:28px">${rating}</span></p>`;
+  showPanel('victoryPanel');
+}
+
+function quitToMenu(){
+  state=ST_MENU;
+  showPanel('menuPanel');
+}
+
+// ========== ATMOSPHERIC PARTICLES ==========
+function spawnAtmospheric(){
+  // Dust motes in lit areas
+  if(Math.random()<0.15){
+    atmParticles.push({
+      x:camX+Math.random()*W,y:camY+Math.random()*H,
+      vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8+5,
+      life:3+Math.random()*3,maxLife:6,size:1+Math.random(),
+      type:'dust',alpha:0.15+Math.random()*0.15
+    });
+  }
+  // Sparks from lights
+  if(Math.random()<0.02){
+    let rx=rooms[Math.floor(Math.random()*rooms.length)];
+    atmParticles.push({
+      x:rx.cx*T+Math.random()*rx.w*T,y:rx.y*T,
+      vx:(Math.random()-0.5)*20,vy:20+Math.random()*40,
+      life:0.5+Math.random()*0.5,maxLife:1,size:1.5,
+      type:'atm_spark',alpha:0.8
+    });
+  }
+  // Smoke wisps
+  if(Math.random()<0.03){
+    atmParticles.push({
+      x:camX+Math.random()*W,y:camY+Math.random()*H,
+      vx:(Math.random()-0.5)*5,vy:-3-Math.random()*5,
+      life:2+Math.random()*2,maxLife:4,size:6+Math.random()*6,
+      type:'smoke',alpha:0.06
+    });
+  }
+  // Sparking wires from ceiling (random rooms)
+  if(Math.random()<0.04){
+    let r=rooms[Math.floor(Math.random()*rooms.length)];
+    if(r.type!==ROOM_START){
+      let wx=r.x*T+Math.random()*r.w*T;
+      let wy=r.y*T+2;
+      for(let i=0;i<3;i++){
+        let p3=particlePool.get();
+        p3.x=wx+(Math.random()-0.5)*4;p3.y=wy;
+        p3.vx=(Math.random()-0.5)*30;p3.vy=15+Math.random()*40;
+        p3.life=0.15+Math.random()*0.2;p3.maxLife=p3.life;
+        p3.r=200+Math.random()*55;p3.g=200+Math.random()*55;p3.b=100;
+        p3.size=1;p3.grav=true;p3.type='spark';
+      }
+    }
+  }
+  // Countdown emergency effects + rain
+  if(countdownActive){
+    if(Math.random()<0.3){
+      atmParticles.push({
+        x:camX+Math.random()*W,y:camY+Math.random()*H,
+        vx:(Math.random()-0.5)*40,vy:30+Math.random()*60,
+        life:0.3+Math.random()*0.3,maxLife:0.6,size:1.5,
+        type:'atm_spark',alpha:0.9
+      });
+    }
+    // Screen-space rain during countdown
+    for(let i=0;i<3;i++){
+      atmParticles.push({
+        x:camX+Math.random()*W+100,y:camY-10,
+        vx:-40-Math.random()*30,vy:300+Math.random()*200,
+        life:0.4+Math.random()*0.3,maxLife:0.7,size:1,
+        type:'rain',alpha:0.25+Math.random()*0.15
+      });
+    }
+  }
+  // Cap
+  if(atmParticles.length>150)atmParticles.splice(0,atmParticles.length-150);
+}
+
+
+// ========== UPDATE LOOP ==========
+function update(dt){
+  if(state!==ST_PLAY)return;
+  gameTime+=dt;
+  totalTime+=dt;
+  
+  // Player movement
+  if(player.alive){
+    let mx=0,my=0;
+    if(keys['KeyW']||keys['ArrowUp'])my=-1;
+    if(keys['KeyS']||keys['ArrowDown'])my=1;
+    if(keys['KeyA']||keys['ArrowLeft'])mx=-1;
+    if(keys['KeyD']||keys['ArrowRight'])mx=1;
+    
+    // Normalize
+    if(mx!==0&&my!==0){let l=Math.sqrt(2);mx/=l;my/=l}
+    
+    // Sprint
+    let sprinting=keys['ShiftLeft']||keys['ShiftRight'];
+    let spdMul=1;
+    if(sprinting&&player.stamina>0&&(mx!==0||my!==0)){
+      spdMul=player.sprintMul;
+      player.stamina-=30*dt;
+      if(player.stamina<0)player.stamina=0;
+    } else {
+      player.stamina=Math.min(player.maxStamina,player.stamina+15*dt);
+    }
+    
+    let spd=player.spd*spdMul*(powerUp.type==='speed'?1.5:1)*dt;
+    let nx=player.x+mx*spd;
+    let ny=player.y+my*spd;
+    
+    // Axis-separated collision
+    if(canWalk(nx,player.y,5))player.x=nx;
+    if(canWalk(player.x,ny,5))player.y=ny;
+    
+    // Aim angle
+    let sx=player.x-camX,sy=player.y-camY;
+    player.angle=Math.atan2(mouseY-sy,mouseX-sx);
+    
+    // Weapon cooldown
+    if(player.weaponCD>0)player.weaponCD-=dt;
+    
+    // Shooting
+    let w=weapons[player.curWeapon];
+    if(mouseDown){
+      if(w.auto||player.weaponCD<=0){
+        playerShoot();
+      }
+    }
+    
+    // Interact (E key)
+    if(keys['KeyE']){
+      // Terminal hack
+      if(!terminalHacked){
+        let sr=rooms.find(r=>r.type===ROOM_SERVER);
+        if(sr){
+          let dx=player.x-(sr.cx*T+T/2),dy=player.y-(sr.cy*T+T/2);
+          if(Math.sqrt(dx*dx+dy*dy)<T*1.5){
+            hackProgress+=dt;
+            if(hackProgress>=3){
+              terminalHacked=true;
+              countdownActive=true;
+              countdownTime=DIFF[difficulty].countdowns[level-1]||60;
+              exitOpen=true;
+              addKillFeed('TERMINAL HACKED - EVACUATE!');
+              // Massive enemy spawn during countdown
+              spawnCountdownEnemies();
+            }
+          }
+        }
+      }
+      // Exit
+      if(exitOpen){
+        let er=rooms.find(r=>r.type===ROOM_EXIT);
+        if(er){
+          let dx=player.x-(er.cx*T+T/2),dy=player.y-(er.cy*T+T/2);
+          if(Math.sqrt(dx*dx+dy*dy)<T*1.5){
+            winLevel();
+            return;
+          }
+        }
+      }
+    } else {
+      // Reset hack if not holding E near terminal
+      if(!terminalHacked)hackProgress=Math.max(0,hackProgress-dt*2);
+    }
+    
+    // Pickup collection
+    for(let pk of pickups){
+      if(pk.collected)continue;
+      let dx=player.x-pk.x,dy=player.y-pk.y;
+      if(Math.sqrt(dx*dx+dy*dy)<20){
+        pk.collected=true;
+        switch(pk.type){
+          case 'keycard':
+            player.keycards[pk.subtype]=true;
+            addKillFeed(pk.subtype.toUpperCase()+' KEYCARD ACQUIRED');
+            let kcCol=pk.subtype==='blue'?'#44f':pk.subtype==='red'?'#f44':'#fd0';
+            spawnSparks(pk.x,pk.y,20,kcCol);
+            particles.push({x:pk.x,y:pk.y,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:60,...hexToRgb(kcCol)});
+            shakeMag=Math.max(shakeMag,3);
+            chromatic=0.1;
+            break;
+          case 'health':
+            player.hp=Math.min(player.maxHp,player.hp+pk.amount);
+            particles.push({x:player.x,y:player.y,life:0.15,maxLife:0.15,type:'flash',radius:20,r:50,g:255,b:50});
+            break;
+          case 'armor':
+            player.armor=Math.min(player.maxArmor,player.armor+pk.amount);
+            particles.push({x:player.x,y:player.y,life:0.15,maxLife:0.15,type:'flash',radius:20,r:80,g:130,b:255});
+            break;
+          case 'ammo':
+            player.ammo[pk.weaponIdx]=Math.min(weapons[pk.weaponIdx].ammo,player.ammo[pk.weaponIdx]+pk.amount);
+            particles.push({x:player.x,y:player.y,life:0.1,maxLife:0.1,type:'flash',radius:12,r:255,g:200,b:50});
+            break;
+          case 'weapon':
+            player.ammo[pk.weaponIdx]=weapons[pk.weaponIdx].ammo;
+            player.curWeapon=pk.weaponIdx;
+            addKillFeed(weapons[pk.weaponIdx].name+' ACQUIRED');
+            spawnSparks(pk.x,pk.y,8,'#ff0');
+            particles.push({x:pk.x,y:pk.y,life:0.1,maxLife:0.1,type:'flash',radius:15,r:255,g:255,b:100});
+            break;
+          case 'powerup':
+            powerUp.type=pk.subtype;
+            powerUp.timer=10;
+            let puColors={speed:'#0ff',damage:'#f4f',shield:'#4f4'};
+            let puNames={speed:'SPEED BOOST',damage:'DAMAGE BOOST',shield:'SHIELD REGEN'};
+            addKillFeed(puNames[pk.subtype]+' ACTIVE');
+            spawnSparks(pk.x,pk.y,15,puColors[pk.subtype]);
+            particles.push({x:pk.x,y:pk.y,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:80,...hexToRgb(puColors[pk.subtype])});
+            shakeMag=Math.max(shakeMag,4);
+            chromatic=0.15;
+            break;
+        }
+      }
+    }
+
+    // Airdrop collection
+    for(let ad of airdrops){
+      if(ad.collected||!ad.landed)continue;
+      let dx=player.x-ad.x,dy=player.y-ad.y;
+      if(Math.sqrt(dx*dx+dy*dy)<24){
+        ad.collected=true;
+        player.hp=Math.min(player.maxHp,player.hp+30);
+        player.armor=Math.min(player.maxArmor,player.armor+20);
+        let wIdx=1+Math.floor(Math.random()*5);
+        player.ammo[wIdx]=Math.min(weapons[wIdx].ammo,player.ammo[wIdx]+Math.floor(weapons[wIdx].ammo*0.25));
+        // Random power-up in airdrop
+        let puTypes=['speed','damage','shield'];
+        let puType=puTypes[Math.floor(Math.random()*3)];
+        pickups.push({x:ad.x,y:ad.y,type:'powerup',subtype:puType,collected:false});
+        addKillFeed('SUPPLY CRATE OPENED');
+        spawnSparks(ad.x,ad.y,12,'#fd0');
+        particles.push({x:ad.x,y:ad.y,life:0.2,maxLife:0.2,type:'flash',radius:30,r:255,g:220,b:80});
+        shakeMag=Math.max(shakeMag,3);
+      }
+    }
+    
+    // Invulnerability
+    if(player.invuln>0)player.invuln-=dt;
+
+    // Toxic pool damage to player (accumulate fractional damage)
+    let inToxic=false;
+    for(let tp of toxicPools){
+      let tdx=player.x-tp.x,tdy=player.y-tp.y;
+      if(Math.sqrt(tdx*tdx+tdy*tdy)<tp.radius){
+        inToxic=true;
+        toxicDmgAccum+=5*dt; // 5 DPS
+        if(toxicDmgAccum>=1){
+          let wholeDmg=Math.floor(toxicDmgAccum);
+          toxicDmgAccum-=wholeDmg;
+          damagePlayer(wholeDmg,tp.x,tp.y);
+        }
+        if(Math.random()<0.3){
+          let p=particlePool.get();
+          p.x=player.x+(Math.random()-0.5)*8;p.y=player.y+(Math.random()-0.5)*8;
+          p.vx=(Math.random()-0.5)*15;p.vy=-20-Math.random()*20;
+          p.life=0.4+Math.random()*0.3;p.maxLife=p.life;
+          p.r=50;p.g=255;p.b=50;p.size=1.5;p.grav=false;p.type='spark';
+        }
+      }
+    }
+    if(!inToxic)toxicDmgAccum=0; // reset accumulator when not in toxic
+
+    // Room entry notification
+    let ptx=Math.floor(player.x/T),pty=Math.floor(player.y/T);
+    let curRoom=rooms.find(r=>ptx>=r.x&&ptx<r.x+r.w&&pty>=r.y&&pty<r.y+r.h);
+    if(curRoom&&curRoom!==lastRoom){
+      lastRoom=curRoom;
+      let names=['SPAWN BAY','EXIT TUNNEL','SERVER ROOM','ARMORY','STORAGE','BOSS CHAMBER','SECTOR'];
+      roomAlert=names[curRoom.type];
+      roomAlertTimer=2;
+      // Alarm trigger: entering boss or server room alerts ALL enemies
+      if((curRoom.type===ROOM_BOSS||curRoom.type===ROOM_SERVER)&&!alarmActive){
+        alarmActive=true;
+        alarmTimer=15;
+        addKillFeed('FACILITY ALARM TRIGGERED');
+        shakeMag=Math.max(shakeMag,3);
+        chromatic=0.1;
+        for(let ae of enemies){if(ae.alive){ae.alert=true;ae.alertTimer=15}}
+      }
+    }
+    if(roomAlertTimer>0)roomAlertTimer-=dt;
+
+    // Footstep dust
+    if((mx!==0||my!==0)&&Math.random()<(sprinting?0.3:0.1)){
+      let p=particlePool.get();
+      p.x=player.x+(Math.random()-0.5)*6;
+      p.y=player.y+(Math.random()-0.5)*6;
+      p.vx=(Math.random()-0.5)*15;p.vy=(Math.random()-0.5)*15;
+      p.life=0.3+Math.random()*0.2;p.maxLife=p.life;
+      p.r=120;p.g=115;p.b=100;
+      p.size=1+Math.random();p.grav=false;p.type='spark';
+    }
+  }
+  
+  // Countdown
+  if(countdownActive){
+    countdownTime-=dt;
+    if(countdownTime<=0){
+      countdownTime=0;
+      if(player.alive){
+        player.hp=0;
+        player.alive=false;
+        gameOver();
+      }
+    }
+  }
+  
+  // Airdrop timer
+  airdropTimer-=dt;
+  if(airdropTimer<=0){
+    airdropTimer=50+Math.random()*40;
+    // Pick a random explored floor tile for the drop
+    let dropRoom=rooms[Math.floor(Math.random()*rooms.length)];
+    if(dropRoom.type!==ROOM_START){
+      let dx=dropRoom.cx*T+T/2,dy=dropRoom.cy*T+T/2;
+      airdrops.push({x:dx,y:dy,fallY:dy-400,targetY:dy,landed:false,collected:false,fallSpd:200,life:45});
+      addKillFeed('SUPPLY DROP INCOMING');
+    }
+  }
+  // Update airdrops
+  for(let ad of airdrops){
+    if(!ad.landed){
+      ad.fallY+=ad.fallSpd*dt;
+      if(ad.fallY>=ad.targetY){
+        ad.fallY=ad.targetY;ad.landed=true;
+        shakeMag=Math.max(shakeMag,3);
+        spawnSparks(ad.x,ad.y,10,'#fd0');
+        particles.push({x:ad.x,y:ad.y,life:0.15,maxLife:0.15,type:'flash',radius:25,r:255,g:220,b:80});
+      }
+    } else {
+      ad.life-=dt;
+    }
+  }
+  airdrops=airdrops.filter(a=>a.life>0||!a.landed);
+
+  // Power-up timer + shield regen effect
+  if(powerUp.timer>0){
+    powerUp.timer-=dt;
+    if(powerUp.type==='shield')player.armor=Math.min(player.maxArmor,player.armor+15*dt);
+    if(powerUp.timer<=0){
+      powerUp.type=null;
+      addKillFeed('POWER-UP EXPIRED');
+    }
+  }
+
+  // Toxic pool damage to enemies
+  for(let e of enemies){
+    if(!e.alive)continue;
+    for(let tp of toxicPools){
+      let tdx=e.x-tp.x,tdy=e.y-tp.y;
+      if(Math.sqrt(tdx*tdx+tdy*tdy)<tp.radius){
+        e.hp-=3*dt;
+        if(e.hp<=0&&e.alive)killEnemy(e);
+      }
+    }
+  }
+
+  // Alarm system
+  if(alarmActive){
+    alarmTimer-=dt;
+    // Keep all enemies alert during alarm
+    for(let ae of enemies){if(ae.alive&&!ae.alert){ae.alert=true;ae.alertTimer=alarmTimer}}
+    if(alarmTimer<=0){alarmActive=false;addKillFeed('ALARM DEACTIVATED')}
+  }
+
+  // Structure collapse event (3 min timer)
+  if(!collapseTriggered&&collapseWalls.length>0){
+    collapseTimer-=dt;
+    if(collapseTimer<=0){
+      collapseTriggered=true;
+      for(let cw of collapseWalls){
+        map[cw.y*mapW+cw.x]=TILE_FLOOR;
+        let wx=cw.x*T+T/2,wy=cw.y*T+T/2;
+        particles.push({x:wx,y:wy,life:0.5,maxLife:0.5,type:'shockwave',radius:0,maxRadius:80,r:180,g:140,b:60});
+        spawnSparks(wx,wy,15,'#a85');
+        spawnSparks(wx,wy,8,'#dc8');
+        for(let i=0;i<3;i++)addDecal(wx+(Math.random()-0.5)*20,wy+(Math.random()-0.5)*20,'scorch',4+Math.random()*4);
+        // Rubble debris particles
+        for(let i=0;i<8;i++){
+          let a=Math.random()*Math.PI*2,spd=20+Math.random()*50;
+          let p2=particlePool.get();
+          p2.x=wx;p2.y=wy;p2.vx=Math.cos(a)*spd;p2.vy=Math.sin(a)*spd;
+          p2.life=0.6+Math.random()*0.5;p2.maxLife=p2.life;
+          p2.r=100;p2.g=90;p2.b=70;p2.size=2+Math.random()*3;p2.grav=true;p2.type='chunk';
+        }
+        // Dust cloud
+        for(let i=0;i<4;i++){
+          let a2=Math.random()*Math.PI*2,spd2=10+Math.random()*25;
+          atmParticles.push({x:wx,y:wy,vx:Math.cos(a2)*spd2,vy:Math.sin(a2)*spd2-5,
+            life:1.5+Math.random()*1.5,maxLife:3,size:8+Math.random()*8,type:'smoke',alpha:0.15});
+        }
+      }
+      shakeMag=Math.max(shakeMag,10);
+      chromatic=0.2;
+      addKillFeed('STRUCTURE COLLAPSE - NEW PATH');
+    }
+  }
+
+  // Light flicker event
+  flickerTimer-=dt;
+  if(flickerTimer<=0&&!flickering){
+    flickering=true;
+    flickerDuration=1.5+Math.random()*1.5;
+    addKillFeed('POWER FLUCTUATION');
+    shakeMag=Math.max(shakeMag,2);
+  }
+  if(flickering){
+    flickerDuration-=dt;
+    if(flickerDuration<=0){
+      flickering=false;
+      flickerTimer=30+Math.random()*40;
+    }
+  }
+
+  // Enemy AI
+  for(let e of enemies){
+    if(!e.alive)continue;
+    e.hitFlash=Math.max(0,e.hitFlash-dt);
+    if(e.dodgeCD>0)e.dodgeCD-=dt;
+    e.walkCycle+=dt*6;
+    
+    let dx=player.x-e.x,dy=player.y-e.y;
+    let dist=Math.sqrt(dx*dx+dy*dy);
+    
+    // Alert check
+    if(!e.alert&&dist<250&&lineOfSight(e.x,e.y,player.x,player.y)){
+      e.alert=true;
+      e.alertTimer=10;
+    }
+    if(e.alertTimer>0)e.alertTimer-=dt;
+    if(e.alertTimer<=0&&!countdownActive)e.alert=false;
+    
+    // Countdown makes all enemies alert
+    if(countdownActive)e.alert=true;
+    
+    if(e.alert&&player.alive){
+      // Move toward player
+      let targetAngle=Math.atan2(dy,dx);
+      e.angle=targetAngle;
+      
+      // Movement
+      let moveSpd=e.spd*dt;
+      let wantX=e.x+Math.cos(targetAngle)*moveSpd;
+      let wantY=e.y+Math.sin(targetAngle)*moveSpd;
+      
+      // Heavy charge attack
+      if(e.type===EN_HEAVY&&e.charging){
+        e.chargeTimer-=dt;
+        let cspd=moveSpd*3;
+        wantX=e.x+Math.cos(e.chargeAngle)*cspd;
+        wantY=e.y+Math.sin(e.chargeAngle)*cspd;
+        // Ground trail sparks
+        if(Math.random()<0.5){
+          let p2=particlePool.get();
+          p2.x=e.x+(Math.random()-0.5)*6;p2.y=e.y+(Math.random()-0.5)*6;
+          p2.vx=(Math.random()-0.5)*20;p2.vy=(Math.random()-0.5)*20;
+          p2.life=0.2+Math.random()*0.2;p2.maxLife=p2.life;
+          p2.r=255;p2.g=136;p2.b=0;p2.size=1.5;p2.grav=false;p2.type='spark';
+        }
+        // Hit player during charge
+        if(dist<e.size+player.size+8){
+          damagePlayer(Math.round(e.dmg*1.5),e.x,e.y);
+          e.charging=false;e.chargeCD=5+Math.random()*3;
+          e.attackCD=e.react*2;
+          particles.push({x:e.x,y:e.y,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:60,r:255,g:136,b:0});
+          shakeMag=Math.max(shakeMag,7);
+          spawnSparks(player.x,player.y,10,'#f80');
+          addKillFeed('HEAVY CHARGE IMPACT');
+        }
+        // Wall crash detection: if charge movement is fully blocked, Heavy crashes
+        let chargeBlockedX=tileAt(wantX,e.y)===TILE_WALL||tileAt(wantX,e.y)===TILE_VOID;
+        let chargeBlockedY=tileAt(e.x,wantY)===TILE_WALL||tileAt(e.x,wantY)===TILE_VOID;
+        if(chargeBlockedX&&chargeBlockedY&&e.chargeTimer>0){
+          e.charging=false;e.chargeCD=6+Math.random()*3;
+          e.attackCD=e.react*3; // stunned longer after wall crash
+          // Crash VFX
+          let crashX=e.x+Math.cos(e.chargeAngle)*(e.size+4);
+          let crashY=e.y+Math.sin(e.chargeAngle)*(e.size+4);
+          particles.push({x:crashX,y:crashY,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:50,r:200,g:120,b:40});
+          spawnSparks(crashX,crashY,12,'#fa0');
+          spawnSparks(crashX,crashY,6,'#dc8');
+          addDecal(crashX,crashY,'scorch',4+Math.random()*3);
+          shakeMag=Math.max(shakeMag,6);
+          chromatic=Math.max(chromatic,0.12);
+          addKillFeed('HEAVY WALL CRASH');
+          // Self-damage on crash (10% of max HP)
+          e.hp-=Math.round(e.maxHp*0.1);
+          if(e.hp<=0&&e.alive)killEnemy(e);
+        }
+        if(e.chargeTimer<=0){e.charging=false;e.chargeCD=3+Math.random()*2;}
+      }
+      // Type-specific movement behavior
+      else if(e.type===EN_SCOUT&&dist<120&&dist>25){
+        // Scouts flank: circle strafe toward player
+        let flankDir=(hashR(Math.floor(e.x),Math.floor(e.y),0)>0.5)?1:-1;
+        let flankAngle=targetAngle+Math.PI*0.35*flankDir;
+        wantX=e.x+Math.cos(flankAngle)*moveSpd*1.2;
+        wantY=e.y+Math.sin(flankAngle)*moveSpd*1.2;
+      } else if(e.type===EN_SENTINEL&&dist<100){
+        // Sentinel retreats when player gets too close
+        let retreatAngle=targetAngle+Math.PI;
+        let strafeOff=Math.sin(gameTime*3+e.x)*0.4;
+        wantX=e.x+Math.cos(retreatAngle+strafeOff)*moveSpd*1.3;
+        wantY=e.y+Math.sin(retreatAngle+strafeOff)*moveSpd*1.3;
+      } else if(e.ranged&&dist<e.range*0.6){
+        // Ranged strafe to avoid shots
+        let strafeAngle=targetAngle+Math.PI/2*(Math.sin(gameTime*2+e.x)>0?1:-1);
+        wantX=e.x+Math.cos(strafeAngle)*moveSpd*0.5;
+        wantY=e.y+Math.sin(strafeAngle)*moveSpd*0.5;
+      } else if(dist<e.range*0.3&&!e.ranged){
+        // Melee - get close
+      } else if(dist>e.range*1.5||!e.ranged){
+        // Chase
+      } else {
+        // In range, slow approach
+        wantX=e.x+Math.cos(targetAngle)*moveSpd*0.3;
+        wantY=e.y+Math.sin(targetAngle)*moveSpd*0.3;
+      }
+      
+      // Enemy avoids toxic pools (steer away)
+      for(let tp of toxicPools){
+        let tpDx=wantX-tp.x,tpDy=wantY-tp.y;
+        let tpDist=Math.sqrt(tpDx*tpDx+tpDy*tpDy);
+        if(tpDist<tp.radius*1.5&&tpDist>0){
+          let push=(tp.radius*1.5-tpDist)/tp.radius;
+          wantX+=tpDx/tpDist*moveSpd*push*2;
+          wantY+=tpDy/tpDist*moveSpd*push*2;
+        }
+      }
+      // Collision with walls (bounding box check to prevent large enemies clipping corners)
+      if(!enemyBlocked(wantX,e.y,e.size))e.x=wantX;
+      if(!enemyBlocked(e.x,wantY,e.size))e.y=wantY;
+      
+      // Attack
+      e.attackCD=Math.max(0,e.attackCD-dt);
+      // Heavy charge cooldown ticks independently
+      if(e.type===EN_HEAVY&&!e.charging&&e.chargeCD!==undefined)e.chargeCD=Math.max(0,e.chargeCD-dt);
+      // Sentinel laser windup
+      if(e.type===EN_SENTINEL&&e.windupTimer>0){
+        e.windupTimer-=dt;
+        e.windupTarget={x:player.x,y:player.y};
+        if(e.windupTimer<=0){
+          enemyShoot(e);
+          e.attackCD=e.react;
+          e.windupTarget=null;
+        }
+      } else if(e.attackCD<=0){
+        if(e.type===EN_SENTINEL&&dist<e.range&&lineOfSight(e.x,e.y,player.x,player.y)){
+          // Start windup instead of instant fire
+          e.windupTimer=0.35;
+          e.windupTarget={x:player.x,y:player.y};
+        } else if(e.ranged&&e.type!==EN_SENTINEL&&dist<e.range&&lineOfSight(e.x,e.y,player.x,player.y)){
+          enemyShoot(e);
+          e.attackCD=e.react;
+        } else if(!e.ranged&&dist<e.size+player.size+5){
+          damagePlayer(e.dmg,e.x,e.y);
+          e.attackCD=e.react;
+          // Heavy ground-slam effect
+          if(e.type===EN_HEAVY){
+            particles.push({x:e.x,y:e.y,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:50,r:255,g:136,b:0});
+            shakeMag=Math.max(shakeMag,5);
+            spawnSparks(e.x,e.y,6,'#f80');
+            addDecal(e.x,e.y,'scorch',4+Math.random()*3);
+          }
+        }
+        // Heavy charge initiation (dist 80-300, LOS, not already charging)
+        if(e.type===EN_HEAVY&&!e.charging&&e.chargeCD!==undefined&&!e.chargeWindup){
+          if(e.chargeCD<=0&&dist>80&&dist<300&&lineOfSight(e.x,e.y,player.x,player.y)){
+            // Start charge windup (telegraph before charging)
+            e.chargeWindup=0.4;
+            e.chargeAngle=targetAngle;
+            shakeMag=Math.max(shakeMag,2);
+          }
+        }
+        // Charge windup countdown
+        if(e.type===EN_HEAVY&&e.chargeWindup>0){
+          e.chargeWindup-=dt;
+          e.chargeAngle=Math.atan2(player.y-e.y,player.x-e.x); // Track player during windup
+          if(e.chargeWindup<=0){
+            e.chargeWindup=0;
+            e.charging=true;
+            e.chargeTimer=0.8;
+            addKillFeed('HEAVY CHARGING!');
+            spawnSparks(e.x,e.y,8,'#f80');
+            shakeMag=Math.max(shakeMag,3);
+          }
+        }
+      }
+
+      // Commander behavior
+      if(e.type===EN_COMMANDER){
+        // Slow shield regen
+        if(e.shieldHp<e.maxShield)e.shieldHp=Math.min(e.maxShield,e.shieldHp+3*dt);
+        e.spawnCD=Math.max(0,e.spawnCD-dt);
+        if(e.spawnCD<=0&&e.spawnCount<6){
+          // Spawn scout
+          let sa=Math.random()*Math.PI*2;
+          let sx=e.x+Math.cos(sa)*40,sy=e.y+Math.sin(sa)*40;
+          if(isWalkable(tileAt(sx,sy))){
+            let scout=createEnemy(sx,sy,EN_SCOUT,DIFF[difficulty],e.room);
+            scout.alert=true;
+            scout.alertTimer=10;
+            enemies.push(scout);
+            e.spawnCount++;
+            // Spawn effect
+            spawnSparks(sx,sy,8,'#a4f');
+            addKillFeed('COMMANDER DEPLOYED SCOUT');
+          }
+          e.spawnCD=e.maxSpawnCD;
+        }
+        // Teleport ability (2-phase: telegraph then execute)
+        e.teleportCD=Math.max(0,e.teleportCD-dt);
+        if(e.teleportCD<=0&&dist>100&&dist<400&&!e.tpWarning){
+          // Phase 1: Calculate target and start warning
+          let tpDist=80+Math.random()*40;
+          let tpX=player.x-Math.cos(player.angle)*tpDist;
+          let tpY=player.y-Math.sin(player.angle)*tpDist;
+          if(isWalkable(tileAt(tpX,tpY))&&tpX>T&&tpX<(mapW-1)*T&&tpY>T&&tpY<(mapH-1)*T){
+            e.tpWarning=0.4; // 0.4s telegraph
+            e.tpTarget={x:tpX,y:tpY};
+            // Warning VFX at destination
+            particles.push({x:tpX,y:tpY,life:0.4,maxLife:0.4,type:'shockwave',radius:0,maxRadius:30,r:170,g:68,b:255});
+          } else {e.teleportCD=3;}
+        }
+        if(e.tpWarning>0){
+          e.tpWarning-=dt;
+          if(e.tpWarning<=0&&e.tpTarget){
+            // Phase 2: Execute teleport
+            // Departure VFX
+            particles.push({x:e.x,y:e.y,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:40,r:170,g:68,b:255});
+            spawnSparks(e.x,e.y,10,'#a4f');
+            // Teleport
+            e.x=e.tpTarget.x;e.y=e.tpTarget.y;
+            // Arrival VFX
+            particles.push({x:e.x,y:e.y,life:0.3,maxLife:0.3,type:'shockwave',radius:0,maxRadius:60,r:170,g:68,b:255});
+            spawnSparks(e.x,e.y,12,'#a4f');
+            shakeMag=Math.max(shakeMag,4);
+            addKillFeed('COMMANDER TELEPORTED');
+            e.teleportCD=10+Math.random()*5;
+            e.tpTarget=null;
+          }
+        }
+      }
+    } else {
+      // Patrol
+      e.patrolTimer-=dt;
+      if(e.patrolTimer<=0){
+        e.patrolAngle=Math.random()*Math.PI*2;
+        e.patrolTimer=2+Math.random()*3;
+      }
+      let px=e.x+Math.cos(e.patrolAngle)*e.spd*0.3*dt;
+      let py=e.y+Math.sin(e.patrolAngle)*e.spd*0.3*dt;
+      if(!enemyBlocked(px,py,e.size)){e.x=px;e.y=py}
+    }
+    
+    // Enemy footstep dust (only when moving and alert)
+    if(e.alert&&Math.random()<(e.type===EN_HEAVY?0.15:0.05)){
+      let fd=particlePool.get();
+      fd.x=e.x+(Math.random()-0.5)*e.size;fd.y=e.y+(Math.random()-0.5)*e.size;
+      fd.vx=(Math.random()-0.5)*10;fd.vy=(Math.random()-0.5)*10;
+      fd.life=0.2+Math.random()*0.15;fd.maxLife=fd.life;
+      fd.r=80;fd.g=75;fd.b=65;fd.size=1;fd.grav=false;fd.type='spark';
+    }
+    // Enemy-enemy collision (push apart)
+    for(let other of enemies){
+      if(other===e||!other.alive)continue;
+      let odx=other.x-e.x,ody=other.y-e.y;
+      let od=Math.sqrt(odx*odx+ody*ody);
+      let minD=e.size+other.size;
+      if(od<minD&&od>0){
+        let push=(minD-od)*0.5;
+        let nx2=odx/od,ny2=ody/od;
+        e.x-=nx2*push*0.5;e.y-=ny2*push*0.5;
+        other.x+=nx2*push*0.5;other.y+=ny2*push*0.5;
+      }
+    }
+  }
+  
+  // Projectiles
+  let toRemove=[];
+  projPool.active.forEach(p=>{
+    p.life-=dt;
+    if(p.life<=0){toRemove.push(p);return}
+    
+    // Trail
+    p.trail.push({x:p.x,y:p.y});
+    if(p.trail.length>8)p.trail.shift();
+    
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    
+    // Wall collision
+    let tile=tileAt(p.x,p.y);
+    if(tile===TILE_WALL||tile===TILE_VOID){
+      // Check if hitting a destructible (secret) wall
+      if(tile===TILE_WALL&&p.friendly){
+        let wtx=Math.floor(p.x/T),wty=Math.floor(p.y/T);
+        for(let sw of secretWalls){
+          if(sw.x===wtx&&sw.y===wty&&sw.hp>0){
+            sw.hp-=p.dmg;
+            spawnSparks(p.x,p.y,5,'#fa0');
+            addDmgNum(p.x,p.y-10,Math.round(p.dmg),false);
+            if(sw.hp<=0){
+              // Wall destroyed! Reveal secret room
+              map[wty*mapW+wtx]=TILE_FLOOR;
+              particles.push({x:wtx*T+T/2,y:wty*T+T/2,life:0.4,maxLife:0.4,type:'shockwave',radius:0,maxRadius:60,r:255,g:200,b:50});
+              spawnSparks(wtx*T+T/2,wty*T+T/2,20,'#fa0');
+              spawnSparks(wtx*T+T/2,wty*T+T/2,10,'#ff4');
+              for(let i=0;i<5;i++)addDecal(wtx*T+T/2+(Math.random()-0.5)*20,wty*T+T/2+(Math.random()-0.5)*20,'scorch',3+Math.random()*4);
+              shakeMag=Math.max(shakeMag,6);
+              chromatic=0.15;
+              addKillFeed('SECRET PASSAGE OPENED');
+              // Smoke debris
+              for(let i=0;i<6;i++){
+                let a=Math.random()*Math.PI*2,spd=15+Math.random()*30;
+                atmParticles.push({x:wtx*T+T/2,y:wty*T+T/2,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-8,
+                  life:1+Math.random()*1.5,maxLife:2.5,size:6+Math.random()*6,type:'smoke',alpha:0.15});
+              }
+            }
+            break;
+          }
+        }
+      }
+      let decalType=p.type==='plasma'?'plasma_burn':p.type==='flame'?'scorch':'bullet_hole';
+      let decalSize=p.type==='flame'?3+Math.random()*3:2;
+      addDecal(p.x,p.y,decalType,decalSize,null);
+      spawnSparks(p.x,p.y,p.type==='flame'?5:3,p.color);
+      toRemove.push(p);
+      return;
+    }
+    
+    // Barrel collision
+    for(let b of barrels){
+      if(!b.alive)continue;
+      let bdx=b.x-p.x,bdy=b.y-p.y;
+      if(Math.sqrt(bdx*bdx+bdy*bdy)<14){
+        b.hp-=p.dmg;
+        spawnSparks(p.x,p.y,3,'#f80');
+        if(b.hp<=0)explodeBarrel(b);
+        if(!p.pierce){toRemove.push(p);return}
+      }
+    }
+
+    // Entity collision
+    if(p.friendly){
+      for(let e of enemies){
+        if(!e.alive)continue;
+        let edx=e.x-p.x,edy=e.y-p.y;
+        if(Math.sqrt(edx*edx+edy*edy)<e.size+3){
+          // Splash damage
+          if(p.splashR>0){
+            for(let e2 of enemies){
+              if(!e2.alive)continue;
+              let sd=Math.sqrt((e2.x-p.x)**2+(e2.y-p.y)**2);
+              if(sd<p.splashR){
+                damageEnemy(e2,p.dmg*(1-sd/p.splashR));
+              }
+            }
+            spawnSparks(p.x,p.y,8,p.color);
+          } else {
+            damageEnemy(e,p.dmg);
+          }
+          if(!p.pierce){toRemove.push(p);return}
+        }
+      }
+    } else {
+      // Enemy projectile -> player
+      let pdx=player.x-p.x,pdy=player.y-p.y;
+      if(Math.sqrt(pdx*pdx+pdy*pdy)<player.size){
+        damagePlayer(p.dmg,p.x,p.y);
+        toRemove.push(p);
+        return;
+      }
+    }
+  });
+  for(let p of toRemove)projPool.ret(p);
+  
+  // Particles
+  particlePool.active.forEach(p=>{
+    p.life-=dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    if(p.grav)p.vy+=300*dt;
+  });
+  let deadP=particlePool.active.filter(p=>p.life<=0);
+  for(let p of deadP)particlePool.ret(p);
+  
+  // Special particles (flash, shockwave, rail)
+  particles=particles.filter(p=>{
+    p.life-=dt;
+    if(p.type==='shockwave')p.radius+=(p.maxRadius/p.maxLife)*dt;
+    return p.life>0;
+  });
+  
+  // Barrel chain reactions
+  for(let b of barrels){
+    if(b.alive&&b.chainDelay>0){
+      b.chainDelay-=dt;
+      if(b.chainDelay<=0)explodeBarrel(b);
+    }
+  }
+
+  // Atmospheric
+  spawnAtmospheric();
+  atmParticles=atmParticles.filter(p=>{
+    p.life-=dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    return p.life>0;
+  });
+  
+  // Damage numbers
+  damageNums=damageNums.filter(d=>{
+    d.life-=dt;
+    d.x+=d.vx*dt;
+    d.y+=d.vy*dt;
+    return d.life>0;
+  });
+  
+  // Kill feed
+  killFeed=killFeed.filter(k=>{
+    k.life-=dt;
+    return k.life>0;
+  });
+  
+  // Corpse decay
+  for(let c of corpses)c.life-=dt;
+  corpses=corpses.filter(c=>c.life>0);
+
+  // Damage direction timer
+  if(lastHitTimer>0)lastHitTimer-=dt;
+  if(lockedDoorTimer>0)lockedDoorTimer-=dt;
+
+  // Effects decay
+  dmgFlash=Math.max(0,dmgFlash-dt*2);
+  chromatic=Math.max(0,chromatic-dt*1.5);
+  shakeMag*=Math.max(0,1-dt*8);
+  if(shakeMag<0.1)shakeMag=0;
+  if(killStreakTimer>0){killStreakTimer-=dt;if(killStreakTimer<=0)killStreak=0;}
+  
+  // Camera
+  camX=player.x-W/2;
+  camY=player.y-H/2;
+  
+  // Shake
+  if(shakeMag>0){
+    shakeX=(Math.random()-0.5)*shakeMag*2;
+    shakeY=(Math.random()-0.5)*shakeMag*2;
+  } else {shakeX=0;shakeY=0}
+  
+  // Explore fog
+  let ptx=Math.floor(player.x/T),pty=Math.floor(player.y/T);
+  let exploreR=8;
+  for(let dy=-exploreR;dy<=exploreR;dy++){
+    for(let dx=-exploreR;dx<=exploreR;dx++){
+      let ex=ptx+dx,ey=pty+dy;
+      if(ex>=0&&ex<mapW&&ey>=0&&ey<mapH){
+        if(dx*dx+dy*dy<=exploreR*exploreR)
+          explored[ey*mapW+ex]=true;
+      }
+    }
+  }
+  
+  // Boss in view check (Commander or Rogue Heavy)
+  bossInView=null;
+  for(let e of enemies){
+    if(!e.alive)continue;
+    if(e.type!==EN_COMMANDER&&!e.rogue)continue;
+    let sx=e.x-camX,sy=e.y-camY;
+    if(sx>-50&&sx<W+50&&sy>-50&&sy<H+50){
+      // Prefer Commander over Rogue Heavy if both visible
+      if(!bossInView||e.type===EN_COMMANDER)bossInView=e;
+    }
+  }
+}
+
+function spawnCountdownEnemies(){
+  let diff=DIFF[difficulty];
+  for(let room of rooms){
+    if(room.type===ROOM_START||room.type===ROOM_EXIT)continue;
+    let count=2+Math.floor(Math.random()*3)+difficulty;
+    for(let i=0;i<count;i++){
+      let ex=room.x+1+Math.floor(Math.random()*(room.w-2));
+      let ey=room.y+1+Math.floor(Math.random()*(room.h-2));
+      if(isFloorTile(map[ey*mapW+ex])){
+        let types=[EN_SCOUT,EN_SCOUT,EN_SENTINEL];
+        if(level>=2)types.push(EN_HEAVY);
+        if(difficulty>=2)types.push(EN_SENTINEL,EN_HEAVY);
+        let type=types[Math.floor(Math.random()*types.length)];
+        let e=createEnemy(ex*T+T/2,ey*T+T/2,type,diff,room);
+        e.alert=true;
+        e.alertTimer=999;
+        enemies.push(e);
+      }
+    }
+  }
+}
+
+
+// ========== RENDER ==========
+function render(){
+  ctx.fillStyle='#050608';
+  ctx.fillRect(0,0,W,H);
+  
+  if(state===ST_MENU){
+    renderMenuBg();
+    return;
+  }
+  if(state!==ST_PLAY&&state!==ST_PAUSE)return;
+  
+  ctx.save();
+  ctx.translate(-camX+shakeX,-camY+shakeY);
+  
+  // Viewport bounds
+  let vx1=Math.floor(camX/T)-1;
+  let vy1=Math.floor(camY/T)-1;
+  let vx2=Math.ceil((camX+W)/T)+1;
+  let vy2=Math.ceil((camY+H)/T)+1;
+  vx1=Math.max(0,vx1);vy1=Math.max(0,vy1);
+  vx2=Math.min(mapW-1,vx2);vy2=Math.min(mapH-1,vy2);
+  
+  // Draw floor tiles
+  for(let ty=vy1;ty<=vy2;ty++){
+    for(let tx=vx1;tx<=vx2;tx++){
+      let tile=map[ty*mapW+tx];
+      let sx=tx*T,sy=ty*T;
+      if(isFloorTile(tile)){
+        let variant=0;
+        if(tile===TILE_FLOOR2)variant=1;
+        else if(tile===TILE_FLOOR3)variant=2;
+        else if(tile===TILE_FLOOR4)variant=3;
+        ctx.drawImage(floorTexes[variant],sx,sy);
+        // Floor details
+        let fd=floorDetail[ty*mapW+tx];
+        if(fd){
+          ctx.globalAlpha=0.5;
+          if(fd==='crack'){
+            ctx.strokeStyle='rgba(0,0,0,0.3)';
+            ctx.lineWidth=1;
+            ctx.beginPath();
+            ctx.moveTo(sx+hashR(tx,ty,0)*8,sy+hashR(tx,ty,1)*T);
+            ctx.lineTo(sx+T/2+hashR(tx,ty,2)*8,sy+T/2);
+            ctx.lineTo(sx+T-hashR(tx,ty,3)*8,sy+hashR(tx,ty,4)*T);
+            ctx.stroke();
+          } else if(fd==='cable'){
+            ctx.strokeStyle='rgba(0,80,80,0.3)';
+            ctx.lineWidth=2;
+            ctx.beginPath();
+            ctx.moveTo(sx,sy+T/2);ctx.lineTo(sx+T,sy+T/2);
+            ctx.stroke();
+          } else if(fd==='drain'){
+            ctx.fillStyle='rgba(0,0,0,0.25)';
+            ctx.beginPath();ctx.arc(sx+T/2,sy+T/2,5,0,Math.PI*2);ctx.fill();
+            ctx.strokeStyle='rgba(0,0,0,0.2)';
+            ctx.lineWidth=1;
+            ctx.beginPath();ctx.moveTo(sx+T/2-3,sy+T/2-3);ctx.lineTo(sx+T/2+3,sy+T/2+3);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(sx+T/2+3,sy+T/2-3);ctx.lineTo(sx+T/2-3,sy+T/2+3);ctx.stroke();
+          }
+          ctx.globalAlpha=1;
+        }
+      } else if(tile===TILE_TERMINAL){
+        ctx.drawImage(floorTexes[2],sx,sy);
+        ctx.drawImage(terminalTex,sx,sy);
+        // Terminal glow
+        if(!terminalHacked){
+          ctx.fillStyle=`rgba(0,255,0,${0.05+Math.sin(gameTime*3)*0.03})`;
+          ctx.fillRect(sx,sy,T,T);
+        } else {
+          ctx.fillStyle='rgba(255,0,0,0.05)';
+          ctx.fillRect(sx,sy,T,T);
+        }
+      } else if(tile===TILE_EXIT){
+        ctx.drawImage(floorTexes[0],sx,sy);
+        ctx.drawImage(exitTex,sx,sy);
+        if(exitOpen){
+          ctx.fillStyle=`rgba(0,221,255,${0.05+Math.sin(gameTime*4)*0.03})`;
+          ctx.fillRect(sx,sy,T,T);
+        }
+      } else if(isDoor(tile)){
+        ctx.drawImage(floorTexes[0],sx,sy);
+        if(tile===TILE_DOOR_B)ctx.drawImage(doorTexes.b,sx,sy);
+        else if(tile===TILE_DOOR_R)ctx.drawImage(doorTexes.r,sx,sy);
+        else ctx.drawImage(doorTexes.g,sx,sy);
+      }
+    }
+  }
+  
+  // Draw wall tiles
+  for(let ty=vy1;ty<=vy2;ty++){
+    for(let tx=vx1;tx<=vx2;tx++){
+      let tile=map[ty*mapW+tx];
+      if(tile===TILE_WALL){
+        let sx=tx*T,sy=ty*T;
+        let variant=((tx*7+ty*13)%3);
+        ctx.drawImage(wallTexes[variant],sx,sy);
+      }
+    }
+  }
+  
+  // Destructible wall overlays (cracked appearance)
+  for(let sw of secretWalls){
+    if(sw.hp<=0)continue;
+    let sx=sw.x*T,sy=sw.y*T;
+    let screenX=sx-camX+shakeX,screenY=sy-camY+shakeY;
+    if(screenX<-T||screenX>W+T||screenY<-T||screenY>H+T)continue;
+    // Damage cracks
+    let dmgPct=1-sw.hp/sw.maxHp;
+    ctx.globalAlpha=0.5+dmgPct*0.4;
+    ctx.strokeStyle='#a85';
+    ctx.lineWidth=1+dmgPct;
+    // Draw cracks proportional to damage
+    let numCracks=1+Math.floor(dmgPct*4);
+    for(let i=0;i<numCracks;i++){
+      let cx1=sx+hashR(sw.x,sw.y,i*2)*T;
+      let cy1=sy+hashR(sw.x,sw.y,i*2+1)*T;
+      let cx2=sx+hashR(sw.x,sw.y,i*2+10)*T;
+      let cy2=sy+hashR(sw.x,sw.y,i*2+11)*T;
+      ctx.beginPath();ctx.moveTo(cx1,cy1);ctx.lineTo(cx2,cy2);ctx.stroke();
+    }
+    // Pulsing glow hint when close to player
+    let pdx=player.x-(sx+T/2),pdy=player.y-(sy+T/2);
+    if(Math.sqrt(pdx*pdx+pdy*pdy)<T*4){
+      ctx.globalAlpha=0.08+Math.sin(gameTime*3)*0.04;
+      ctx.fillStyle='#fa0';
+      ctx.fillRect(sx,sy,T,T);
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // 2.5D wall depth - second pass
+  for(let ty=vy1;ty<=vy2;ty++){
+    for(let tx=vx1;tx<=vx2;tx++){
+      let tile=map[ty*mapW+tx];
+      if(tile!==TILE_WALL)continue;
+      let sx=tx*T,sy=ty*T;
+      // Face below
+      if(ty+1<mapH&&isWalkable(map[(ty+1)*mapW+tx])){
+        let grad=ctx.createLinearGradient(sx,sy+T,sx,sy+T+10);
+        grad.addColorStop(0,'rgba(15,17,22,0.9)');
+        grad.addColorStop(1,'rgba(5,5,8,0.95)');
+        ctx.fillStyle=grad;
+        ctx.fillRect(sx,sy+T,T,10);
+      }
+      // Face right
+      if(tx+1<mapW&&isWalkable(map[ty*mapW+tx+1])){
+        let grad=ctx.createLinearGradient(sx+T,sy,sx+T+6,sy);
+        grad.addColorStop(0,'rgba(12,14,18,0.85)');
+        grad.addColorStop(1,'rgba(5,5,8,0.9)');
+        ctx.fillStyle=grad;
+        ctx.fillRect(sx+T,sy,6,T);
+      }
+      // Face left
+      if(tx-1>=0&&isWalkable(map[ty*mapW+tx-1])){
+        let grad=ctx.createLinearGradient(sx,sy,sx-6,sy);
+        grad.addColorStop(0,'rgba(12,14,18,0.85)');
+        grad.addColorStop(1,'rgba(5,5,8,0.9)');
+        ctx.fillStyle=grad;
+        ctx.fillRect(sx-6,sy,6,T);
+      }
+    }
+  }
+  
+  // Enemy corpse debris
+  for(let c of corpses){
+    let sx=c.x-camX+shakeX,sy=c.y-camY+shakeY;
+    if(sx<-30||sx>W+30||sy<-30||sy>H+30)continue;
+    let alpha=Math.min(1,c.life/3)*0.5;
+    ctx.globalAlpha=alpha;
+    // Scattered metal chunks
+    ctx.fillStyle=c.tint;
+    for(let ch of c.chunks){
+      ctx.save();
+      ctx.translate(c.x+ch.ox,c.y+ch.oy);
+      ctx.rotate(ch.a);
+      ctx.fillRect(-ch.w/2,-ch.h/2,ch.w,ch.h);
+      ctx.restore();
+    }
+    // Central wreck mark
+    ctx.fillStyle='rgba(20,25,30,0.4)';
+    ctx.beginPath();ctx.ellipse(c.x,c.y,c.size*0.8,c.size*0.6,c.angle,0,Math.PI*2);ctx.fill();
+    // Oil stain
+    ctx.fillStyle='rgba(15,40,50,0.3)';
+    ctx.beginPath();ctx.ellipse(c.x+2,c.y+3,c.size*0.6,c.size*0.4,c.angle+0.5,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  // Floor decals
+  for(let d of decals){
+    let sx=d.x-camX+shakeX,sy_check=d.y-camY+shakeY;
+    if(sx<-20||sx>W+20||sy_check<-20||sy_check>H+20)continue;
+    ctx.globalAlpha=d.alpha;
+    if(d.type==='oil'){
+      ctx.fillStyle='rgba(20,50,60,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(d.x,d.y,d.size*1.5,d.size,0,0,Math.PI*2);
+      ctx.fill();
+    } else if(d.type==='scorch'){
+      ctx.fillStyle='rgba(30,20,10,0.5)';
+      ctx.beginPath();ctx.arc(d.x,d.y,d.size,0,Math.PI*2);ctx.fill();
+    } else if(d.type==='bullet_hole'){
+      ctx.fillStyle='rgba(10,10,10,0.6)';
+      ctx.beginPath();ctx.arc(d.x,d.y,d.size,0,Math.PI*2);ctx.fill();
+    } else if(d.type==='plasma_burn'){
+      ctx.fillStyle='rgba(20,30,60,0.5)';
+      ctx.beginPath();ctx.arc(d.x,d.y,d.size+1,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+  
+  // Pickups with bob animation
+  for(let pk of pickups){
+    if(pk.collected)continue;
+    let sx=pk.x-camX+shakeX,sy_check=pk.y-camY+shakeY;
+    if(sx<-20||sx>W+20||sy_check<-20||sy_check>H+20)continue;
+    let bob=Math.sin(gameTime*3+pk.x)*3;
+    let py=pk.y+bob;
+    ctx.save();
+    switch(pk.type){
+      case 'keycard':
+        let kc=pk.subtype==='blue'?'#44f':pk.subtype==='red'?'#f44':'#fd0';
+        ctx.fillStyle=kc;
+        ctx.globalAlpha=0.8;
+        ctx.fillRect(pk.x-6,py-4,12,8);
+        ctx.strokeStyle=kc;
+        ctx.lineWidth=1;
+        ctx.strokeRect(pk.x-7,py-5,14,10);
+        // Glow
+        ctx.globalAlpha=0.15+Math.sin(gameTime*4)*0.05;
+        ctx.beginPath();ctx.arc(pk.x,py,12,0,Math.PI*2);ctx.fillStyle=kc;ctx.fill();
+        break;
+      case 'health':
+        ctx.fillStyle='#4f4';
+        ctx.fillRect(pk.x-2,py-5,4,10);
+        ctx.fillRect(pk.x-5,py-2,10,4);
+        break;
+      case 'armor':
+        ctx.fillStyle='#48f';
+        ctx.beginPath();
+        ctx.moveTo(pk.x,py-6);ctx.lineTo(pk.x+6,py-2);ctx.lineTo(pk.x+4,py+5);
+        ctx.lineTo(pk.x,py+7);ctx.lineTo(pk.x-4,py+5);ctx.lineTo(pk.x-6,py-2);ctx.closePath();
+        ctx.fill();
+        break;
+      case 'ammo':
+        ctx.fillStyle='#fa0';
+        ctx.fillRect(pk.x-3,py-5,6,10);
+        ctx.fillStyle='#fc0';
+        ctx.fillRect(pk.x-2,py-4,4,3);
+        break;
+      case 'weapon':
+        ctx.fillStyle='#ff0';
+        ctx.fillRect(pk.x-8,py-2,16,4);
+        ctx.fillRect(pk.x+4,py-4,3,3);
+        ctx.globalAlpha=0.2;
+        ctx.beginPath();ctx.arc(pk.x,py,10,0,Math.PI*2);ctx.fillStyle='#ff0';ctx.fill();
+        break;
+      case 'powerup':
+        let puC=pk.subtype==='speed'?'#0ff':pk.subtype==='damage'?'#f4f':'#4f4';
+        // Rotating star
+        ctx.save();
+        ctx.translate(pk.x,py);
+        ctx.rotate(gameTime*3);
+        ctx.fillStyle=puC;
+        for(let i=0;i<5;i++){
+          let a=(i/5)*Math.PI*2-Math.PI/2;
+          let x2=Math.cos(a)*7,y2=Math.sin(a)*7;
+          if(i===0)ctx.beginPath();
+          i===0?ctx.moveTo(x2,y2):ctx.lineTo(x2,y2);
+          let a2=a+Math.PI/5;
+          ctx.lineTo(Math.cos(a2)*3,Math.sin(a2)*3);
+        }
+        ctx.closePath();ctx.fill();
+        ctx.restore();
+        // Glow pulse
+        ctx.globalAlpha=0.2+Math.sin(gameTime*5)*0.1;
+        ctx.fillStyle=puC;
+        ctx.beginPath();ctx.arc(pk.x,py,14,0,Math.PI*2);ctx.fill();
+        // Label
+        ctx.globalAlpha=0.7;
+        ctx.fillStyle=puC;
+        ctx.font='bold 7px monospace';
+        ctx.textAlign='center';
+        ctx.fillText(pk.subtype==='speed'?'SPD':pk.subtype==='damage'?'DMG':'SHD',pk.x,py+16);
+        ctx.textAlign='left';
+        break;
+    }
+    ctx.restore();
+  }
+  
+  // Explosive barrels
+  for(let b of barrels){
+    if(!b.alive)continue;
+    let sx=b.x-camX+shakeX,sy=b.y-camY+shakeY;
+    if(sx<-20||sx>W+20||sy<-20||sy>H+20)continue;
+    // Barrel body
+    ctx.fillStyle='#553320';
+    ctx.beginPath();ctx.ellipse(b.x,b.y,8,10,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#885530';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(b.x,b.y,8,10,0,0,Math.PI*2);ctx.stroke();
+    // Metal bands
+    ctx.strokeStyle='#666';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(b.x-8,b.y-3);ctx.lineTo(b.x+8,b.y-3);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(b.x-8,b.y+3);ctx.lineTo(b.x+8,b.y+3);ctx.stroke();
+    // Hazard symbol
+    ctx.fillStyle='#f80';
+    ctx.font='bold 8px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('!',b.x,b.y+3);
+    ctx.textAlign='left';
+    // Damage glow when low HP
+    if(b.hp<10){
+      ctx.globalAlpha=0.2+Math.sin(gameTime*10)*0.15;
+      ctx.fillStyle='#f40';
+      ctx.beginPath();ctx.arc(b.x,b.y,14,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Airdrops
+  for(let ad of airdrops){
+    if(ad.collected)continue;
+    let sx=ad.x-camX+shakeX;
+    let drawY=ad.landed?ad.y:ad.fallY;
+    let sy=drawY-camY+shakeY;
+    if(sx<-30||sx>W+30||sy<-30||sy>H+30)continue;
+    // Drop shadow when falling
+    if(!ad.landed){
+      let shadowAlpha=Math.max(0.05,1-(ad.targetY-ad.fallY)/400*0.8);
+      ctx.fillStyle=`rgba(0,0,0,${shadowAlpha*0.3})`;
+      ctx.beginPath();ctx.ellipse(ad.x,ad.targetY,10*shadowAlpha,4*shadowAlpha,0,0,Math.PI*2);ctx.fill();
+    }
+    // Crate body
+    ctx.fillStyle=ad.landed?'#7a6520':'#9a8530';
+    ctx.fillRect(ad.x-10,drawY-10,20,20);
+    ctx.strokeStyle='#fd0';
+    ctx.lineWidth=1;
+    ctx.strokeRect(ad.x-10,drawY-10,20,20);
+    // Cross lines
+    ctx.strokeStyle='#b89020';
+    ctx.beginPath();ctx.moveTo(ad.x-10,drawY-10);ctx.lineTo(ad.x+10,drawY+10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ad.x+10,drawY-10);ctx.lineTo(ad.x-10,drawY+10);ctx.stroke();
+    // Star symbol
+    ctx.fillStyle='#fd0';
+    ctx.font='bold 10px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('*',ad.x,drawY+4);
+    ctx.textAlign='left';
+    // Pulsing glow when landed
+    if(ad.landed){
+      ctx.globalAlpha=0.15+Math.sin(gameTime*4)*0.1;
+      ctx.fillStyle='#fd0';
+      ctx.beginPath();ctx.arc(ad.x,ad.y,18,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    // Parachute when falling
+    if(!ad.landed){
+      ctx.strokeStyle='rgba(255,255,255,0.3)';
+      ctx.lineWidth=0.5;
+      ctx.beginPath();ctx.moveTo(ad.x-10,drawY-10);ctx.lineTo(ad.x-15,drawY-35);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(ad.x+10,drawY-10);ctx.lineTo(ad.x+15,drawY-35);ctx.stroke();
+      ctx.fillStyle='rgba(255,220,80,0.2)';
+      ctx.beginPath();ctx.arc(ad.x,drawY-35,16,Math.PI,Math.PI*2);ctx.fill();
+    }
+  }
+
+  // Toxic pools
+  for(let tp of toxicPools){
+    let sx=tp.x-camX+shakeX,sy=tp.y-camY+shakeY;
+    if(sx<-40||sx>W+40||sy<-40||sy>H+40)continue;
+    // Pool base
+    ctx.globalAlpha=0.25+Math.sin(gameTime*2+tp.phase)*0.05;
+    let tpGrad=ctx.createRadialGradient(tp.x,tp.y,0,tp.x,tp.y,tp.radius);
+    tpGrad.addColorStop(0,'rgba(30,200,30,0.4)');
+    tpGrad.addColorStop(0.7,'rgba(20,150,20,0.2)');
+    tpGrad.addColorStop(1,'rgba(10,80,10,0)');
+    ctx.fillStyle=tpGrad;
+    ctx.beginPath();ctx.arc(tp.x,tp.y,tp.radius,0,Math.PI*2);ctx.fill();
+    // Bubbles
+    ctx.fillStyle='rgba(100,255,100,0.3)';
+    let bx=tp.x+Math.sin(gameTime*3+tp.phase)*tp.radius*0.4;
+    let by=tp.y+Math.cos(gameTime*2.5+tp.phase)*tp.radius*0.3;
+    ctx.beginPath();ctx.arc(bx,by,2+Math.sin(gameTime*5+tp.phase),0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  // Enemies
+  for(let e of enemies){
+    if(!e.alive)continue;
+    let sx=e.x-camX+shakeX,sy_check=e.y-camY+shakeY;
+    if(sx<-50||sx>W+50||sy_check<-50||sy_check>H+50)continue;
+    
+    ctx.save();
+    ctx.translate(e.x,e.y);
+    
+    // Hit flash
+    if(e.hitFlash>0){
+      ctx.globalAlpha=0.5+e.hitFlash*5;
+    }
+    
+    let walkOff=Math.sin(e.walkCycle)*2;
+    
+    switch(e.type){
+      case EN_SCOUT:
+        // Legs
+        ctx.strokeStyle='#556677';
+        ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(-3,e.size*0.3);ctx.lineTo(-4+Math.sin(gameTime*10)*2,e.size+2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(3,e.size*0.3);ctx.lineTo(4-Math.sin(gameTime*10)*2,e.size+2);
+        ctx.stroke();
+        // Body - triangle
+        ctx.fillStyle=e.hitFlash>0?'#fff':'#556677';
+        ctx.beginPath();
+        ctx.moveTo(0,-e.size);
+        ctx.lineTo(-e.size*0.7,e.size*0.5);
+        ctx.lineTo(e.size*0.7,e.size*0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle='#4488ff';
+        ctx.lineWidth=1;
+        ctx.stroke();
+        // LED eyes
+        ctx.fillStyle=e.alert?'#ff4444':'#4488ff';
+        ctx.beginPath();ctx.arc(-3,-2,1.5,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(3,-2,1.5,0,Math.PI*2);ctx.fill();
+        // Antenna
+        ctx.strokeStyle='#889';
+        ctx.lineWidth=0.5;
+        ctx.beginPath();ctx.moveTo(0,-e.size);ctx.lineTo(0,-e.size-5);ctx.stroke();
+        ctx.fillStyle=e.alert?'#ff4':'#4488ff';
+        ctx.globalAlpha=0.6+Math.sin(gameTime*8)*0.4;
+        ctx.beginPath();ctx.arc(0,-e.size-5,1.5,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;
+        break;
+        
+      case EN_SENTINEL:
+        // Body - rectangle
+        ctx.fillStyle=e.hitFlash>0?'#fff':'#443333';
+        ctx.fillRect(-e.size*0.5,-e.size*0.6,e.size,e.size*1.2);
+        ctx.strokeStyle='#ff3344';
+        ctx.lineWidth=1;
+        ctx.strokeRect(-e.size*0.5,-e.size*0.6,e.size,e.size*1.2);
+        // Scanning visor
+        let visorX=-e.size*0.4+Math.abs(Math.sin(gameTime*2))*e.size*0.6;
+        ctx.fillStyle='#ff3344';
+        ctx.globalAlpha=0.8;
+        ctx.fillRect(-e.size*0.4,-e.size*0.2,e.size*0.8,2);
+        ctx.fillStyle='#ff6677';
+        ctx.fillRect(visorX,-e.size*0.25,4,4);
+        ctx.globalAlpha=1;
+        // Shoulder gun
+        let ga=Math.atan2(player.y-e.y,player.x-e.x)-e.angle;
+        ctx.save();
+        ctx.rotate(Math.atan2(player.y-e.y,player.x-e.x));
+        ctx.fillStyle='#665555';
+        ctx.fillRect(0,-2,e.size+4,3);
+        ctx.restore();
+        // Armor plates
+        ctx.fillStyle='rgba(100,50,50,0.3)';
+        ctx.fillRect(-e.size*0.6,-e.size*0.7,3,e.size*1.4);
+        ctx.fillRect(e.size*0.4,-e.size*0.7,3,e.size*1.4);
+        // Laser sight during windup (red beam telegraph before firing)
+        if(e.windupTimer>0&&e.windupTarget){
+          let ldx=e.windupTarget.x-e.x,ldy=e.windupTarget.y-e.y;
+          let lPulse=0.3+Math.sin(gameTime*20)*0.15;
+          ctx.save();
+          ctx.globalAlpha=lPulse*(e.windupTimer/0.35);
+          ctx.strokeStyle='#f33';
+          ctx.lineWidth=1.5;
+          ctx.setLineDash([4,4]);
+          ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(ldx,ldy);ctx.stroke();
+          ctx.setLineDash([]);
+          // Target reticle at impact point
+          ctx.strokeStyle='#f44';
+          ctx.lineWidth=1;
+          ctx.beginPath();ctx.arc(ldx,ldy,6+Math.sin(gameTime*12)*2,0,Math.PI*2);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(ldx-4,ldy);ctx.lineTo(ldx+4,ldy);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(ldx,ldy-4);ctx.lineTo(ldx,ldy+4);ctx.stroke();
+          ctx.restore();
+        }
+        break;
+        
+      case EN_HEAVY:
+        // Charge motion blur (speed lines behind the Heavy when charging)
+        if(e.charging){
+          ctx.save();
+          ctx.rotate(e.chargeAngle);
+          for(let sl=0;sl<4;sl++){
+            let slOff=-e.size-5-sl*8;
+            let slY=(Math.random()-0.5)*e.size*0.8;
+            ctx.strokeStyle=`rgba(255,136,0,${0.3-sl*0.06})`;
+            ctx.lineWidth=1.5;
+            ctx.beginPath();ctx.moveTo(slOff,slY);ctx.lineTo(slOff-6-Math.random()*8,slY);ctx.stroke();
+          }
+          ctx.restore();
+        }
+        // Ground impact
+        if(Math.abs(walkOff)>1.5){
+          ctx.fillStyle=e.rogue?'rgba(200,30,0,0.15)':'rgba(80,60,20,0.15)';
+          ctx.beginPath();ctx.arc(0,e.size*0.5+2,6,0,Math.PI*2);ctx.fill();
+        }
+        // Rogue aura
+        if(e.rogue){
+          let rogueGlow=0.12+Math.sin(gameTime*3)*0.06;
+          ctx.fillStyle=`rgba(255,40,0,${rogueGlow})`;
+          ctx.beginPath();ctx.arc(0,0,e.size+10,0,Math.PI*2);ctx.fill();
+        }
+        // Body - square tank
+        ctx.fillStyle=e.hitFlash>0?'#fff':e.rogue?'#661100':'#443320';
+        ctx.fillRect(-e.size*0.5+walkOff*0.3,-e.size*0.5,e.size,e.size);
+        ctx.strokeStyle=e.rogue?'#ff2200':'#ff8800';
+        ctx.lineWidth=e.rogue?2:1.5;
+        ctx.strokeRect(-e.size*0.5+walkOff*0.3,-e.size*0.5,e.size,e.size);
+        // Armor plates
+        ctx.fillStyle=e.rogue?'#882200':'#554430';
+        ctx.fillRect(-e.size*0.5+walkOff*0.3+2,-e.size*0.5+2,e.size-4,3);
+        ctx.fillRect(-e.size*0.5+walkOff*0.3+2,e.size*0.5-5,e.size-4,3);
+        // Heat vents
+        let ventGlow=0.5+Math.sin(gameTime*5)*0.3;
+        ctx.fillStyle=e.rogue?`rgba(255,50,0,${ventGlow})`:`rgba(255,136,0,${ventGlow})`;
+        ctx.fillRect(-e.size*0.3,-e.size*0.5+4,4,e.size-8);
+        ctx.fillRect(e.size*0.3-4,-e.size*0.5+4,4,e.size-8);
+        // Exhaust particles when moving
+        if(e.alert){
+          ctx.fillStyle=e.rogue?'rgba(200,30,0,0.25)':'rgba(100,80,60,0.2)';
+          ctx.beginPath();ctx.arc(-e.size*0.3+Math.random()*4,e.size*0.5+Math.random()*5,2+Math.random()*2,0,Math.PI*2);ctx.fill();
+        }
+        // Charge windup telegraph (pulsing stomp warning)
+        if(e.chargeWindup>0){
+          let windPulse=0.4+Math.sin(gameTime*18)*0.2;
+          ctx.fillStyle=`rgba(255,136,0,${windPulse})`;
+          ctx.beginPath();ctx.arc(0,0,e.size+6+Math.sin(gameTime*14)*3,0,Math.PI*2);ctx.fill();
+          // Direction indicator line
+          let cDir=e.chargeAngle-e.angle;
+          ctx.save();ctx.rotate(e.chargeAngle);
+          ctx.strokeStyle=`rgba(255,80,0,${windPulse})`;
+          ctx.lineWidth=2;
+          ctx.setLineDash([3,3]);
+          ctx.beginPath();ctx.moveTo(e.size,0);ctx.lineTo(e.size+40,0);ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+        // Rogue label
+        if(e.rogue){
+          ctx.fillStyle='#ff2200';
+          ctx.font='bold 8px monospace';
+          ctx.textAlign='center';
+          ctx.globalAlpha=0.8+Math.sin(gameTime*6)*0.2;
+          ctx.fillText('ROGUE',0,e.size+12);
+          ctx.textAlign='left';
+          ctx.globalAlpha=1;
+        }
+        break;
+        
+      case EN_COMMANDER:
+        // Ground effect
+        ctx.fillStyle=`rgba(170,68,255,${0.1+Math.sin(gameTime*2)*0.05})`;
+        ctx.beginPath();ctx.arc(0,0,e.size+8,0,Math.PI*2);ctx.fill();
+        // Shield
+        if(e.shieldHp>0){
+          ctx.strokeStyle=`rgba(170,68,255,${0.3+Math.sin(gameTime*4)*0.1})`;
+          ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(0,0,e.size+4,0,Math.PI*2);ctx.stroke();
+          // Shield shimmer
+          ctx.strokeStyle=`rgba(200,150,255,${0.1+Math.sin(gameTime*6)*0.08})`;
+          ctx.lineWidth=1;
+          ctx.beginPath();ctx.arc(0,0,e.size+6,gameTime*2,gameTime*2+Math.PI);ctx.stroke();
+        }
+        // Body - diamond
+        ctx.fillStyle=e.hitFlash>0?'#fff':'#332244';
+        ctx.beginPath();
+        ctx.moveTo(0,-e.size);
+        ctx.lineTo(e.size,0);
+        ctx.lineTo(0,e.size);
+        ctx.lineTo(-e.size,0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle='#aa44ff';
+        ctx.lineWidth=2;
+        ctx.stroke();
+        // Multiple eyes
+        for(let i=0;i<3;i++){
+          let ex=-4+i*4,ey=-e.size*0.3;
+          ctx.fillStyle='#ff44ff';
+          ctx.beginPath();ctx.arc(ex,ey,2,0,Math.PI*2);ctx.fill();
+        }
+        // Energy tendrils to nearby scouts
+        for(let other of enemies){
+          if(!other.alive||other.type!==EN_SCOUT)continue;
+          let dx=other.x-e.x,dy=other.y-e.y;
+          if(Math.sqrt(dx*dx+dy*dy)<150){
+            ctx.strokeStyle=`rgba(170,68,255,${0.1+Math.sin(gameTime*5)*0.05})`;
+            ctx.lineWidth=0.5;
+            ctx.beginPath();
+            ctx.moveTo(0,0);ctx.lineTo(dx,dy);
+            ctx.stroke();
+          }
+        }
+        // Inner glow
+        ctx.fillStyle=`rgba(170,68,255,${0.15+Math.sin(gameTime*3)*0.05})`;
+        ctx.beginPath();ctx.arc(0,0,e.size*0.5,0,Math.PI*2);ctx.fill();
+        // Teleport destination telegraph (pulsing portal at target)
+        if(e.tpWarning>0&&e.tpTarget){
+          ctx.save();
+          let tdx=e.tpTarget.x-e.x,tdy=e.tpTarget.y-e.y;
+          let tpPulse=0.3+Math.sin(gameTime*16)*0.15;
+          ctx.globalAlpha=tpPulse*(e.tpWarning/0.4);
+          ctx.strokeStyle='#a4f';
+          ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(tdx,tdy,15+Math.sin(gameTime*12)*5,0,Math.PI*2);ctx.stroke();
+          ctx.fillStyle='rgba(170,68,255,0.1)';
+          ctx.beginPath();ctx.arc(tdx,tdy,12,0,Math.PI*2);ctx.fill();
+          ctx.restore();
+        }
+        break;
+    }
+
+    // Enemy health bar (only show when damaged)
+    if(e.hp<e.maxHp){
+      let barW=e.size*2;
+      let barH=3;
+      let barY=-e.size-8;
+      let hpRatio=e.hp/e.maxHp;
+      // Background
+      ctx.fillStyle='rgba(0,0,0,0.6)';
+      ctx.fillRect(-barW/2-1,barY-1,barW+2,barH+2);
+      // Health
+      let hpColor=hpRatio>0.5?'#0f0':hpRatio>0.25?'#fa0':'#f00';
+      ctx.fillStyle=hpColor;
+      ctx.fillRect(-barW/2,barY,barW*hpRatio,barH);
+      // Shield bar for commander
+      if(e.type===EN_COMMANDER&&e.maxShield){
+        let shieldRatio=e.shieldHp/e.maxShield;
+        ctx.fillStyle='rgba(0,0,0,0.6)';
+        ctx.fillRect(-barW/2-1,barY-6,barW+2,barH+2);
+        ctx.fillStyle='#a4f';
+        ctx.fillRect(-barW/2,barY-5,barW*shieldRatio,barH);
+      }
+    }
+
+    // Sentinel laser sight (windup telegraph)
+    if(e.type===EN_SENTINEL&&e.windupTimer>0&&e.windupTarget){
+      let lAngle=Math.atan2(e.windupTarget.y-e.y,e.windupTarget.x-e.x);
+      let lLen=Math.sqrt((e.windupTarget.x-e.x)**2+(e.windupTarget.y-e.y)**2);
+      ctx.save();
+      ctx.rotate(lAngle);
+      ctx.globalAlpha=0.3+e.windupTimer*0.5;
+      ctx.strokeStyle='#f22';
+      ctx.lineWidth=1;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(e.size+2,0);ctx.lineTo(lLen,0);ctx.stroke();
+      ctx.setLineDash([]);
+      // Laser dot at target
+      ctx.fillStyle='#f44';
+      ctx.beginPath();ctx.arc(lLen,0,2+Math.sin(gameTime*20)*1,0,Math.PI*2);ctx.fill();
+      // Pulsing glow at target
+      ctx.globalAlpha=0.15+e.windupTimer*0.2;
+      ctx.beginPath();ctx.arc(lLen,0,6,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    // Heavy charge telegraph (glowing eyes when about to charge)
+    if(e.type===EN_HEAVY&&e.chargeCD!==undefined&&e.chargeCD<1&&!e.charging){
+      let cGlow=0.5+Math.sin(gameTime*12)*0.4;
+      ctx.fillStyle=`rgba(255,100,0,${cGlow})`;
+      ctx.beginPath();ctx.arc(-4,-e.size*0.2,3,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(4,-e.size*0.2,3,0,Math.PI*2);ctx.fill();
+    }
+    // Alert indicator (! when first spotting player)
+    if(e.alert&&e.alertTimer>8.5){
+      ctx.font='bold 14px monospace';
+      ctx.textAlign='center';
+      ctx.fillStyle='#f00';
+      ctx.globalAlpha=Math.min(1,(e.alertTimer-8.5)*4);
+      ctx.fillText('!',0,-e.size-14);
+      ctx.globalAlpha=1;
+    }
+
+    ctx.restore();
+  }
+
+  // Player
+  if(player.alive){
+    ctx.save();
+    ctx.translate(player.x,player.y);
+    ctx.rotate(player.angle);
+    
+    // Body
+    ctx.fillStyle='#0a3a4a';
+    ctx.beginPath();ctx.arc(0,0,player.size,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#0df';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(0,0,player.size,0,Math.PI*2);ctx.stroke();
+    
+    // Inner suit detail
+    ctx.fillStyle='#072a35';
+    ctx.beginPath();ctx.arc(0,0,player.size*0.6,0,Math.PI*2);ctx.fill();
+    
+    // Weapon arm
+    ctx.fillStyle='#667';
+    ctx.fillRect(player.size*0.3,-2,player.size+6,4);
+    
+    // Weapon muzzle
+    let w=weapons[player.curWeapon];
+    ctx.fillStyle=w.color;
+    ctx.globalAlpha=0.6+Math.sin(gameTime*10)*0.2;
+    ctx.fillRect(player.size+5,-3,4,6);
+    ctx.globalAlpha=1;
+    
+    // Flashlight indicator
+    ctx.fillStyle='rgba(255,255,200,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(player.size,0);
+    ctx.lineTo(player.size+20,-8);
+    ctx.lineTo(player.size+20,8);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Visor
+    ctx.fillStyle='#0df';
+    ctx.globalAlpha=0.8;
+    ctx.beginPath();ctx.arc(3,0,3,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+    
+    ctx.restore();
+    
+    // Invulnerability flash
+    if(player.invuln>0&&Math.floor(gameTime*20)%2===0){
+      ctx.globalAlpha=0.3;
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.arc(player.x,player.y,player.size+2,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  }
+  
+  // Projectiles
+  projPool.active.forEach(p=>{
+    let sx=p.x-camX+shakeX,sy_check=p.y-camY+shakeY;
+    if(sx<-20||sx>W+20||sy_check<-20||sy_check>H+20)return;
+    
+    ctx.save();
+    if(p.type==='bullet'){
+      // Tracer
+      ctx.strokeStyle=p.color;
+      ctx.lineWidth=2;
+      ctx.globalAlpha=0.8;
+      ctx.beginPath();
+      let len=10;
+      let angle=Math.atan2(p.vy,p.vx);
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x-Math.cos(angle)*len,p.y-Math.sin(angle)*len);
+      ctx.stroke();
+      // Glow
+      ctx.globalAlpha=0.3;
+      ctx.lineWidth=5;
+      ctx.stroke();
+      // Tip spark
+      ctx.fillStyle='#fff';
+      ctx.globalAlpha=0.9;
+      ctx.beginPath();ctx.arc(p.x,p.y,1.5,0,Math.PI*2);ctx.fill();
+    } else if(p.type==='plasma'){
+      // Trail
+      ctx.globalAlpha=0.15;
+      for(let i=0;i<p.trail.length;i++){
+        let t=p.trail[i];
+        let a=i/p.trail.length;
+        ctx.fillStyle='#4af';
+        ctx.beginPath();ctx.arc(t.x,t.y,3*a,0,Math.PI*2);ctx.fill();
+      }
+      // Core
+      ctx.globalAlpha=1;
+      ctx.fillStyle='#8cf';
+      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.arc(p.x,p.y,1.5,0,Math.PI*2);ctx.fill();
+      // Glow
+      ctx.globalAlpha=0.2;
+      ctx.fillStyle='#4af';
+      ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fill();
+      // Orbiting particles
+      let oa=gameTime*10;
+      ctx.globalAlpha=0.5;
+      ctx.fillStyle='#4af';
+      ctx.beginPath();ctx.arc(p.x+Math.cos(oa)*5,p.y+Math.sin(oa)*5,1,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(p.x+Math.cos(oa+Math.PI)*5,p.y+Math.sin(oa+Math.PI)*5,1,0,Math.PI*2);ctx.fill();
+    } else if(p.type==='flame'){
+      // Animated fire shape
+      let age=1-p.life/p.maxLife;
+      let size=4+age*6;
+      ctx.globalAlpha=0.7*(p.life/p.maxLife);
+      // Outer red
+      ctx.fillStyle='#d40';
+      ctx.beginPath();ctx.arc(p.x,p.y,size,0,Math.PI*2);ctx.fill();
+      // Middle orange
+      ctx.fillStyle='#f80';
+      ctx.beginPath();ctx.arc(p.x,p.y,size*0.7,0,Math.PI*2);ctx.fill();
+      // Core yellow
+      ctx.fillStyle='#ff4';
+      ctx.beginPath();ctx.arc(p.x,p.y,size*0.3,0,Math.PI*2);ctx.fill();
+      // Smoke trail
+      ctx.fillStyle='rgba(60,40,20,0.15)';
+      for(let t of p.trail){
+        ctx.beginPath();ctx.arc(t.x,t.y,2+age*3,0,Math.PI*2);ctx.fill();
+      }
+    } else if(p.type==='enemy'){
+      // Glow ball (colored per enemy type)
+      ctx.globalAlpha=0.8;
+      ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.globalAlpha=0.6;
+      ctx.beginPath();ctx.arc(p.x,p.y,2,0,Math.PI*2);ctx.fill();
+      // Glow halo
+      ctx.globalAlpha=0.15;
+      ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fill();
+      // Trail
+      ctx.globalAlpha=0.2;
+      for(let i=0;i<p.trail.length;i++){
+        let t=p.trail[i];
+        ctx.fillStyle=p.color;
+        ctx.globalAlpha=0.1*(i/p.trail.length);
+        ctx.beginPath();ctx.arc(t.x,t.y,2,0,Math.PI*2);ctx.fill();
+      }
+    }
+    ctx.restore();
+  });
+  
+  // Special particles (rail, flash, shockwave)
+  for(let p of particles){
+    if(p.type==='rail'){
+      ctx.save();
+      ctx.globalAlpha=p.life/p.maxLife;
+      ctx.strokeStyle='#fff';
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x+p.vx*p.range,p.y+p.vy*p.range);
+      ctx.stroke();
+      ctx.strokeStyle='rgba(200,200,255,0.5)';
+      ctx.lineWidth=8;
+      ctx.stroke();
+      ctx.restore();
+    } else if(p.type==='flash'){
+      ctx.save();
+      ctx.globalAlpha=(p.life/p.maxLife)*0.8;
+      ctx.fillStyle=`rgb(${p.r},${p.g},${p.b})`;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.radius*(1-p.life/p.maxLife+0.5),0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    } else if(p.type==='shockwave'){
+      ctx.save();
+      ctx.globalAlpha=(p.life/p.maxLife)*0.5;
+      ctx.strokeStyle=`rgb(${p.r},${p.g},${p.b})`;
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+  }
+  
+  // Pool particles (sparks, chunks)
+  particlePool.active.forEach(p=>{
+    let sx=p.x-camX+shakeX,sy_check=p.y-camY+shakeY;
+    if(sx<-20||sx>W+20||sy_check<-20||sy_check>H+20)return;
+    ctx.globalAlpha=Math.max(0,p.life/p.maxLife);
+    ctx.fillStyle=`rgb(${p.r},${p.g},${p.b})`;
+    if(p.type==='chunk'){
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(gameTime*5+p.vx);
+      ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size);
+      ctx.restore();
+    } else {
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+    }
+  });
+  ctx.globalAlpha=1;
+  
+  // Atmospheric particles
+  for(let p of atmParticles){
+    let sx=p.x-camX+shakeX,sy_check=p.y-camY+shakeY;
+    if(sx<-20||sx>W+20||sy_check<-20||sy_check>H+20)continue;
+    ctx.globalAlpha=p.alpha*(p.life/p.maxLife);
+    if(p.type==='dust'){
+      ctx.fillStyle='rgba(200,200,180,0.5)';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+    } else if(p.type==='atm_spark'){
+      ctx.fillStyle='#fa0';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+    } else if(p.type==='smoke'){
+      ctx.fillStyle='rgba(100,100,100,0.3)';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+    } else if(p.type==='rain'){
+      ctx.strokeStyle='rgba(150,180,220,0.4)';
+      ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+p.vx*0.02,p.y+p.vy*0.02);ctx.stroke();
+    }
+  }
+  ctx.globalAlpha=1;
+
+  ctx.restore();
+  
+  // ===== FOG OF WAR (light canvas) =====
+  renderLighting();
+  
+  // ===== POST PROCESSING =====
+  renderPostProcess();
+  
+  // ===== HUD =====
+  renderHUD();
+  
+  // Full map overlay
+  if(showMap)renderFullMap();
+}
+
+
+// ========== LIGHTING ==========
+function renderLighting(){
+  lctx.clearRect(0,0,W,H);
+  
+  // Dark overlay (flicker makes it much darker)
+  let darkAlpha=flickering?0.97+Math.random()*0.02:0.93;
+  lctx.fillStyle=`rgba(5,5,10,${darkAlpha})`;
+  lctx.fillRect(0,0,W,H);
+  
+  // Cut out flashlight and ambient with destination-out
+  lctx.globalCompositeOperation='destination-out';
+  
+  if(player.alive){
+    let px=player.x-camX+shakeX;
+    let py=player.y-camY+shakeY;
+    let angle=player.angle;
+    let flicker=0.95+Math.random()*0.1;
+    let flashRange=300*flicker;
+    let flashRange2=200*flicker;
+    
+    // Main flashlight cone (narrow, bright)
+    let coneAngle=Math.PI/6; // ±30 deg
+    lctx.save();
+    lctx.translate(px,py);
+    lctx.rotate(angle);
+    
+    let grad=lctx.createRadialGradient(0,0,10,0,0,flashRange);
+    if(countdownActive){
+      grad.addColorStop(0,`rgba(255,200,180,${0.95*flicker})`);
+      grad.addColorStop(0.5,`rgba(255,150,120,${0.5*flicker})`);
+    } else {
+      grad.addColorStop(0,`rgba(255,255,240,${0.95*flicker})`);
+      grad.addColorStop(0.5,`rgba(255,255,220,${0.5*flicker})`);
+    }
+    grad.addColorStop(1,'rgba(255,255,200,0)');
+    lctx.fillStyle=grad;
+    lctx.beginPath();
+    lctx.moveTo(0,0);
+    lctx.arc(0,0,flashRange,-coneAngle,coneAngle);
+    lctx.closePath();
+    lctx.fill();
+    
+    // Secondary wider cone (softer ambient awareness)
+    let grad2=lctx.createRadialGradient(0,0,5,0,0,flashRange2);
+    grad2.addColorStop(0,'rgba(255,255,240,0.4)');
+    grad2.addColorStop(0.6,'rgba(255,255,220,0.15)');
+    grad2.addColorStop(1,'rgba(255,255,200,0)');
+    lctx.fillStyle=grad2;
+    lctx.beginPath();
+    lctx.moveTo(0,0);
+    lctx.arc(0,0,flashRange2,-Math.PI/3.6,Math.PI/3.6);
+    lctx.closePath();
+    lctx.fill();
+    
+    lctx.restore();
+    
+    // Player ambient light
+    let ambGrad=lctx.createRadialGradient(px,py,5,px,py,80);
+    ambGrad.addColorStop(0,'rgba(255,255,240,0.5)');
+    ambGrad.addColorStop(1,'rgba(255,255,200,0)');
+    lctx.fillStyle=ambGrad;
+    lctx.beginPath();lctx.arc(px,py,80,0,Math.PI*2);lctx.fill();
+  }
+  
+  // Room lights
+  for(let room of rooms){
+    let rcx=room.cx*T+T/2-camX+shakeX;
+    let rcy=room.cy*T+T/2-camY+shakeY;
+    let rr=Math.max(room.w,room.h)*T*0.5;
+    if(rcx<-rr||rcx>W+rr||rcy<-rr||rcy>H+rr)continue;
+    
+    let intensity=flickering?0.02:countdownActive?0.15:0.1;
+    let ambRoom=lctx.createRadialGradient(rcx,rcy,5,rcx,rcy,rr);
+    ambRoom.addColorStop(0,`rgba(255,255,240,${intensity})`);
+    ambRoom.addColorStop(1,'rgba(255,255,200,0)');
+    lctx.fillStyle=ambRoom;
+    lctx.beginPath();lctx.arc(rcx,rcy,rr,0,Math.PI*2);lctx.fill();
+  }
+  
+  // Pickup glow lights (so important items are slightly visible in dark)
+  for(let pk of pickups){
+    if(pk.collected)continue;
+    let px=pk.x-camX+shakeX,py=pk.y-camY+shakeY;
+    if(px<-30||px>W+30||py<-30||py>H+30)continue;
+    let intensity=pk.type==='keycard'?0.25:0.08;
+    let radius=pk.type==='keycard'?25:12;
+    let pglow=lctx.createRadialGradient(px,py,2,px,py,radius);
+    pglow.addColorStop(0,`rgba(255,255,240,${intensity})`);
+    pglow.addColorStop(1,'rgba(255,255,200,0)');
+    lctx.fillStyle=pglow;
+    lctx.beginPath();lctx.arc(px,py,radius,0,Math.PI*2);lctx.fill();
+  }
+
+  // Barrel glow (subtle warning)
+  for(let b of barrels){
+    if(!b.alive)continue;
+    let bx=b.x-camX+shakeX,by=b.y-camY+shakeY;
+    if(bx<-30||bx>W+30||by<-30||by>H+30)continue;
+    let bGlow=lctx.createRadialGradient(bx,by,2,bx,by,15);
+    let bInt=b.hp<10?0.15:0.06;
+    bGlow.addColorStop(0,`rgba(255,200,100,${bInt})`);
+    bGlow.addColorStop(1,'rgba(255,150,50,0)');
+    lctx.fillStyle=bGlow;
+    lctx.beginPath();lctx.arc(bx,by,15,0,Math.PI*2);lctx.fill();
+  }
+
+  // Secret wall glow (hint that wall is destructible)
+  for(let sw of secretWalls){
+    if(sw.hp<=0)continue;
+    let swx=sw.x*T+T/2-camX+shakeX,swy=sw.y*T+T/2-camY+shakeY;
+    if(swx<-30||swx>W+30||swy<-30||swy>H+30)continue;
+    let swGlow=lctx.createRadialGradient(swx,swy,2,swx,swy,18);
+    swGlow.addColorStop(0,'rgba(255,180,50,0.1)');
+    swGlow.addColorStop(1,'rgba(255,150,30,0)');
+    lctx.fillStyle=swGlow;
+    lctx.beginPath();lctx.arc(swx,swy,18,0,Math.PI*2);lctx.fill();
+  }
+
+  // Airdrop glow (bright beacon for supply drops)
+  for(let ad of airdrops){
+    if(ad.collected||!ad.landed)continue;
+    let ax=ad.x-camX+shakeX,ay=ad.y-camY+shakeY;
+    if(ax<-30||ax>W+30||ay<-30||ay>H+30)continue;
+    let adGlow=lctx.createRadialGradient(ax,ay,3,ax,ay,30);
+    adGlow.addColorStop(0,'rgba(255,220,80,0.25)');
+    adGlow.addColorStop(1,'rgba(255,200,50,0)');
+    lctx.fillStyle=adGlow;
+    lctx.beginPath();lctx.arc(ax,ay,30,0,Math.PI*2);lctx.fill();
+  }
+
+  // Toxic pool glow
+  for(let tp of toxicPools){
+    let tpx=tp.x-camX+shakeX,tpy=tp.y-camY+shakeY;
+    if(tpx<-40||tpx>W+40||tpy<-40||tpy>H+40)continue;
+    let tpGlow=lctx.createRadialGradient(tpx,tpy,2,tpx,tpy,tp.radius*0.7);
+    tpGlow.addColorStop(0,'rgba(50,255,50,0.12)');
+    tpGlow.addColorStop(1,'rgba(50,200,50,0)');
+    lctx.fillStyle=tpGlow;
+    lctx.beginPath();lctx.arc(tpx,tpy,tp.radius*0.7,0,Math.PI*2);lctx.fill();
+  }
+
+  // Enemy alert lights (small glow around alert enemies)
+  for(let e of enemies){
+    if(!e.alive||!e.alert)continue;
+    let ex=e.x-camX+shakeX,ey=e.y-camY+shakeY;
+    if(ex<-50||ex>W+50||ey<-50||ey>H+50)continue;
+    let eglow=lctx.createRadialGradient(ex,ey,2,ex,ey,20);
+    let col=e.type===EN_COMMANDER?'rgba(170,68,255,':'rgba(255,50,50,';
+    eglow.addColorStop(0,col+'0.2)');
+    eglow.addColorStop(1,col+'0)');
+    lctx.fillStyle=eglow;
+    lctx.beginPath();lctx.arc(ex,ey,20,0,Math.PI*2);lctx.fill();
+  }
+  
+  lctx.globalCompositeOperation='source-over';
+  
+  // Draw fog onto main canvas
+  ctx.drawImage(lc,0,0);
+  
+  // Colored room lighting (additive blend)
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  for(let room of rooms){
+    let rcx=room.cx*T+T/2-camX+shakeX;
+    let rcy=room.cy*T+T/2-camY+shakeY;
+    let rr=Math.max(room.w,room.h)*T*0.5;
+    if(rcx<-rr||rcx>W+rr||rcy<-rr||rcy>H+rr)continue;
+    
+    let color=room.lightColor;
+    if(countdownActive)color='rgba(180,30,20,0.06)';
+    
+    let roomGrad=ctx.createRadialGradient(rcx,rcy,5,rcx,rcy,rr*0.8);
+    roomGrad.addColorStop(0,color);
+    roomGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=roomGrad;
+    ctx.beginPath();ctx.arc(rcx,rcy,rr*0.8,0,Math.PI*2);ctx.fill();
+  }
+  // Toxic pool colored glow (additive green)
+  for(let tp of toxicPools){
+    let tpx=tp.x-camX+shakeX,tpy=tp.y-camY+shakeY;
+    if(tpx<-40||tpx>W+40||tpy<-40||tpy>H+40)continue;
+    let tpGrad=ctx.createRadialGradient(tpx,tpy,2,tpx,tpy,tp.radius*0.5);
+    tpGrad.addColorStop(0,'rgba(30,180,30,0.04)');
+    tpGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=tpGrad;
+    ctx.beginPath();ctx.arc(tpx,tpy,tp.radius*0.5,0,Math.PI*2);ctx.fill();
+  }
+  // Colored keycard glow (additive, so keycards have their actual color halo)
+  for(let pk of pickups){
+    if(pk.collected||pk.type!=='keycard')continue;
+    let px=pk.x-camX+shakeX,py=pk.y-camY+shakeY;
+    if(px<-30||px>W+30||py<-30||py>H+30)continue;
+    let kcColor=pk.subtype==='blue'?'rgba(50,50,255,0.04)':pk.subtype==='red'?'rgba(255,50,50,0.04)':'rgba(255,220,0,0.04)';
+    let kcGrad=ctx.createRadialGradient(px,py,3,px,py,30);
+    kcGrad.addColorStop(0,kcColor);
+    kcGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=kcGrad;
+    ctx.beginPath();ctx.arc(px,py,30,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ========== POST PROCESSING ==========
+function renderPostProcess(){
+  // Scanlines
+  ctx.fillStyle='rgba(0,0,0,0.05)';
+  for(let y=0;y<H;y+=3){
+    ctx.fillRect(0,y,W,1);
+  }
+  
+  // Vignette
+  let vignGrad=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.3,W/2,H/2,Math.sqrt(W*W+H*H)*0.55);
+  vignGrad.addColorStop(0,'rgba(0,0,0,0)');
+  vignGrad.addColorStop(1,'rgba(0,0,0,0.5)');
+  ctx.fillStyle=vignGrad;
+  ctx.fillRect(0,0,W,H);
+  
+  // Damage flash
+  if(dmgFlash>0){
+    ctx.fillStyle=`rgba(200,20,0,${dmgFlash*0.3})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Low HP warning (heartbeat pulsing red edges)
+  if(player.alive&&player.hp<=25){
+    let intensity=(1-player.hp/25)*0.4;
+    let beat=Math.sin(gameTime*(player.hp<10?12:8))*0.5+0.5;
+    let alpha=intensity*beat;
+    let warnGrad=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25,W/2,H/2,Math.sqrt(W*W+H*H)*0.5);
+    warnGrad.addColorStop(0,'rgba(0,0,0,0)');
+    warnGrad.addColorStop(1,`rgba(180,0,0,${alpha})`);
+    ctx.fillStyle=warnGrad;
+    ctx.fillRect(0,0,W,H);
+  }
+  
+  // Damage direction indicator
+  if(lastHitTimer>0){
+    let dirAlpha=Math.min(1,lastHitTimer/0.4)*0.6;
+    let hAngle=lastHitAngle;
+    // Draw red arc on screen edge pointing to damage source
+    ctx.save();
+    ctx.translate(W/2,H/2);
+    ctx.rotate(hAngle);
+    let edgeDist=Math.min(W,H)*0.42;
+    ctx.globalAlpha=dirAlpha;
+    // Red gradient wedge
+    let wedgeGrad=ctx.createRadialGradient(edgeDist,0,0,edgeDist,0,60);
+    wedgeGrad.addColorStop(0,'rgba(255,0,0,0.7)');
+    wedgeGrad.addColorStop(1,'rgba(255,0,0,0)');
+    ctx.fillStyle=wedgeGrad;
+    ctx.beginPath();
+    ctx.moveTo(edgeDist-30,-25);
+    ctx.lineTo(edgeDist+30,-15);
+    ctx.lineTo(edgeDist+30,15);
+    ctx.lineTo(edgeDist-30,25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Countdown alarm border
+  if(countdownActive){
+    let pulse=Math.sin(gameTime*6)*0.5+0.5;
+    ctx.strokeStyle=`rgba(255,0,0,${0.3*pulse})`;
+    ctx.lineWidth=4;
+    ctx.strokeRect(2,2,W-4,H-4);
+    // Edge smoke during countdown
+    ctx.fillStyle=`rgba(40,10,5,${0.05*pulse})`;
+    ctx.fillRect(0,0,W,30);
+    ctx.fillRect(0,H-30,W,30);
+  }
+  
+  // Chromatic aberration (offset red/blue channels)
+  if(chromatic>0.02){
+    let off=Math.floor(chromatic*15);
+    if(off>=1){
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=chromatic*0.15;
+      // Red shift right
+      ctx.drawImage(gc,off,0,W-off,H,0,0,W-off,H);
+      ctx.globalAlpha=chromatic*0.1;
+      // Blue shift left
+      ctx.drawImage(gc,0,0,W-off,H,off,0,W-off,H);
+      ctx.restore();
+    }
+  }
+}
+
+// ========== HUD ==========
+function renderHUD(){
+  ctx.save();
+  
+  // Health bar
+  let barX=20,barY=H-60,barW=180,barH=14;
+  // Background
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillRect(barX-2,barY-2,barW+4,barH+4);
+  // Health fill
+  let hpPct=player.hp/player.maxHp;
+  let hpGrad=ctx.createLinearGradient(barX,barY,barX+barW*hpPct,barY);
+  hpGrad.addColorStop(0,'#d00');
+  hpGrad.addColorStop(1,hpPct>0.5?'#f44':'#f00');
+  ctx.fillStyle=hpGrad;
+  ctx.fillRect(barX,barY,barW*hpPct,barH);
+  // Segment markers
+  ctx.fillStyle='rgba(0,0,0,0.2)';
+  for(let i=1;i<4;i++){
+    ctx.fillRect(barX+barW*(i/4)-0.5,barY,1,barH);
+  }
+  // Border
+  ctx.strokeStyle='#f44';
+  ctx.lineWidth=1;
+  ctx.strokeRect(barX,barY,barW,barH);
+  // Label
+  ctx.fillStyle='#f88';
+  ctx.font='bold 10px monospace';
+  ctx.fillText('HP '+Math.ceil(player.hp)+'/'+player.maxHp,barX+4,barY+11);
+  
+  // Armor bar
+  barY-=20;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillRect(barX-2,barY-2,barW+4,barH+4);
+  let arPct=player.armor/player.maxArmor;
+  let arGrad=ctx.createLinearGradient(barX,barY,barX+barW*arPct,barY);
+  arGrad.addColorStop(0,'#24a');
+  arGrad.addColorStop(1,'#48f');
+  ctx.fillStyle=arGrad;
+  ctx.fillRect(barX,barY,barW*arPct,barH);
+  if(arPct>=1){
+    ctx.fillStyle=`rgba(100,150,255,${0.1+Math.sin(gameTime*3)*0.05})`;
+    ctx.fillRect(barX,barY,barW,barH);
+  }
+  ctx.strokeStyle='#48f';
+  ctx.lineWidth=1;
+  ctx.strokeRect(barX,barY,barW,barH);
+  ctx.fillStyle='#8af';
+  ctx.font='bold 10px monospace';
+  ctx.fillText('ARMOR '+Math.ceil(player.armor),barX+4,barY+11);
+  
+  // Stamina bar
+  barY-=20;
+  let stW=120;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillRect(barX-2,barY-2,stW+4,10+4);
+  let stPct=player.stamina/player.maxStamina;
+  let stGrad=ctx.createLinearGradient(barX,barY,barX+stW*stPct,barY);
+  stGrad.addColorStop(0,'#a80');
+  stGrad.addColorStop(1,'#fc4');
+  ctx.fillStyle=stGrad;
+  ctx.fillRect(barX,barY,stW*stPct,10);
+  ctx.strokeStyle='#fa0';
+  ctx.lineWidth=1;
+  ctx.strokeRect(barX,barY,stW,10);
+  ctx.fillStyle='#fc8';
+  ctx.font='bold 9px monospace';
+  ctx.fillText('SPRINT',barX+3,barY+8);
+  
+  // Weapon info
+  let wi=weapons[player.curWeapon];
+  let wX=20,wY=H-85;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillRect(wX-2,wY-2,200,22);
+  ctx.fillStyle='#0df';
+  ctx.font='bold 13px monospace';
+  ctx.fillText(wi.name,wX+4,wY+14);
+  // Ammo
+  let ammoStr=player.curWeapon===0?'INF':player.ammo[player.curWeapon].toString();
+  let ammoMax=wi.ammo===Infinity?999:wi.ammo;
+  let ammoPct=player.curWeapon===0?1:player.ammo[player.curWeapon]/ammoMax;
+  ctx.fillStyle=ammoPct>0.5?'#4f4':ammoPct>0.2?'#ff0':'#f44';
+  ctx.fillText('  '+ammoStr,wX+80,wY+14);
+  
+  // Weapon slots indicator
+  for(let i=0;i<6;i++){
+    let sx=wX+i*30,sy=wY-18;
+    ctx.fillStyle=i===player.curWeapon?'rgba(0,221,255,0.3)':'rgba(0,0,0,0.4)';
+    ctx.fillRect(sx,sy,26,14);
+    ctx.strokeStyle=i===player.curWeapon?'#0df':'#334';
+    ctx.lineWidth=1;
+    ctx.strokeRect(sx,sy,26,14);
+    ctx.fillStyle=(i===0||player.ammo[i]>0)?'#899':'#334';
+    ctx.font='9px monospace';
+    ctx.fillText((i+1)+':'+weapons[i].name.slice(0,3),sx+2,sy+10);
+  }
+  
+  // Keycard indicators
+  let kcX=W-120,kcY=H-50;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillRect(kcX-4,kcY-4,108,28);
+  let kcColors=[{key:'blue',c:'#44f'},{key:'red',c:'#f44'},{key:'gold',c:'#fd0'}];
+  for(let i=0;i<3;i++){
+    let kx=kcX+i*34;
+    let has=player.keycards[kcColors[i].key];
+    ctx.fillStyle=has?kcColors[i].c:'#222';
+    ctx.fillRect(kx,kcY,28,18);
+    if(has){
+      ctx.globalAlpha=0.3+Math.sin(gameTime*3+i)*0.1;
+      ctx.fillStyle=kcColors[i].c;
+      ctx.fillRect(kx-2,kcY-2,32,22);
+      ctx.globalAlpha=1;
+    }
+    ctx.strokeStyle=has?kcColors[i].c:'#444';
+    ctx.lineWidth=1;
+    ctx.strokeRect(kx,kcY,28,18);
+    ctx.fillStyle=has?'#fff':'#555';
+    ctx.font='bold 8px monospace';
+    ctx.fillText(kcColors[i].key[0].toUpperCase(),kx+10,kcY+12);
+  }
+  
+  // Level + objective
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.fillRect(W/2-130,6,260,24);
+  ctx.fillStyle='#0df';
+  ctx.font='bold 12px monospace';
+  ctx.textAlign='center';
+  let objective='FIND BLUE KEYCARD';
+  if(player.keycards.blue&&!player.keycards.red&&level>=2)objective='FIND RED KEYCARD';
+  else if(player.keycards.blue&&!player.keycards.gold&&level>=3)objective='FIND GOLD KEYCARD';
+  else if(player.keycards.blue&&!terminalHacked)objective='HACK TERMINAL [E]';
+  if(terminalHacked)objective='EVACUATE NOW!';
+  if(countdownActive&&countdownTime<15)objective='RUN!!';
+  ctx.fillText('LVL '+level+' - '+objective,W/2,22);
+  ctx.textAlign='left';
+  
+  // Countdown
+  if(countdownActive){
+    let pulse=countdownTime<10?Math.sin(gameTime*8)*0.3+0.7:1;
+    ctx.fillStyle='rgba(0,0,0,0.7)';
+    ctx.fillRect(W/2-60,34,120,30);
+    ctx.fillStyle=countdownTime<10?`rgba(255,50,50,${pulse})`:'#f44';
+    ctx.font='bold 22px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(Math.ceil(countdownTime).toString().padStart(2,'0'),W/2,58);
+    ctx.font='bold 9px monospace';
+    ctx.fillStyle='#f88';
+    ctx.fillText('COUNTDOWN',W/2,44);
+    ctx.textAlign='left';
+
+    // Exit direction arrow
+    let er=rooms.find(r=>r.type===ROOM_EXIT);
+    if(er){
+      let edx=er.cx*T+T/2-player.x,edy=er.cy*T+T/2-player.y;
+      let eDist=Math.sqrt(edx*edx+edy*edy);
+      let eAngle=Math.atan2(edy,edx);
+      let arrowDist=Math.min(80,eDist*0.3);
+      let ax=W/2+Math.cos(eAngle)*arrowDist;
+      let ay=H/2+Math.sin(eAngle)*arrowDist;
+      let aPulse=0.5+Math.sin(gameTime*8)*0.4;
+      ctx.save();
+      ctx.translate(ax,ay);
+      ctx.rotate(eAngle);
+      ctx.globalAlpha=aPulse;
+      ctx.fillStyle='#0df';
+      ctx.beginPath();
+      ctx.moveTo(14,0);ctx.lineTo(-6,-8);ctx.lineTo(-2,0);ctx.lineTo(-6,8);
+      ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#fff';
+      ctx.lineWidth=1;
+      ctx.stroke();
+      ctx.restore();
+      // Distance text
+      ctx.globalAlpha=0.7;
+      ctx.fillStyle='#0df';
+      ctx.font='bold 10px monospace';
+      ctx.textAlign='center';
+      ctx.fillText(Math.round(eDist/T)+'m',W/2,72);
+      ctx.textAlign='left';
+      ctx.globalAlpha=1;
+    }
+  }
+  
+  // Interaction prompts
+  if(player.alive&&!terminalHacked){
+    let sr=rooms.find(r=>r.type===ROOM_SERVER);
+    if(sr){
+      let dx=player.x-(sr.cx*T+T/2),dy=player.y-(sr.cy*T+T/2);
+      if(Math.sqrt(dx*dx+dy*dy)<T*2&&hackProgress<=0){
+        ctx.globalAlpha=0.6+Math.sin(gameTime*4)*0.2;
+        ctx.fillStyle='rgba(0,0,0,0.6)';
+        ctx.fillRect(W/2-70,H/2+30,140,22);
+        ctx.fillStyle='#0f0';
+        ctx.font='bold 11px monospace';
+        ctx.textAlign='center';
+        ctx.fillText('HOLD [E] TO HACK',W/2,H/2+45);
+        ctx.textAlign='left';
+        ctx.globalAlpha=1;
+      }
+    }
+  }
+  if(exitOpen&&player.alive){
+    let er=rooms.find(r=>r.type===ROOM_EXIT);
+    if(er){
+      let dx=player.x-(er.cx*T+T/2),dy=player.y-(er.cy*T+T/2);
+      if(Math.sqrt(dx*dx+dy*dy)<T*2){
+        ctx.globalAlpha=0.6+Math.sin(gameTime*5)*0.3;
+        ctx.fillStyle='rgba(0,0,0,0.6)';
+        ctx.fillRect(W/2-80,H/2+30,160,22);
+        ctx.fillStyle='#0df';
+        ctx.font='bold 11px monospace';
+        ctx.textAlign='center';
+        ctx.fillText('PRESS [E] TO EVACUATE',W/2,H/2+45);
+        ctx.textAlign='left';
+        ctx.globalAlpha=1;
+      }
+    }
+  }
+
+  // Room entry notification
+  if(roomAlertTimer>0){
+    let rAlpha=roomAlertTimer>1.5?Math.min(1,(2-roomAlertTimer)*4):roomAlertTimer/1.5;
+    ctx.globalAlpha=rAlpha*0.8;
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillRect(W/2-80,H*0.3-8,160,22);
+    ctx.fillStyle='#0df';
+    ctx.font='bold 12px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(roomAlert,W/2,H*0.3+8);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+  }
+
+  // Locked door warning
+  if(lockedDoorTimer>0){
+    let ldAlpha=Math.min(1,lockedDoorTimer)*0.9;
+    ctx.globalAlpha=ldAlpha;
+    let ldColor=lockedDoorMsg.includes('BLUE')?'#44f':lockedDoorMsg.includes('RED')?'#f44':'#fd0';
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.font='bold 12px monospace';
+    let tw=ctx.measureText(lockedDoorMsg).width;
+    ctx.fillRect(W/2-tw/2-8,H*0.55-8,tw+16,24);
+    ctx.strokeStyle=ldColor;
+    ctx.lineWidth=1;
+    ctx.strokeRect(W/2-tw/2-8,H*0.55-8,tw+16,24);
+    ctx.fillStyle=ldColor;
+    ctx.textAlign='center';
+    ctx.fillText(lockedDoorMsg,W/2,H*0.55+8);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+  }
+
+  // Power-up active indicator
+  if(powerUp.timer>0){
+    let puColors={speed:'#0ff',damage:'#f4f',shield:'#4f4'};
+    let puNames={speed:'SPEED',damage:'DAMAGE x2',shield:'SHIELD REGEN'};
+    let puC=puColors[powerUp.type]||'#fff';
+    let puN=puNames[powerUp.type]||'';
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.fillRect(W/2-55,H-30,110,22);
+    ctx.fillStyle=puC;
+    ctx.font='bold 10px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(puN+' '+Math.ceil(powerUp.timer)+'s',W/2,H-14);
+    // Pulsing border
+    ctx.strokeStyle=puC;
+    ctx.globalAlpha=0.4+Math.sin(gameTime*6)*0.3;
+    ctx.lineWidth=2;
+    ctx.strokeRect(2,2,W-4,H-4);
+    ctx.globalAlpha=1;
+    ctx.textAlign='left';
+  }
+
+  // Active kill streak display
+  if(killStreak>=2&&killStreakTimer>0){
+    let streakAlpha=Math.min(1,killStreakTimer);
+    ctx.globalAlpha=streakAlpha*0.9;
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillRect(W/2-40,H*0.22-8,80,20);
+    ctx.fillStyle=killStreak>=5?'#f44':killStreak>=3?'#fa0':'#ff0';
+    ctx.font='bold 14px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(killStreak+'x STREAK',W/2,H*0.22+7);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+  }
+
+  // Alarm warning HUD
+  if(alarmActive){
+    let alPulse=0.5+Math.sin(gameTime*8)*0.4;
+    ctx.globalAlpha=alPulse;
+    ctx.fillStyle='rgba(200,0,0,0.15)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#f00';
+    ctx.font='bold 16px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('ALARM ACTIVE',W/2,H*0.15);
+    ctx.font='bold 10px monospace';
+    ctx.fillStyle='#f88';
+    ctx.fillText(Math.ceil(alarmTimer)+'s',W/2,H*0.15+16);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+    // Pulsing red border
+    ctx.strokeStyle=`rgba(255,0,0,${alPulse*0.6})`;
+    ctx.lineWidth=3;
+    ctx.strokeRect(1,1,W-2,H-2);
+  }
+
+  // Structure collapse warning (last 10s before collapse)
+  if(!collapseTriggered&&collapseWalls.length>0&&collapseTimer<=10){
+    let wPulse=0.5+Math.sin(gameTime*6)*0.4;
+    ctx.globalAlpha=wPulse*0.8;
+    ctx.fillStyle='#fa0';
+    ctx.font='bold 12px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('STRUCTURAL INTEGRITY FAILING',W/2,H*0.42);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+  }
+
+  // Flicker warning
+  if(flickering){
+    ctx.globalAlpha=0.4+Math.random()*0.3;
+    ctx.fillStyle='#f00';
+    ctx.font='bold 14px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('POWER FAILURE',W/2,H*0.38);
+    ctx.textAlign='left';
+    ctx.globalAlpha=1;
+  }
+
+  // Hack progress
+  if(!terminalHacked&&hackProgress>0){
+    let hx=W/2-60,hy=H/2+40;
+    ctx.fillStyle='rgba(0,0,0,0.7)';
+    ctx.fillRect(hx-2,hy-2,124,18);
+    ctx.fillStyle='#0f0';
+    ctx.fillRect(hx,hy,120*(hackProgress/3),14);
+    ctx.strokeStyle='#0f0';
+    ctx.strokeRect(hx,hy,120,14);
+    ctx.fillStyle='#0f0';
+    ctx.font='bold 10px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('HACKING...',W/2,hy+11);
+    ctx.textAlign='left';
+  }
+  
+  // Boss health bar
+  if(bossInView){
+    let bx=W/2-150,by=70;
+    ctx.fillStyle='rgba(0,0,0,0.7)';
+    ctx.fillRect(bx-2,by-16,304,44);
+    // Label
+    let bossLabel=bossInView.type===EN_COMMANDER?'COMMANDER':bossInView.rogue?'ROGUE HEAVY':'MINI-BOSS';
+    let bossColor=bossInView.type===EN_COMMANDER?'#a4f':'#ff2200';
+    ctx.fillStyle=bossColor;
+    ctx.font='bold 11px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(bossLabel,W/2,by-4);
+    // Shield bar
+    if(bossInView.maxShield>0){
+      let sPct=bossInView.shieldHp/bossInView.maxShield;
+      ctx.fillStyle='#224';
+      ctx.fillRect(bx,by,300,8);
+      ctx.fillStyle='#a4f';
+      ctx.fillRect(bx,by,300*sPct,8);
+      ctx.strokeStyle='#a4f';
+      ctx.lineWidth=1;
+      ctx.strokeRect(bx,by,300,8);
+    }
+    // Health bar
+    let hpPct2=bossInView.hp/bossInView.maxHp;
+    ctx.fillStyle='#311';
+    ctx.fillRect(bx,by+10,300,14);
+    ctx.fillStyle='#d22';
+    ctx.fillRect(bx,by+10,300*hpPct2,14);
+    // Pulsing border when low
+    if(hpPct2<0.3){
+      ctx.strokeStyle=`rgba(255,50,50,${0.5+Math.sin(gameTime*5)*0.3})`;
+      ctx.lineWidth=2;
+    } else {
+      ctx.strokeStyle='#f44';
+      ctx.lineWidth=1;
+    }
+    ctx.strokeRect(bx,by+10,300,14);
+    ctx.textAlign='left';
+  }
+  
+  // Kill feed (top right)
+  for(let i=0;i<killFeed.length;i++){
+    let kf=killFeed[i];
+    let alpha=Math.min(1,kf.life/2);
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    let kfY=60+i*20;
+    let tw=ctx.measureText(kf.msg).width;
+    ctx.fillRect(W-tw-20,kfY-2,tw+16,18);
+    ctx.fillStyle='#0df';
+    ctx.font='bold 11px monospace';
+    ctx.textAlign='right';
+    ctx.fillText(kf.msg,W-12,kfY+11);
+    ctx.textAlign='left';
+  }
+  ctx.globalAlpha=1;
+  
+  // Damage numbers
+  for(let d of damageNums){
+    let sx=d.x-camX+shakeX,sy=d.y-camY+shakeY;
+    let alpha=d.life/d.maxLife;
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=d.color;
+    ctx.font='bold 14px monospace';
+    ctx.textAlign='center';
+    // Black outline
+    ctx.strokeStyle='rgba(0,0,0,0.8)';
+    ctx.lineWidth=3;
+    ctx.strokeText(d.dmg.toString(),sx,sy);
+    ctx.fillText(d.dmg.toString(),sx,sy);
+    ctx.textAlign='left';
+  }
+  ctx.globalAlpha=1;
+  
+  // Proximity danger indicators (edge-of-screen arrows for nearby enemies)
+  for(let e of enemies){
+    if(!e.alive)continue;
+    let dx=e.x-player.x,dy=e.y-player.y;
+    let dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>200||dist<10)continue;
+    // Check if enemy is on screen
+    let sx=e.x-camX+shakeX,sy=e.y-camY+shakeY;
+    if(sx>30&&sx<W-30&&sy>30&&sy<H-30)continue;
+    // Off screen or edge - show warning
+    let angle=Math.atan2(dy,dx);
+    let indicX=W/2+Math.cos(angle)*Math.min(W/2-20,dist*0.8);
+    let indicY=H/2+Math.sin(angle)*Math.min(H/2-20,dist*0.8);
+    indicX=Math.max(15,Math.min(W-15,indicX));
+    indicY=Math.max(15,Math.min(H-15,indicY));
+    let alpha=1-dist/200;
+    ctx.save();
+    ctx.translate(indicX,indicY);
+    ctx.rotate(angle);
+    ctx.globalAlpha=alpha*(0.5+Math.sin(gameTime*6)*0.3);
+    ctx.fillStyle='#f00';
+    ctx.beginPath();
+    ctx.moveTo(8,0);
+    ctx.lineTo(-4,-5);
+    ctx.lineTo(-4,5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+
+  // Minimap
+  renderMinimap();
+
+  // Crosshair
+  if(state===ST_PLAY){
+    let cx=mouseX,cy=mouseY;
+    ctx.strokeStyle=countdownActive?'#f44':'#0df';
+    ctx.lineWidth=1.5;
+    ctx.globalAlpha=0.8;
+    let crSize=8;
+    ctx.beginPath();ctx.moveTo(cx-crSize,cy);ctx.lineTo(cx-3,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx+3,cy);ctx.lineTo(cx+crSize,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,cy-crSize);ctx.lineTo(cx,cy-3);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,cy+3);ctx.lineTo(cx,cy+crSize);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx,cy,2,0,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+  
+  ctx.restore();
+}
+
+// ========== MINIMAP ==========
+function renderMinimap(){
+  let mmSize=120;
+  let mmX=W-mmSize-15,mmY=15;
+  let scale=mmSize/Math.max(mapW,mapH);
+  
+  ctx.fillStyle='rgba(0,0,0,0.7)';
+  ctx.fillRect(mmX-2,mmY-2,mmSize+4,mmSize+4);
+  ctx.strokeStyle='#0df';
+  ctx.lineWidth=1;
+  ctx.strokeRect(mmX-2,mmY-2,mmSize+4,mmSize+4);
+  
+  // Tiles
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      if(!explored[y*mapW+x])continue;
+      let tile=map[y*mapW+x];
+      let px=mmX+x*scale,py=mmY+y*scale;
+      if(isFloorTile(tile)){
+        ctx.fillStyle='#1a2a2a';
+        ctx.fillRect(px,py,Math.max(1,scale),Math.max(1,scale));
+      } else if(tile===TILE_WALL){
+        ctx.fillStyle='#3a4a4a';
+        ctx.fillRect(px,py,Math.max(1,scale),Math.max(1,scale));
+      } else if(isDoor(tile)){
+        ctx.fillStyle=tile===TILE_DOOR_B?'#44f':tile===TILE_DOOR_R?'#f44':'#fd0';
+        ctx.fillRect(px,py,Math.max(1,scale),Math.max(1,scale));
+      } else if(tile===TILE_TERMINAL){
+        ctx.fillStyle=terminalHacked?'#f00':'#0f0';
+        ctx.fillRect(px,py,Math.max(2,scale*2),Math.max(2,scale*2));
+      } else if(tile===TILE_EXIT){
+        ctx.fillStyle='#0df';
+        ctx.fillRect(px,py,Math.max(2,scale*2),Math.max(2,scale*2));
+      }
+    }
+  }
+  
+  // Toxic pools on minimap
+  ctx.fillStyle='rgba(50,255,50,0.4)';
+  for(let tp of toxicPools){
+    let tpx=mmX+(tp.x/T)*scale,tpy=mmY+(tp.y/T)*scale;
+    ctx.beginPath();ctx.arc(tpx,tpy,tp.radius/T*scale+0.5,0,Math.PI*2);ctx.fill();
+  }
+  // Airdrops on minimap
+  for(let ad of airdrops){
+    if(ad.collected)continue;
+    let ax=mmX+(ad.x/T)*scale,ay=mmY+(ad.y/T)*scale;
+    ctx.fillStyle=ad.landed?'#fd0':'rgba(255,220,0,0.5)';
+    ctx.beginPath();ctx.arc(ax,ay,ad.landed?2:1.5,0,Math.PI*2);ctx.fill();
+  }
+  // Barrels on minimap
+  ctx.fillStyle='#f80';
+  for(let b of barrels){
+    if(!b.alive)continue;
+    let bx=mmX+(b.x/T)*scale,by=mmY+(b.y/T)*scale;
+    ctx.fillRect(bx-0.5,by-0.5,1.5,1.5);
+  }
+
+  // Enemies on minimap (if alert)
+  for(let e of enemies){
+    if(!e.alive||!e.alert)continue;
+    let ex=mmX+(e.x/T)*scale,ey=mmY+(e.y/T)*scale;
+    ctx.fillStyle=e.type===EN_COMMANDER?'#a4f':'#f44';
+    ctx.fillRect(ex-1,ey-1,2,2);
+  }
+  
+  // Player
+  let ppx=mmX+(player.x/T)*scale,ppy=mmY+(player.y/T)*scale;
+  ctx.fillStyle='#0df';
+  ctx.beginPath();ctx.arc(ppx,ppy,2.5,0,Math.PI*2);ctx.fill();
+}
+
+// ========== FULL MAP ==========
+function renderFullMap(){
+  ctx.fillStyle='rgba(0,0,0,0.85)';
+  ctx.fillRect(0,0,W,H);
+  
+  let scale=Math.min((W-40)/mapW,(H-80)/mapH);
+  let offX=(W-mapW*scale)/2;
+  let offY=(H-mapH*scale)/2+20;
+  
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      if(!explored[y*mapW+x])continue;
+      let tile=map[y*mapW+x];
+      let px=offX+x*scale,py=offY+y*scale;
+      let s=Math.max(1,scale);
+      if(isFloorTile(tile)){
+        ctx.fillStyle='#1a2a2a';
+        ctx.fillRect(px,py,s,s);
+      } else if(tile===TILE_WALL){
+        ctx.fillStyle='#3a4a4a';
+        ctx.fillRect(px,py,s,s);
+      } else if(isDoor(tile)){
+        ctx.fillStyle=tile===TILE_DOOR_B?'#44f':tile===TILE_DOOR_R?'#f44':'#fd0';
+        ctx.fillRect(px,py,s,s);
+      } else if(tile===TILE_TERMINAL){
+        ctx.fillStyle=terminalHacked?'#f00':'#0f0';
+        ctx.fillRect(px,py,s*2,s*2);
+      } else if(tile===TILE_EXIT){
+        ctx.fillStyle='#0df';
+        ctx.fillRect(px,py,s*2,s*2);
+      }
+    }
+  }
+  
+  // Room labels
+  ctx.font='bold 10px monospace';
+  ctx.textAlign='center';
+  for(let r of rooms){
+    let rx=offX+r.cx*scale,ry=offY+r.cy*scale;
+    let names=['START','EXIT','SERVER','ARMORY','STORAGE','BOSS','PATROL'];
+    ctx.fillStyle=r.type===ROOM_BOSS?'#a4f':r.type===ROOM_SERVER?'#0f0':r.type===ROOM_EXIT?'#0df':'#556';
+    if(explored[r.cy*mapW+r.cx])ctx.fillText(names[r.type],rx,ry-5);
+  }
+  ctx.textAlign='left';
+  
+  // Player on full map
+  let ppx=offX+(player.x/T)*scale,ppy=offY+(player.y/T)*scale;
+  ctx.fillStyle='#0df';
+  ctx.beginPath();ctx.arc(ppx,ppy,4,0,Math.PI*2);ctx.fill();
+  
+  // Enemies (only in explored areas)
+  for(let e of enemies){
+    if(!e.alive)continue;
+    let etx=Math.floor(e.x/T),ety=Math.floor(e.y/T);
+    if(etx<0||etx>=mapW||ety<0||ety>=mapH||!explored[ety*mapW+etx])continue;
+    let ex=offX+(e.x/T)*scale,ey=offY+(e.y/T)*scale;
+    ctx.fillStyle=e.type===EN_COMMANDER?'#a4f':'#f44';
+    ctx.fillRect(ex-1.5,ey-1.5,3,3);
+  }
+  
+  // Title
+  ctx.fillStyle='#0df';
+  ctx.font='bold 14px monospace';
+  ctx.textAlign='center';
+  ctx.fillText('FACILITY MAP - TAB TO CLOSE',W/2,20);
+  ctx.textAlign='left';
+}
+
+// ========== MENU BACKGROUND ==========
+function renderMenuBg(){
+  // Animated grid background
+  ctx.fillStyle='#050608';
+  ctx.fillRect(0,0,W,H);
+  
+  ctx.strokeStyle='rgba(0,221,255,0.04)';
+  ctx.lineWidth=1;
+  let gridSize=40;
+  let offX=(gameTime*10)%gridSize;
+  let offY=(gameTime*8)%gridSize;
+  for(let x=-gridSize+offX;x<W+gridSize;x+=gridSize){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
+  }
+  for(let y=-gridSize+offY;y<H+gridSize;y+=gridSize){
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+  }
+  
+  // Floating particles
+  ctx.fillStyle='rgba(0,221,255,0.15)';
+  for(let i=0;i<30;i++){
+    let px=(Math.sin(gameTime*0.3+i*2.1)*0.5+0.5)*W;
+    let py=(Math.cos(gameTime*0.2+i*1.7)*0.5+0.5)*H;
+    let s=1+Math.sin(gameTime+i)*0.5;
+    ctx.beginPath();ctx.arc(px,py,s,0,Math.PI*2);ctx.fill();
+  }
+  
+  // Scan line effect
+  let scanY=(gameTime*50)%H;
+  ctx.fillStyle='rgba(0,221,255,0.03)';
+  ctx.fillRect(0,scanY,W,2);
+  
+  // Vignette
+  let vig=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.2,W/2,H/2,Math.sqrt(W*W+H*H)*0.5);
+  vig.addColorStop(0,'rgba(0,0,0,0)');
+  vig.addColorStop(1,'rgba(0,0,0,0.7)');
+  ctx.fillStyle=vig;
+  ctx.fillRect(0,0,W,H);
+}
+
+// ========== MAIN LOOP ==========
+let lastTime=0;
+function gameLoop(timestamp){
+  let dt=(timestamp-lastTime)/1000;
+  lastTime=timestamp;
+  if(dt>0.1)dt=0.1; // cap delta
+  
+  if(state===ST_MENU){
+    gameTime+=dt;
+    render();
+  } else if(state===ST_PLAY){
+    update(dt);
+    render();
+  } else if(state===ST_PAUSE){
+    render();
+  }
+  
+  requestAnimationFrame(gameLoop);
+}
+
+// Start
+requestAnimationFrame(ts=>{
+  lastTime=ts;
+  requestAnimationFrame(gameLoop);
+});
+</script>
+</body>
+</html>
