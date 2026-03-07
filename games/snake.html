@@ -53,6 +53,11 @@
             color: #4ecdc4;
             text-shadow: 0 0 8px rgba(78,205,196,0.3);
             font-family: 'Courier New', monospace;
+            transition: none;
+        }
+
+        .score-value {
+            display: inline-block;
         }
 
         canvas {
@@ -112,14 +117,19 @@
             border-radius: 18px;
             z-index: 50;
             backdrop-filter: blur(8px);
-            animation: fadeIn 0.4s ease-out;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
         }
 
-        .game-over-overlay.visible { display: flex; }
+        .game-over-overlay.visible {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .game-over-overlay.animating {
+            display: flex;
         }
 
         .game-over-overlay h2 {
@@ -148,14 +158,14 @@
             font-size: 1.1em;
             margin-bottom: 15px;
             display: none;
-            animation: pulse 1.5s infinite;
+            animation: celebratePulse 0.8s infinite;
         }
 
         .game-over-overlay .new-record.visible { display: block; }
 
-        @keyframes pulse {
-            0%,100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
+        @keyframes celebratePulse {
+            0%,100% { opacity: 1; transform: scale(1); text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+            50% { opacity: 0.8; transform: scale(1.1); text-shadow: 0 0 25px rgba(255,215,0,0.8); }
         }
 
         .game-over-overlay button {
@@ -279,7 +289,7 @@
     <div class="game-container">
         <h1>SNAKE</h1>
         <div class="score-board">
-            <div class="score">Score: <span id="score">0</span></div>
+            <div class="score">Score: <span class="score-value" id="score">0</span></div>
             <div class="score">Best: <span id="highScore">0</span></div>
         </div>
         <canvas id="gameCanvas" width="400" height="400"></canvas>
@@ -390,7 +400,7 @@
         // Game state
         let snake = [{ x: 10, y: 10 }];
         let direction = { x: 0, y: 0 };
-        let nextDirection = null; // input buffer
+        let nextDirection = null;
         let food = {};
         let score = 0;
         let highScore = parseInt(safeGetItem('snakeHighScore', '0'));
@@ -398,11 +408,187 @@
         let gamePaused = false;
         let gameLoop;
         let particles = [];
+        let trailParticles = [];
+        let ambientParticles = [];
+        let scorePopups = [];
         let foodPulse = 0;
         let frameCount = 0;
-        let speed = 100; // ms per tick
+        let speed = 100;
+        let renderLoop;
 
         highScoreElement.textContent = highScore;
+
+        // === SOUND SYNTHESIS (Web Audio API) ===
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.error('Web Audio API not available');
+                }
+            }
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            const ac = getAudioCtx();
+            if (!ac) return;
+            const now = ac.currentTime;
+
+            if (type === 'eat') {
+                // Crunchy collect sound
+                const osc1 = ac.createOscillator();
+                const osc2 = ac.createOscillator();
+                const gain = ac.createGain();
+                osc1.type = 'square';
+                osc1.frequency.setValueAtTime(600, now);
+                osc1.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
+                osc1.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(1200, now + 0.03);
+                osc2.frequency.exponentialRampToValueAtTime(1600, now + 0.08);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc1.connect(gain).connect(ac.destination);
+                osc2.connect(gain);
+                osc1.start(now);
+                osc1.stop(now + 0.15);
+                osc2.start(now + 0.03);
+                osc2.stop(now + 0.15);
+            } else if (type === 'turn') {
+                // Subtle click
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1000, now);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                osc.connect(gain).connect(ac.destination);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            } else if (type === 'death') {
+                // Low descending rumble
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.6);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.linearRampToValueAtTime(0.08, now + 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc.connect(gain).connect(ac.destination);
+                osc.start(now);
+                osc.stop(now + 0.6);
+                // Add noise for impact
+                const bufferSize = ac.sampleRate * 0.15;
+                const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+                const source = ac.createBufferSource();
+                source.buffer = buffer;
+                const ng = ac.createGain();
+                ng.gain.setValueAtTime(0.1, now);
+                ng.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                source.connect(ng).connect(ac.destination);
+                source.start(now);
+                source.stop(now + 0.15);
+            } else if (type === 'levelup') {
+                // Ascending arpeggio
+                [523, 659, 784, 1047].forEach((freq, i) => {
+                    const osc = ac.createOscillator();
+                    const gain = ac.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.1, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5 + i * 0.08);
+                    osc.connect(gain).connect(ac.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + 0.6);
+                });
+            }
+        }
+
+        // === SCREEN SHAKE ===
+        let shakeIntensity = 0;
+        let shakeDuration = 0;
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+
+        function triggerShake(intensity, duration) {
+            shakeIntensity = intensity;
+            shakeDuration = duration;
+        }
+
+        function updateShake() {
+            if (shakeDuration > 0) {
+                shakeDuration--;
+                shakeOffsetX = (Math.random() - 0.5) * shakeIntensity * 2;
+                shakeOffsetY = (Math.random() - 0.5) * shakeIntensity * 2;
+                shakeIntensity *= 0.88;
+            } else {
+                shakeOffsetX = 0;
+                shakeOffsetY = 0;
+            }
+        }
+
+        // === SCORE TWEEN ===
+        let scoreTweenScale = 1;
+        let scoreTweenVelocity = 0;
+
+        function triggerScoreBump() {
+            scoreTweenScale = 1.4;
+            scoreTweenVelocity = 0;
+        }
+
+        function updateScoreTween() {
+            const target = 1;
+            const stiffness = 0.15;
+            const damping = 0.6;
+            const force = (target - scoreTweenScale) * stiffness;
+            scoreTweenVelocity += force;
+            scoreTweenVelocity *= damping;
+            scoreTweenScale += scoreTweenVelocity;
+            const el = document.querySelector('#score');
+            if (el) {
+                el.style.transform = 'scale(' + scoreTweenScale.toFixed(3) + ')';
+                el.style.transformOrigin = 'left center';
+            }
+        }
+
+        // === SCORE POPUPS ===
+        function spawnScorePopup(gridX, gridY, text) {
+            scorePopups.push({
+                x: gridX * gridSize + gridSize / 2,
+                y: gridY * gridSize + gridSize / 2,
+                text,
+                life: 1,
+                decay: 1 / 36
+            });
+        }
+
+        function updateAndDrawScorePopups() {
+            for (let i = scorePopups.length - 1; i >= 0; i--) {
+                const p = scorePopups[i];
+                p.y -= 1;
+                p.life -= p.decay;
+                if (p.life <= 0) {
+                    scorePopups.splice(i, 1);
+                    continue;
+                }
+                ctx.globalAlpha = p.life;
+                ctx.font = 'bold 16px Segoe UI, Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = 'rgba(255,215,0,0.6)';
+                ctx.fillText(p.text, p.x, p.y);
+                ctx.shadowBlur = 0;
+            }
+            ctx.globalAlpha = 1;
+            ctx.textAlign = 'start';
+        }
 
         // === PARTICLE SYSTEM ===
         function spawnParticles(x, y, color, count) {
@@ -422,7 +608,19 @@
             }
         }
 
+        function spawnTrailParticle(x, y) {
+            trailParticles.push({
+                x: x * gridSize + gridSize / 2 + (Math.random() - 0.5) * 6,
+                y: y * gridSize + gridSize / 2 + (Math.random() - 0.5) * 6,
+                radius: 1.5 + Math.random() * 1.5,
+                life: 0.7,
+                decay: 0.04 + Math.random() * 0.02,
+                color: 'rgba(46, 204, 113, 0.6)'
+            });
+        }
+
         function updateAndDrawParticles() {
+            // Main particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.x += p.dx;
@@ -439,7 +637,68 @@
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
                 ctx.fillStyle = p.color;
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = p.color;
                 ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Trail particles (no gravity, just fade)
+            for (let i = trailParticles.length - 1; i >= 0; i--) {
+                const p = trailParticles[i];
+                p.life -= p.decay;
+
+                if (p.life <= 0) {
+                    trailParticles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.globalAlpha = p.life * 0.5;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+        // === AMBIENT PARTICLES ===
+        function updateAndDrawAmbientParticles() {
+            // Spawn
+            if (ambientParticles.length < 20 && frameCount % 8 === 0) {
+                ambientParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: 0.5 + Math.random() * 1,
+                    opacity: 0,
+                    maxOpacity: 0.08 + Math.random() * 0.12,
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 0.01 + Math.random() * 0.02,
+                    drift: (Math.random() - 0.5) * 0.2
+                });
+            }
+
+            for (let i = ambientParticles.length - 1; i >= 0; i--) {
+                const p = ambientParticles[i];
+                p.phase += p.speed;
+                p.opacity = Math.sin(p.phase) * p.maxOpacity;
+                p.x += p.drift;
+                p.y -= 0.1;
+
+                if (p.phase > Math.PI || p.y < -5 || p.x < -5 || p.x > canvas.width + 5) {
+                    ambientParticles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.globalAlpha = Math.max(0, p.opacity);
+                ctx.fillStyle = '#4ecdc4';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = '#4ecdc4';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
             }
             ctx.globalAlpha = 1;
         }
@@ -458,17 +717,41 @@
             food = newFood;
         }
 
+        // === FLASH OVERLAY ===
+        let flashAlpha = 0;
+        let flashColor = '255,255,255';
+
         // === DRAWING ===
         function draw() {
             frameCount++;
             foodPulse = Math.sin(frameCount * 0.08) * 0.15 + 0.85;
 
-            // Clear
-            ctx.fillStyle = '#0d0d1a';
+            ctx.save();
+
+            // Apply screen shake
+            if (shakeOffsetX !== 0 || shakeOffsetY !== 0) {
+                ctx.translate(shakeOffsetX, shakeOffsetY);
+            }
+
+            // Clear with dark background
+            ctx.fillStyle = '#0a0a18';
+            ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
+
+            // Subtle vignette
+            const vignette = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.75
+            );
+            vignette.addColorStop(0, 'rgba(0,0,0,0)');
+            vignette.addColorStop(1, 'rgba(0,0,0,0.3)');
+            ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Grid (subtle)
-            ctx.strokeStyle = 'rgba(78,205,196,0.04)';
+            // Ambient particles (background)
+            updateAndDrawAmbientParticles();
+
+            // Grid (subtle glow)
+            ctx.strokeStyle = 'rgba(78,205,196,0.035)';
             ctx.lineWidth = 0.5;
             for (let i = 0; i <= tileCount; i++) {
                 ctx.beginPath();
@@ -481,15 +764,20 @@
                 ctx.stroke();
             }
 
-            // Snake
-            snake.forEach((segment, index) => {
-                const progress = 1 - index / snake.length;
+            // Trail particles (behind snake)
+            // Draw particles first so they appear behind
+            updateAndDrawParticles();
+
+            // Snake body (draw from tail to head)
+            for (let index = snake.length - 1; index >= 0; index--) {
+                const segment = snake[index];
+                const progress = 1 - index / Math.max(snake.length, 1);
                 const size = gridSize - 4;
                 const offset = 2;
 
                 if (index === 0) {
                     // Head with glow
-                    ctx.shadowBlur = 12;
+                    ctx.shadowBlur = 15;
                     ctx.shadowColor = '#2ecc71';
 
                     const headGrad = ctx.createRadialGradient(
@@ -500,7 +788,8 @@
                         segment.y * gridSize + gridSize / 2,
                         gridSize / 2
                     );
-                    headGrad.addColorStop(0, '#55efc4');
+                    headGrad.addColorStop(0, '#6fffb7');
+                    headGrad.addColorStop(0.5, '#55efc4');
                     headGrad.addColorStop(1, '#00b894');
 
                     ctx.fillStyle = headGrad;
@@ -544,37 +833,56 @@
                     ctx.fill();
                 } else {
                     // Body segments with gradient coloring
-                    const green = Math.floor(180 + progress * 60);
-                    ctx.fillStyle = `rgb(${30 + (1-progress) * 20}, ${green}, ${100 + progress * 50})`;
+                    const hue = 140 + (1 - progress) * 30;
+                    const sat = 60 + progress * 30;
+                    const light = 35 + progress * 20;
+                    ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
+
+                    // Subtle glow on body segments near head
+                    if (index < 3) {
+                        ctx.shadowBlur = 6 - index * 2;
+                        ctx.shadowColor = 'rgba(46,204,113,0.3)';
+                    }
+
                     ctx.beginPath();
                     ctx.roundRect(segment.x * gridSize + offset, segment.y * gridSize + offset, size, size, 4);
                     ctx.fill();
+                    ctx.shadowBlur = 0;
 
                     // Segment highlight
-                    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+                    ctx.fillStyle = `rgba(255,255,255,${0.06 + progress * 0.06})`;
                     ctx.fillRect(segment.x * gridSize + offset + 2, segment.y * gridSize + offset + 1, size - 4, 3);
                 }
-            });
+            }
 
             // Food with glow and pulse
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = 18;
             ctx.shadowColor = '#e74c3c';
 
             const foodSize = (gridSize / 2 - 2) * foodPulse;
             const fcx = food.x * gridSize + gridSize / 2;
             const fcy = food.y * gridSize + gridSize / 2;
 
-            // Glow ring
+            // Outer glow ring
+            ctx.globalAlpha = 0.12 + Math.sin(frameCount * 0.06) * 0.06;
+            ctx.beginPath();
+            ctx.arc(fcx, fcy, foodSize + 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Inner glow ring
             ctx.globalAlpha = 0.2;
             ctx.beginPath();
-            ctx.arc(fcx, fcy, foodSize + 4, 0, Math.PI * 2);
+            ctx.arc(fcx, fcy, foodSize + 3, 0, Math.PI * 2);
             ctx.fillStyle = '#ff6b6b';
             ctx.fill();
             ctx.globalAlpha = 1;
 
             // Apple body
             const foodGrad = ctx.createRadialGradient(fcx - 2, fcy - 2, 0, fcx, fcy, foodSize);
-            foodGrad.addColorStop(0, '#ff6b6b');
+            foodGrad.addColorStop(0, '#ff7675');
+            foodGrad.addColorStop(0.7, '#e74c3c');
             foodGrad.addColorStop(1, '#c0392b');
             ctx.beginPath();
             ctx.arc(fcx, fcy, foodSize, 0, Math.PI * 2);
@@ -591,14 +899,29 @@
             ctx.quadraticCurveTo(fcx + 3, fcy - foodSize - 4, fcx + 5, fcy - foodSize - 2);
             ctx.stroke();
 
+            // Leaf
+            ctx.fillStyle = '#2ecc71';
+            ctx.beginPath();
+            ctx.ellipse(fcx + 4, fcy - foodSize - 1, 3, 1.5, 0.5, 0, Math.PI * 2);
+            ctx.fill();
+
             // Shine on apple
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
             ctx.beginPath();
             ctx.arc(fcx - 2, fcy - 3, 2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Particles
-            updateAndDrawParticles();
+            // Score popups
+            updateAndDrawScorePopups();
+
+            // Flash overlay
+            if (flashAlpha > 0) {
+                ctx.fillStyle = 'rgba(' + flashColor + ',' + flashAlpha + ')';
+                ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
+                flashAlpha -= 0.04;
+            }
+
+            ctx.restore();
         }
 
         function update() {
@@ -630,34 +953,77 @@
 
             snake.unshift(head);
 
+            // Spawn trail particle from head
+            spawnTrailParticle(head.x, head.y);
+
             // Food collision
             if (head.x === food.x && head.y === food.y) {
                 score++;
                 scoreElement.textContent = score;
+
+                // Score tween
+                triggerScoreBump();
+
+                // Sound
+                playSound('eat');
+
+                // Subtle screen shake on eat
+                triggerShake(2.5, 6);
+
+                // Flash
+                flashAlpha = 0.15;
+                flashColor = '78,205,196';
+
+                // Food particles burst
                 spawnParticles(food.x, food.y, '#ff6b6b', 12);
-                spawnParticles(food.x, food.y, '#ffd700', 6);
+                spawnParticles(food.x, food.y, '#ffd700', 8);
+                spawnParticles(food.x, food.y, '#fff', 4);
+
+                // Score popup
+                spawnScorePopup(food.x, food.y, '+1');
+
                 generateFood();
 
-                // Speed up slightly
+                // Speed up slightly (level up sound every 5)
                 if (score % 5 === 0 && speed > 50) {
                     speed -= 5;
                     clearInterval(gameLoop);
                     gameLoop = setInterval(update, speed);
+                    playSound('levelup');
                 }
             } else {
                 snake.pop();
             }
+        }
 
+        // Continuous render loop (independent of game tick)
+        function renderFrame() {
+            updateShake();
+            updateScoreTween();
             draw();
+            renderLoop = requestAnimationFrame(renderFrame);
         }
 
         function gameOver() {
             gameRunning = false;
             clearInterval(gameLoop);
 
-            // Death particles from each snake segment
+            // Big screen shake on death
+            triggerShake(10, 20);
+
+            // Flash
+            flashAlpha = 0.5;
+            flashColor = '255,80,80';
+
+            // Death sound
+            playSound('death');
+
+            // Death explosion particles from each snake segment
             snake.forEach((seg, i) => {
-                if (i % 2 === 0) spawnParticles(seg.x, seg.y, '#2ecc71', 4);
+                setTimeout(() => {
+                    spawnParticles(seg.x, seg.y, '#2ecc71', 6);
+                    spawnParticles(seg.x, seg.y, '#55efc4', 3);
+                }, i * 15);
             });
 
             const isNewRecord = score > highScore;
@@ -667,28 +1033,38 @@
                 highScoreElement.textContent = highScore;
             }
 
-            // Draw final frame with particles
-            draw();
+            // Delay showing overlay to let death animation play
+            setTimeout(() => {
+                document.getElementById('goScore').textContent = score;
+                document.getElementById('goBest').textContent = 'Best: ' + highScore;
+                const newRecordEl = document.getElementById('goNewRecord');
+                if (isNewRecord && score > 0) {
+                    newRecordEl.classList.add('visible');
+                } else {
+                    newRecordEl.classList.remove('visible');
+                }
 
-            // Show overlay
-            document.getElementById('goScore').textContent = score;
-            document.getElementById('goBest').textContent = 'Best: ' + highScore;
-            const newRecordEl = document.getElementById('goNewRecord');
-            if (isNewRecord && score > 0) {
-                newRecordEl.classList.add('visible');
-            } else {
-                newRecordEl.classList.remove('visible');
-            }
-            gameOverOverlay.classList.add('visible');
+                // Animate overlay in
+                gameOverOverlay.classList.add('animating');
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        gameOverOverlay.classList.add('visible');
+                    });
+                });
 
-            startBtn.disabled = false;
-            pauseBtn.disabled = true;
+                startBtn.disabled = false;
+                pauseBtn.disabled = true;
+            }, 500);
         }
 
         function startGame() {
             if (gameRunning) return;
 
+            // Ensure audio context on user gesture
+            getAudioCtx();
+
             gameOverOverlay.classList.remove('visible');
+            gameOverOverlay.classList.remove('animating');
 
             snake = [{ x: 10, y: 10 }];
             direction = { x: 1, y: 0 };
@@ -696,6 +1072,13 @@
             score = 0;
             speed = 100;
             particles = [];
+            trailParticles = [];
+            scorePopups = [];
+            flashAlpha = 0;
+            scoreTweenScale = 1;
+            scoreTweenVelocity = 0;
+            shakeIntensity = 0;
+            shakeDuration = 0;
             scoreElement.textContent = score;
 
             gameRunning = true;
@@ -714,16 +1097,21 @@
             pauseBtn.textContent = gamePaused ? 'Resume' : 'Pause';
 
             if (gamePaused) {
-                // Draw pause overlay on canvas
+                // Draw pause overlay on canvas (will be drawn in next render frame)
+                // We handle it in draw if needed, but a simple overlay:
                 ctx.fillStyle = 'rgba(0,0,0,0.6)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#4ecdc4';
                 ctx.font = 'bold 36px Segoe UI, Arial';
                 ctx.textAlign = 'center';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#4ecdc4';
                 ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
                 ctx.font = '16px Segoe UI, Arial';
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.fillText('Leertaste zum Fortsetzen', canvas.width / 2, canvas.height / 2 + 30);
+                ctx.textAlign = 'start';
             }
         }
 
@@ -733,6 +1121,7 @@
             clearInterval(gameLoop);
 
             gameOverOverlay.classList.remove('visible');
+            gameOverOverlay.classList.remove('animating');
 
             snake = [{ x: 10, y: 10 }];
             direction = { x: 0, y: 0 };
@@ -740,13 +1129,19 @@
             score = 0;
             speed = 100;
             particles = [];
+            trailParticles = [];
+            scorePopups = [];
+            flashAlpha = 0;
+            scoreTweenScale = 1;
+            scoreTweenVelocity = 0;
+            shakeIntensity = 0;
+            shakeDuration = 0;
             scoreElement.textContent = score;
             startBtn.disabled = false;
             pauseBtn.disabled = true;
             pauseBtn.textContent = 'Pause';
 
             generateFood();
-            draw();
         }
 
         function toggleFullscreen() {
@@ -767,7 +1162,6 @@
 
             // Keyboard
             eventManager.add(document, 'keydown', (e) => {
-                // Allow starting with space
                 if (e.key === ' ' && !gameRunning) {
                     e.preventDefault();
                     startGame();
@@ -801,6 +1195,7 @@
                 if (newDir) {
                     e.preventDefault();
                     nextDirection = newDir;
+                    playSound('turn');
                 }
             });
 
@@ -826,7 +1221,10 @@
                         case 'left': if (direction.x === 0) newDir = { x: -1, y: 0 }; break;
                         case 'right': if (direction.x === 0) newDir = { x: 1, y: 0 }; break;
                     }
-                    if (newDir) nextDirection = newDir;
+                    if (newDir) {
+                        nextDirection = newDir;
+                        playSound('turn');
+                    }
                 });
             });
 
@@ -854,14 +1252,17 @@
                     if (dy > 0 && direction.y === 0) newDir = { x: 0, y: 1 };
                     else if (dy < 0 && direction.y === 0) newDir = { x: 0, y: -1 };
                 }
-                if (newDir) nextDirection = newDir;
+                if (newDir) {
+                    nextDirection = newDir;
+                    playSound('turn');
+                }
             });
         }
 
         // === INIT ===
         initEvents();
         generateFood();
-        draw();
+        renderFrame();
     </script>
 </body>
 </html>

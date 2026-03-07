@@ -39,8 +39,8 @@
         }
 
         @keyframes menuFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .menu-overlay.hidden {
@@ -203,6 +203,11 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             padding: 12px 15px;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .player-hud.slide-in {
+            animation: hudSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
         .player-hud.p1 {
@@ -211,6 +216,11 @@
 
         .player-hud.p2 {
             right: 20px;
+        }
+
+        @keyframes hudSlideIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .player-name {
@@ -233,7 +243,7 @@
 
         .bar-fill {
             height: 100%;
-            transition: width 0.2s ease;
+            transition: width 0.15s ease;
             border-radius: 7px;
         }
 
@@ -260,13 +270,15 @@
             font-size: 48px;
             font-weight: bold;
             text-shadow: 0 0 20px currentColor;
-            animation: comboPulse 0.3s;
+            animation: comboPulse 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             pointer-events: none;
+            letter-spacing: 4px;
         }
 
         @keyframes comboPulse {
-            0% { transform: translateX(-50%) scale(0.5); }
-            100% { transform: translateX(-50%) scale(1); }
+            0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+            60% { transform: translateX(-50%) scale(1.2); opacity: 1; }
+            100% { transform: translateX(-50%) scale(1); opacity: 1; }
         }
 
         .round-announcement {
@@ -288,19 +300,6 @@
             0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
             60% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
             100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        }
-
-        .combo-display {
-            position: absolute;
-            top: 150px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 42px;
-            font-weight: bold;
-            text-shadow: 0 0 25px currentColor;
-            animation: comboPulse 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            pointer-events: none;
-            letter-spacing: 4px;
         }
 
         /* Game Over Overlay */
@@ -409,7 +408,7 @@
     </style>
 </head>
 <body>
-    <a href="../index.html" class="back-link">← Zurück</a>
+    <a href="../index.html" class="back-link">&#8592; Zur&#252;ck</a>
 
     <div id="menuOverlay" class="menu-overlay">
         <div class="title">JEDI STICKMAN<br>ARENA</div>
@@ -432,9 +431,9 @@
                 </div>
                 <div>
                     <h4 style="color: #ff00ff; margin-bottom: 10px;">Spieler 2 (Tastatur)</h4>
-                    <div class="control-item"><span>Bewegung</span><span class="control-key">←/→</span></div>
-                    <div class="control-item"><span>Angriff</span><span class="control-key">↑</span></div>
-                    <div class="control-item"><span>Block</span><span class="control-key">↓</span></div>
+                    <div class="control-item"><span>Bewegung</span><span class="control-key">&#8592;/&#8594;</span></div>
+                    <div class="control-item"><span>Angriff</span><span class="control-key">&#8593;</span></div>
+                    <div class="control-item"><span>Block</span><span class="control-key">&#8595;</span></div>
                     <div class="control-item"><span>Springen</span><span class="control-key">NUMPAD 0</span></div>
                     <div class="control-item"><span>Force Push</span><span class="control-key">NUMPAD 1</span></div>
                     <div class="control-item"><span>Force Pull</span><span class="control-key">NUMPAD 2</span></div>
@@ -453,14 +452,14 @@
     </div>
 
     <div class="hud" id="hud" style="display: none;">
-        <div class="player-hud p1">
+        <div class="player-hud p1" id="hudP1">
             <div class="player-name" style="color: #00ffff;">JEDI 1</div>
             <div class="health-bar"><div class="bar-fill health-fill" id="p1-health" style="width: 100%;"></div></div>
             <div class="stamina-bar"><div class="bar-fill stamina-fill" id="p1-stamina" style="width: 100%;"></div></div>
             <div class="force-bar"><div class="bar-fill force-fill" id="p1-force" style="width: 100%;"></div></div>
         </div>
 
-        <div class="player-hud p2">
+        <div class="player-hud p2" id="hudP2">
             <div class="player-name" style="color: #ff00ff;">JEDI 2</div>
             <div class="health-bar"><div class="bar-fill health-fill" id="p2-health" style="width: 100%;"></div></div>
             <div class="stamina-bar"><div class="bar-fill stamina-fill" id="p2-stamina" style="width: 100%;"></div></div>
@@ -493,7 +492,7 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // Debug Configuration - Set to true for development, false for production
+        // Debug Configuration
         const DEBUG = false;
         if (!DEBUG) {
             const noop = () => {};
@@ -570,6 +569,8 @@
             return discriminant >= 0;
         }
 
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
         // ==================== POINT CLASS (for Verlet Physics) ====================
         class Point {
             constructor(x, y, pinned = false) {
@@ -583,7 +584,6 @@
             update() {
                 if (this.pinned) return;
 
-                // Verlet Integration (korrekte Reihenfolge!)
                 const vx = (this.x - this.oldX) * CONFIG.friction;
                 const vy = (this.y - this.oldY) * CONFIG.friction;
 
@@ -636,19 +636,27 @@
             }
         }
 
-        // ==================== AUDIO ENGINE ====================
+        // ==================== AUDIO ENGINE (Enhanced) ====================
         class AudioEngine {
             constructor() {
                 this.context = null;
+                this.saberHumNode = null;
+                this.saberHumGain = null;
+                this.humActive = false;
                 try {
                     this.context = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (e) {
-                    console.log('Web Audio API not supported');
+                } catch (e) {}
+            }
+
+            ensureContext() {
+                if (this.context && this.context.state === 'suspended') {
+                    this.context.resume();
                 }
             }
 
             playTone(frequency, duration, type = 'sine', volume = 0.08) {
                 if (!this.context) return;
+                this.ensureContext();
 
                 const oscillator = this.context.createOscillator();
                 const gainNode = this.context.createGain();
@@ -666,6 +674,47 @@
                 oscillator.stop(this.context.currentTime + duration);
             }
 
+            // Continuous lightsaber hum
+            startSaberHum() {
+                if (!this.context || this.humActive) return;
+                this.ensureContext();
+
+                this.saberHumNode = this.context.createOscillator();
+                this.saberHumGain = this.context.createGain();
+                const filter = this.context.createBiquadFilter();
+
+                this.saberHumNode.type = 'sawtooth';
+                this.saberHumNode.frequency.setValueAtTime(120, this.context.currentTime);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(200, this.context.currentTime);
+                filter.Q.setValueAtTime(5, this.context.currentTime);
+
+                this.saberHumNode.connect(filter);
+                filter.connect(this.saberHumGain);
+                this.saberHumGain.connect(this.context.destination);
+                this.saberHumGain.gain.setValueAtTime(0.02, this.context.currentTime);
+
+                this.saberHumNode.start();
+                this.humActive = true;
+            }
+
+            stopSaberHum() {
+                if (this.saberHumNode) {
+                    try { this.saberHumNode.stop(); } catch(e) {}
+                    this.saberHumNode = null;
+                    this.humActive = false;
+                }
+            }
+
+            // Modulate hum based on combat intensity
+            modulateHum(intensity) {
+                if (this.saberHumGain) {
+                    const vol = 0.02 + intensity * 0.03;
+                    this.saberHumGain.gain.setValueAtTime(Math.min(vol, 0.06), this.context.currentTime);
+                }
+            }
+
             saberSwing() {
                 this.playTone(800 + Math.random() * 200, 0.1, 'sawtooth', 0.05);
             }
@@ -676,22 +725,66 @@
             }
 
             saberClash() {
+                if (!this.context) return;
+                this.ensureContext();
+                // Richer clash: layered sounds
                 this.playTone(2000, 0.15, 'square', 0.1);
+                this.playTone(2500, 0.1, 'sawtooth', 0.06);
+                setTimeout(() => this.playTone(1500, 0.2, 'triangle', 0.05), 30);
             }
 
             forcePush() {
-                this.playTone(400, 0.3, 'sine', 0.12);
-                setTimeout(() => this.playTone(200, 0.3, 'sine', 0.1), 100);
+                if (!this.context) return;
+                this.ensureContext();
+                // Whoosh effect
+                const osc = this.context.createOscillator();
+                const gain = this.context.createGain();
+                osc.connect(gain);
+                gain.connect(this.context.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(500, this.context.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.context.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.12, this.context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.4);
+                osc.start(this.context.currentTime);
+                osc.stop(this.context.currentTime + 0.4);
             }
 
             jump() {
-                this.playTone(600, 0.1, 'sine', 0.06);
+                if (!this.context) return;
+                this.ensureContext();
+                const osc = this.context.createOscillator();
+                const gain = this.context.createGain();
+                osc.connect(gain);
+                gain.connect(this.context.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, this.context.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.context.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.06, this.context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.15);
+                osc.start(this.context.currentTime);
+                osc.stop(this.context.currentTime + 0.15);
+            }
+
+            landingThud() {
+                if (!this.context) return;
+                this.ensureContext();
+                const osc = this.context.createOscillator();
+                const gain = this.context.createGain();
+                osc.connect(gain);
+                gain.connect(this.context.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(60, this.context.currentTime);
+                gain.gain.setValueAtTime(0.1, this.context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + 0.15);
+                osc.start(this.context.currentTime);
+                osc.stop(this.context.currentTime + 0.15);
             }
         }
 
-        // ==================== PARTICLE SYSTEM ====================
+        // ==================== PARTICLE SYSTEM (Enhanced) ====================
         class Particle {
-            constructor(x, y, vx, vy, color, life) {
+            constructor(x, y, vx, vy, color, life, opts = {}) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
@@ -699,25 +792,55 @@
                 this.color = color;
                 this.life = life;
                 this.maxLife = life;
-                this.size = 2 + Math.random() * 4;
+                this.size = opts.size || (2 + Math.random() * 4);
+                this.gravity = opts.gravity !== undefined ? opts.gravity : 0.3;
+                this.friction = opts.friction || 0.97;
+                this.glow = opts.glow || false;
+                this.type = opts.type || 'circle'; // circle, spark, dust
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vy += 0.3;
+                this.vy += this.gravity;
                 this.life--;
-                this.vx *= 0.97;
-                this.vy *= 0.97;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
             }
 
             render(ctx) {
                 const alpha = this.life / this.maxLife;
                 ctx.globalAlpha = alpha;
+
+                if (this.glow) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color;
+                }
+
                 ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
+
+                if (this.type === 'spark') {
+                    // Elongated spark
+                    ctx.save();
+                    const angle = Math.atan2(this.vy, this.vx);
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(angle);
+                    ctx.fillRect(-this.size * 2, -this.size * 0.3, this.size * 4, this.size * 0.6);
+                    ctx.restore();
+                } else if (this.type === 'dust') {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * (1 + (1 - alpha) * 2), 0, Math.PI * 2);
+                    ctx.globalAlpha = alpha * 0.4;
+                    ctx.fill();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                if (this.glow) {
+                    ctx.shadowBlur = 0;
+                }
                 ctx.globalAlpha = 1;
             }
         }
@@ -727,16 +850,97 @@
                 this.particles = [];
             }
 
-            emit(x, y, count, color) {
+            emit(x, y, count, color, opts = {}) {
                 for (let i = 0; i < count; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = 2 + Math.random() * 8;
+                    const speed = (opts.speed || 5) * (0.4 + Math.random() * 0.6);
+                    this.particles.push(new Particle(
+                        x, y,
+                        Math.cos(angle) * speed + (opts.dirX || 0),
+                        Math.sin(angle) * speed + (opts.dirY || 0),
+                        color,
+                        opts.life || (20 + Math.random() * 30),
+                        opts
+                    ));
+                }
+            }
+
+            // Lightsaber sparks on clash
+            emitSparks(x, y, count, color) {
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 4 + Math.random() * 12;
                     this.particles.push(new Particle(
                         x, y,
                         Math.cos(angle) * speed,
-                        Math.sin(angle) * speed,
+                        Math.sin(angle) * speed - 2,
                         color,
-                        20 + Math.random() * 30
+                        10 + Math.random() * 20,
+                        { type: 'spark', size: 2 + Math.random() * 3, glow: true, gravity: 0.4, friction: 0.95 }
+                    ));
+                }
+            }
+
+            // Force push wave particles
+            emitForceWave(x, y, dirX, color) {
+                for (let i = 0; i < 40; i++) {
+                    const angle = (Math.random() - 0.5) * Math.PI * 0.6;
+                    const baseAngle = dirX > 0 ? 0 : Math.PI;
+                    const speed = 6 + Math.random() * 10;
+                    this.particles.push(new Particle(
+                        x, y,
+                        Math.cos(baseAngle + angle) * speed,
+                        Math.sin(baseAngle + angle) * speed,
+                        color,
+                        15 + Math.random() * 20,
+                        { size: 3 + Math.random() * 5, glow: true, gravity: 0, friction: 0.93 }
+                    ));
+                }
+                // Central ring
+                for (let i = 0; i < 20; i++) {
+                    const angle = (i / 20) * Math.PI * 2;
+                    this.particles.push(new Particle(
+                        x, y,
+                        Math.cos(angle) * 3 + dirX * 4,
+                        Math.sin(angle) * 3,
+                        '#ffffff',
+                        10 + Math.random() * 10,
+                        { size: 1.5, glow: true, gravity: 0, friction: 0.95 }
+                    ));
+                }
+            }
+
+            // Landing dust
+            emitDust(x, y, intensity) {
+                const count = Math.floor(intensity * 3) + 4;
+                for (let i = 0; i < count; i++) {
+                    const dir = Math.random() > 0.5 ? 1 : -1;
+                    this.particles.push(new Particle(
+                        x + (Math.random() - 0.5) * 30, y,
+                        dir * (2 + Math.random() * 4), -(Math.random() * 2),
+                        'rgba(150, 140, 130, 0.8)',
+                        15 + Math.random() * 15,
+                        { type: 'dust', size: 4 + Math.random() * 6, gravity: -0.05, friction: 0.94 }
+                    ));
+                }
+            }
+
+            // Death burst
+            emitDeathBurst(x, y, color) {
+                // Big explosion
+                this.emit(x, y, 50, color, { speed: 10, life: 40, glow: true, size: 4 });
+                this.emit(x, y, 30, '#ffffff', { speed: 6, life: 25, glow: true, size: 2 });
+                this.emitSparks(x, y, 25, color);
+                // Embers rising
+                for (let i = 0; i < 15; i++) {
+                    this.particles.push(new Particle(
+                        x + (Math.random() - 0.5) * 40,
+                        y + (Math.random() - 0.5) * 60,
+                        (Math.random() - 0.5) * 3,
+                        -(2 + Math.random() * 4),
+                        color,
+                        40 + Math.random() * 30,
+                        { size: 2 + Math.random() * 3, glow: true, gravity: -0.15, friction: 0.98 }
                     ));
                 }
             }
@@ -752,6 +956,46 @@
 
             render(ctx) {
                 this.particles.forEach(p => p.render(ctx));
+            }
+        }
+
+        // ==================== AMBIENT PARTICLES ====================
+        class AmbientSystem {
+            constructor() {
+                this.particles = [];
+                for (let i = 0; i < 60; i++) {
+                    this.particles.push({
+                        x: Math.random() * CONFIG.width,
+                        y: Math.random() * CONFIG.height,
+                        vx: (Math.random() - 0.5) * 0.2,
+                        vy: -(Math.random() * 0.3 + 0.1),
+                        size: Math.random() * 1.5 + 0.5,
+                        alpha: Math.random() * 0.15 + 0.05,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            update(time) {
+                this.particles.forEach(p => {
+                    p.x += p.vx + Math.sin(time * 0.0005 + p.phase) * 0.2;
+                    p.y += p.vy;
+                    p.alpha = 0.05 + Math.sin(time * 0.001 + p.phase) * 0.08;
+                    if (p.y < 0) { p.y = CONFIG.height; p.x = Math.random() * CONFIG.width; }
+                    if (p.x < 0) p.x = CONFIG.width;
+                    if (p.x > CONFIG.width) p.x = 0;
+                });
+            }
+
+            render(ctx) {
+                this.particles.forEach(p => {
+                    ctx.globalAlpha = Math.max(0, p.alpha);
+                    ctx.fillStyle = '#aaccff';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
             }
         }
 
@@ -790,7 +1034,6 @@
             }
 
             setupTouchControls(em) {
-                // Virtual joystick
                 const moveArea = document.getElementById('touchMoveArea');
                 const stick = document.getElementById('touchStick');
                 if (!moveArea || !stick) return;
@@ -825,7 +1068,6 @@
                 em.add(moveArea, 'touchend', resetStick);
                 em.add(moveArea, 'touchcancel', resetStick);
 
-                // Action buttons
                 document.querySelectorAll('.touch-action-btn[data-action]').forEach(btn => {
                     const action = btn.dataset.action;
                     em.add(btn, 'touchstart', (e) => {
@@ -852,7 +1094,7 @@
             updateGamepadStatus() {
                 const status = document.getElementById('gamepadStatus');
                 if (this.gamepadConnected) {
-                    status.textContent = 'Controller: Verbunden ✓';
+                    status.textContent = 'Controller: Verbunden';
                     status.classList.remove('disconnected');
                 } else {
                     status.textContent = 'Controller: Nicht verbunden';
@@ -874,7 +1116,6 @@
                     forcePull: false
                 };
 
-                // Keyboard - Spieler 1
                 if (playerIndex === 0) {
                     if (this.keys['keya']) input.moveX -= 1;
                     if (this.keys['keyd']) input.moveX += 1;
@@ -884,7 +1125,6 @@
                     input.forcePush = this.keys['keyq'];
                     input.forcePull = this.keys['keye'];
                 }
-                // Keyboard - Spieler 2
                 else if (playerIndex === 1) {
                     if (this.keys['arrowleft']) input.moveX -= 1;
                     if (this.keys['arrowright']) input.moveX += 1;
@@ -895,7 +1135,6 @@
                     input.forcePull = this.keys['numpad2'];
                 }
 
-                // Gamepad input (overrides keyboard if present)
                 if (this.gamepads[playerIndex]) {
                     const gp = this.gamepads[playerIndex];
                     if (Math.abs(gp.axes[0]) > 0.2) input.moveX = gp.axes[0];
@@ -906,7 +1145,6 @@
                     if (gp.buttons[4]?.pressed) input.forcePull = true;
                 }
 
-                // Touch input (only for player 0)
                 if (playerIndex === 0) {
                     const ti = this.touchInput;
                     if (Math.abs(ti.moveX) > 0.1) input.moveX = ti.moveX;
@@ -921,14 +1159,13 @@
             }
         }
 
-        // ==================== STICKMAN PLAYER (Verbesserte Version) ====================
+        // ==================== STICKMAN PLAYER (Enhanced) ====================
         class Stickman {
             constructor(x, y, color, saberColor, playerIndex) {
                 this.playerIndex = playerIndex;
                 this.color = color;
                 this.saberColor = saberColor;
 
-                // VEREINFACHTE Körperstruktur mit nur 7 Punkten (stabiler!)
                 const headY = y - 90;
                 const chestY = y - 60;
                 const waistY = y - 30;
@@ -944,26 +1181,17 @@
                     footR: new Point(x + 15, footY)
                 };
 
-                // Helper function
                 const dist = (p1, p2) => {
                     return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
                 };
 
-                // EINFACHE aber STABILE Constraints
                 this.constraints = [
-                    // Wirbelsäule (vertical chain)
                     new Constraint(this.points.head, this.points.chest, dist(this.points.head, this.points.chest)),
                     new Constraint(this.points.chest, this.points.waist, dist(this.points.chest, this.points.waist)),
-
-                    // Beine
                     new Constraint(this.points.waist, this.points.footL, dist(this.points.waist, this.points.footL)),
                     new Constraint(this.points.waist, this.points.footR, dist(this.points.waist, this.points.footR)),
-
-                    // Arme
                     new Constraint(this.points.chest, this.points.handL, dist(this.points.chest, this.points.handL)),
                     new Constraint(this.points.chest, this.points.handR, dist(this.points.chest, this.points.handR)),
-
-                    // Strukturelle Stabilität
                     new Constraint(this.points.head, this.points.waist, dist(this.points.head, this.points.waist)),
                     new Constraint(this.points.footL, this.points.footR, dist(this.points.footL, this.points.footR)),
                     new Constraint(this.points.handL, this.points.handR, dist(this.points.handL, this.points.handR)),
@@ -971,12 +1199,10 @@
                     new Constraint(this.points.chest, this.points.footR, dist(this.points.chest, this.points.footR))
                 ];
 
-                // Stabilisiere beim Start
                 for (let i = 0; i < 30; i++) {
                     this.constraints.forEach(c => c.solve());
                 }
 
-                // Fixiere Füße auf dem Boden
                 this.points.footL.y = footY;
                 this.points.footL.oldY = footY;
                 this.points.footR.y = footY;
@@ -999,6 +1225,7 @@
 
                 // Physics
                 this.grounded = false;
+                this.wasGrounded = false;
                 this.facingRight = playerIndex === 0;
                 this.saberLength = 70;
 
@@ -1006,12 +1233,21 @@
                 this.forcePushCooldown = 0;
                 this.forcePullCooldown = 0;
 
-                // Attack hand (welche Hand das Schwert hält)
+                // Attack hand
                 this.attackHand = this.points.handR;
+
+                // Lightsaber trail history
+                this.saberTrail = [];
+
+                // Visual state
+                this.hitFlash = 0;
+                this.blockPulse = 0;
             }
 
             update(input, dt) {
-                // ========== PHASE 1: INPUT & FORCES (vor Verlet!) ==========
+                // Store previous grounded state
+                this.wasGrounded = this.grounded;
+
                 // Movement
                 if (input.moveX !== 0) {
                     this.facingRight = input.moveX > 0;
@@ -1030,11 +1266,10 @@
                     game.audio.jump();
                 }
 
-                // ========== PHASE 2: VERLET INTEGRATION ==========
+                // Verlet Integration
                 Object.values(this.points).forEach(p => p.update());
 
-                // ========== PHASE 3: CONSTRAINT SOLVING + COLLISIONS ==========
-                // Check if grounded BEFORE constraint loop
+                // Check grounded
                 this.grounded = false;
                 [this.points.footL, this.points.footR].forEach(foot => {
                     if (foot.y >= CONFIG.groundY - 1) {
@@ -1042,16 +1277,24 @@
                     }
                 });
 
-                // PINNE die Füße NUR wenn grounded UND keine Bewegung
+                // Landing detection
+                if (this.grounded && !this.wasGrounded) {
+                    const vy = this.points.waist.y - this.points.waist.oldY;
+                    if (vy > 3) {
+                        // Landing effects
+                        const landX = (this.points.footL.x + this.points.footR.x) / 2;
+                        game.audio.landingThud();
+                        game.particles.emitDust(landX, CONFIG.groundY, vy / 3);
+                        game.screenShake = Math.min(vy * 0.8, 6);
+                    }
+                }
+
                 const shouldPin = this.grounded && input.moveX === 0 && !input.jump;
                 this.points.footL.pinned = shouldPin;
                 this.points.footR.pinned = shouldPin;
 
                 for (let i = 0; i < 30; i++) {
-                    // Solve structural constraints
                     this.constraints.forEach(c => c.solve());
-
-                    // Apply ground collision INSIDE constraint loop!
                     [this.points.footL, this.points.footR].forEach(foot => {
                         if (foot.y > CONFIG.groundY) {
                             foot.y = CONFIG.groundY;
@@ -1060,7 +1303,6 @@
                     });
                 }
 
-                // ========== PHASE 4: GAME LOGIC ==========
                 // Attack
                 if (input.attack && !this.attacking && this.attackCooldown <= 0 && this.stamina > 10) {
                     this.attacking = true;
@@ -1082,6 +1324,9 @@
                 this.blocking = input.block && this.stamina > 0;
                 if (this.blocking) {
                     this.stamina -= 0.3;
+                    this.blockPulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                } else {
+                    this.blockPulse *= 0.9;
                 }
 
                 // Force Powers
@@ -1116,18 +1361,30 @@
                     this.combo = 0;
                 }
 
-                // Regeneration (nur wenn nicht angreift)
+                // Hit flash decay
+                if (this.hitFlash > 0) this.hitFlash -= 0.08;
+
+                // Regen
                 if (!this.attacking && !this.blocking) {
                     this.stamina = Math.min(100, this.stamina + 0.8);
                 }
                 this.force = Math.min(100, this.force + 0.4);
+
+                // Update saber trail
+                const saber = this.getSaberPosition();
+                this.saberTrail.push({ x: saber.endX, y: saber.endY, life: 1 });
+                if (this.saberTrail.length > 12) this.saberTrail.shift();
+                this.saberTrail.forEach(t => t.life -= 0.08);
+                this.saberTrail = this.saberTrail.filter(t => t.life > 0);
             }
 
             useForcePush() {
                 this.force -= 25;
                 this.forcePushCooldown = 100;
                 game.audio.forcePush();
+                game.screenShake = 10;
 
+                const pushDir = this.facingRight ? 1 : -1;
                 const pushRange = 250;
                 game.players.forEach(other => {
                     if (other === this || other.health <= 0) return;
@@ -1147,7 +1404,11 @@
                     }
                 });
 
-                game.particles.emit(this.points.handL.x, this.points.handL.y, 25, this.color);
+                // Force wave particles
+                game.particles.emitForceWave(
+                    this.points.handR.x, this.points.handR.y,
+                    pushDir, this.color
+                );
             }
 
             useForcePull() {
@@ -1172,6 +1433,11 @@
                         });
                     }
                 });
+
+                // Pull effect particles (inward spiral)
+                game.particles.emit(this.points.handR.x, this.points.handR.y, 20, this.color, {
+                    speed: 2, life: 20, glow: true, gravity: 0, friction: 0.9
+                });
             }
 
             takeDamage(amount, knockbackX = 0, knockbackY = 0) {
@@ -1182,37 +1448,45 @@
                     knockbackX *= 0.3;
                     knockbackY *= 0.3;
                     game.audio.saberClash();
+                    game.screenShake = 12;
+                    // Clash sparks
+                    const clashX = this.points.handR.x;
+                    const clashY = this.points.handR.y;
+                    game.particles.emitSparks(clashX, clashY, 20, '#ffffff');
+                    game.particles.emitSparks(clashX, clashY, 10, this.saberColor);
                 } else {
                     game.audio.saberHit();
+                    game.screenShake = 8;
                 }
 
                 this.health = Math.max(0, this.health - amount);
                 this.hitCooldown = 25;
+                this.hitFlash = 1;
 
-                // Apply knockback to all body parts
                 Object.values(this.points).forEach(p => {
                     p.applyForce(knockbackX, knockbackY);
                 });
 
-                game.particles.emit(this.points.chest.x, this.points.chest.y, 12, '#ff0000');
-                game.screenShake = 8;
+                game.particles.emit(this.points.chest.x, this.points.chest.y, 12, '#ff0000', { glow: true });
+
+                // Check death
+                if (this.health <= 0) {
+                    game.particles.emitDeathBurst(this.points.chest.x, this.points.chest.y, this.color);
+                    game.screenShake = 15;
+                }
             }
 
             getSaberPosition() {
-                // Berechne Schwertposition basierend auf Attack Frame
                 let angle = this.facingRight ? 0 : Math.PI;
 
                 if (this.attacking) {
                     const progress = this.attackFrame / this.attackFrameMax;
                     if (progress < 0.3) {
-                        // Windup: Zurückziehen
                         angle += (this.facingRight ? 1 : -1) * Math.PI * 0.5 * (1 - progress / 0.3);
                     } else if (progress < 0.7) {
-                        // Swing: Vorwärts schwingen
                         const swingProgress = (progress - 0.3) / 0.4;
                         angle -= (this.facingRight ? 1 : -1) * Math.PI * 0.8 * swingProgress;
                     } else {
-                        // Recovery: Zurück
                         const recoveryProgress = (progress - 0.7) / 0.3;
                         angle -= (this.facingRight ? 1 : -1) * Math.PI * 0.8 * (1 - recoveryProgress);
                     }
@@ -1230,58 +1504,88 @@
             render(ctx) {
                 if (this.health <= 0) return;
 
-                ctx.strokeStyle = this.color;
+                const hitAlpha = this.hitFlash > 0 ? 0.4 : 0;
+
+                // Body color - flash white on hit
+                const bodyColor = this.hitFlash > 0.5 ? '#ffffff' : this.color;
+
+                ctx.strokeStyle = bodyColor;
                 ctx.lineWidth = 5;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
-                // Wirbelsäule
+                // Body glow
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = this.color;
+
+                // Spine
                 ctx.beginPath();
                 ctx.moveTo(this.points.head.x, this.points.head.y);
                 ctx.lineTo(this.points.chest.x, this.points.chest.y);
                 ctx.lineTo(this.points.waist.x, this.points.waist.y);
                 ctx.stroke();
 
-                // Linker Arm
+                // Left Arm
                 ctx.beginPath();
                 ctx.moveTo(this.points.chest.x, this.points.chest.y);
                 ctx.lineTo(this.points.handL.x, this.points.handL.y);
                 ctx.stroke();
 
-                // Rechter Arm
+                // Right Arm
                 ctx.beginPath();
                 ctx.moveTo(this.points.chest.x, this.points.chest.y);
                 ctx.lineTo(this.points.handR.x, this.points.handR.y);
                 ctx.stroke();
 
-                // Linkes Bein
+                // Left Leg
                 ctx.beginPath();
                 ctx.moveTo(this.points.waist.x, this.points.waist.y);
                 ctx.lineTo(this.points.footL.x, this.points.footL.y);
                 ctx.stroke();
 
-                // Rechtes Bein
+                // Right Leg
                 ctx.beginPath();
                 ctx.moveTo(this.points.waist.x, this.points.waist.y);
                 ctx.lineTo(this.points.footR.x, this.points.footR.y);
                 ctx.stroke();
 
-                // Kopf
-                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 0;
+
+                // Head
+                ctx.fillStyle = bodyColor;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = this.color;
                 ctx.beginPath();
                 ctx.arc(this.points.head.x, this.points.head.y, 20, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+                ctx.shadowBlur = 0;
 
-                // Augen
+                // Eyes
                 ctx.fillStyle = '#000';
                 const eyeOffsetX = this.facingRight ? 6 : -6;
                 ctx.fillRect(this.points.head.x + eyeOffsetX - 2, this.points.head.y - 3, 4, 6);
 
+                // Block shield visual
+                if (this.blocking && this.blockPulse > 0.1) {
+                    ctx.save();
+                    ctx.globalAlpha = this.blockPulse * 0.3;
+                    ctx.strokeStyle = this.saberColor;
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = this.saberColor;
+                    ctx.beginPath();
+                    const cx = this.points.chest.x;
+                    const cy = this.points.chest.y;
+                    ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
                 // Lightsaber
                 this.renderSaber(ctx);
 
-                // Health bar
+                // Health bar above head
                 if (this.health < 100) {
                     const barWidth = 50;
                     const barHeight = 6;
@@ -1291,21 +1595,47 @@
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                     ctx.fillRect(x, y, barWidth, barHeight);
 
-                    ctx.fillStyle = this.health > 50 ? '#0f0' : this.health > 25 ? '#ff0' : '#f00';
+                    const hpColor = this.health > 50 ? '#0f0' : this.health > 25 ? '#ff0' : '#f00';
+                    ctx.fillStyle = hpColor;
                     ctx.fillRect(x, y, barWidth * (this.health / 100), barHeight);
+
+                    // HP bar glow
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = hpColor;
+                    ctx.fillRect(x, y, barWidth * (this.health / 100), barHeight);
+                    ctx.shadowBlur = 0;
                 }
             }
 
             renderSaber(ctx) {
                 const saber = this.getSaberPosition();
 
-                // Glow effect
-                ctx.shadowBlur = 25;
+                // Saber glow
+                ctx.shadowBlur = 30;
                 ctx.shadowColor = this.saberColor;
 
-                // Trail wenn angreift
+                // Saber trail (motion blur)
+                if (this.saberTrail.length > 1) {
+                    ctx.save();
+                    for (let i = 1; i < this.saberTrail.length; i++) {
+                        const prev = this.saberTrail[i - 1];
+                        const curr = this.saberTrail[i];
+                        const alpha = curr.life * 0.3;
+                        if (alpha < 0.02) continue;
+                        ctx.globalAlpha = alpha;
+                        ctx.strokeStyle = this.saberColor;
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.moveTo(saber.startX, saber.startY);
+                        ctx.lineTo(curr.x, curr.y);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+
+                // Attack swing trail (thicker, brighter)
                 if (this.attacking && this.attackFrame > 5 && this.attackFrame < 15) {
-                    ctx.globalAlpha = 0.4;
+                    ctx.globalAlpha = 0.5;
                     for (let i = 1; i <= 4; i++) {
                         const prevFrame = Math.max(0, this.attackFrame - i * 2);
                         const progress = prevFrame / this.attackFrameMax;
@@ -1323,7 +1653,7 @@
                         const trailEndY = hand.y + Math.sin(trailAngle) * this.saberLength;
 
                         ctx.strokeStyle = this.saberColor;
-                        ctx.lineWidth = 4;
+                        ctx.lineWidth = 5 - i;
                         ctx.beginPath();
                         ctx.moveTo(hand.x, hand.y);
                         ctx.lineTo(trailEndX, trailEndY);
@@ -1334,31 +1664,53 @@
 
                 // Main blade
                 ctx.strokeStyle = this.saberColor;
-                ctx.lineWidth = 6;
+                ctx.lineWidth = 7;
                 ctx.beginPath();
                 ctx.moveTo(saber.startX, saber.startY);
                 ctx.lineTo(saber.endX, saber.endY);
                 ctx.stroke();
 
-                // Core (white)
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
+                // Core (white, brighter)
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ffffff';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 ctx.moveTo(saber.startX, saber.startY);
                 ctx.lineTo(saber.endX, saber.endY);
                 ctx.stroke();
+
+                // Tip glow
+                ctx.fillStyle = this.saberColor;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.saberColor;
+                ctx.beginPath();
+                ctx.arc(saber.endX, saber.endY, 3, 0, Math.PI * 2);
+                ctx.fill();
 
                 ctx.shadowBlur = 0;
+
+                // Hilt
+                ctx.fillStyle = '#888';
+                ctx.shadowBlur = 0;
+                const hiltAngle = Math.atan2(saber.endY - saber.startY, saber.endX - saber.startX);
+                ctx.save();
+                ctx.translate(saber.startX, saber.startY);
+                ctx.rotate(hiltAngle);
+                ctx.fillRect(-12, -3, 12, 6);
+                ctx.fillStyle = '#555';
+                ctx.fillRect(-10, -2, 3, 4);
+                ctx.restore();
             }
         }
 
-        // ==================== MAIN GAME CLASS ====================
+        // ==================== MAIN GAME CLASS (Enhanced) ====================
         class Game {
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
                 if (!this.ctx) {
-                    alert('Canvas 2D wird nicht unterstützt.');
+                    alert('Canvas 2D wird nicht unterstuetzt.');
                     return;
                 }
                 this.globalEventManager = new EventManager();
@@ -1367,13 +1719,16 @@
 
                 this.audio = new AudioEngine();
                 this.particles = new ParticleSystem();
+                this.ambientSystem = new AmbientSystem();
                 this.input = new InputManager();
 
                 this.players = [];
                 this.gameState = 'menu';
                 this.screenShake = 0;
+                this.stateTransition = { alpha: 0, active: false };
 
                 this.lastTime = 0;
+                this.gameTime = 0;
                 this.animate(0);
             }
 
@@ -1387,8 +1742,21 @@
             }
 
             startGame(playerCount) {
+                // State transition
+                this.stateTransition.active = true;
+                this.stateTransition.alpha = 1;
+
                 document.getElementById('menuOverlay').classList.add('hidden');
                 document.getElementById('hud').style.display = 'block';
+
+                // Slide in HUD
+                const hudP1 = document.getElementById('hudP1');
+                const hudP2 = document.getElementById('hudP2');
+                hudP1.classList.remove('slide-in');
+                hudP2.classList.remove('slide-in');
+                void hudP1.offsetWidth; // Force reflow
+                hudP1.classList.add('slide-in');
+                hudP2.classList.add('slide-in');
 
                 this.players = [];
                 const spacing = CONFIG.width / (playerCount + 1);
@@ -1406,6 +1774,9 @@
 
                 this.gameState = 'playing';
                 this.showAnnouncement('FIGHT!');
+
+                // Start saber hum
+                this.audio.startSaberHum();
             }
 
             showAnnouncement(text) {
@@ -1422,10 +1793,16 @@
                 this.input.poll();
 
                 // Update players
+                let combatIntensity = 0;
                 this.players.forEach(player => {
                     const input = this.input.getInput(player.playerIndex);
                     player.update(input, dt);
+                    if (player.attacking) combatIntensity += 0.5;
+                    if (player.blocking) combatIntensity += 0.3;
                 });
+
+                // Modulate saber hum with combat intensity
+                this.audio.modulateHum(Math.min(combatIntensity, 1));
 
                 // Check combat
                 this.checkCombat();
@@ -1439,6 +1816,15 @@
                     if (this.screenShake < 0.1) this.screenShake = 0;
                 }
 
+                // State transition fade
+                if (this.stateTransition.active) {
+                    this.stateTransition.alpha -= 0.03;
+                    if (this.stateTransition.alpha <= 0) {
+                        this.stateTransition.active = false;
+                        this.stateTransition.alpha = 0;
+                    }
+                }
+
                 // Update HUD
                 this.updateHUD();
 
@@ -1448,10 +1834,11 @@
                     this.gameState = 'ended';
                     const winner = alive[0];
 
-                    // Track wins
                     const key = `jedi_p${winner.playerIndex + 1}_wins`;
                     const wins = parseInt(safeGetItem(key, '0')) + 1;
                     safeSetItem(key, wins.toString());
+
+                    this.audio.stopSaberHum();
 
                     setTimeout(() => {
                         this.showGameOver(winner);
@@ -1472,14 +1859,12 @@
                         const target = this.players[j];
                         if (target.health <= 0) continue;
 
-                        // Check hit on head
                         const headHit = lineIntersectsCircle(
                             saber.startX, saber.startY,
                             saber.endX, saber.endY,
                             target.points.head.x, target.points.head.y, 18
                         );
 
-                        // Check hit on body
                         const bodyHit = distance(
                             target.points.chest.x, target.points.chest.y,
                             saber.endX, saber.endY
@@ -1490,6 +1875,20 @@
                             const knockX = dx > 0 ? 10 : -10;
                             const damage = headHit ? 35 : 25;
 
+                            // Clash sparks at impact point
+                            const hitX = headHit ? target.points.head.x : target.points.chest.x;
+                            const hitY = headHit ? target.points.head.y : target.points.chest.y;
+
+                            if (target.blocking) {
+                                // Saber-on-saber clash sparks
+                                this.particles.emitSparks(hitX, hitY, 25, '#ffffff');
+                                this.particles.emitSparks(hitX, hitY, 10, attacker.saberColor);
+                                this.particles.emitSparks(hitX, hitY, 10, target.saberColor);
+                            } else {
+                                // Hit sparks
+                                this.particles.emitSparks(hitX, hitY, 15, attacker.saberColor);
+                            }
+
                             target.takeDamage(damage, knockX, -4);
 
                             attacker.combo++;
@@ -1499,7 +1898,6 @@
                                 this.showCombo(attacker.combo);
                             }
 
-                            // Nur 1 Hit pro Swing
                             attacker.attackFrame = 15;
                         }
                     }
@@ -1510,7 +1908,7 @@
                 const div = document.createElement('div');
                 div.className = 'combo-display';
                 div.textContent = count + ' COMBO!';
-                div.style.color = count >= 5 ? '#ffff00' : count >= 10 ? '#ff00ff' : '#00ffff';
+                div.style.color = count >= 10 ? '#ff00ff' : count >= 5 ? '#ffff00' : '#00ffff';
                 document.body.appendChild(div);
                 setTimeout(() => div.remove(), 1500);
             }
@@ -1565,12 +1963,14 @@
 
             returnToMenu() {
                 this.gameState = 'menu';
+                this.audio.stopSaberHum();
                 document.getElementById('menuOverlay').classList.remove('hidden');
                 document.getElementById('hud').style.display = 'none';
             }
 
             render() {
                 const ctx = this.ctx;
+                this.gameTime = Date.now();
 
                 // Clear
                 ctx.fillStyle = '#0a0a0a';
@@ -1592,25 +1992,34 @@
                 ctx.translate(offsetX, offsetY);
                 ctx.scale(this.scale, this.scale);
 
-                // Stars
+                // Stars (twinkling)
                 ctx.fillStyle = '#fff';
                 for (let i = 0; i < 150; i++) {
                     const x = (i * 123.456) % CONFIG.width;
                     const y = (i * 789.012) % CONFIG.height;
                     const size = ((i % 4) + 1) * 0.5;
-                    const brightness = 0.3 + (i % 7) * 0.1;
-                    ctx.globalAlpha = brightness;
+                    const twinkle = Math.sin(this.gameTime * 0.002 + i * 1.7) * 0.2;
+                    const brightness = 0.3 + (i % 7) * 0.1 + twinkle;
+                    ctx.globalAlpha = Math.max(0.1, brightness);
                     ctx.fillRect(x, y, size, size);
                 }
                 ctx.globalAlpha = 1;
 
+                // Ambient particles
+                this.ambientSystem.update(this.gameTime);
+                this.ambientSystem.render(ctx);
+
                 // Ground
-                ctx.fillStyle = '#1a1a2e';
+                const groundGrad = ctx.createLinearGradient(0, CONFIG.groundY, 0, CONFIG.height);
+                groundGrad.addColorStop(0, '#1a1a2e');
+                groundGrad.addColorStop(1, '#0d0d1a');
+                ctx.fillStyle = groundGrad;
                 ctx.fillRect(0, CONFIG.groundY, CONFIG.width, CONFIG.height - CONFIG.groundY);
 
+                // Ground line glow
                 ctx.strokeStyle = '#00ffff';
                 ctx.lineWidth = 3;
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 15;
                 ctx.shadowColor = '#00ffff';
                 ctx.beginPath();
                 ctx.moveTo(0, CONFIG.groundY);
@@ -1619,7 +2028,7 @@
                 ctx.shadowBlur = 0;
 
                 // Grid lines on ground
-                ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
                 ctx.lineWidth = 1;
                 for (let x = 0; x < CONFIG.width; x += 100) {
                     ctx.beginPath();
@@ -1627,14 +2036,50 @@
                     ctx.lineTo(x, CONFIG.height);
                     ctx.stroke();
                 }
+                // Horizontal grid
+                for (let y = CONFIG.groundY + 40; y < CONFIG.height; y += 40) {
+                    const alpha = 0.04 * (1 - (y - CONFIG.groundY) / (CONFIG.height - CONFIG.groundY));
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(CONFIG.width, y);
+                    ctx.stroke();
+                }
 
-                // Particles
+                // Particles (behind players)
                 this.particles.render(ctx);
 
                 // Players
                 this.players.forEach(player => player.render(ctx));
 
+                // Force visual distortion (overlay when force is being used)
+                this.players.forEach(player => {
+                    if (player.forcePushCooldown > 85 || player.forcePullCooldown > 105) {
+                        const cx = player.points.chest.x;
+                        const cy = player.points.chest.y;
+                        const radius = 150;
+                        const alpha = player.forcePushCooldown > 85 ?
+                            (player.forcePushCooldown - 85) / 15 * 0.15 :
+                            (player.forcePullCooldown - 105) / 15 * 0.1;
+
+                        const distGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                        distGrad.addColorStop(0, `rgba(100, 150, 255, ${alpha})`);
+                        distGrad.addColorStop(0.5, `rgba(100, 150, 255, ${alpha * 0.3})`);
+                        distGrad.addColorStop(1, 'rgba(100, 150, 255, 0)');
+                        ctx.fillStyle = distGrad;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
                 ctx.restore();
+
+                // State transition overlay
+                if (this.stateTransition.active) {
+                    ctx.fillStyle = `rgba(0, 0, 0, ${this.stateTransition.alpha})`;
+                    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                }
             }
 
             animate(currentTime) {

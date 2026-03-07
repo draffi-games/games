@@ -68,6 +68,11 @@
         .hud-value {
             font-size: 1.5em;
             font-weight: bold;
+            transition: transform 0.15s ease-out;
+        }
+
+        .hud-value.pop {
+            transform: scale(1.4);
         }
 
         .health { color: #ff4444; }
@@ -431,6 +436,173 @@
         const canvas = _canvas;
         const ctx = _ctx;
 
+        // ===== GAME JUICE: Screen Shake =====
+        class ScreenShake {
+            constructor() { this.shakes = []; }
+            add(intensity = 8, duration = 200) {
+                this.shakes.push({ intensity, duration, elapsed: 0, samples: Array.from({length: 10}, () => Math.random() * 2 - 1) });
+            }
+            update(dt) {
+                let x = 0, y = 0;
+                this.shakes = this.shakes.filter(s => {
+                    s.elapsed += dt;
+                    if (s.elapsed >= s.duration) return false;
+                    const decay = 1 - s.elapsed / s.duration;
+                    const idx = (s.elapsed / s.duration) * s.samples.length;
+                    const sample = s.samples[Math.floor(idx) % s.samples.length];
+                    const offset = sample * s.intensity * decay;
+                    x += offset; y += offset * 0.7;
+                    return true;
+                });
+                return { x, y };
+            }
+        }
+        const screenShake = new ScreenShake();
+
+        // ===== GAME JUICE: Sound Synthesizer =====
+        class SoundSynth {
+            constructor() {
+                this.ctx = null;
+                this.initialized = false;
+            }
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch(e) {}
+            }
+            play(freq, type = 'square', dur = 0.1, vol = 0.15) {
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type; osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + dur);
+                } catch(e) {}
+            }
+            shoot() { this.play(800, 'square', 0.05, 0.1); }
+            hit() { this.play(200, 'sawtooth', 0.15, 0.12); }
+            kill() { this.play(150, 'sawtooth', 0.2, 0.15); this.play(100, 'square', 0.3, 0.1); }
+            playerHit() { this.play(120, 'sawtooth', 0.25, 0.2); this.play(80, 'square', 0.3, 0.15); }
+            collect() { this.play(880, 'sine', 0.1, 0.1); setTimeout(() => this.play(1100, 'sine', 0.15, 0.1), 50); }
+            waveComplete() { this.play(523, 'sine', 0.15, 0.15); setTimeout(() => this.play(659, 'sine', 0.15, 0.15), 100); setTimeout(() => this.play(784, 'sine', 0.3, 0.15), 200); }
+            upgrade() { this.play(440, 'sine', 0.1, 0.12); setTimeout(() => this.play(660, 'sine', 0.1, 0.12), 80); setTimeout(() => this.play(880, 'sine', 0.2, 0.12), 160); }
+            barricadePlace() { this.play(300, 'triangle', 0.1, 0.1); this.play(350, 'triangle', 0.08, 0.08); }
+            barricadeBreak() { this.play(100, 'sawtooth', 0.3, 0.15); }
+        }
+        const sound = new SoundSynth();
+
+        // ===== GAME JUICE: Score Popups =====
+        class ScorePopup {
+            constructor(x, y, text, color = '#ffdd44') {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 60;
+                this.maxLife = 60;
+                this.vy = -2;
+                this.scale = 0;
+            }
+            update() {
+                this.y += this.vy;
+                this.vy *= 0.96;
+                this.life--;
+                // Scale in with easeOutElastic
+                const progress = 1 - (this.life / this.maxLife);
+                if (progress < 0.3) {
+                    const t = progress / 0.3;
+                    this.scale = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    this.scale = Math.min(1.3, this.scale * 1.3);
+                } else {
+                    this.scale = 1;
+                }
+                return this.life > 0;
+            }
+            draw() {
+                const alpha = Math.min(1, this.life / 20);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.scale, this.scale);
+                ctx.font = 'bold 18px Courier New';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.fillText(this.text, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // ===== GAME JUICE: Screen Flash =====
+        class ScreenFlash {
+            constructor() { this.flashes = []; }
+            add(color = 'rgba(255,255,255,0.3)', duration = 150) {
+                this.flashes.push({ color, duration, elapsed: 0 });
+            }
+            update(dt) {
+                this.flashes = this.flashes.filter(f => {
+                    f.elapsed += dt;
+                    return f.elapsed < f.duration;
+                });
+            }
+            draw() {
+                this.flashes.forEach(f => {
+                    const alpha = 1 - f.elapsed / f.duration;
+                    ctx.save();
+                    ctx.globalAlpha = alpha * 0.4;
+                    ctx.fillStyle = f.color;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                });
+            }
+        }
+        const screenFlash = new ScreenFlash();
+
+        // ===== GAME JUICE: Ambient Background Particles =====
+        class AmbientParticle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * 800;
+                this.y = Math.random() * 600;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.speed = Math.random() * 0.3 + 0.1;
+                this.alpha = Math.random() * 0.3 + 0.05;
+                this.hue = Math.random() < 0.5 ? 120 : 0; // green or red tint
+            }
+            update() {
+                this.y -= this.speed;
+                this.x += Math.sin(this.y * 0.01) * 0.2;
+                if (this.y < -5) { this.y = 605; this.x = Math.random() * 800; }
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.hue === 120 ? '#00ff00' : '#ff4444';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        const ambientParticles = [];
+        for (let i = 0; i < 30; i++) ambientParticles.push(new AmbientParticle());
+
+        // ===== GAME JUICE: HUD Tween =====
+        const hudTweens = {};
+        function popHudElement(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('pop');
+            clearTimeout(hudTweens[id]);
+            hudTweens[id] = setTimeout(() => el.classList.remove('pop'), 150);
+        }
+
         const GRID_SIZE = 40;
         const PLAYER_SIZE = 15;
         const ZOMBIE_SIZE = 12;
@@ -438,6 +610,9 @@
         const BARRICADE_SIZE = GRID_SIZE;
         const BARRICADE_COST = 50;
         const ZOMBIE_REWARD = 15;
+
+        let lastFrameTime = performance.now();
+        let scorePopups = [];
 
         const game = {
             state: 'menu',
@@ -468,6 +643,11 @@
             },
             bestWave: parseInt(safeGetItem('zombieWavesBest', '0'))
         };
+
+        // Tracked values for HUD pop animations
+        let prevKills = 0;
+        let prevResources = 100;
+        let prevHealth = 100;
 
         class Player {
             constructor(x, y) {
@@ -542,7 +722,7 @@
 
                 ctx.restore();
 
-                // Health bar with glow
+                // Health bar with smooth transition
                 const barWidth = 40;
                 const barHeight = 5;
                 ctx.shadowBlur = 5;
@@ -551,8 +731,10 @@
                 ctx.fillRect(this.x - barWidth/2, this.y - 25, barWidth, barHeight);
 
                 ctx.shadowColor = '#00ff00';
-                ctx.fillStyle = game.health < 30 ? '#ff0000' : '#00ff00';
-                ctx.fillRect(this.x - barWidth/2, this.y - 25, barWidth * (game.health / game.maxHealth), barHeight);
+                const healthPct = game.health / game.maxHealth;
+                const healthColor = healthPct < 0.3 ? '#ff0000' : healthPct < 0.6 ? '#ffaa00' : '#00ff00';
+                ctx.fillStyle = healthColor;
+                ctx.fillRect(this.x - barWidth/2, this.y - 25, barWidth * healthPct, barHeight);
 
                 ctx.shadowBlur = 0;
             }
@@ -566,8 +748,22 @@
                     const flashY = this.y + Math.sin(angle) * (PLAYER_SIZE + 5);
                     game.entities.effects.push(new MuzzleFlash(flashX, flashY, angle));
 
+                    // Muzzle flash particles
+                    for (let i = 0; i < 4; i++) {
+                        const spread = (Math.random() - 0.5) * 0.6;
+                        const speed = 3 + Math.random() * 3;
+                        game.entities.particles.push(new JuiceParticle(
+                            flashX, flashY,
+                            Math.cos(angle + spread) * speed,
+                            Math.sin(angle + spread) * speed,
+                            '#ffff88', 10 + Math.random() * 5, 2
+                        ));
+                    }
+
                     game.entities.bullets.push(new Bullet(this.x, this.y, angle, this.damage));
                     this.shootCooldown = this.shootDelay;
+
+                    sound.shoot();
                 }
             }
 
@@ -589,6 +785,11 @@
                 this.damage = 1 + Math.floor(wave / 3);
                 this.damageCooldown = 0;
                 this.walkCycle = Math.random() * Math.PI * 2;
+                // HSB-harmonized zombie colors based on wave
+                const hue = 280 + (wave * 7) % 40; // purple-ish range
+                this.bodyColor = `hsl(${hue}, 50%, 35%)`;
+                this.armColor = `hsl(${hue}, 45%, 30%)`;
+                this.hitFlash = 0;
             }
 
             update() {
@@ -596,7 +797,6 @@
 
                 let targetX = game.entities.player.x;
                 let targetY = game.entities.player.y;
-
                 let nearestBarricade = null;
                 let nearestDist = Infinity;
 
@@ -626,13 +826,26 @@
                 this.walkCycle += 0.15;
 
                 if (this.damageCooldown > 0) this.damageCooldown--;
+                if (this.hitFlash > 0) this.hitFlash--;
 
                 if (game.entities.player && game.entities.player.checkCollision(this)) {
                     if (this.damageCooldown <= 0) {
                         game.health -= this.damage;
                         this.damageCooldown = 60;
-                        game.shakeAmount = 8;
+                        screenShake.add(10, 250);
+                        screenFlash.add('#ff0000', 200);
                         game.damageFlash = 10;
+                        sound.playerHit();
+
+                        // Red spark particles for player damage
+                        for (let i = 0; i < 8; i++) {
+                            game.entities.particles.push(new JuiceParticle(
+                                game.entities.player.x, game.entities.player.y,
+                                (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8,
+                                '#ff3333', 15 + Math.random() * 10, 3
+                            ));
+                        }
+
                         if (game.health <= 0) {
                             game.gameOver();
                         }
@@ -654,7 +867,8 @@
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = '#ff0000';
 
-                ctx.fillStyle = '#883388';
+                // Flash white on hit
+                ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.bodyColor;
                 ctx.beginPath();
                 ctx.arc(0, 0, ZOMBIE_SIZE, 0, Math.PI * 2);
                 ctx.fill();
@@ -665,7 +879,7 @@
                 ctx.arc(4, -3, 2, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.strokeStyle = '#773377';
+                ctx.strokeStyle = this.hitFlash > 0 ? '#ffaaaa' : this.armColor;
                 ctx.lineWidth = 3;
                 ctx.lineCap = 'round';
 
@@ -696,6 +910,18 @@
 
             takeDamage(damage) {
                 this.health -= damage;
+                this.hitFlash = 4;
+                sound.hit();
+
+                // Hit particles
+                for (let i = 0; i < 3; i++) {
+                    game.entities.particles.push(new JuiceParticle(
+                        this.x, this.y,
+                        (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5,
+                        '#ff6666', 8 + Math.random() * 5, 2
+                    ));
+                }
+
                 if (this.health <= 0) {
                     this.die();
                 }
@@ -705,15 +931,75 @@
                 game.kills++;
                 game.resources += ZOMBIE_REWARD;
 
-                for (let i = 0; i < 15; i++) {
-                    const colors = ['#ff0000', '#aa0000', '#880000', '#660000'];
-                    game.entities.particles.push(new Particle(this.x, this.y, colors[Math.floor(Math.random() * colors.length)]));
+                // Death burst: 20-25 particles in zombie color
+                const burstCount = 20 + Math.floor(Math.random() * 6);
+                for (let i = 0; i < burstCount; i++) {
+                    const angle = (Math.PI * 2 / burstCount) * i + (Math.random() - 0.5) * 0.5;
+                    const speed = 2 + Math.random() * 5;
+                    const colors = ['#cc3388', '#aa2266', '#882255', '#ff4488', '#dd1166'];
+                    game.entities.particles.push(new JuiceParticle(
+                        this.x, this.y,
+                        Math.cos(angle) * speed, Math.sin(angle) * speed,
+                        colors[Math.floor(Math.random() * colors.length)],
+                        25 + Math.random() * 15, 2 + Math.random() * 2
+                    ));
                 }
+
+                // Score popup
+                scorePopups.push(new ScorePopup(this.x, this.y - 10, `+${ZOMBIE_REWARD}`, '#ffdd44'));
+
+                // Screen shake on kill
+                screenShake.add(4, 100);
+
+                // Sound
+                sound.kill();
+                sound.collect();
+
+                // HUD pop
+                popHudElement('kills');
+                popHudElement('resources');
 
                 const index = game.entities.zombies.indexOf(this);
                 if (index > -1) {
                     game.entities.zombies.splice(index, 1);
                 }
+            }
+        }
+
+        // Enhanced Juice Particle (replaces old Particle for death/damage effects)
+        class JuiceParticle {
+            constructor(x, y, vx, vy, color, life, size) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.lifetime = life;
+                this.maxLifetime = life;
+                this.size = size || (Math.random() * 3 + 2);
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.15;
+                this.vx *= 0.97;
+                this.lifetime--;
+                if (this.lifetime <= 0) {
+                    const index = game.entities.particles.indexOf(this);
+                    if (index > -1) game.entities.particles.splice(index, 1);
+                }
+            }
+            draw() {
+                const alpha = this.lifetime / this.maxLifetime;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
         }
 
@@ -725,9 +1011,14 @@
                 this.speed = 10;
                 this.damage = damage;
                 this.lifetime = 100;
+                this.trail = [];
             }
 
             update() {
+                // Store trail positions
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 5) this.trail.shift();
+
                 this.x += Math.cos(this.angle) * this.speed;
                 this.y += Math.sin(this.angle) * this.speed;
                 this.lifetime--;
@@ -739,6 +1030,16 @@
 
                     if (distance < BULLET_SIZE + ZOMBIE_SIZE) {
                         zombie.takeDamage(this.damage);
+
+                        // Impact particles
+                        for (let i = 0; i < 4; i++) {
+                            game.entities.particles.push(new JuiceParticle(
+                                this.x, this.y,
+                                (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4,
+                                '#ffff00', 8, 1.5
+                            ));
+                        }
+
                         this.lifetime = 0;
                         break;
                     }
@@ -755,6 +1056,20 @@
             }
 
             draw() {
+                // Draw bullet trail
+                for (let i = 0; i < this.trail.length; i++) {
+                    const t = this.trail[i];
+                    const alpha = (i + 1) / this.trail.length * 0.4;
+                    ctx.save();
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, BULLET_SIZE * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                ctx.save();
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = '#ffff00';
 
@@ -768,7 +1083,7 @@
                 ctx.arc(this.x, this.y, BULLET_SIZE / 2, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.shadowBlur = 0;
+                ctx.restore();
             }
         }
 
@@ -780,6 +1095,7 @@
                 this.y = gridY * GRID_SIZE + GRID_SIZE / 2;
                 this.health = 200;
                 this.maxHealth = 200;
+                this.hitFlash = 0;
             }
 
             draw() {
@@ -789,7 +1105,7 @@
                 ctx.shadowBlur = 5;
                 ctx.shadowColor = '#654321';
 
-                ctx.fillStyle = damageLevel > 0.7 ? '#5a3a1a' : damageLevel > 0.4 ? '#6B4423' : '#8B4513';
+                ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : (damageLevel > 0.7 ? '#5a3a1a' : damageLevel > 0.4 ? '#6B4423' : '#8B4513');
                 ctx.fillRect(this.x - halfSize, this.y - halfSize, BARRICADE_SIZE, BARRICADE_SIZE);
 
                 ctx.strokeStyle = '#543210';
@@ -820,6 +1136,8 @@
 
                 ctx.shadowBlur = 0;
 
+                if (this.hitFlash > 0) this.hitFlash--;
+
                 const barWidth = BARRICADE_SIZE - 4;
                 const barHeight = 5;
                 ctx.fillStyle = '#330000';
@@ -836,7 +1154,32 @@
 
             takeDamage(damage) {
                 this.health -= damage;
+                this.hitFlash = 3;
+                screenShake.add(2, 50);
+
+                // Debris particles
+                for (let i = 0; i < 3; i++) {
+                    game.entities.particles.push(new JuiceParticle(
+                        this.x + (Math.random() - 0.5) * BARRICADE_SIZE,
+                        this.y + (Math.random() - 0.5) * BARRICADE_SIZE,
+                        (Math.random() - 0.5) * 4, -Math.random() * 3,
+                        '#8B4513', 15 + Math.random() * 10, 2
+                    ));
+                }
+
                 if (this.health <= 0) {
+                    // Big break effect
+                    screenShake.add(6, 150);
+                    sound.barricadeBreak();
+                    for (let i = 0; i < 15; i++) {
+                        game.entities.particles.push(new JuiceParticle(
+                            this.x + (Math.random() - 0.5) * BARRICADE_SIZE,
+                            this.y + (Math.random() - 0.5) * BARRICADE_SIZE,
+                            (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6 - 2,
+                            ['#8B4513', '#654321', '#5a3a1a'][Math.floor(Math.random() * 3)],
+                            20 + Math.random() * 15, 3
+                        ));
+                    }
                     const index = game.entities.barricades.indexOf(this);
                     if (index > -1) {
                         game.entities.barricades.splice(index, 1);
@@ -845,6 +1188,7 @@
             }
         }
 
+        // Keep old Particle class for backward compat
         class Particle {
             constructor(x, y, color) {
                 this.x = x;
@@ -940,6 +1284,7 @@
         }
 
         game.startGame = function() {
+            sound.init();
             document.getElementById('menuOverlay').classList.add('hidden');
             this.state = 'playing';
             this.wave = 1;
@@ -962,7 +1307,12 @@
             this.entities.barricades = [];
             this.entities.particles = [];
             this.entities.effects = [];
+            scorePopups = [];
+            prevKills = 0;
+            prevResources = 100;
+            prevHealth = 100;
 
+            this.waveAnnouncement = { text: 'WELLE 1', timer: 90 };
             this.spawnWave();
             this.updateHUD();
         };
@@ -994,8 +1344,12 @@
 
             this.waveAnnouncement = { text: `WELLE ${this.wave}`, timer: 90 };
 
+            sound.waveComplete();
+            screenFlash.add('#ffffff', 300);
+
             this.spawnWave();
             this.updateHUD();
+            popHudElement('wave');
         };
 
         game.waveAnnouncement = { text: '', timer: 0 };
@@ -1007,12 +1361,18 @@
             document.getElementById('completedWave').textContent = this.wave;
             document.getElementById('waveBonus').textContent = bonus;
             document.getElementById('waveCompleteOverlay').classList.remove('hidden');
+
+            sound.waveComplete();
         };
 
         game.damageFlash = 0;
 
         game.gameOver = function() {
             this.state = 'gameover';
+
+            // Big death shake and flash
+            screenShake.add(20, 500);
+            screenFlash.add('#ff0000', 400);
 
             if (this.wave > this.bestWave) {
                 this.bestWave = this.wave;
@@ -1036,6 +1396,11 @@
             document.getElementById('resources').textContent = this.resources;
             document.getElementById('kills').textContent = this.kills;
             document.getElementById('mode').textContent = this.buildMode ? 'BAU 🧱' : 'KAMPF ⚔️';
+
+            // Track changes for pop animations
+            if (this.kills !== prevKills) { popHudElement('kills'); prevKills = this.kills; }
+            if (this.resources !== prevResources) { popHudElement('resources'); prevResources = this.resources; }
+            if (Math.floor(this.health) !== Math.floor(prevHealth)) { popHudElement('health'); prevHealth = this.health; }
         };
 
         game.toggleBuildMode = function() {
@@ -1065,6 +1430,20 @@
             this.resources -= BARRICADE_COST;
             this.entities.barricades.push(new Barricade(gridX, gridY));
             this.updateHUD();
+
+            sound.barricadePlace();
+
+            // Place effect particles
+            const cx = gridX * GRID_SIZE + GRID_SIZE / 2;
+            const cy = gridY * GRID_SIZE + GRID_SIZE / 2;
+            for (let i = 0; i < 8; i++) {
+                this.entities.particles.push(new JuiceParticle(
+                    cx + (Math.random() - 0.5) * GRID_SIZE,
+                    cy + (Math.random() - 0.5) * GRID_SIZE,
+                    (Math.random() - 0.5) * 3, -Math.random() * 2,
+                    '#8B4513', 15, 2
+                ));
+            }
         };
 
         game.toggleShop = function() {
@@ -1165,6 +1544,8 @@
                         upgrade.action();
                         this.updateShop();
                         this.updateHUD();
+                        sound.upgrade();
+                        screenFlash.add('#00ff00', 100);
                     });
                 }
 
@@ -1173,19 +1554,34 @@
         };
 
         function gameLoop() {
+            const now = performance.now();
+            const dt = now - lastFrameTime;
+            lastFrameTime = now;
+
             ctx.save();
 
+            // Screen shake via ScreenShake class
+            const shake = screenShake.update(dt);
+
+            // Also handle legacy shakeAmount
+            let legacyShakeX = 0, legacyShakeY = 0;
             if (game.shakeAmount > 0) {
-                ctx.translate(
-                    (Math.random() - 0.5) * game.shakeAmount,
-                    (Math.random() - 0.5) * game.shakeAmount
-                );
+                legacyShakeX = (Math.random() - 0.5) * game.shakeAmount;
+                legacyShakeY = (Math.random() - 0.5) * game.shakeAmount;
                 game.shakeAmount *= 0.9;
                 if (game.shakeAmount < 0.1) game.shakeAmount = 0;
             }
 
+            ctx.translate(shake.x + legacyShakeX, shake.y + legacyShakeY);
+
             ctx.fillStyle = '#0a0a0a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
+
+            // Draw ambient particles (background)
+            for (const ap of ambientParticles) {
+                ap.update();
+                ap.draw();
+            }
 
             if (game.state === 'playing') {
                 if (game.entities.player) {
@@ -1207,6 +1603,9 @@
                 for (const effect of [...game.entities.effects]) {
                     effect.update();
                 }
+
+                // Update score popups
+                scorePopups = scorePopups.filter(p => p.update());
 
                 if (game.entities.zombies.length === 0) {
                     game.waveComplete();
@@ -1281,20 +1680,43 @@
                 effect.draw();
             }
 
-            // Wave announcement
+            // Draw score popups
+            for (const popup of scorePopups) {
+                popup.draw();
+            }
+
+            // Wave announcement with easeOutElastic
             if (game.waveAnnouncement && game.waveAnnouncement.timer > 0) {
                 const wa = game.waveAnnouncement;
                 wa.timer--;
                 const alpha = Math.min(wa.timer / 30, 1);
-                const scale = 1 + (1 - Math.min(wa.timer / 60, 1)) * 0.3;
+                const progress = 1 - (wa.timer / 90);
+
+                // easeOutElastic for scale
+                let scale;
+                if (progress < 0.01) {
+                    scale = 0;
+                } else {
+                    const c4 = (2 * Math.PI) / 3;
+                    scale = Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * c4) + 1;
+                }
+                scale = Math.max(0.5, Math.min(2, scale));
+
                 ctx.save();
                 ctx.globalAlpha = alpha;
-                ctx.fillStyle = '#ff4444';
-                ctx.font = `bold ${Math.round(48 * scale)}px Courier New`;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(scale, scale);
+                ctx.font = 'bold 48px Courier New';
                 ctx.textAlign = 'center';
-                ctx.shadowBlur = 20;
+                ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 30;
                 ctx.shadowColor = '#ff0000';
-                ctx.fillText(wa.text, canvas.width / 2, canvas.height / 2);
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText(wa.text, 0, 0);
+                // Text outline
+                ctx.strokeStyle = '#880000';
+                ctx.lineWidth = 2;
+                ctx.strokeText(wa.text, 0, 0);
                 ctx.restore();
             }
 
@@ -1304,6 +1726,10 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 game.damageFlash--;
             }
+
+            // Screen flash effects
+            screenFlash.update(dt);
+            screenFlash.draw();
 
             // Low health vignette
             if (game.health < 30 && game.state === 'playing') {
@@ -1330,6 +1756,7 @@
         });
 
         eventManager.add(canvas, 'mousedown', (e) => {
+            sound.init();
             if (game.state !== 'playing') return;
 
             if (game.buildMode) {
@@ -1342,6 +1769,7 @@
         });
 
         eventManager.add(document, 'keydown', (e) => {
+            sound.init();
             game.keys[e.key] = true;
 
             if (e.key === 'b' || e.key === 'B') {

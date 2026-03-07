@@ -285,20 +285,20 @@
             .ui-panel {
                 font-size: 12px;
             }
-            
+
             .resources-panel, .command-panel {
                 width: 150px;
             }
-            
+
             .unit-info-panel {
                 min-width: 250px;
             }
-            
+
             .minimap-panel {
                 width: 150px;
                 height: 100px;
             }
-            
+
             .minimap {
                 width: 130px;
                 height: 80px;
@@ -324,9 +324,9 @@
 </head>
 <body>
     <a href="../index.html" class="back-link">← Zurück zur Galerie</a>
-    
+
     <canvas id="gameCanvas"></canvas>
-    
+
     <div class="ui-overlay">
         <div class="resources-panel ui-panel">
             <div class="resource-display">
@@ -371,7 +371,7 @@
     </div>
 
     <div class="selection-box" id="selectionBox"></div>
-    
+
     <div class="tooltip" id="tooltip"></div>
 
     <div class="loading-screen" id="loadingScreen">
@@ -419,7 +419,7 @@
     </div>
 
     <script>
-        // Debug Configuration - Set to true for development, false for production
+        // Debug Configuration
         const DEBUG = false;
         if (!DEBUG) {
             const noop = () => {};
@@ -449,21 +449,277 @@
             }
         }
 
+        // === JUICE SYSTEMS ===
+
+        // Screen Shake
+        const screenShake = {
+            x: 0, y: 0, intensity: 0, decay: 0.9,
+            trigger(power) { this.intensity = Math.max(this.intensity, power); },
+            update() {
+                if (this.intensity > 0.3) {
+                    this.x = (Math.random() - 0.5) * this.intensity;
+                    this.y = (Math.random() - 0.5) * this.intensity;
+                    this.intensity *= this.decay;
+                } else { this.x = 0; this.y = 0; this.intensity = 0; }
+            }
+        };
+
+        // Particle System
+        class JuiceParticle {
+            constructor(x, y, vx, vy, color, life, size = 3) {
+                this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+                this.color = color; this.life = life; this.maxLife = life;
+                this.size = size;
+            }
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.vx *= 0.96; this.vy *= 0.96;
+                this.life -= dt;
+            }
+            draw(ctx, camX, camY) {
+                const sx = this.x - camX, sy = this.y - camY;
+                const a = Math.max(0, this.life / this.maxLife);
+                const s = this.size * (0.3 + 0.7 * a);
+                ctx.save();
+                ctx.globalAlpha = a;
+                ctx.shadowBlur = s * 3;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(sx, sy, s, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            isDead() { return this.life <= 0; }
+        }
+
+        const juiceParticles = [];
+        function spawnParticles(x, y, color, count, speed, life, size) {
+            for (let i = 0; i < count; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const spd = Math.random() * speed;
+                juiceParticles.push(new JuiceParticle(
+                    x, y, Math.cos(a) * spd, Math.sin(a) * spd,
+                    color, life + Math.random() * life * 0.5, size || 3
+                ));
+            }
+        }
+
+        // Damage Numbers
+        const damageNumbers = [];
+        function spawnDamageNumber(x, y, text, color) {
+            damageNumbers.push({ x, y, text, color, life: 1.2, vy: -40, scale: 0 });
+        }
+        function easeOutElastic(t) {
+            if (t === 0 || t === 1) return t;
+            return Math.pow(2, -10*t) * Math.sin((t-0.075)*(2*Math.PI)/0.3) + 1;
+        }
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+        }
+
+        // Wave/Mission Announcements
+        const announcements = [];
+        function showAnnouncement(text, color = '#00ffff', dur = 2.5) {
+            announcements.push({ text, color, life: dur, maxLife: dur, slideX: -300 });
+        }
+
+        // Animated resource counter
+        let displayEnergy = 1000;
+
+        // Explosion flash overlay
+        let explosionFlash = 0;
+
+        // Sound Synthesizer
+        class SoundSynth {
+            constructor() {
+                this.ctx = null; this.enabled = true; this.lastPlay = {};
+                try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+                catch(e) { this.enabled = false; }
+            }
+            resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+            throttle(n, ms) {
+                const now = Date.now();
+                if (this.lastPlay[n] && now - this.lastPlay[n] < ms) return false;
+                this.lastPlay[n] = now; return true;
+            }
+            laser() {
+                if (!this.enabled || !this.ctx || !this.throttle('laser', 50)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(900, t);
+                osc.frequency.exponentialRampToValueAtTime(200, t + 0.08);
+                g.gain.setValueAtTime(0.08, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.08);
+            }
+            shieldHit() {
+                if (!this.enabled || !this.ctx || !this.throttle('shield', 80)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, t);
+                osc.frequency.exponentialRampToValueAtTime(300, t + 0.12);
+                g.gain.setValueAtTime(0.06, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.12);
+            }
+            explosion() {
+                if (!this.enabled || !this.ctx || !this.throttle('explode', 80)) return;
+                const t = this.ctx.currentTime;
+                // Layered: noise + low rumble
+                const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.5, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, 2);
+                const src = this.ctx.createBufferSource();
+                const g = this.ctx.createGain();
+                const f = this.ctx.createBiquadFilter();
+                src.buffer = buf; f.type = 'lowpass';
+                f.frequency.setValueAtTime(1200, t);
+                f.frequency.exponentialRampToValueAtTime(60, t + 0.4);
+                g.gain.setValueAtTime(0.2, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                src.connect(f); f.connect(g); g.connect(this.ctx.destination);
+                src.start(t);
+                // Sub bass
+                const osc = this.ctx.createOscillator();
+                const g2 = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(60, t);
+                osc.frequency.exponentialRampToValueAtTime(20, t + 0.3);
+                g2.gain.setValueAtTime(0.15, t);
+                g2.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                osc.connect(g2); g2.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.3);
+            }
+            alert() {
+                if (!this.enabled || !this.ctx || !this.throttle('alert', 500)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, t);
+                osc.frequency.setValueAtTime(520, t + 0.1);
+                osc.frequency.setValueAtTime(440, t + 0.2);
+                g.gain.setValueAtTime(0.05, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.3);
+            }
+            commBeep() {
+                if (!this.enabled || !this.ctx || !this.throttle('comm', 200)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, t);
+                osc.frequency.setValueAtTime(1000, t + 0.03);
+                g.gain.setValueAtTime(0.04, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.06);
+            }
+            build() {
+                if (!this.enabled || !this.ctx || !this.throttle('build', 150)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, t);
+                osc.frequency.linearRampToValueAtTime(700, t + 0.15);
+                g.gain.setValueAtTime(0.08, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.15);
+            }
+            select() {
+                if (!this.enabled || !this.ctx || !this.throttle('select', 100)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, t);
+                osc.frequency.setValueAtTime(900, t + 0.02);
+                g.gain.setValueAtTime(0.05, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.05);
+            }
+            hit() {
+                if (!this.enabled || !this.ctx || !this.throttle('hit', 40)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(300, t);
+                osc.frequency.linearRampToValueAtTime(100, t + 0.04);
+                g.gain.setValueAtTime(0.06, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.04);
+            }
+        }
+
+        // Starfield
+        class Starfield {
+            constructor(w, h, count = 300) {
+                this.layers = [
+                    { stars: [], parallax: 0.2 },
+                    { stars: [], parallax: 0.5 },
+                    { stars: [], parallax: 0.8 }
+                ];
+                const perLayer = Math.floor(count / 3);
+                this.layers.forEach((layer, li) => {
+                    for (let i = 0; i < perLayer; i++) {
+                        layer.stars.push({
+                            x: Math.random() * w * 1.5,
+                            y: Math.random() * h * 1.5,
+                            size: 0.5 + Math.random() * (1 + li * 0.5),
+                            brightness: 0.3 + Math.random() * 0.7,
+                            twinkleOff: Math.random() * Math.PI * 2
+                        });
+                    }
+                });
+            }
+            draw(ctx, camX, camY, cw, ch) {
+                const now = Date.now();
+                this.layers.forEach(layer => {
+                    layer.stars.forEach(s => {
+                        const sx = s.x - camX * layer.parallax;
+                        const sy = s.y - camY * layer.parallax;
+                        // Wrap
+                        const wx = ((sx % cw) + cw) % cw;
+                        const wy = ((sy % ch) + ch) % ch;
+                        const b = s.brightness * (0.6 + 0.4 * Math.sin(now * 0.002 + s.twinkleOff));
+                        ctx.fillStyle = `rgba(200,220,255,${b})`;
+                        ctx.fillRect(wx, wy, s.size, s.size);
+                    });
+                });
+            }
+        }
+
         // Game Core System
         console.log("Space Command loading...");
 
         // Global variables
         let canvas, ctx, minimapCanvas, minimapCtx;
-        
+        let sfx = null;
+        let gameStarfield = null;
+
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Canvas setup
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
             minimapCanvas = document.getElementById('minimapCanvas');
             minimapCtx = minimapCanvas.getContext('2d');
-            
-            // Initialize canvas size and start menu animation
+            sfx = new SoundSynth();
+
             resizeCanvas();
             canvas.addEventListener('contextmenu', e => e.preventDefault());
             menuAnimation();
@@ -499,15 +755,13 @@
                 this.selectionStart = { x: 0, y: 0 };
                 this.buildMode = null;
                 this.buildPreview = null;
-                
-                // Game entities
+
                 this.units = [];
                 this.buildings = [];
                 this.projectiles = [];
                 this.effects = [];
                 this.resources = [];
-                
-                // Players
+
                 this.player = {
                     id: 'player',
                     energy: 1000,
@@ -515,7 +769,7 @@
                     maxPopulation: 200,
                     color: '#00ffff'
                 };
-                
+
                 this.enemy = {
                     id: 'enemy',
                     energy: 1000,
@@ -527,13 +781,11 @@
                 this.inputHandler = new InputHandler(this);
                 this.renderer = new Renderer(this);
                 this.aiManager = new AIManager(this);
-                this.soundManager = soundManager;
-                
+
                 this.initializeMap();
             }
 
             initializeMap() {
-                // Generate resource nodes
                 for (let i = 0; i < 12; i++) {
                     this.resources.push({
                         id: 'resource_' + i,
@@ -545,12 +797,10 @@
                     });
                 }
 
-                // Player starting base
                 this.addBuilding('COMMAND_CENTER', 200, 200, 'player');
                 this.addUnit('WORKER', 250, 250, 'player');
                 this.addUnit('WORKER', 270, 250, 'player');
 
-                // Enemy starting base
                 this.addBuilding('COMMAND_CENTER', GAME_CONFIG.MAP_WIDTH - 200, GAME_CONFIG.MAP_HEIGHT - 200, 'enemy');
                 this.addUnit('WORKER', GAME_CONFIG.MAP_WIDTH - 250, GAME_CONFIG.MAP_HEIGHT - 250, 'enemy');
                 this.addUnit('WORKER', GAME_CONFIG.MAP_WIDTH - 270, GAME_CONFIG.MAP_HEIGHT - 250, 'enemy');
@@ -560,9 +810,7 @@
                 const config = GAME_CONFIG.UNIT_TYPES[type];
                 const unit = {
                     id: Date.now() + '_' + Math.random(),
-                    type,
-                    x, y,
-                    owner,
+                    type, x, y, owner,
                     health: config.health,
                     maxHealth: config.health,
                     speed: config.speed,
@@ -570,19 +818,17 @@
                     range: config.range,
                     target: null,
                     destination: null,
-                    state: 'idle', // idle, moving, attacking, building, mining
+                    state: 'idle',
                     buildProgress: 0,
                     angle: Math.random() * Math.PI * 2,
                     selected: false,
                     lastAttack: 0
                 };
-                
+
                 this.units.push(unit);
                 if (owner === 'player') this.player.population++;
                 else this.enemy.population++;
-                
-                console.log(`Created ${type} unit for ${owner} at (${x}, ${y})`, unit);
-                
+
                 return unit;
             }
 
@@ -603,7 +849,7 @@
                     productionProgress: 0,
                     selected: false
                 };
-                
+
                 this.buildings.push(building);
                 return building;
             }
@@ -611,12 +857,9 @@
             addProjectile(x, y, targetX, targetY, damage, owner) {
                 this.projectiles.push({
                     id: Date.now() + '_' + Math.random(),
-                    x, y,
-                    targetX, targetY,
-                    damage,
-                    owner,
-                    speed: 300,
-                    life: 3000
+                    x, y, targetX, targetY, damage, owner,
+                    startX: x, startY: y,
+                    speed: 300, life: 3000
                 });
             }
 
@@ -628,20 +871,24 @@
                     particles: []
                 };
 
-                // Create particles for explosion
                 if (type === 'explosion') {
                     for (let i = 0; i < 20; i++) {
                         const angle = (Math.PI * 2 * i) / 20;
                         const speed = 50 + Math.random() * 100;
                         effect.particles.push({
-                            x: 0,
-                            y: 0,
+                            x: 0, y: 0,
                             vx: Math.cos(angle) * speed,
                             vy: Math.sin(angle) * speed,
                             size: 2 + Math.random() * 3,
-                            color: i % 2 === 0 ? '#ff6600' : '#ffff00'
+                            color: ['#ff6600', '#ffff00', '#ff3300', '#ffffff'][i % 4]
                         });
                     }
+                    // Multi-stage particles
+                    spawnParticles(x, y, '#ff6600', 15, 120, 0.8, 4);
+                    spawnParticles(x, y, '#ffff00', 8, 80, 0.5, 3);
+                    spawnParticles(x, y, '#ffffff', 5, 40, 0.3, 2);
+                    // Smoke
+                    spawnParticles(x, y, '#444444', 8, 30, 1.5, 6);
                 }
 
                 this.effects.push(effect);
@@ -649,6 +896,40 @@
 
             update(deltaTime) {
                 if (!this.isRunning) return;
+
+                screenShake.update();
+                if (explosionFlash > 0) explosionFlash -= deltaTime * 3;
+
+                // Animate energy display
+                displayEnergy += (this.player.energy - displayEnergy) * 0.08;
+
+                // Update juice particles
+                for (let i = juiceParticles.length - 1; i >= 0; i--) {
+                    juiceParticles[i].update(deltaTime);
+                    if (juiceParticles[i].isDead()) juiceParticles.splice(i, 1);
+                }
+
+                // Update damage numbers
+                for (let i = damageNumbers.length - 1; i >= 0; i--) {
+                    const d = damageNumbers[i];
+                    d.life -= deltaTime;
+                    d.y += d.vy * deltaTime;
+                    d.vy *= 0.95;
+                    const t = 1 - d.life / 1.2;
+                    d.scale = t < 0.25 ? easeOutElastic(t / 0.25) : 1;
+                    if (d.life <= 0) damageNumbers.splice(i, 1);
+                }
+
+                // Update announcements
+                for (let i = announcements.length - 1; i >= 0; i--) {
+                    const a = announcements[i];
+                    a.life -= deltaTime;
+                    const t = 1 - (a.life / a.maxLife);
+                    if (t < 0.15) a.slideX = easeInOutCubic(t / 0.15) * (canvas.width / 2 + 300) - 300;
+                    else if (t > 0.85) a.slideX = canvas.width/2 + (1-easeInOutCubic((1-t)/0.15)) * (canvas.width/2+300);
+                    else a.slideX = canvas.width / 2;
+                    if (a.life <= 0) announcements.splice(i, 1);
+                }
 
                 this.inputHandler.tickCamera(deltaTime);
                 this.updateUnits(deltaTime);
@@ -662,38 +943,32 @@
 
             updateUnits(deltaTime) {
                 this.units.forEach(unit => {
-                    // Movement
                     if (unit.destination && unit.state !== 'building') {
                         const dx = unit.destination.x - unit.x;
                         const dy = unit.destination.y - unit.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        
+
                         if (distance > 5) {
                             const moveDistance = unit.speed * deltaTime;
-                            const oldX = unit.x;
-                            const oldY = unit.y;
                             unit.x += (dx / distance) * moveDistance;
                             unit.y += (dy / distance) * moveDistance;
                             unit.angle = Math.atan2(dy, dx);
                             unit.state = 'moving';
-                            console.log(`Unit ${unit.id} moving from (${oldX.toFixed(1)}, ${oldY.toFixed(1)}) to (${unit.x.toFixed(1)}, ${unit.y.toFixed(1)}), distance: ${distance.toFixed(1)}, deltaTime: ${deltaTime.toFixed(3)}`);
                         } else {
-                            console.log(`Unit ${unit.id} reached destination (${unit.destination.x}, ${unit.destination.y})`);
                             unit.destination = null;
                             unit.state = 'idle';
                         }
                     }
 
-                    // Combat
                     if (unit.target && unit.state !== 'building') {
                         const dx = unit.target.x - unit.x;
                         const dy = unit.target.y - unit.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        
+
                         if (distance <= unit.range) {
                             if (Date.now() - unit.lastAttack > 600) {
                                 this.addProjectile(unit.x, unit.y, unit.target.x, unit.target.y, unit.damage, unit.owner);
-                                if (this.soundManager) this.soundManager.play('laser');
+                                sfx.laser();
                                 unit.lastAttack = Date.now();
                             }
                             unit.state = 'attacking';
@@ -702,7 +977,6 @@
                         }
                     }
 
-                    // Resource gathering for workers - deltaTime-based for smooth collection
                     if (unit.type === 'WORKER' && unit.state === 'mining') {
                         const nearbyResource = this.resources.find(r => {
                             const dx = r.x - unit.x;
@@ -711,27 +985,43 @@
                         });
 
                         if (nearbyResource && nearbyResource.amount > 0) {
-                            // Collect 25 energy per second (more efficient)
                             const mineRate = 25 * deltaTime;
                             const mined = Math.min(mineRate, nearbyResource.amount);
                             nearbyResource.amount -= mined;
                             if (unit.owner === 'player') this.player.energy += mined;
                             else this.enemy.energy += mined;
                         } else if (!nearbyResource || nearbyResource.amount <= 0) {
-                            // If resource is depleted or worker moved away, return to idle
                             unit.state = 'idle';
                             unit.destination = null;
                         }
                     }
+
+                    // Engine glow particles for moving units
+                    if (unit.state === 'moving' && Math.random() < 0.3) {
+                        const color = unit.owner === 'player' ? '#0088ff' : '#ff4400';
+                        juiceParticles.push(new JuiceParticle(
+                            unit.x - Math.cos(unit.angle) * 10 + (Math.random()-0.5)*4,
+                            unit.y - Math.sin(unit.angle) * 10 + (Math.random()-0.5)*4,
+                            -Math.cos(unit.angle) * 20, -Math.sin(unit.angle) * 20,
+                            color, 0.4, 2
+                        ));
+                    }
                 });
 
-                // Remove dead units
                 this.units = this.units.filter(unit => {
                     if (unit.health <= 0) {
                         this.addEffect(unit.x, unit.y, 'explosion');
-                        if (this.soundManager) this.soundManager.play('explosion');
-                        if (unit.owner === 'player') this.player.population--;
-                        else this.enemy.population--;
+                        sfx.explosion();
+                        screenShake.trigger(6);
+                        explosionFlash = 0.3;
+                        if (unit.owner === 'player') {
+                            this.player.population--;
+                            sfx.alert();
+                            showAnnouncement('Einheit verloren!', '#ff4444', 1.5);
+                        } else {
+                            this.enemy.population--;
+                            spawnDamageNumber(unit.x, unit.y - 20, 'ZERSTÖRT', '#ff8800');
+                        }
                         return false;
                     }
                     return true;
@@ -740,31 +1030,36 @@
 
             updateBuildings(deltaTime) {
                 this.buildings.forEach(building => {
-                    // Construction
                     if (!building.isComplete) {
                         building.buildProgress += deltaTime / GAME_CONFIG.BUILDING_TYPES[building.type].buildTime;
                         if (building.buildProgress >= 1) {
                             building.isComplete = true;
                             building.buildProgress = 1;
+                            if (building.owner === 'player') {
+                                sfx.commBeep();
+                                showAnnouncement('Gebäude fertig!', '#00ff88', 1.5);
+                            }
                         }
                     }
 
-                    // Production
                     if (building.isComplete && building.currentProduction) {
                         building.productionProgress += deltaTime / GAME_CONFIG.UNIT_TYPES[building.currentProduction].buildTime;
-                        
+
                         if (building.productionProgress >= 1) {
-                            // Spawn unit
                             const spawnX = building.x + Math.random() * 80 - 40;
                             const spawnY = building.y + 60 + Math.random() * 40;
                             this.addUnit(building.currentProduction, spawnX, spawnY, building.owner);
-                            
+
+                            if (building.owner === 'player') {
+                                sfx.commBeep();
+                                spawnParticles(spawnX, spawnY, '#00ffff', 8, 40, 0.5, 2);
+                            }
+
                             building.currentProduction = building.productionQueue.shift() || null;
                             building.productionProgress = 0;
                         }
                     }
 
-                    // Turret auto-attack
                     if (building.type === 'TURRET' && building.isComplete) {
                         const enemies = this.units.filter(u => u.owner !== building.owner);
                         const target = enemies.find(enemy => {
@@ -775,16 +1070,22 @@
 
                         if (target && (!building.lastAttack || Date.now() - building.lastAttack > 500)) {
                             this.addProjectile(building.x, building.y, target.x, target.y, GAME_CONFIG.BUILDING_TYPES.TURRET.damage, building.owner);
-                            if (this.soundManager) this.soundManager.play('laser');
+                            sfx.laser();
                             building.lastAttack = Date.now();
                         }
                     }
                 });
 
-                // Remove destroyed buildings
                 this.buildings = this.buildings.filter(building => {
                     if (building.health <= 0) {
                         this.addEffect(building.x, building.y, 'explosion', 2000);
+                        sfx.explosion();
+                        screenShake.trigger(12);
+                        explosionFlash = 0.5;
+                        if (building.owner === 'player') {
+                            sfx.alert();
+                            showAnnouncement('Gebäude zerstört!', '#ff0000', 2);
+                        }
                         return false;
                     }
                     return true;
@@ -796,13 +1097,22 @@
                     const dx = projectile.targetX - projectile.x;
                     const dy = projectile.targetY - projectile.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
+
+                    // Weapon fire trail particles
+                    if (Math.random() < 0.5) {
+                        juiceParticles.push(new JuiceParticle(
+                            projectile.x + (Math.random()-0.5)*4,
+                            projectile.y + (Math.random()-0.5)*4,
+                            (Math.random()-0.5)*10, (Math.random()-0.5)*10,
+                            '#ffaa00', 0.2, 1.5
+                        ));
+                    }
+
                     if (distance > 5) {
                         const moveDistance = projectile.speed * deltaTime;
                         projectile.x += (dx / distance) * moveDistance;
                         projectile.y += (dy / distance) * moveDistance;
                     } else {
-                        // Hit target
                         const target = this.units.find(u => {
                             const d = Math.sqrt((u.x - projectile.targetX) ** 2 + (u.y - projectile.targetY) ** 2);
                             return d < 30 && u.owner !== projectile.owner;
@@ -810,16 +1120,27 @@
                             const d = Math.sqrt((b.x - projectile.targetX) ** 2 + (b.y - projectile.targetY) ** 2);
                             return d < 40 && b.owner !== projectile.owner;
                         });
-                        
+
                         if (target) {
                             target.health -= projectile.damage;
                             this.addEffect(projectile.targetX, projectile.targetY, 'hit');
-                            if (this.soundManager) this.soundManager.play('hit');
+                            sfx.hit();
+                            screenShake.trigger(3);
+
+                            // Shield hit ripple
+                            spawnParticles(projectile.targetX, projectile.targetY, '#00aaff', 6, 50, 0.3, 2);
+                            spawnDamageNumber(projectile.targetX, projectile.targetY - 15, '-' + projectile.damage,
+                                target.owner === 'player' ? '#ff4444' : '#ffaa00');
+
+                            if (target.owner === 'player' && target.type === 'COMMAND_CENTER') {
+                                screenShake.trigger(8);
+                                sfx.alert();
+                            }
                         }
-                        
+
                         projectile.life = 0;
                     }
-                    
+
                     projectile.life -= deltaTime;
                 });
 
@@ -828,11 +1149,9 @@
 
             updateEffects(deltaTime) {
                 this.effects.forEach(effect => {
-                    // Update particle positions
                     effect.particles.forEach(particle => {
                         particle.x += particle.vx * deltaTime;
                         particle.y += particle.vy * deltaTime;
-                        // Slow down particles
                         particle.vx *= 0.95;
                         particle.vy *= 0.95;
                     });
@@ -845,11 +1164,10 @@
             }
 
             updateUI() {
-                document.getElementById('energyCount').textContent = Math.floor(this.player.energy);
+                document.getElementById('energyCount').textContent = Math.floor(displayEnergy);
                 document.getElementById('populationCount').textContent = this.player.population;
                 document.getElementById('populationMax').textContent = this.player.maxPopulation;
 
-                // Update selected unit info
                 const infoPanel = document.getElementById('selectedUnitInfo');
                 if (this.selectedUnits.length === 1) {
                     const unit = this.selectedUnits[0];
@@ -867,11 +1185,10 @@
                     infoPanel.innerHTML = '<div>Keine Einheit ausgewählt</div>';
                 }
 
-                // Show/hide command panels
                 const buildCommands = document.getElementById('buildCommands');
                 const shipCommands = document.getElementById('shipCommands');
                 const unitCommands = document.getElementById('unitCommands');
-                
+
                 buildCommands.style.display = 'none';
                 shipCommands.style.display = 'none';
                 unitCommands.style.display = 'none';
@@ -890,38 +1207,23 @@
 
             getUnitIcon(type) {
                 const icons = {
-                    WORKER: '🔧',
-                    FIGHTER: '🚀',
-                    CRUISER: '🛸',
-                    CARRIER: '🛰️',
-                    COMMAND_CENTER: '🏢',
-                    SHIPYARD: '🏭',
-                    EXTRACTOR: '⚡',
-                    TURRET: '🎯'
+                    WORKER: '🔧', FIGHTER: '🚀', CRUISER: '🛸', CARRIER: '🛰️',
+                    COMMAND_CENTER: '🏢', SHIPYARD: '🏭', EXTRACTOR: '⚡', TURRET: '🎯'
                 };
                 return icons[type] || '❓';
             }
 
             getUnitName(type) {
                 const names = {
-                    WORKER: 'Arbeiter-Schiff',
-                    FIGHTER: 'Jäger',
-                    CRUISER: 'Kreuzer',
-                    CARRIER: 'Träger',
-                    COMMAND_CENTER: 'Kommandozentrale',
-                    SHIPYARD: 'Werft',
-                    EXTRACTOR: 'Extraktor',
-                    TURRET: 'Verteidigungsturm'
+                    WORKER: 'Arbeiter-Schiff', FIGHTER: 'Jäger', CRUISER: 'Kreuzer', CARRIER: 'Träger',
+                    COMMAND_CENTER: 'Kommandozentrale', SHIPYARD: 'Werft', EXTRACTOR: 'Extraktor', TURRET: 'Verteidigungsturm'
                 };
                 return names[type] || 'Unbekannt';
             }
 
             checkVictoryConditions() {
-                const playerBuildings = this.buildings.filter(b => b.owner === 'player');
-                const enemyBuildings = this.buildings.filter(b => b.owner === 'enemy');
-                
-                const playerCommandCenters = playerBuildings.filter(b => b.type === 'COMMAND_CENTER');
-                const enemyCommandCenters = enemyBuildings.filter(b => b.type === 'COMMAND_CENTER');
+                const playerCommandCenters = this.buildings.filter(b => b.owner === 'player' && b.type === 'COMMAND_CENTER');
+                const enemyCommandCenters = this.buildings.filter(b => b.owner === 'enemy' && b.type === 'COMMAND_CENTER');
 
                 if (enemyCommandCenters.length === 0) {
                     this.endGame('victory');
@@ -953,7 +1255,7 @@
 
                 this.update(deltaTime);
                 this.renderer.render();
-                
+
                 requestAnimationFrame(() => this.gameLoop());
             }
         }
@@ -971,17 +1273,10 @@
             }
 
             setupEventListeners() {
-                // Keyboard
                 window.addEventListener('keydown', e => this.keys[e.key.toLowerCase()] = true);
                 window.addEventListener('keyup', e => this.keys[e.key.toLowerCase()] = false);
-
-                // Mouse - only if canvas exists
                 this.setupMouseListeners();
-
-                // UI Buttons
                 this.setupUIListeners();
-
-                // Camera movement
                 this.updateCamera();
             }
 
@@ -990,9 +1285,9 @@
                     canvas.addEventListener('mousedown', e => this.onMouseDown(e));
                     canvas.addEventListener('mouseup', e => this.onMouseUp(e));
                     canvas.addEventListener('mousemove', e => this.onMouseMove(e));
-                    // Touch support for mobile
                     canvas.addEventListener('touchstart', e => {
                         e.preventDefault();
+                        sfx.resume();
                         const touch = e.touches[0];
                         this.onMouseDown({ button: 0, clientX: touch.clientX, clientY: touch.clientY });
                     }, { passive: false });
@@ -1011,25 +1306,24 @@
             }
 
             onMouseDown(e) {
-                if (!canvas) return; // Safety check
-                console.log(`Mouse ${e.button === 0 ? 'left' : e.button === 1 ? 'middle' : 'right'} click detected`);
+                if (!canvas) return;
+                sfx.resume();
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left + this.game.camera.x;
                 const y = e.clientY - rect.top + this.game.camera.y;
-                console.log(`Click at screen (${e.clientX - rect.left}, ${e.clientY - rect.top}) -> world (${x}, ${y})`);
 
-                if (e.button === 0) { // Left click
+                if (e.button === 0) {
                     if (this.game.buildMode) {
                         this.placeBuildingAt(x, y);
                     } else {
                         this.startSelection(e.clientX - rect.left, e.clientY - rect.top);
                     }
-                } else if (e.button === 1) { // Middle click - Start panning
+                } else if (e.button === 1) {
                     this.isPanning = true;
                     this.panStart = { x: e.clientX, y: e.clientY };
                     canvas.style.cursor = 'grabbing';
-                    e.preventDefault(); // Prevent default middle-click behavior
-                } else if (e.button === 2) { // Right click
+                    e.preventDefault();
+                } else if (e.button === 2) {
                     this.rightClickCommand(x, y);
                 }
             }
@@ -1038,30 +1332,24 @@
                 if (e.button === 0 && this.game.isSelecting) {
                     this.endSelection(e);
                 } else if (e.button === 1 && this.isPanning) {
-                    // Stop panning
                     this.isPanning = false;
                     canvas.style.cursor = 'crosshair';
                 }
             }
 
             onMouseMove(e) {
-                if (!canvas) return; // Safety check
+                if (!canvas) return;
                 const rect = canvas.getBoundingClientRect();
                 this.mouse.x = e.clientX - rect.left;
                 this.mouse.y = e.clientY - rect.top;
 
                 if (this.isPanning) {
-                    // Pan the camera
                     const deltaX = e.clientX - this.panStart.x;
                     const deltaY = e.clientY - this.panStart.y;
-
                     this.game.camera.x -= deltaX;
                     this.game.camera.y -= deltaY;
-
-                    // Keep camera in bounds
                     this.game.camera.x = Math.max(0, Math.min(GAME_CONFIG.MAP_WIDTH - canvas.width, this.game.camera.x));
                     this.game.camera.y = Math.max(0, Math.min(GAME_CONFIG.MAP_HEIGHT - canvas.height, this.game.camera.y));
-
                     this.panStart = { x: e.clientX, y: e.clientY };
                 } else if (this.game.isSelecting) {
                     this.updateSelection();
@@ -1080,7 +1368,6 @@
                 const startY = Math.min(this.game.selectionStart.y, this.mouse.y);
                 const width = Math.abs(this.mouse.x - this.game.selectionStart.x);
                 const height = Math.abs(this.mouse.y - this.game.selectionStart.y);
-
                 box.style.left = startX + 'px';
                 box.style.top = startY + 'px';
                 box.style.width = width + 'px';
@@ -1102,27 +1389,23 @@
                     bottom: Math.max(this.game.selectionStart.y, endY) + this.game.camera.y
                 };
 
-                // Select units and buildings
                 this.game.selectedUnits.forEach(u => u.selected = false);
                 this.game.selectedUnits = [];
 
                 const availableEntities = [...this.game.units, ...this.game.buildings].filter(entity => entity.owner === 'player');
-                console.log(`Available player entities for selection: ${availableEntities.length}`, availableEntities);
 
                 availableEntities.forEach(entity => {
                     if (entity.x >= selectionBounds.left && entity.x <= selectionBounds.right &&
                         entity.y >= selectionBounds.top && entity.y <= selectionBounds.bottom) {
                         entity.selected = true;
                         this.game.selectedUnits.push(entity);
-                        console.log(`Selected entity: ${entity.type} at (${entity.x}, ${entity.y})`);
                     }
                 });
 
-                // Single click selection
                 if (Math.abs(endX - this.game.selectionStart.x) < 5 && Math.abs(endY - this.game.selectionStart.y) < 5) {
                     const clickX = this.game.selectionStart.x + this.game.camera.x;
                     const clickY = this.game.selectionStart.y + this.game.camera.y;
-                    
+
                     const clicked = [...this.game.units, ...this.game.buildings]
                         .find(entity => {
                             const dx = entity.x - clickX;
@@ -1133,27 +1416,18 @@
                     if (clicked) {
                         this.game.selectedUnits = [clicked];
                         clicked.selected = true;
-                        console.log(`Single-clicked and selected: ${clicked.type} at (${clicked.x}, ${clicked.y})`);
-                        if (this.game.soundManager) this.game.soundManager.play('select');
+                        sfx.select();
                     } else {
-                        // No entity clicked - if units are selected, move them to this location
                         if (this.game.selectedUnits.length > 0) {
-                            console.log(`Moving ${this.game.selectedUnits.length} selected units to (${clickX}, ${clickY})`);
                             this.leftClickMoveCommand(clickX, clickY);
-                        } else {
-                            console.log(`Single-click at (${clickX}, ${clickY}) - no entity found, no units selected`);
                         }
                     }
                 }
-                
-                console.log(`Selection complete: ${this.game.selectedUnits.length} units selected`, this.game.selectedUnits);
             }
 
             leftClickMoveCommand(x, y) {
-                console.log(`Left-click move command at (${x}, ${y}), selected units:`, this.game.selectedUnits.length);
                 if (this.game.selectedUnits.length === 0) return;
 
-                // Check if clicking on enemy
                 const target = [...this.game.units, ...this.game.buildings]
                     .find(entity => {
                         const dx = entity.x - x;
@@ -1161,7 +1435,6 @@
                         return Math.sqrt(dx * dx + dy * dy) < 30 && entity.owner === 'enemy';
                     });
 
-                // Check if clicking on resource
                 const resource = this.game.resources.find(r => {
                     const dx = r.x - x;
                     const dy = r.y - y;
@@ -1172,29 +1445,21 @@
                     if (target) {
                         unit.target = target;
                         unit.destination = null;
-                        console.log(`Unit ${unit.id} targeting enemy at (${target.x}, ${target.y})`);
                     } else if (resource && unit.type === 'WORKER') {
                         unit.destination = { x: resource.x, y: resource.y };
                         unit.state = 'mining';
                         unit.target = null;
-                        console.log(`Worker ${unit.id} assigned to mine resource at (${resource.x}, ${resource.y})`);
                     } else {
                         unit.destination = { x, y };
                         unit.target = null;
                         unit.state = 'idle';
-                        console.log(`Unit ${unit.id} given move command to (${x}, ${y})`);
                     }
                 });
             }
 
             rightClickCommand(x, y) {
-                console.log(`Right-click command at (${x}, ${y}), selected units:`, this.game.selectedUnits.length);
-                if (this.game.selectedUnits.length === 0) {
-                    console.log("No units selected for movement command");
-                    return;
-                }
+                if (this.game.selectedUnits.length === 0) return;
 
-                // Check if clicking on enemy
                 const target = [...this.game.units, ...this.game.buildings]
                     .find(entity => {
                         const dx = entity.x - x;
@@ -1202,7 +1467,6 @@
                         return Math.sqrt(dx * dx + dy * dy) < 30 && entity.owner === 'enemy';
                     });
 
-                // Check if clicking on resource
                 const resource = this.game.resources.find(r => {
                     const dx = r.x - x;
                     const dy = r.y - y;
@@ -1221,95 +1485,58 @@
                         unit.destination = { x, y };
                         unit.target = null;
                         unit.state = 'idle';
-                        console.log(`Unit ${unit.id} given move command to (${x}, ${y})`);
                     }
                 });
             }
 
             placeBuildingAt(x, y) {
                 if (!this.game.buildMode) return;
-
                 const cost = GAME_CONFIG.BUILDING_TYPES[this.game.buildMode].cost;
                 if (this.game.player.energy >= cost) {
                     this.game.player.energy -= cost;
                     this.game.addBuilding(this.game.buildMode, x, y, 'player');
-                    if (this.game.soundManager) this.game.soundManager.play('build');
+                    sfx.build();
+                    spawnParticles(x, y, '#00ffff', 10, 60, 0.5, 2);
                 }
-
                 this.game.buildMode = null;
                 canvas.style.cursor = 'crosshair';
             }
 
-            updateCamera() {
-                // Called from game loop via game.update() - no setInterval needed
-                // This method is now called per-frame from GameEngine.update()
-            }
+            updateCamera() {}
 
             tickCamera(deltaTime) {
                 if (!canvas) return;
-                const speed = 300 * deltaTime; // pixels per second, scaled by deltaTime
-
+                const speed = 300 * deltaTime;
                 if (this.keys['w'] || this.keys['arrowup']) this.game.camera.y -= speed;
                 if (this.keys['s'] || this.keys['arrowdown']) this.game.camera.y += speed;
                 if (this.keys['a'] || this.keys['arrowleft']) this.game.camera.x -= speed;
                 if (this.keys['d'] || this.keys['arrowright']) this.game.camera.x += speed;
-
-                // Keep camera in bounds
                 this.game.camera.x = Math.max(0, Math.min(GAME_CONFIG.MAP_WIDTH - canvas.width, this.game.camera.x));
                 this.game.camera.y = Math.max(0, Math.min(GAME_CONFIG.MAP_HEIGHT - canvas.height, this.game.camera.y));
             }
 
             setupUIListeners() {
-                // Building buttons
                 document.getElementById('buildWorker').addEventListener('click', () => this.queueProduction('WORKER'));
                 document.getElementById('buildShipyard').addEventListener('click', () => this.enterBuildMode('SHIPYARD'));
                 document.getElementById('buildExtractor').addEventListener('click', () => this.enterBuildMode('EXTRACTOR'));
                 document.getElementById('buildTurret').addEventListener('click', () => this.enterBuildMode('TURRET'));
-
-                // Ship buttons
                 document.getElementById('buildFighter').addEventListener('click', () => this.queueProduction('FIGHTER'));
                 document.getElementById('buildCruiser').addEventListener('click', () => this.queueProduction('CRUISER'));
                 document.getElementById('buildCarrier').addEventListener('click', () => this.queueProduction('CARRIER'));
 
-                // Keyboard shortcuts - only active when appropriate building is selected
                 window.addEventListener('keydown', e => {
-                    // Check if we have a command center or shipyard selected
                     const hasCommandCenter = this.game.selectedUnits.length === 1 &&
                                             this.game.selectedUnits[0].type === 'COMMAND_CENTER';
                     const hasShipyard = this.game.selectedUnits.length === 1 &&
                                        this.game.selectedUnits[0].type === 'SHIPYARD';
 
-                    // Command Center shortcuts
-                    if (e.key.toLowerCase() === 'q' && hasCommandCenter) {
-                        this.queueProduction('WORKER');
-                        e.preventDefault();
-                    }
-                    if (e.key.toLowerCase() === 'w' && hasCommandCenter) {
-                        this.enterBuildMode('SHIPYARD');
-                        e.preventDefault();
-                    }
-                    if (e.key.toLowerCase() === 'e' && hasCommandCenter) {
-                        this.enterBuildMode('EXTRACTOR');
-                        e.preventDefault();
-                    }
-                    if (e.key.toLowerCase() === 'r' && hasCommandCenter) {
-                        this.enterBuildMode('TURRET');
-                        e.preventDefault();
-                    }
-
-                    // Shipyard shortcuts
-                    if (e.key.toLowerCase() === 'q' && hasShipyard) {
-                        this.queueProduction('FIGHTER');
-                        e.preventDefault();
-                    }
-                    if (e.key.toLowerCase() === 'w' && hasShipyard) {
-                        this.queueProduction('CRUISER');
-                        e.preventDefault();
-                    }
-                    if (e.key.toLowerCase() === 'e' && hasShipyard) {
-                        this.queueProduction('CARRIER');
-                        e.preventDefault();
-                    }
+                    if (e.key.toLowerCase() === 'q' && hasCommandCenter) { this.queueProduction('WORKER'); e.preventDefault(); }
+                    if (e.key.toLowerCase() === 'w' && hasCommandCenter) { this.enterBuildMode('SHIPYARD'); e.preventDefault(); }
+                    if (e.key.toLowerCase() === 'e' && hasCommandCenter) { this.enterBuildMode('EXTRACTOR'); e.preventDefault(); }
+                    if (e.key.toLowerCase() === 'r' && hasCommandCenter) { this.enterBuildMode('TURRET'); e.preventDefault(); }
+                    if (e.key.toLowerCase() === 'q' && hasShipyard) { this.queueProduction('FIGHTER'); e.preventDefault(); }
+                    if (e.key.toLowerCase() === 'w' && hasShipyard) { this.queueProduction('CRUISER'); e.preventDefault(); }
+                    if (e.key.toLowerCase() === 'e' && hasShipyard) { this.queueProduction('CARRIER'); e.preventDefault(); }
                 });
             }
 
@@ -1320,20 +1547,18 @@
 
             queueProduction(unitType) {
                 if (this.game.selectedUnits.length !== 1) return;
-                
                 const building = this.game.selectedUnits[0];
                 if (!building.productionQueue) return;
-
                 const cost = GAME_CONFIG.UNIT_TYPES[unitType].cost;
                 if (this.game.player.energy >= cost) {
                     this.game.player.energy -= cost;
-                    
                     if (!building.currentProduction) {
                         building.currentProduction = unitType;
                         building.productionProgress = 0;
                     } else {
                         building.productionQueue.push(unitType);
                     }
+                    sfx.commBeep();
                 }
             }
         }
@@ -1342,23 +1567,14 @@
         class Renderer {
             constructor(game) {
                 this.game = game;
-                this.stars = this.generateStars();
-            }
-
-            generateStars() {
-                const stars = [];
-                for (let i = 0; i < 200; i++) {
-                    stars.push({
-                        x: Math.random() * GAME_CONFIG.MAP_WIDTH,
-                        y: Math.random() * GAME_CONFIG.MAP_HEIGHT,
-                        brightness: Math.random()
-                    });
-                }
-                return stars;
             }
 
             render() {
-                if (!ctx || !canvas) return; // Safety check
+                if (!ctx || !canvas) return;
+
+                ctx.save();
+                ctx.translate(screenShake.x, screenShake.y);
+
                 this.clearCanvas();
                 this.drawBackground();
                 this.drawResources();
@@ -1366,29 +1582,45 @@
                 this.drawUnits();
                 this.drawProjectiles();
                 this.drawEffects();
+                this.drawJuiceParticles();
+                this.drawDamageNumbers();
+                this.drawAnnouncements();
+                this.drawExplosionFlash();
                 this.drawUI();
+
+                ctx.restore();
+
                 this.renderMinimap();
             }
 
             clearCanvas() {
-                ctx.fillStyle = '#000011';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#000008';
+                ctx.fillRect(-5, -5, canvas.width + 10, canvas.height + 10);
             }
 
             drawBackground() {
-                // Stars
-                ctx.fillStyle = '#ffffff';
-                this.stars.forEach(star => {
-                    const screenX = star.x - this.game.camera.x;
-                    const screenY = star.y - this.game.camera.y;
-                    
-                    if (screenX >= -10 && screenX <= canvas.width + 10 && 
-                        screenY >= -10 && screenY <= canvas.height + 10) {
-                        ctx.globalAlpha = star.brightness;
-                        ctx.fillRect(screenX, screenY, 1, 1);
-                    }
-                });
-                ctx.globalAlpha = 1;
+                // Nebula ambient glow
+                const cx = canvas.width * 0.4 - this.game.camera.x * 0.05;
+                const cy = canvas.height * 0.3 - this.game.camera.y * 0.05;
+                const neb = ctx.createRadialGradient(cx, cy, 0, cx, cy, canvas.width * 0.5);
+                neb.addColorStop(0, 'rgba(20, 0, 50, 0.35)');
+                neb.addColorStop(0.5, 'rgba(0, 15, 40, 0.15)');
+                neb.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = neb;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const cx2 = canvas.width * 0.8 - this.game.camera.x * 0.03;
+                const cy2 = canvas.height * 0.7 - this.game.camera.y * 0.03;
+                const neb2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, canvas.width * 0.35);
+                neb2.addColorStop(0, 'rgba(40, 0, 15, 0.25)');
+                neb2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = neb2;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Starfield with parallax
+                if (gameStarfield) {
+                    gameStarfield.draw(ctx, this.game.camera.x, this.game.camera.y, canvas.width, canvas.height);
+                }
             }
 
             drawResources() {
@@ -1399,12 +1631,10 @@
                     if (this.isOnScreen(screenX, screenY)) {
                         ctx.save();
 
-                        // Pulsing glow effect
                         const pulse = Math.sin(Date.now() * 0.003) * 0.3 + 0.7;
                         ctx.shadowBlur = 20 * pulse;
                         ctx.shadowColor = '#ffff00';
 
-                        // Radial gradient for crystal look
                         const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 15);
                         gradient.addColorStop(0, '#ffffaa');
                         gradient.addColorStop(0.5, '#ffff00');
@@ -1415,12 +1645,10 @@
                         ctx.arc(screenX, screenY, 15, 0, Math.PI * 2);
                         ctx.fill();
 
-                        // Outer glow ring
                         ctx.strokeStyle = '#ffaa00';
                         ctx.lineWidth = 2;
                         ctx.stroke();
 
-                        // Inner sparkle
                         ctx.shadowBlur = 10;
                         ctx.fillStyle = '#ffffff';
                         ctx.beginPath();
@@ -1429,10 +1657,8 @@
 
                         ctx.shadowBlur = 0;
 
-                        // Amount text with background
                         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                         ctx.fillRect(screenX - 20, screenY - 30, 40, 14);
-
                         ctx.fillStyle = '#ffff00';
                         ctx.font = 'bold 11px monospace';
                         ctx.textAlign = 'center';
@@ -1440,7 +1666,7 @@
 
                         ctx.restore();
 
-                        // Draw mining beam if worker is nearby
+                        // Mining beam
                         this.game.units.forEach(unit => {
                             if (unit.type === 'WORKER' && unit.state === 'mining') {
                                 const dx = resource.x - unit.x;
@@ -1452,26 +1678,24 @@
                                     ctx.save();
                                     ctx.strokeStyle = unit.owner === 'player' ? '#00ffff' : '#ff4444';
                                     ctx.lineWidth = 2;
-                                    ctx.shadowBlur = 10;
+                                    ctx.shadowBlur = 12;
                                     ctx.shadowColor = ctx.strokeStyle;
-                                    ctx.globalAlpha = 0.6;
+                                    ctx.globalAlpha = 0.6 + 0.2 * Math.sin(Date.now() * 0.01);
 
                                     ctx.beginPath();
                                     ctx.moveTo(unitScreenX, unitScreenY);
                                     ctx.lineTo(screenX, screenY);
                                     ctx.stroke();
 
-                                    // Energy particles flowing from resource to worker
-                                    const particleCount = 3;
-                                    for (let i = 0; i < particleCount; i++) {
-                                        const t = (Date.now() * 0.002 + i / particleCount) % 1;
+                                    // Energy particles flowing
+                                    for (let i = 0; i < 4; i++) {
+                                        const t = (Date.now() * 0.003 + i / 4) % 1;
                                         const px = unitScreenX + (screenX - unitScreenX) * t;
                                         const py = unitScreenY + (screenY - unitScreenY) * t;
-
-                                        ctx.globalAlpha = 1 - t;
+                                        ctx.globalAlpha = (1 - t) * 0.8;
                                         ctx.fillStyle = '#ffff00';
                                         ctx.beginPath();
-                                        ctx.arc(px, py, 3, 0, Math.PI * 2);
+                                        ctx.arc(px, py, 2 + Math.sin(Date.now()*0.01+i)*1, 0, Math.PI * 2);
                                         ctx.fill();
                                     }
 
@@ -1494,13 +1718,11 @@
 
                         ctx.save();
 
-                        // Shadow for building
                         ctx.shadowBlur = 12;
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
                         ctx.shadowOffsetX = 3;
                         ctx.shadowOffsetY = 3;
 
-                        // Building gradient
                         const buildingGradient = ctx.createLinearGradient(screenX - 20, screenY - 20, screenX + 20, screenY + 20);
                         if (building.isComplete) {
                             buildingGradient.addColorStop(0, color);
@@ -1514,13 +1736,11 @@
                         ctx.fillStyle = buildingGradient;
                         ctx.fillRect(screenX - 20, screenY - 20, 40, 40);
 
-                        // Glow effect for complete buildings
                         if (building.isComplete) {
                             ctx.shadowBlur = 20;
                             ctx.shadowColor = color;
                         }
 
-                        // Building border with glow
                         ctx.strokeStyle = building.selected ? '#ffffff' : color;
                         ctx.lineWidth = building.selected ? 3 : 2;
                         ctx.strokeRect(screenX - 20, screenY - 20, 40, 40);
@@ -1545,7 +1765,23 @@
 
                         ctx.shadowBlur = 0;
 
-                        // Icon with glow
+                        // Radar screen glow for command center
+                        if (building.type === 'COMMAND_CENTER' && building.isComplete) {
+                            const radarAngle = (Date.now() * 0.003) % (Math.PI * 2);
+                            ctx.save();
+                            ctx.globalAlpha = 0.3;
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.arc(screenX, screenY, 30, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY);
+                            ctx.lineTo(screenX + Math.cos(radarAngle)*30, screenY + Math.sin(radarAngle)*30);
+                            ctx.stroke();
+                            ctx.restore();
+                        }
+
                         ctx.shadowBlur = 8;
                         ctx.shadowColor = building.isComplete ? color : '#666666';
                         ctx.fillStyle = '#ffffff';
@@ -1555,20 +1791,27 @@
 
                         ctx.restore();
 
-                        // Health bar
                         this.drawHealthBar(screenX, screenY - 30, building.health / building.maxHealth);
 
-                        // Build progress with glow
                         if (!building.isComplete) {
                             this.drawProgressBar(screenX, screenY + 25, building.buildProgress);
                         }
 
-                        // Production progress with animated glow
                         if (building.currentProduction) {
                             ctx.save();
                             ctx.shadowBlur = 10;
                             ctx.shadowColor = '#00ff00';
                             this.drawProgressBar(screenX, screenY + 35, building.productionProgress, '#00ff00');
+                            ctx.restore();
+                        }
+
+                        // Selection pulse
+                        if (building.selected) {
+                            ctx.save();
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 2;
+                            ctx.globalAlpha = 0.5 + 0.3 * Math.sin(Date.now() * 0.005);
+                            ctx.strokeRect(screenX - 24, screenY - 24, 48, 48);
                             ctx.restore();
                         }
                     }
@@ -1587,7 +1830,6 @@
                         ctx.save();
                         ctx.translate(screenX, screenY);
 
-                        // Shadow
                         ctx.shadowBlur = 8;
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
                         ctx.shadowOffsetX = 2;
@@ -1595,7 +1837,6 @@
 
                         ctx.rotate(unit.angle);
 
-                        // Create gradient for ship body
                         const gradient = ctx.createLinearGradient(-8, -5, 10, 5);
                         gradient.addColorStop(0, darkColor);
                         gradient.addColorStop(0.5, color);
@@ -1605,7 +1846,7 @@
                         ctx.strokeStyle = '#ffffff';
                         ctx.lineWidth = 1;
 
-                        // Main fuselage with gradient
+                        // Fuselage
                         ctx.beginPath();
                         ctx.moveTo(10, 0);
                         ctx.lineTo(2, -2);
@@ -1618,7 +1859,7 @@
                         ctx.fill();
                         ctx.stroke();
 
-                        // Wings with gradient
+                        // Wings
                         ctx.beginPath();
                         ctx.moveTo(1, -2);
                         ctx.lineTo(-2, -5);
@@ -1638,26 +1879,32 @@
                         ctx.stroke();
 
                         // Cockpit with glow
-                        ctx.shadowBlur = 4;
+                        ctx.shadowBlur = 6;
                         ctx.shadowColor = color;
                         ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
                         ctx.beginPath();
                         ctx.ellipse(3, 0, 1.5, 1, 0, 0, Math.PI * 2);
                         ctx.fill();
 
-                        // Enhanced engine trail with particles
+                        // Enhanced engine trail
                         if (unit.state === 'moving') {
-                            const trailGradient = ctx.createLinearGradient(-12, 0, -8, 0);
+                            const trailGradient = ctx.createLinearGradient(-16, 0, -8, 0);
                             trailGradient.addColorStop(0, 'rgba(0, 170, 255, 0)');
                             trailGradient.addColorStop(0.5, 'rgba(0, 200, 255, 0.6)');
                             trailGradient.addColorStop(1, color);
 
-                            ctx.shadowBlur = 12;
+                            ctx.shadowBlur = 15;
                             ctx.shadowColor = color;
                             ctx.fillStyle = trailGradient;
                             ctx.fillRect(-16, -2, 8, 4);
 
-                            // Trail particles
+                            // Animated engine glow
+                            ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() * 0.02);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.beginPath();
+                            ctx.arc(-8, 0, 1.5, 0, Math.PI * 2);
+                            ctx.fill();
+
                             for (let i = 0; i < 3; i++) {
                                 const offset = i * 4;
                                 ctx.globalAlpha = 0.3 - i * 0.1;
@@ -1671,7 +1918,7 @@
 
                         ctx.restore();
 
-                        // Selection circle with glow
+                        // Selection circle
                         if (unit.selected) {
                             ctx.save();
                             ctx.shadowBlur = 15;
@@ -1684,7 +1931,6 @@
                             ctx.restore();
                         }
 
-                        // Health bar
                         this.drawHealthBar(screenX, screenY - 25, unit.health / unit.maxHealth);
                     }
                 });
@@ -1698,14 +1944,13 @@
                     if (this.isOnScreen(screenX, screenY)) {
                         ctx.save();
 
-                        // Enhanced glow effect
-                        ctx.shadowBlur = 15;
+                        // Weapon beam glow
+                        ctx.shadowBlur = 18;
                         ctx.shadowColor = '#ffff00';
 
-                        // Gradient for projectile
-                        const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 4);
+                        const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 5);
                         gradient.addColorStop(0, '#ffffff');
-                        gradient.addColorStop(0.5, '#ffff00');
+                        gradient.addColorStop(0.4, '#ffff00');
                         gradient.addColorStop(1, '#ff8800');
 
                         ctx.fillStyle = gradient;
@@ -1713,19 +1958,25 @@
                         ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
                         ctx.fill();
 
-                        // Outer glow ring
                         ctx.strokeStyle = '#ffaa00';
                         ctx.lineWidth = 2;
                         ctx.stroke();
 
-                        // Trail effect
+                        // Trail
                         const dx = projectile.targetX - projectile.x;
                         const dy = projectile.targetY - projectile.y;
                         const angle = Math.atan2(dy, dx);
-                        const trailLength = 10;
+                        const trailLength = 12;
 
                         ctx.globalAlpha = 0.5;
-                        ctx.strokeStyle = '#ffff00';
+                        const trailGrad = ctx.createLinearGradient(
+                            screenX, screenY,
+                            screenX - Math.cos(angle) * trailLength,
+                            screenY - Math.sin(angle) * trailLength
+                        );
+                        trailGrad.addColorStop(0, '#ffff00');
+                        trailGrad.addColorStop(1, 'rgba(255,136,0,0)');
+                        ctx.strokeStyle = trailGrad;
                         ctx.lineWidth = 3;
                         ctx.beginPath();
                         ctx.moveTo(screenX, screenY);
@@ -1747,56 +1998,113 @@
                         const alpha = 1 - age;
 
                         if (effect.type === 'explosion') {
-                            // Draw explosion particles
                             ctx.save();
                             effect.particles.forEach(particle => {
                                 const px = screenX + particle.x;
                                 const py = screenY + particle.y;
-
                                 ctx.globalAlpha = alpha * 0.8;
                                 ctx.shadowBlur = 15;
                                 ctx.shadowColor = particle.color;
                                 ctx.fillStyle = particle.color;
                                 ctx.beginPath();
-                                ctx.arc(px, py, particle.size, 0, Math.PI * 2);
+                                ctx.arc(px, py, particle.size * (1 - age * 0.5), 0, Math.PI * 2);
                                 ctx.fill();
                             });
 
                             // Central explosion glow
-                            ctx.globalAlpha = alpha * 0.5;
-                            ctx.shadowBlur = 30;
+                            ctx.globalAlpha = alpha * 0.6;
+                            ctx.shadowBlur = 40;
                             ctx.shadowColor = '#ff6600';
-                            const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, age * 40);
+                            const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, age * 50);
                             gradient.addColorStop(0, '#ffffff');
-                            gradient.addColorStop(0.3, '#ff6600');
-                            gradient.addColorStop(0.6, '#ff3300');
+                            gradient.addColorStop(0.2, '#ffee00');
+                            gradient.addColorStop(0.5, '#ff6600');
+                            gradient.addColorStop(0.8, '#ff3300');
                             gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
                             ctx.fillStyle = gradient;
                             ctx.beginPath();
-                            ctx.arc(screenX, screenY, age * 40, 0, Math.PI * 2);
+                            ctx.arc(screenX, screenY, age * 50, 0, Math.PI * 2);
                             ctx.fill();
                             ctx.restore();
 
                         } else if (effect.type === 'hit') {
                             ctx.save();
                             ctx.globalAlpha = alpha;
+                            // Shield hit ripple
+                            ctx.strokeStyle = '#00aaff';
+                            ctx.lineWidth = 2;
                             ctx.shadowBlur = 10;
+                            ctx.shadowColor = '#00aaff';
+                            const rippleR = age * 20;
+                            ctx.globalAlpha = alpha * 0.6;
+                            ctx.beginPath();
+                            ctx.arc(screenX, screenY, rippleR, 0, Math.PI * 2);
+                            ctx.stroke();
+                            // Impact spark
+                            ctx.globalAlpha = alpha;
                             ctx.shadowColor = '#ffff00';
                             ctx.fillStyle = '#ffff00';
-                            ctx.fillRect(screenX - 4, screenY - 4, 8, 8);
+                            ctx.beginPath();
+                            ctx.arc(screenX, screenY, 3 * (1-age), 0, Math.PI * 2);
+                            ctx.fill();
                             ctx.restore();
                         }
                     }
                 });
             }
 
+            drawJuiceParticles() {
+                juiceParticles.forEach(p => p.draw(ctx, this.game.camera.x, this.game.camera.y));
+            }
+
+            drawDamageNumbers() {
+                damageNumbers.forEach(d => {
+                    const sx = d.x - this.game.camera.x;
+                    const sy = d.y - this.game.camera.y;
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, d.life / 1.2);
+                    ctx.translate(sx, sy);
+                    ctx.scale(d.scale, d.scale);
+                    ctx.font = 'bold 13px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(d.text, 1, 1);
+                    ctx.fillStyle = d.color;
+                    ctx.fillText(d.text, 0, 0);
+                    ctx.restore();
+                });
+            }
+
+            drawAnnouncements() {
+                announcements.forEach(a => {
+                    ctx.save();
+                    ctx.globalAlpha = Math.min(1, a.life * 2);
+                    ctx.font = 'bold 24px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.shadowBlur = 25;
+                    ctx.shadowColor = a.color;
+                    ctx.fillStyle = a.color;
+                    ctx.fillText(a.text, a.slideX, 80);
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                });
+            }
+
+            drawExplosionFlash() {
+                if (explosionFlash > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = Math.min(0.3, explosionFlash);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                }
+            }
+
             drawHealthBar(x, y, healthPercent) {
                 const width = 30;
                 const height = 4;
-                
                 ctx.fillStyle = '#660000';
                 ctx.fillRect(x - width/2, y, width, height);
-                
                 const healthWidth = width * healthPercent;
                 const color = healthPercent > 0.6 ? '#00ff00' : healthPercent > 0.3 ? '#ffff00' : '#ff0000';
                 ctx.fillStyle = color;
@@ -1806,107 +2114,108 @@
             drawProgressBar(x, y, progress, color = '#00ffff') {
                 const width = 30;
                 const height = 3;
-                
                 ctx.fillStyle = '#333333';
                 ctx.fillRect(x - width/2, y, width, height);
-                
                 ctx.fillStyle = color;
                 ctx.fillRect(x - width/2, y, width * progress, height);
             }
 
             drawUI() {
-                // Build preview
                 if (this.game.buildMode) {
                     const mouseX = this.game.inputHandler.mouse.x + this.game.camera.x;
                     const mouseY = this.game.inputHandler.mouse.y + this.game.camera.y;
                     const gridX = Math.floor(mouseX / GAME_CONFIG.GRID_SIZE) * GAME_CONFIG.GRID_SIZE;
                     const gridY = Math.floor(mouseY / GAME_CONFIG.GRID_SIZE) * GAME_CONFIG.GRID_SIZE;
-                    
+
                     const screenX = gridX - this.game.camera.x;
                     const screenY = gridY - this.game.camera.y;
-                    
+
+                    ctx.save();
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00ffff';
                     ctx.strokeStyle = '#00ffff';
                     ctx.setLineDash([5, 5]);
                     ctx.strokeRect(screenX - 20, screenY - 20, 40, 40);
                     ctx.setLineDash([]);
+                    ctx.restore();
                 }
             }
 
             renderMinimap() {
                 minimapCtx.fillStyle = '#000022';
                 minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-                
+
                 const scaleX = minimapCanvas.width / GAME_CONFIG.MAP_WIDTH;
                 const scaleY = minimapCanvas.height / GAME_CONFIG.MAP_HEIGHT;
-                
-                // Resources
+
                 minimapCtx.fillStyle = '#ffff00';
                 this.game.resources.forEach(resource => {
                     const x = resource.x * scaleX;
                     const y = resource.y * scaleY;
                     minimapCtx.fillRect(x - 1, y - 1, 2, 2);
                 });
-                
-                // Buildings
+
                 this.game.buildings.forEach(building => {
                     const x = building.x * scaleX;
                     const y = building.y * scaleY;
                     minimapCtx.fillStyle = building.owner === 'player' ? '#00ffff' : '#ff4444';
                     minimapCtx.fillRect(x - 2, y - 2, 4, 4);
                 });
-                
-                // Units
+
                 this.game.units.forEach(unit => {
                     const x = unit.x * scaleX;
                     const y = unit.y * scaleY;
                     minimapCtx.fillStyle = unit.owner === 'player' ? '#00aaaa' : '#aa2222';
                     minimapCtx.fillRect(x - 1, y - 1, 2, 2);
                 });
-                
-                // Camera viewport
+
                 const viewX = this.game.camera.x * scaleX;
                 const viewY = this.game.camera.y * scaleY;
                 const viewWidth = canvas.width * scaleX;
                 const viewHeight = canvas.height * scaleY;
-                
+
                 minimapCtx.strokeStyle = '#ffffff';
                 minimapCtx.lineWidth = 1;
                 minimapCtx.strokeRect(viewX, viewY, viewWidth, viewHeight);
+
+                // Minimap glow border
+                minimapCtx.save();
+                minimapCtx.shadowBlur = 4;
+                minimapCtx.shadowColor = '#00aaaa';
+                minimapCtx.strokeStyle = 'rgba(0, 170, 170, 0.3)';
+                minimapCtx.strokeRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+                minimapCtx.restore();
             }
 
             isOnScreen(x, y, margin = 50) {
-                return x >= -margin && x <= canvas.width + margin && 
+                return x >= -margin && x <= canvas.width + margin &&
                        y >= -margin && y <= canvas.height + margin;
             }
         }
 
-        // AI Manager - Enhanced and more aggressive
+        // AI Manager
         class AIManager {
             constructor(game) {
                 this.game = game;
                 this.lastAction = 0;
-                this.strategy = 'economy'; // economy, military, attack
-                this.actionDelay = 1000; // Faster decisions (was 2000)
+                this.strategy = 'economy';
+                this.actionDelay = 1000;
             }
 
             update(deltaTime) {
                 if (Date.now() - this.lastAction < this.actionDelay) return;
-
                 this.analyzeGameState();
                 this.executeStrategy();
-
                 this.lastAction = Date.now();
             }
 
             analyzeGameState() {
                 const enemyUnits = this.game.units.filter(u => u.owner === 'enemy');
-                const enemyBuildings = this.game.buildings.filter(b => b.owner === 'enemy');
                 const enemyMilitary = enemyUnits.filter(u => u.type !== 'WORKER');
 
-                // More aggressive strategy switching
                 if (this.game.enemy.energy > 300 && enemyMilitary.length < 8) {
                     this.strategy = 'military';
-                } else if (enemyMilitary.length > 5) { // Attack earlier (was 10)
+                } else if (enemyMilitary.length > 5) {
                     this.strategy = 'attack';
                 } else {
                     this.strategy = 'economy';
@@ -1920,16 +2229,13 @@
                 const workers = this.game.units.filter(u => u.owner === 'enemy' && u.type === 'WORKER');
 
                 if (this.strategy === 'economy') {
-                    // Build more workers for faster economy
-                    if (workers.length < 6 && commandCenters.length > 0) { // Increased from 4 to 6
+                    if (workers.length < 6 && commandCenters.length > 0) {
                         this.produceUnit(commandCenters[0], 'WORKER');
                     }
 
-                    // Build extractors aggressively
                     if (this.game.enemy.energy > 150 && workers.length > 1) {
                         const nearestResource = this.findNearestResource(workers[0]);
                         if (nearestResource) {
-                            // Check if no extractor nearby
                             const hasExtractorNearby = this.game.buildings.some(b => {
                                 const dx = b.x - nearestResource.x;
                                 const dy = b.y - nearestResource.y;
@@ -1942,7 +2248,6 @@
                         }
                     }
 
-                    // Build shipyard early
                     if (shipyards.length === 0 && this.game.enemy.energy > 200) {
                         const commandCenter = commandCenters[0];
                         if (commandCenter) {
@@ -1951,33 +2256,27 @@
                         }
                     }
 
-                    // Build defensive turrets
                     if (turrets.length < 2 && this.game.enemy.energy > 100 && commandCenters.length > 0) {
                         const commandCenter = commandCenters[0];
                         this.game.addBuilding('TURRET', commandCenter.x - 80, commandCenter.y, 'enemy');
                         this.game.enemy.energy -= 100;
                     }
                 } else if (this.strategy === 'military') {
-                    // Produce military units more aggressively
                     shipyards.forEach(shipyard => {
                         if (!shipyard.currentProduction || shipyard.productionQueue.length < 2) {
-                            // Build mix of units
                             const rand = Math.random();
                             let unitType;
                             if (rand < 0.5) unitType = 'FIGHTER';
                             else if (rand < 0.8) unitType = 'CRUISER';
                             else unitType = 'CARRIER';
-
                             this.produceUnit(shipyard, unitType);
                         }
                     });
                 } else if (this.strategy === 'attack') {
-                    // Send aggressive attack waves
                     const fighters = this.game.units.filter(u => u.owner === 'enemy' && u.type !== 'WORKER');
                     const playerBuildings = this.game.buildings.filter(b => b.owner === 'player');
 
-                    if (fighters.length > 3 && playerBuildings.length > 0) { // Attack with fewer units (was 5)
-                        // Prioritize command center
+                    if (fighters.length > 3 && playerBuildings.length > 0) {
                         const target = playerBuildings.find(b => b.type === 'COMMAND_CENTER') || playerBuildings[0];
                         fighters.forEach(unit => {
                             if (!unit.target || unit.target.health <= 0) {
@@ -1987,7 +2286,6 @@
                         });
                     }
 
-                    // Keep building while attacking
                     shipyards.forEach(shipyard => {
                         if (!shipyard.currentProduction && this.game.enemy.energy > 50) {
                             this.produceUnit(shipyard, 'FIGHTER');
@@ -1995,7 +2293,6 @@
                     });
                 }
 
-                // Enhanced Worker AI
                 workers.forEach(worker => {
                     if (worker.state === 'idle' || !worker.destination) {
                         const nearestResource = this.findNearestResource(worker);
@@ -2011,7 +2308,6 @@
                 const cost = GAME_CONFIG.UNIT_TYPES[unitType].cost;
                 if (this.game.enemy.energy >= cost) {
                     this.game.enemy.energy -= cost;
-                    
                     if (!building.currentProduction) {
                         building.currentProduction = unitType;
                         building.productionProgress = 0;
@@ -2024,197 +2320,26 @@
             findNearestResource(unit) {
                 let nearest = null;
                 let nearestDistance = Infinity;
-                
                 this.game.resources.forEach(resource => {
                     if (resource.amount > 0) {
                         const dx = resource.x - unit.x;
                         const dy = resource.y - unit.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        
                         if (distance < nearestDistance) {
                             nearestDistance = distance;
                             nearest = resource;
                         }
                     }
                 });
-                
                 return nearest;
-            }
-        }
-
-        // Sound Manager
-        class SoundManager {
-            constructor() {
-                this.audioContext = null;
-                this.sounds = {};
-                this.masterVolume = 0.7;
-                this.enabled = true;
-                this.initializeAudioContext();
-            }
-
-            initializeAudioContext() {
-                try {
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    this.createSounds();
-                } catch (e) {
-                    console.warn('Audio not available:', e);
-                    this.enabled = false;
-                }
-            }
-
-            createSounds() {
-                // Create procedural sound effects
-                this.sounds = {
-                    laser: this.createLaserSound(),
-                    explosion: this.createExplosionSound(),
-                    hit: this.createHitSound(),
-                    build: this.createBuildSound(),
-                    select: this.createSelectSound()
-                };
-            }
-
-            createLaserSound() {
-                return () => {
-                    if (!this.enabled || !this.audioContext) return;
-                    
-                    const oscillator = this.audioContext.createOscillator();
-                    const gainNode = this.audioContext.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
-                    oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
-                    
-                    gainNode.gain.setValueAtTime(this.masterVolume * 0.3, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1);
-                    
-                    oscillator.start();
-                    oscillator.stop(this.audioContext.currentTime + 0.1);
-                };
-            }
-
-            createExplosionSound() {
-                return () => {
-                    if (!this.enabled || !this.audioContext) return;
-                    
-                    const bufferSize = this.audioContext.sampleRate * 0.5;
-                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
-                    const output = buffer.getChannelData(0);
-                    
-                    for (let i = 0; i < bufferSize; i++) {
-                        output[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-                    }
-                    
-                    const source = this.audioContext.createBufferSource();
-                    const gainNode = this.audioContext.createGain();
-                    const filter = this.audioContext.createBiquadFilter();
-                    
-                    source.buffer = buffer;
-                    source.connect(filter);
-                    filter.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    filter.type = 'lowpass';
-                    filter.frequency.setValueAtTime(1000, this.audioContext.currentTime);
-                    filter.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.3);
-                    
-                    gainNode.gain.setValueAtTime(this.masterVolume * 0.5, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5);
-                    
-                    source.start();
-                };
-            }
-
-            createHitSound() {
-                return () => {
-                    if (!this.enabled || !this.audioContext) return;
-                    
-                    const oscillator = this.audioContext.createOscillator();
-                    const gainNode = this.audioContext.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    oscillator.frequency.setValueAtTime(300, this.audioContext.currentTime);
-                    oscillator.frequency.linearRampToValueAtTime(100, this.audioContext.currentTime + 0.05);
-                    
-                    gainNode.gain.setValueAtTime(this.masterVolume * 0.2, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.05);
-                    
-                    oscillator.start();
-                    oscillator.stop(this.audioContext.currentTime + 0.05);
-                };
-            }
-
-            createBuildSound() {
-                return () => {
-                    if (!this.enabled || !this.audioContext) return;
-                    
-                    const oscillator = this.audioContext.createOscillator();
-                    const gainNode = this.audioContext.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
-                    oscillator.frequency.linearRampToValueAtTime(600, this.audioContext.currentTime + 0.2);
-                    
-                    gainNode.gain.setValueAtTime(this.masterVolume * 0.15, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2);
-                    
-                    oscillator.start();
-                    oscillator.stop(this.audioContext.currentTime + 0.2);
-                };
-            }
-
-            createSelectSound() {
-                return () => {
-                    if (!this.enabled || !this.audioContext) return;
-                    
-                    const oscillator = this.audioContext.createOscillator();
-                    const gainNode = this.audioContext.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
-                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime + 0.02);
-                    
-                    gainNode.gain.setValueAtTime(this.masterVolume * 0.1, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.05);
-                    
-                    oscillator.start();
-                    oscillator.stop(this.audioContext.currentTime + 0.05);
-                };
-            }
-
-            play(soundName) {
-                if (!this.enabled || !this.audioContext) return;
-                // Resume suspended AudioContext (browser policy requires user gesture)
-                if (this.audioContext.state === 'suspended') {
-                    this.audioContext.resume();
-                }
-                if (this.sounds[soundName]) {
-                    this.sounds[soundName]();
-                }
-            }
-
-            setVolume(volume) {
-                this.masterVolume = Math.max(0, Math.min(1, volume));
-            }
-
-            toggle() {
-                this.enabled = !this.enabled;
             }
         }
 
         // Game instance
         let game = null;
-        let soundManager = null;
 
         function resizeCanvas() {
-            if (!canvas || !minimapCanvas) return; // Safety check
+            if (!canvas || !minimapCanvas) return;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             minimapCanvas.width = 180;
@@ -2222,13 +2347,13 @@
         }
 
         function startGame() {
+            sfx.resume();
             document.getElementById('mainMenu').style.display = 'none';
             document.getElementById('loadingScreen').style.display = 'flex';
 
-            // Fast loading - 95% faster (100ms total instead of 2000ms)
             let progress = 0;
             const loadingInterval = setInterval(() => {
-                progress += 50; // Much faster increments
+                progress += 50;
                 if (progress >= 100) {
                     progress = 100;
                     clearInterval(loadingInterval);
@@ -2236,7 +2361,7 @@
                     initializeGame();
                 }
                 document.getElementById('loadingProgress').style.width = progress + '%';
-            }, 20); // Very short interval
+            }, 20);
         }
 
         function restartGame() {
@@ -2245,7 +2370,6 @@
             document.getElementById('mainMenu').style.display = 'flex';
             if (game) {
                 game.isRunning = false;
-                // Clear entity references to help GC
                 game.units = [];
                 game.buildings = [];
                 game.projectiles = [];
@@ -2253,44 +2377,50 @@
                 game.selectedUnits = [];
                 game = null;
             }
-            // Restart menu animation
+            juiceParticles.length = 0;
+            damageNumbers.length = 0;
+            announcements.length = 0;
+            explosionFlash = 0;
+            displayEnergy = 1000;
             menuAnimation();
         }
 
         function initializeGame() {
-            console.log("Initializing Space Command game...");
-            soundManager = new SoundManager();
+            gameStarfield = new Starfield(GAME_CONFIG.MAP_WIDTH, GAME_CONFIG.MAP_HEIGHT, 350);
             game = new GameEngine();
-            console.log("Game engine created, units:", game.units.length, "buildings:", game.buildings.length);
-            console.log("Camera position:", game.camera);
-            console.log("Canvas size:", canvas.width, "x", canvas.height);
-            
-            // Ensure mouse listeners are set up now that canvas exists
+
             if (game.inputHandler) {
                 game.inputHandler.setupMouseListeners();
             }
-            
+
+            showAnnouncement('MISSION GESTARTET', '#00ffff', 2);
             game.start();
-            console.log("Space Command initialized successfully! Game running:", game.isRunning);
         }
 
-        // Initialize resize listener
         window.addEventListener('resize', resizeCanvas);
 
-        // Menu starfield animation
         function drawStarfield() {
-            if (!ctx || !canvas) return; // Safety check
-            
-            ctx.fillStyle = '#000011';
+            if (!ctx || !canvas) return;
+            ctx.fillStyle = '#000008';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
+            // Nebula
+            const neb = ctx.createRadialGradient(canvas.width*0.4, canvas.height*0.3, 0, canvas.width*0.4, canvas.height*0.3, canvas.width*0.5);
+            neb.addColorStop(0, 'rgba(20,0,50,0.3)');
+            neb.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = neb;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             ctx.fillStyle = '#ffffff';
             for (let i = 0; i < 100; i++) {
                 const x = (Math.sin(Date.now() * 0.001 + i) * 0.5 + 0.5) * canvas.width;
                 const y = (Math.cos(Date.now() * 0.0008 + i) * 0.5 + 0.5) * canvas.height;
                 const size = Math.random() * 2;
+                const b = 0.3 + 0.7 * Math.abs(Math.sin(Date.now() * 0.002 + i * 0.5));
+                ctx.globalAlpha = b;
                 ctx.fillRect(x, y, size, size);
             }
+            ctx.globalAlpha = 1;
         }
 
         function menuAnimation() {

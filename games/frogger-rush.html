@@ -36,6 +36,7 @@
             font-size: 2em;
             margin-bottom: 10px;
             text-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
+            letter-spacing: 3px;
         }
         .stats {
             display: flex;
@@ -50,22 +51,32 @@
             text-align: center;
         }
         .stat-label {
-            font-size: 0.75em;
+            font-size: 0.7em;
             color: #7f8c8d;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            font-weight: bold;
         }
         .stat-value {
             font-size: 1.5em;
             font-weight: bold;
-            transition: transform 0.2s, color 0.3s;
+            font-family: 'Courier New', monospace;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s;
         }
         .stat-value.bump {
-            transform: scale(1.3);
+            transform: scale(1.4);
         }
-        .lives { color: #e74c3c; }
-        .score { color: #2ecc71; }
-        .level { color: #3498db; }
+        .stat-value.damage-pulse {
+            animation: damagePulse 0.5s ease-out;
+        }
+        @keyframes damagePulse {
+            0% { transform: scale(1.5); color: #ff0000; }
+            50% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        .lives { color: #e74c3c; text-shadow: 0 0 8px rgba(231, 76, 60, 0.3); }
+        .score { color: #2ecc71; text-shadow: 0 0 8px rgba(46, 204, 113, 0.3); }
+        .level { color: #3498db; text-shadow: 0 0 8px rgba(52, 152, 219, 0.3); }
         .timer-bar {
             height: 8px;
             background: rgba(255,255,255,0.1);
@@ -225,6 +236,34 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        /* Level complete banner */
+        .level-banner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #2ecc71;
+            text-shadow: 0 0 30px rgba(46, 204, 113, 0.6);
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 4px;
+            white-space: nowrap;
+        }
+        .level-banner.show {
+            animation: bannerElastic 2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes bannerElastic {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; }
+            20% { transform: translate(-50%, -50%) scale(1.3) rotate(3deg); opacity: 1; }
+            40% { transform: translate(-50%, -50%) scale(0.95) rotate(-1deg); opacity: 1; }
+            60% { transform: translate(-50%, -50%) scale(1.05) rotate(0deg); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(0.9) rotate(0deg); opacity: 0; }
+        }
         .mobile-controls {
             display: none;
             grid-template-columns: repeat(3, 1fr);
@@ -356,6 +395,7 @@
             <button class="btn btn-start" id="btnRestart">Nochmal spielen</button>
         </div>
     </div>
+    <div class="level-banner" id="levelBanner"></div>
     <script>
         // === DEBUG MODE ===
         const DEBUG = false;
@@ -418,6 +458,163 @@
         }
         const { canvas, ctx } = canvasSetup || {};
 
+        // ==============================================
+        // SOUND SYNTHESIS ENGINE
+        // ==============================================
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function ensureAudio() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playHopSound() {
+            ensureAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 400;
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.08);
+            osc.frequency.exponentialRampToValueAtTime(350, audioCtx.currentTime + 0.12);
+            gain.gain.value = 0.08;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playSplashSound() {
+            ensureAudio();
+            // White noise burst for splash
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15));
+            }
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 2000;
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.12;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start();
+        }
+
+        function playSquishSound() {
+            ensureAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = 200;
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
+            gain.gain.value = 0.1;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+            // Second crunch
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sawtooth';
+            osc2.frequency.value = 120;
+            gain2.gain.value = 0.06;
+            gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.start();
+            osc2.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playSafeLandingDing() {
+            ensureAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 880;
+            gain.gain.value = 0.1;
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.value = 1320;
+            gain2.gain.value = 0.08;
+            gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.start(audioCtx.currentTime + 0.1);
+            osc2.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playLevelFanfare() {
+            ensureAudio();
+            const notes = [523, 659, 784, 1047, 1320];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.value = 0.08;
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + i * 0.12);
+                osc.stop(audioCtx.currentTime + i * 0.12 + 0.4);
+            });
+        }
+
+        // ==============================================
+        // TWEEN SYSTEM
+        // ==============================================
+        const tweens = [];
+
+        function easeOutBounce(t) {
+            if (t < 1 / 2.75) return 7.5625 * t * t;
+            if (t < 2 / 2.75) return 7.5625 * (t -= 1.5 / 2.75) * t + 0.75;
+            if (t < 2.5 / 2.75) return 7.5625 * (t -= 2.25 / 2.75) * t + 0.9375;
+            return 7.5625 * (t -= 2.625 / 2.75) * t + 0.984375;
+        }
+
+        function easeOutElastic(t) {
+            if (t === 0 || t === 1) return t;
+            return Math.pow(2, -10 * t) * Math.sin((t - 0.075) * (2 * Math.PI) / 0.3) + 1;
+        }
+
+        function addTween(obj, prop, from, to, duration, easeFn, onComplete) {
+            obj[prop] = from;
+            tweens.push({ obj, prop, from, to, duration, elapsed: 0, easeFn: easeFn || easeOutBounce, onComplete });
+        }
+
+        function updateTweens(dt) {
+            for (let i = tweens.length - 1; i >= 0; i--) {
+                const tw = tweens[i];
+                tw.elapsed += dt;
+                const t = Math.min(tw.elapsed / tw.duration, 1);
+                tw.obj[tw.prop] = tw.from + (tw.to - tw.from) * tw.easeFn(t);
+                if (t >= 1) {
+                    if (tw.onComplete) tw.onComplete();
+                    tweens.splice(i, 1);
+                }
+            }
+        }
+
+        // ==============================================
+        // PARTICLE SYSTEM (Enhanced)
+        // ==============================================
+        const MAX_PARTICLES = 300;
+
         // Game constants
         const CELL_SIZE = 40;
         const COLS = 15;
@@ -439,7 +636,9 @@
         let deathTimer = 0;
         let particles = [];
         let screenShake = 0;
-        let frogDirection = 0; // 0=up, 1=right, 2=down, 3=left
+        let frogDirection = 0;
+        let hopAnimTimer = 0;
+        let hopAnimActive = false;
 
         // Frog
         let frog = {
@@ -475,6 +674,139 @@
         let logs = [];
         let waterOffset = 0;
 
+        // Splash / water ripple effects
+        const ripples = [];
+
+        function createParticles(x, y, color, count, type) {
+            for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3 + 1;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2,
+                    life: 1,
+                    color: color,
+                    size: Math.random() * 4 + 2,
+                    type: type || 'circle'
+                });
+            }
+        }
+
+        function createSplashParticles(x, y) {
+            // Water droplets going up
+            for (let i = 0; i < 12 && particles.length < MAX_PARTICLES; i++) {
+                const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
+                const speed = 2 + Math.random() * 4;
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 20,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    color: ['#3498db', '#85c1e9', '#5dade2', '#aed6f1'][Math.floor(Math.random() * 4)],
+                    size: 2 + Math.random() * 4,
+                    type: 'splash'
+                });
+            }
+            // Add ripple
+            ripples.push({ x: x, y: y, radius: 5, maxRadius: 30, alpha: 0.6 });
+        }
+
+        function createSquishParticles(x, y) {
+            // Red/orange burst
+            for (let i = 0; i < 10 && particles.length < MAX_PARTICLES; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 3;
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 10,
+                    y: y + (Math.random() - 0.5) * 10,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    color: ['#e74c3c', '#f39c12', '#c0392b', '#e67e22'][Math.floor(Math.random() * 4)],
+                    size: 2 + Math.random() * 3,
+                    type: 'squish'
+                });
+            }
+            // Flat squish lines
+            for (let i = 0; i < 6 && particles.length < MAX_PARTICLES; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * (2 + Math.random() * 3),
+                    vy: (Math.random() - 0.5) * 0.5,
+                    life: 1,
+                    color: '#27ae60',
+                    size: 1.5,
+                    type: 'line'
+                });
+            }
+        }
+
+        function createSparkleParticles(x, y) {
+            const colors = ['#f1c40f', '#2ecc71', '#ffffff', '#e8d44d'];
+            for (let i = 0; i < 15 && particles.length < MAX_PARTICLES; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 3;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1.5,
+                    life: 1,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: 1.5 + Math.random() * 2.5,
+                    type: 'sparkle'
+                });
+            }
+        }
+
+        function createCelebrationBurst(x, y) {
+            const colors = ['#f1c40f', '#2ecc71', '#3498db', '#e74c3c', '#9b59b6', '#1abc9c'];
+            for (let i = 0; i < 50 && particles.length < MAX_PARTICLES; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 6;
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 100,
+                    y: y + (Math.random() - 0.5) * 100,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2,
+                    life: 1,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: 2 + Math.random() * 4,
+                    type: 'confetti'
+                });
+            }
+        }
+
+        function bumpStat(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('bump');
+            void el.offsetWidth;
+            el.classList.add('bump');
+            setTimeout(() => el.classList.remove('bump'), 350);
+        }
+
+        function damagePulseStat(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('damage-pulse');
+            void el.offsetWidth;
+            el.classList.add('damage-pulse');
+            setTimeout(() => el.classList.remove('damage-pulse'), 500);
+        }
+
+        function showLevelBanner(text) {
+            const banner = document.getElementById('levelBanner');
+            banner.textContent = text;
+            banner.classList.remove('show');
+            void banner.offsetWidth;
+            banner.classList.add('show');
+            setTimeout(() => banner.classList.remove('show'), 2100);
+        }
+
         function initGame() {
             vehicles = [];
             logs = [];
@@ -488,10 +820,10 @@
                         let width, color;
                         if (vehicleType < 0.3) {
                             width = CELL_SIZE * 2.5;
-                            color = '#e74c3c'; // truck
+                            color = '#e74c3c';
                         } else if (vehicleType < 0.6) {
                             width = CELL_SIZE * 1.5;
-                            color = '#3498db'; // car
+                            color = '#3498db';
                         } else {
                             width = CELL_SIZE * 1.3;
                             color = ['#f39c12', '#9b59b6', '#1abc9c'][Math.floor(Math.random() * 3)];
@@ -525,28 +857,6 @@
             });
         }
 
-        function createParticles(x, y, color, count) {
-            for (let i = 0; i < count; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 3 + 1;
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 2,
-                    life: 1,
-                    color: color,
-                    size: Math.random() * 4 + 2
-                });
-            }
-        }
-
-        function bumpStat(id) {
-            const el = document.getElementById(id);
-            el.classList.add('bump');
-            setTimeout(() => el.classList.remove('bump'), 200);
-        }
-
         function startGame() {
             gameRunning = true;
             paused = false;
@@ -560,6 +870,10 @@
             particles = [];
             screenShake = 0;
             frogDirection = 0;
+            hopAnimTimer = 0;
+            hopAnimActive = false;
+            tweens.length = 0;
+            ripples.length = 0;
 
             frog = {
                 col: 7,
@@ -573,6 +887,7 @@
 
             initGame();
             updateDisplay();
+            ensureAudio();
             document.getElementById('gameOverOverlay').style.display = 'none';
             document.getElementById('pauseOverlay').classList.remove('active');
             lastTime = performance.now();
@@ -611,9 +926,9 @@
         }
 
         function levelComplete() {
-            // Show brief celebration before next level
-            createParticles(canvas.width / 2, canvas.height / 2, '#f1c40f', 40);
-            createParticles(canvas.width / 2, canvas.height / 2, '#2ecc71', 40);
+            createCelebrationBurst(canvas.width / 2, canvas.height / 2);
+            showLevelBanner('LEVEL ' + level + ' COMPLETE!');
+            playLevelFanfare();
         }
 
         function resetFrog() {
@@ -629,28 +944,27 @@
             deathTimer = 0;
         }
 
-        function killFrog() {
+        function killFrog(deathType) {
             if (isDying) return;
 
             isDying = true;
             deathTimer = 600;
             lives--;
-            screenShake = 10;
+            screenShake = 12;
 
-            // Death particles
             const fx = frog.x + CELL_SIZE / 2;
             const fy = frog.row * CELL_SIZE + CELL_SIZE / 2;
-            const lane = lanes.find(l => l.row === frog.row);
-            if (lane && lane.type === 'water') {
-                createParticles(fx, fy, '#3498db', 15);
-                createParticles(fx, fy, '#85c1e9', 10);
+
+            if (deathType === 'water') {
+                createSplashParticles(fx, fy);
+                playSplashSound();
             } else {
-                createParticles(fx, fy, '#e74c3c', 15);
-                createParticles(fx, fy, '#f1c40f', 8);
+                createSquishParticles(fx, fy);
+                playSquishSound();
             }
 
             updateDisplay();
-            bumpStat('livesDisplay');
+            damagePulseStat('livesDisplay');
 
             setTimeout(() => {
                 if (lives <= 0) {
@@ -670,6 +984,7 @@
             levelComplete();
             updateDisplay();
             bumpStat('levelDisplay');
+            bumpStat('scoreDisplay');
         }
 
         function moveFrog(dcol, drow) {
@@ -692,6 +1007,11 @@
             else if (drow > 0) frogDirection = 2;
             else if (dcol < 0) frogDirection = 3;
 
+            // Hop animation
+            hopAnimTimer = 8;
+            hopAnimActive = true;
+            playHopSound();
+
             // Score for moving forward
             if (drow < 0 && newRow < highestRow) {
                 score += 10;
@@ -700,14 +1020,21 @@
                 bumpStat('scoreDisplay');
             }
 
+            // Check safe zone landing sparkle
+            const lane = lanes.find(l => l.row === newRow);
+            if (lane && lane.type === 'safe' && drow < 0) {
+                createSparkleParticles(frog.x + CELL_SIZE / 2, newRow * CELL_SIZE + CELL_SIZE / 2);
+                playSafeLandingDing();
+            }
+
             // Check if reached goal
             if (frog.row === 0) {
                 const goal = goals.find(g => g.col === frog.col && !g.reached);
                 if (goal) {
                     goal.reached = true;
                     score += 200 + Math.floor(timeRemaining * 10);
-                    createParticles(frog.x + CELL_SIZE / 2, CELL_SIZE / 2, '#2ecc71', 20);
-                    createParticles(frog.x + CELL_SIZE / 2, CELL_SIZE / 2, '#f1c40f', 15);
+                    createSparkleParticles(frog.x + CELL_SIZE / 2, CELL_SIZE / 2);
+                    playSafeLandingDing();
 
                     if (goals.every(g => g.reached)) {
                         nextLevel();
@@ -717,7 +1044,7 @@
                     updateDisplay();
                     bumpStat('scoreDisplay');
                 } else {
-                    killFrog();
+                    killFrog('water');
                 }
             }
         }
@@ -735,7 +1062,7 @@
             timeRemaining -= deltaTime / 1000;
             if (timeRemaining <= 0) {
                 timeRemaining = 0;
-                killFrog();
+                killFrog('timeout');
             }
 
             const percentage = (timeRemaining / MAX_TIME) * 100;
@@ -747,17 +1074,46 @@
             particles = particles.filter(p => {
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.1;
+                if (p.type === 'splash') {
+                    p.vy += 0.15;
+                } else if (p.type === 'confetti') {
+                    p.vy += 0.06;
+                    p.vx *= 0.99;
+                } else if (p.type === 'sparkle') {
+                    p.vy += 0.05;
+                    p.vx *= 0.97;
+                } else {
+                    p.vy += 0.1;
+                }
                 p.life -= 0.02;
                 return p.life > 0;
             });
 
+            // Update ripples
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const r = ripples[i];
+                r.radius += 0.8;
+                r.alpha -= 0.015;
+                if (r.alpha <= 0 || r.radius >= r.maxRadius) {
+                    ripples.splice(i, 1);
+                }
+            }
+
             // Screen shake decay
-            if (screenShake > 0) screenShake *= 0.9;
+            if (screenShake > 0) screenShake *= 0.88;
             if (screenShake < 0.5) screenShake = 0;
+
+            // Hop animation decay
+            if (hopAnimTimer > 0) {
+                hopAnimTimer--;
+                if (hopAnimTimer <= 0) hopAnimActive = false;
+            }
 
             // Water animation
             waterOffset += deltaTime * 0.002;
+
+            // Update tweens
+            updateTweens(deltaTime);
 
             if (isDying) {
                 deathTimer -= deltaTime;
@@ -801,7 +1157,7 @@
                 });
 
                 if (!frog.onLog) {
-                    killFrog();
+                    killFrog('water');
                     return;
                 }
             } else {
@@ -815,7 +1171,7 @@
                 frog.col = Math.round(frog.x / CELL_SIZE);
 
                 if (frog.col < 0 || frog.col >= COLS) {
-                    killFrog();
+                    killFrog('water');
                     return;
                 }
             }
@@ -831,7 +1187,7 @@
                             frogX + CELL_SIZE > vehicle.x + 5 &&
                             frogY < vehicle.y + vehicle.height &&
                             frogY + CELL_SIZE > vehicle.y) {
-                            killFrog();
+                            killFrog('car');
                             break;
                         }
                     }
@@ -841,6 +1197,9 @@
             updateTimer(deltaTime);
         }
 
+        // ==============================================
+        // DRAWING (Enhanced visuals)
+        // ==============================================
         function drawBackground() {
             lanes.forEach(lane => {
                 const y = lane.row * CELL_SIZE;
@@ -853,26 +1212,70 @@
                         const h = Math.sin(x * 0.3 + lane.row) * 3 + 5;
                         ctx.fillRect(x, y + CELL_SIZE - h, 3, h);
                     }
+                    // Ambient grass sparkle
+                    const t = Date.now() * 0.003;
+                    for (let x = 10; x < canvas.width; x += 60) {
+                        const flicker = Math.sin(t + x * 0.1 + lane.row * 2) * 0.5 + 0.5;
+                        if (flicker > 0.7) {
+                            ctx.fillStyle = `rgba(200, 255, 200, ${(flicker - 0.7) * 0.3})`;
+                            ctx.beginPath();
+                            ctx.arc(x, y + 20 + Math.sin(t + x) * 5, 1.5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
                 } else if (lane.type === 'road') {
-                    ctx.fillStyle = '#3d3d3d';
+                    // Road with subtle gradient
+                    const roadGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
+                    roadGrad.addColorStop(0, '#3d3d3d');
+                    roadGrad.addColorStop(0.5, '#454545');
+                    roadGrad.addColorStop(1, '#3d3d3d');
+                    ctx.fillStyle = roadGrad;
                     ctx.fillRect(0, y, canvas.width, CELL_SIZE);
-                    // Subtle road texture
-                    ctx.fillStyle = '#4a4a4a';
+                    // Road edge lines
+                    ctx.fillStyle = '#555';
                     ctx.fillRect(0, y, canvas.width, 2);
                     ctx.fillRect(0, y + CELL_SIZE - 2, canvas.width, 2);
                 } else if (lane.type === 'water') {
-                    // Animated water
-                    ctx.fillStyle = '#1a6fa0';
+                    // Water shimmer effect
+                    const waterGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
+                    waterGrad.addColorStop(0, '#155d8a');
+                    waterGrad.addColorStop(0.5, '#1a6fa0');
+                    waterGrad.addColorStop(1, '#155d8a');
+                    ctx.fillStyle = waterGrad;
                     ctx.fillRect(0, y, canvas.width, CELL_SIZE);
-                    ctx.fillStyle = 'rgba(100, 200, 255, 0.15)';
-                    for (let x = 0; x < canvas.width; x += 30) {
+
+                    // Animated shimmer waves
+                    const t = Date.now() * 0.001;
+                    for (let x = 0; x < canvas.width; x += 15) {
                         const waveY = Math.sin((x + waterOffset * 100) * 0.08 + lane.row * 2) * 3;
-                        ctx.fillRect(x, y + CELL_SIZE / 2 + waveY, 20, 2);
+                        const shimmer = Math.sin(t * 2 + x * 0.05 + lane.row) * 0.5 + 0.5;
+                        ctx.fillStyle = `rgba(100, 200, 255, ${0.08 + shimmer * 0.12})`;
+                        ctx.fillRect(x, y + CELL_SIZE / 2 + waveY, 12, 2);
+                    }
+
+                    // Secondary shimmer highlights
+                    for (let x = 7; x < canvas.width; x += 40) {
+                        const shimmer2 = Math.sin(t * 3 + x * 0.08 + lane.row * 1.5) * 0.5 + 0.5;
+                        if (shimmer2 > 0.6) {
+                            ctx.fillStyle = `rgba(180, 230, 255, ${(shimmer2 - 0.6) * 0.3})`;
+                            ctx.beginPath();
+                            ctx.arc(x, y + CELL_SIZE / 2, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                 } else if (lane.type === 'goal') {
                     ctx.fillStyle = '#1e7a3a';
                     ctx.fillRect(0, y, canvas.width, CELL_SIZE);
                 }
+            });
+
+            // Draw ripples
+            ripples.forEach(r => {
+                ctx.strokeStyle = `rgba(100, 200, 255, ${r.alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                ctx.stroke();
             });
 
             // Draw goal spots
@@ -884,18 +1287,36 @@
                     ctx.beginPath();
                     ctx.arc(gx, gy, CELL_SIZE / 2.5, 0, Math.PI * 2);
                     ctx.fill();
-                    // Draw small frog
                     drawSmallFrog(gx, gy, 0.6);
                 } else {
-                    // Glowing target
+                    // Pulsing lily pad style target
                     const glow = Math.sin(Date.now() * 0.004) * 0.3 + 0.7;
+                    const pulseSize = 1 + Math.sin(Date.now() * 0.003) * 0.08;
+
+                    ctx.save();
+                    ctx.translate(gx, gy);
+                    ctx.scale(pulseSize, pulseSize);
+
+                    // Outer glow
+                    ctx.shadowColor = 'rgba(46, 204, 113, 0.5)';
+                    ctx.shadowBlur = 10;
                     ctx.fillStyle = `rgba(26, 188, 156, ${glow})`;
                     ctx.beginPath();
-                    ctx.arc(gx, gy, CELL_SIZE / 2.5, 0, Math.PI * 2);
+                    ctx.arc(0, 0, CELL_SIZE / 2.5, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.shadowBlur = 0;
+
                     ctx.strokeStyle = `rgba(46, 204, 113, ${glow})`;
                     ctx.lineWidth = 2;
                     ctx.stroke();
+
+                    // Inner highlight
+                    ctx.fillStyle = `rgba(255, 255, 255, ${glow * 0.15})`;
+                    ctx.beginPath();
+                    ctx.arc(-2, -2, CELL_SIZE / 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
                 }
             });
 
@@ -922,7 +1343,7 @@
                 const r = 6;
 
                 // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
                 ctx.fillRect(vehicle.x + 3, y + 3, w, h);
 
                 // Car body with rounded corners
@@ -950,16 +1371,26 @@
                 ctx.fillRect(vehicle.x + w * 0.25, y + 4, ww, h * 0.4);
                 ctx.fillRect(vehicle.x + w * 0.55, y + 4, ww, h * 0.4);
 
-                // Headlights
+                // Headlights with glow
                 const isMovingRight = vehicle.speed > 0;
+                const headlightX = isMovingRight ? vehicle.x + w - 4 : vehicle.x;
+
+                // Headlight glow
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur = 8;
                 ctx.fillStyle = '#f1c40f';
-                if (isMovingRight) {
-                    ctx.fillRect(vehicle.x + w - 4, y + 4, 4, 5);
-                    ctx.fillRect(vehicle.x + w - 4, y + h - 9, 4, 5);
-                } else {
-                    ctx.fillRect(vehicle.x, y + 4, 4, 5);
-                    ctx.fillRect(vehicle.x, y + h - 9, 4, 5);
-                }
+                ctx.fillRect(headlightX, y + 4, 4, 5);
+                ctx.fillRect(headlightX, y + h - 9, 4, 5);
+                ctx.shadowBlur = 0;
+
+                // Taillights (red, opposite side)
+                const tailX = isMovingRight ? vehicle.x : vehicle.x + w - 4;
+                ctx.fillStyle = '#cc0000';
+                ctx.shadowColor = '#cc0000';
+                ctx.shadowBlur = 4;
+                ctx.fillRect(tailX, y + 4, 3, 4);
+                ctx.fillRect(tailX, y + h - 8, 3, 4);
+                ctx.shadowBlur = 0;
             });
         }
 
@@ -971,11 +1402,11 @@
                 const h = log.height;
                 const r = h / 2;
 
-                // Shadow
+                // Shadow in water
                 ctx.fillStyle = 'rgba(0,0,0,0.15)';
                 ctx.fillRect(x + 2, y + 2, w, h);
 
-                // Log body (rounded ends)
+                // Log body
                 ctx.fillStyle = '#6d4c2a';
                 ctx.beginPath();
                 ctx.moveTo(x + r, y);
@@ -1035,7 +1466,6 @@
             const y = frog.row * CELL_SIZE + CELL_SIZE / 2;
 
             if (isDying) {
-                // Death animation - spinning shrink
                 const progress = 1 - (deathTimer / 600);
                 const scale = 1 - progress;
                 const rotation = progress * Math.PI * 4;
@@ -1057,7 +1487,6 @@
                 ctx.lineTo(-CELL_SIZE / 3, CELL_SIZE / 3);
                 ctx.stroke();
 
-                // Body
                 ctx.fillStyle = '#c0392b';
                 ctx.beginPath();
                 ctx.arc(0, 0, CELL_SIZE / 3, 0, Math.PI * 2);
@@ -1073,15 +1502,29 @@
             // Rotate based on direction
             ctx.rotate(frogDirection * Math.PI / 2);
 
-            // Hop animation
-            const hopBounce = frog.onLog ? Math.sin(Date.now() * 0.005) * 1 : 0;
-            ctx.translate(0, hopBounce);
+            // Hop bounce animation
+            let hopScale = 1;
+            let hopY = 0;
+            if (hopAnimActive && hopAnimTimer > 0) {
+                const t = hopAnimTimer / 8;
+                hopScale = 1 + Math.sin(t * Math.PI) * 0.15;
+                hopY = -Math.sin(t * Math.PI) * 5;
+            }
+
+            const logBounce = frog.onLog ? Math.sin(Date.now() * 0.005) * 1 : 0;
+            ctx.translate(0, hopY + logBounce);
+            ctx.scale(hopScale, hopScale);
+
+            // Frog glow
+            ctx.shadowColor = 'rgba(46, 204, 113, 0.4)';
+            ctx.shadowBlur = 8;
 
             // Shadow
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.beginPath();
             ctx.ellipse(0, CELL_SIZE / 3, CELL_SIZE / 3, CELL_SIZE / 6, 0, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
 
             // Back legs
             ctx.fillStyle = '#1e8c3a';
@@ -1090,11 +1533,14 @@
             ctx.ellipse(8, 10, 5, 8, 0.3, 0, Math.PI * 2);
             ctx.fill();
 
-            // Body
+            // Body with glow
+            ctx.shadowColor = 'rgba(46, 204, 113, 0.3)';
+            ctx.shadowBlur = 6;
             ctx.fillStyle = '#27ae60';
             ctx.beginPath();
             ctx.ellipse(0, 0, CELL_SIZE / 3.5, CELL_SIZE / 2.8, 0, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
 
             // Belly
             ctx.fillStyle = '#a9dfbf';
@@ -1102,7 +1548,7 @@
             ctx.ellipse(0, 3, CELL_SIZE / 5, CELL_SIZE / 4, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Eyes (big, protruding)
+            // Eyes
             ctx.fillStyle = 'white';
             ctx.beginPath();
             ctx.arc(-7, -10, 6, 0, Math.PI * 2);
@@ -1127,13 +1573,51 @@
 
         function drawParticles() {
             particles.forEach(p => {
-                ctx.globalAlpha = p.life;
+                ctx.globalAlpha = Math.max(0, p.life);
                 ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-                ctx.fill();
+
+                if (p.type === 'sparkle') {
+                    // Star-shaped sparkle
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(Date.now() * 0.01 + p.x);
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 4;
+                    const s = p.size * p.life;
+                    ctx.fillRect(-s / 2, -s * 1.5, s, s * 3);
+                    ctx.fillRect(-s * 1.5, -s / 2, s * 3, s);
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                } else if (p.type === 'splash') {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Tiny highlight
+                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                    ctx.beginPath();
+                    ctx.arc(p.x - 1, p.y - 1, p.size * p.life * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (p.type === 'line') {
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = p.size;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - p.vx * 4, p.y - p.vy * 4);
+                    ctx.stroke();
+                } else if (p.type === 'confetti') {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(Date.now() * 0.005 + p.x * 0.1);
+                    ctx.fillRect(-p.size, -p.size * 0.5, p.size * 2, p.size);
+                    ctx.restore();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             });
             ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
         }
 
         function render() {
@@ -1159,7 +1643,7 @@
         function gameLoop(currentTime) {
             if (!gameRunning || paused) return;
 
-            const deltaTime = Math.min(currentTime - lastTime, 50); // Cap delta
+            const deltaTime = Math.min(currentTime - lastTime, 50);
             lastTime = currentTime;
 
             update(deltaTime);
@@ -1203,7 +1687,12 @@
             }
         });
 
-        // Mobile controls - use touchstart for responsiveness
+        // Ensure audio on first interaction
+        eventManager.add(document, 'click', () => {
+            ensureAudio();
+        }, { once: true });
+
+        // Mobile controls
         document.querySelectorAll('.mobile-btn').forEach(btn => {
             const handler = (e) => {
                 e.preventDefault();
@@ -1231,7 +1720,7 @@
             const dy = e.changedTouches[0].clientY - touchStartY;
             const absDx = Math.abs(dx);
             const absDy = Math.abs(dy);
-            if (absDx < 15 && absDy < 15) return; // too small
+            if (absDx < 15 && absDy < 15) return;
             if (absDx > absDy) {
                 moveFrog(dx > 0 ? 1 : -1, 0);
             } else {

@@ -8,7 +8,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            background: linear-gradient(180deg, #4a90d9 0%, #87CEEB 40%, #98FB98 100%);
+            background: #1a1a2e;
             font-family: 'Segoe UI', Arial, sans-serif;
             display: flex;
             justify-content: center;
@@ -41,17 +41,13 @@
             position: absolute;
             top: 25px;
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%) scale(1);
             font-size: 52px;
             font-weight: bold;
             color: white;
-            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 0 20px rgba(255,215,0,0.3);
             pointer-events: none;
-            transition: transform 0.1s;
-        }
-
-        .score.bump {
-            transform: translateX(-50%) scale(1.3);
+            transition: none;
         }
 
         .start-screen, .game-over-screen {
@@ -66,6 +62,17 @@
             color: white;
             pointer-events: all;
             backdrop-filter: blur(4px);
+        }
+
+        .game-over-screen {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .game-over-screen.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .start-screen h1, .game-over-screen h1 {
@@ -128,14 +135,14 @@
             font-size: 18px;
             margin-bottom: 15px;
             display: none;
-            animation: pulse 1s infinite;
+            animation: celebratePulse 0.8s infinite;
         }
 
         .game-over-screen .new-record.visible { display: block; }
 
-        @keyframes pulse {
-            0%,100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
+        @keyframes celebratePulse {
+            0%,100% { opacity: 1; transform: scale(1); text-shadow: 0 0 10px rgba(255,107,107,0.5); }
+            50% { opacity: 0.8; transform: scale(1.1); text-shadow: 0 0 25px rgba(255,107,107,0.8); }
         }
 
         .back-link {
@@ -286,6 +293,163 @@
         const gameOverHighScoreElement = document.getElementById('gameOverHighScore');
         const newRecordElement = document.getElementById('newRecord');
 
+        // === SOUND SYNTHESIS (Web Audio API) ===
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.error('Web Audio API not available');
+                }
+            }
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            const ac = getAudioCtx();
+            if (!ac) return;
+            const now = ac.currentTime;
+
+            if (type === 'flap') {
+                // Short high-pitched chirp
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.connect(gain).connect(ac.destination);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'score') {
+                // Pleasant ding - two harmonics
+                [880, 1320].forEach((freq, i) => {
+                    const osc = ac.createOscillator();
+                    const gain = ac.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.1, now + i * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35 + i * 0.06);
+                    osc.connect(gain).connect(ac.destination);
+                    osc.start(now + i * 0.06);
+                    osc.stop(now + 0.4);
+                });
+            } else if (type === 'death') {
+                // Descending buzz
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.linearRampToValueAtTime(0.08, now + 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.connect(gain).connect(ac.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'whoosh') {
+                // White noise whoosh
+                const bufferSize = ac.sampleRate * 0.15;
+                const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+                }
+                const source = ac.createBufferSource();
+                source.buffer = buffer;
+                const gain = ac.createGain();
+                const filter = ac.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2000, now);
+                filter.Q.setValueAtTime(0.5, now);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                source.connect(filter).connect(gain).connect(ac.destination);
+                source.start(now);
+                source.stop(now + 0.15);
+            }
+        }
+
+        // === SCREEN SHAKE ===
+        let shakeIntensity = 0;
+        let shakeDuration = 0;
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+
+        function triggerShake(intensity, duration) {
+            shakeIntensity = intensity;
+            shakeDuration = duration;
+        }
+
+        function updateShake() {
+            if (shakeDuration > 0) {
+                shakeDuration--;
+                shakeOffsetX = (Math.random() - 0.5) * shakeIntensity * 2;
+                shakeOffsetY = (Math.random() - 0.5) * shakeIntensity * 2;
+                shakeIntensity *= 0.9;
+            } else {
+                shakeOffsetX = 0;
+                shakeOffsetY = 0;
+            }
+        }
+
+        // === SCORE TWEEN ===
+        let scoreTweenScale = 1;
+        let scoreTweenVelocity = 0;
+
+        function triggerScoreBump() {
+            scoreTweenScale = 1.4;
+            scoreTweenVelocity = 0;
+        }
+
+        function updateScoreTween() {
+            // Spring physics (easeOutElastic approximation)
+            const target = 1;
+            const stiffness = 0.15;
+            const damping = 0.6;
+            const force = (target - scoreTweenScale) * stiffness;
+            scoreTweenVelocity += force;
+            scoreTweenVelocity *= damping;
+            scoreTweenScale += scoreTweenVelocity;
+            scoreElement.style.transform = 'translateX(-50%) scale(' + scoreTweenScale.toFixed(3) + ')';
+        }
+
+        // === SCORE POPUPS ===
+        let scorePopups = [];
+
+        function spawnScorePopup(x, y, text) {
+            scorePopups.push({
+                x, y, text,
+                life: 1,
+                decay: 1 / 36 // ~600ms at 60fps
+            });
+        }
+
+        function updateAndDrawScorePopups() {
+            for (let i = scorePopups.length - 1; i >= 0; i--) {
+                const p = scorePopups[i];
+                p.y -= 1.2;
+                p.life -= p.decay;
+                if (p.life <= 0) {
+                    scorePopups.splice(i, 1);
+                    continue;
+                }
+                ctx.globalAlpha = p.life;
+                ctx.font = 'bold 22px Segoe UI, Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = 'rgba(255,215,0,0.6)';
+                ctx.fillText(p.text, p.x, p.y);
+                ctx.shadowBlur = 0;
+            }
+            ctx.globalAlpha = 1;
+            ctx.textAlign = 'start';
+        }
+
         // Game state
         let gameState = 'start';
         let score = 0;
@@ -326,6 +490,47 @@
         // Screen flash
         let flashAlpha = 0;
 
+        // Parallax background layers
+        let bgClouds = [];
+        let bgMountains = [];
+        let ambientParticles = [];
+
+        function initBackgroundElements() {
+            bgClouds = [];
+            for (let i = 0; i < 6; i++) {
+                bgClouds.push({
+                    x: Math.random() * canvas.width,
+                    y: 20 + Math.random() * 120,
+                    scale: 0.5 + Math.random() * 0.8,
+                    speed: 0.15 + Math.random() * 0.3,
+                    opacity: 0.3 + Math.random() * 0.4
+                });
+            }
+            bgMountains = [];
+            for (let i = 0; i < 8; i++) {
+                bgMountains.push({
+                    x: i * 70,
+                    height: 40 + Math.random() * 60,
+                    width: 60 + Math.random() * 40
+                });
+            }
+        }
+        initBackgroundElements();
+
+        // Ambient floating particles (dust motes)
+        function spawnAmbientParticle() {
+            if (ambientParticles.length < 15) {
+                ambientParticles.push({
+                    x: canvas.width + 5,
+                    y: Math.random() * (canvas.height - groundHeight),
+                    radius: 0.5 + Math.random() * 1.5,
+                    speed: 0.3 + Math.random() * 0.5,
+                    wobble: Math.random() * Math.PI * 2,
+                    opacity: 0.2 + Math.random() * 0.3
+                });
+            }
+        }
+
         function updateHighScoreDisplay() {
             startHighScoreElement.textContent = 'Highscore: ' + highScore;
             gameOverHighScoreElement.textContent = 'Highscore: ' + highScore;
@@ -356,12 +561,34 @@
             }
         }
 
+        // Feather particles (special shape)
+        function spawnFeathers(x, y, count) {
+            const featherColors = ['#FFD700', '#FFA500', '#FFF8DC', '#FFEC8B'];
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 2.5;
+                particles.push({
+                    x, y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed - 2,
+                    radius: 3 + Math.random() * 3,
+                    color: featherColors[Math.floor(Math.random() * featherColors.length)],
+                    life: 1,
+                    decay: 0.012 + Math.random() * 0.01,
+                    isFeather: true,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 0.2
+                });
+            }
+        }
+
         function updateAndDrawParticles() {
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.x += p.dx;
                 p.y += p.dy;
-                p.dy += 0.08;
+                p.dy += 0.06;
+                p.dx *= 0.99;
                 p.life -= p.decay;
 
                 if (p.life <= 0) {
@@ -370,10 +597,27 @@
                 }
 
                 ctx.globalAlpha = p.life;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                ctx.fill();
+
+                if (p.isFeather) {
+                    // Draw feather shape
+                    p.rotation += p.rotSpeed;
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, p.radius * p.life, p.radius * 0.3 * p.life, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = p.color;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
             }
             ctx.globalAlpha = 1;
         }
@@ -390,6 +634,10 @@
             // Wing animation
             bird.wingAngle = Math.sin(frameCount * 0.15) * 0.4;
 
+            // Bird shadow/glow
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(255,215,0,0.4)';
+
             // Body - rounder shape
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
@@ -398,6 +646,7 @@
             ctx.strokeStyle = '#DAA520';
             ctx.lineWidth = 1.5;
             ctx.stroke();
+            ctx.shadowBlur = 0;
 
             // Belly
             ctx.fillStyle = '#FFF8DC';
@@ -452,12 +701,19 @@
             const capHeight = 24;
             const capOverhang = 6;
 
+            // Pipe shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fillRect(pipe.x + 4, 0, pipeWidth, pipe.topHeight);
+            ctx.fillRect(pipe.x + 4, pipe.bottomY, pipeWidth, canvas.height - pipe.bottomY);
+
             // Top pipe body
             const topGrad = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
-            topGrad.addColorStop(0, '#2d8a3e');
-            topGrad.addColorStop(0.3, '#3cb55b');
-            topGrad.addColorStop(0.7, '#2d9a45');
-            topGrad.addColorStop(1, '#1e7030');
+            topGrad.addColorStop(0, '#1e7030');
+            topGrad.addColorStop(0.15, '#2d8a3e');
+            topGrad.addColorStop(0.4, '#3cb55b');
+            topGrad.addColorStop(0.6, '#2d9a45');
+            topGrad.addColorStop(0.85, '#267a35');
+            topGrad.addColorStop(1, '#1a5c28');
 
             ctx.fillStyle = topGrad;
             ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
@@ -465,13 +721,17 @@
             // Top pipe cap
             ctx.fillStyle = topGrad;
             ctx.fillRect(pipe.x - capOverhang, pipe.topHeight - capHeight, pipeWidth + capOverhang * 2, capHeight);
-            ctx.strokeStyle = '#1a5928';
+            ctx.strokeStyle = '#145020';
             ctx.lineWidth = 2;
             ctx.strokeRect(pipe.x - capOverhang, pipe.topHeight - capHeight, pipeWidth + capOverhang * 2, capHeight);
 
-            // Pipe highlight line
-            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            // Pipe highlight line (specular)
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
             ctx.fillRect(pipe.x + 6, 0, 4, pipe.topHeight - capHeight);
+
+            // Dark edge line
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.fillRect(pipe.x + pipeWidth - 4, 0, 3, pipe.topHeight - capHeight);
 
             // Bottom pipe body
             ctx.fillStyle = topGrad;
@@ -482,8 +742,12 @@
             ctx.strokeRect(pipe.x - capOverhang, pipe.bottomY, pipeWidth + capOverhang * 2, capHeight);
 
             // Bottom highlight
-            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
             ctx.fillRect(pipe.x + 6, pipe.bottomY + capHeight, 4, canvas.height - pipe.bottomY - capHeight);
+
+            // Bottom dark edge
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.fillRect(pipe.x + pipeWidth - 4, pipe.bottomY + capHeight, 3, canvas.height - pipe.bottomY - capHeight);
         }
 
         function createPipe() {
@@ -495,7 +759,8 @@
                 x: canvas.width,
                 topHeight: topHeight,
                 bottomY: topHeight + pipeGap,
-                passed: false
+                passed: false,
+                whooshed: false
             };
         }
 
@@ -529,17 +794,29 @@
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= currentSpeed;
 
+                // Whoosh sound when bird passes through gap
+                if (!pipes[i].whooshed && pipes[i].x + pipeWidth < bird.x + bird.width && pipes[i].x + pipeWidth > bird.x - 10) {
+                    pipes[i].whooshed = true;
+                    playSound('whoosh');
+                }
+
                 if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
                     pipes[i].passed = true;
                     score++;
                     scoreElement.textContent = score;
 
-                    // Score bump animation
-                    scoreElement.classList.add('bump');
-                    setTimeout(() => scoreElement.classList.remove('bump'), 100);
+                    // Score bump tween
+                    triggerScoreBump();
 
-                    // Score particles
-                    spawnParticles(bird.x, bird.y, '#ffd700', 8, 3);
+                    // Score sound
+                    playSound('score');
+
+                    // Score sparkle particles
+                    spawnParticles(bird.x + bird.width, bird.y, '#ffd700', 10, 3);
+                    spawnParticles(bird.x + bird.width, bird.y, '#fff', 5, 2);
+
+                    // Score popup
+                    spawnScorePopup(bird.x + bird.width + 10, bird.y - 10, '+1');
                 }
 
                 if (pipes[i].x + pipeWidth < -10) {
@@ -568,35 +845,76 @@
         }
 
         function drawBackground() {
-            // Sky gradient (varies subtly with score)
-            const hueShift = Math.min(score * 0.5, 30);
+            // Sky gradient
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height - groundHeight);
-            gradient.addColorStop(0, '#5ba3e6');
-            gradient.addColorStop(0.6, '#87CEEB');
-            gradient.addColorStop(1, '#b8e6b8');
+            gradient.addColorStop(0, '#3a7bd5');
+            gradient.addColorStop(0.4, '#6db3f2');
+            gradient.addColorStop(0.7, '#87CEEB');
+            gradient.addColorStop(1, '#c8e6c0');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height - groundHeight);
 
-            // Clouds (parallax layers)
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            for (let i = 0; i < 4; i++) {
-                const speed = 0.005 + i * 0.003;
-                const x = ((frameCount * speed + i * 120) % (canvas.width + 80)) - 40;
-                const y = 30 + i * 40;
-                const scale = 0.8 + i * 0.15;
+            // Far mountains (parallax layer 1)
+            ctx.fillStyle = 'rgba(100,140,180,0.25)';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - groundHeight);
+            for (let i = 0; i < bgMountains.length; i++) {
+                const m = bgMountains[i];
+                const x = ((m.x - frameCount * 0.15) % (canvas.width + 100) + canvas.width + 100) % (canvas.width + 100) - 50;
+                ctx.lineTo(x, canvas.height - groundHeight - m.height * 0.6);
+                ctx.lineTo(x + m.width * 0.5, canvas.height - groundHeight - m.height * 0.3);
+            }
+            ctx.lineTo(canvas.width, canvas.height - groundHeight);
+            ctx.closePath();
+            ctx.fill();
+
+            // Clouds (parallax layer 2)
+            for (let cloud of bgClouds) {
+                cloud.x -= cloud.speed;
+                if (cloud.x < -80) cloud.x = canvas.width + 40;
+
+                ctx.globalAlpha = cloud.opacity;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                const cx = cloud.x;
+                const cy = cloud.y;
+                const s = cloud.scale;
 
                 ctx.beginPath();
-                ctx.arc(x, y, 18 * scale, 0, Math.PI * 2);
-                ctx.arc(x + 22 * scale, y - 5, 22 * scale, 0, Math.PI * 2);
-                ctx.arc(x + 45 * scale, y, 18 * scale, 0, Math.PI * 2);
+                ctx.arc(cx, cy, 15 * s, 0, Math.PI * 2);
+                ctx.arc(cx + 18 * s, cy - 5 * s, 20 * s, 0, Math.PI * 2);
+                ctx.arc(cx + 38 * s, cy, 15 * s, 0, Math.PI * 2);
+                ctx.arc(cx + 20 * s, cy + 4 * s, 12 * s, 0, Math.PI * 2);
                 ctx.fill();
             }
+            ctx.globalAlpha = 1;
+
+            // Ambient floating particles
+            if (frameCount % 15 === 0) spawnAmbientParticle();
+            for (let i = ambientParticles.length - 1; i >= 0; i--) {
+                const ap = ambientParticles[i];
+                ap.x -= ap.speed + getCurrentSpeed() * 0.3;
+                ap.wobble += 0.03;
+                ap.y += Math.sin(ap.wobble) * 0.3;
+
+                if (ap.x < -5) {
+                    ambientParticles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.globalAlpha = ap.opacity;
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.beginPath();
+                ctx.arc(ap.x, ap.y, ap.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
 
             // Ground
             const groundGrad = ctx.createLinearGradient(0, canvas.height - groundHeight, 0, canvas.height);
             groundGrad.addColorStop(0, '#8B6914');
-            groundGrad.addColorStop(0.1, '#7CFC00');
-            groundGrad.addColorStop(0.2, '#228B22');
+            groundGrad.addColorStop(0.08, '#7CFC00');
+            groundGrad.addColorStop(0.15, '#5cb85c');
+            groundGrad.addColorStop(0.3, '#228B22');
             groundGrad.addColorStop(1, '#1a5c1a');
             ctx.fillStyle = groundGrad;
             ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
@@ -612,25 +930,41 @@
                 ctx.lineTo(gx + 10, canvas.height);
                 ctx.stroke();
             }
+
+            // Ground top highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, 2);
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+
+            // Apply screen shake
+            if (shakeOffsetX !== 0 || shakeOffsetY !== 0) {
+                ctx.translate(shakeOffsetX, shakeOffsetY);
+            }
+
+            ctx.clearRect(-10, -10, canvas.width + 20, canvas.height + 20);
             drawBackground();
             pipes.forEach(drawPipe);
             drawBird();
             updateAndDrawParticles();
+            updateAndDrawScorePopups();
 
             // Death flash
             if (flashAlpha > 0) {
                 ctx.fillStyle = 'rgba(255,255,255,' + flashAlpha + ')';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                flashAlpha -= 0.05;
+                ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
+                flashAlpha -= 0.04;
             }
+
+            ctx.restore();
         }
 
         function gameLoop() {
             frameCount++;
+            updateShake();
+            updateScoreTween();
             updateBird();
             updatePipes();
             checkCollisions();
@@ -644,18 +978,30 @@
         function jump() {
             if (gameState === 'playing') {
                 bird.velocity = bird.jumpStrength;
-                // Wing flap particles
-                spawnParticles(bird.x, bird.y + bird.height / 2, 'rgba(255,255,255,0.6)', 3, 2);
+                playSound('flap');
+                // Feather particles on flap
+                spawnFeathers(bird.x + bird.width * 0.3, bird.y + bird.height * 0.7, 3);
+                // Small wing puff
+                spawnParticles(bird.x, bird.y + bird.height / 2, 'rgba(255,255,255,0.5)', 2, 1.5);
             }
         }
 
         function startGame() {
+            // Ensure audio context is created on user gesture
+            getAudioCtx();
+
             gameState = 'playing';
             score = 0;
             scoreElement.textContent = score;
             frameCount = 0;
             flashAlpha = 0;
             particles = [];
+            scorePopups = [];
+            ambientParticles = [];
+            scoreTweenScale = 1;
+            scoreTweenVelocity = 0;
+            shakeIntensity = 0;
+            shakeDuration = 0;
 
             bird.x = 100;
             bird.y = canvas.height / 2;
@@ -668,6 +1014,9 @@
 
             startScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
+            gameOverScreen.classList.remove('visible');
+
+            initBackgroundElements();
 
             // Small delay before first pipe
             setTimeout(() => {
@@ -679,11 +1028,19 @@
 
         function gameOver() {
             gameState = 'gameOver';
-            flashAlpha = 0.6;
+            flashAlpha = 0.7;
 
-            // Death particles
-            spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#FFD700', 20, 5);
+            // Screen shake on death
+            triggerShake(8, 20);
+
+            // Death sound
+            playSound('death');
+
+            // Death burst - feathers and colored particles
+            spawnFeathers(bird.x + bird.width / 2, bird.y + bird.height / 2, 12);
+            spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#FFD700', 15, 5);
             spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#FF6347', 10, 4);
+            spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#fff', 8, 3);
 
             const isNewRecord = score > highScore;
             if (isNewRecord) {
@@ -691,9 +1048,24 @@
                 safeSetItem('flappyBirdHighScore', highScore.toString());
             }
 
-            // Draw final frame with particles
-            draw();
+            // Continue rendering particles briefly
+            let deathFrames = 0;
+            function deathAnimation() {
+                deathFrames++;
+                updateShake();
+                draw();
+                if (deathFrames < 30) {
+                    requestAnimationFrame(deathAnimation);
+                } else {
+                    showGameOver(isNewRecord);
+                }
+            }
+            deathAnimation();
 
+            if (animationId) cancelAnimationFrame(animationId);
+        }
+
+        function showGameOver(isNewRecord) {
             finalScoreDisplay.textContent = score;
             finalScoreElement.textContent = 'Punkte';
             updateHighScoreDisplay();
@@ -705,8 +1077,10 @@
             }
 
             gameOverScreen.style.display = 'flex';
-
-            if (animationId) cancelAnimationFrame(animationId);
+            // Trigger slide-in animation on next frame
+            requestAnimationFrame(() => {
+                gameOverScreen.classList.add('visible');
+            });
         }
 
         function toggleFullscreen() {

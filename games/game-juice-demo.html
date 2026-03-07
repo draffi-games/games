@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Juice Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================
+           Game Juice Lab - Styles
+           ========================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-deep: #05060f;
+            --bg-primary: #0a0e1a;
+            --bg-panel: #111827;
+            --bg-panel-hover: #1a2035;
+
+            --neon-cyan: #00f0ff;
+            --neon-magenta: #ff00aa;
+            --neon-yellow: #ffe100;
+            --neon-green: #00ff88;
+            --neon-purple: #a78bfa;
+            --neon-orange: #ff6b35;
+
+            --text-primary: #e8eaf0;
+            --text-secondary: #8892a8;
+            --text-dim: #4a5568;
+
+            --font-display: 'Orbitron', 'Courier New', monospace;
+            --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            overflow-x: hidden;
+        }
+
+        /* Animated grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridPulse 8s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes gridPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        /* Back link */
+        .back-link {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            padding: 8px 14px;
+            background: rgba(17, 24, 39, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            border-radius: 6px;
+            transition: all 0.2s;
+            backdrop-filter: blur(8px);
+        }
+        .back-link:hover {
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+        }
+
+        /* Header */
+        .header {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 60px 20px 30px;
+        }
+
+        .header h1 {
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            position: relative;
+        }
+        .header h1::after {
+            content: 'GAME JUICE LAB';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: blur(20px);
+            opacity: 0.5;
+            z-index: -1;
+        }
+
+        .header .subtitle {
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 10px;
+            letter-spacing: 2px;
+        }
+
+        /* Layout */
+        .main-layout {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 60px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        /* Canvas area */
+        .canvas-section {
+            background: var(--bg-panel);
+            border: 1px solid rgba(0, 240, 255, 0.12);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .canvas-section .section-label {
+            font-family: var(--font-display);
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--neon-cyan);
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.08);
+        }
+
+        #mainCanvas {
+            display: block;
+            width: 100%;
+            height: 420px;
+            cursor: crosshair;
+            background: var(--bg-deep);
+        }
+
+        /* Controls grid */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .control-panel {
+            background: var(--bg-panel);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .control-panel h3 {
+            font-family: var(--font-display);
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .panel-particles h3 { color: var(--neon-magenta); }
+        .panel-shake h3 { color: var(--neon-orange); }
+        .panel-tween h3 { color: var(--neon-green); }
+        .panel-sound h3 { color: var(--neon-yellow); }
+        .panel-score h3 { color: var(--neon-purple); }
+        .panel-mini h3 { color: var(--neon-cyan); }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 8px 14px;
+            border: 1px solid;
+            border-radius: 6px;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-cyan {
+            color: var(--neon-cyan);
+            border-color: rgba(0, 240, 255, 0.3);
+        }
+        .btn-cyan:hover {
+            background: rgba(0, 240, 255, 0.1);
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        .btn-magenta {
+            color: var(--neon-magenta);
+            border-color: rgba(255, 0, 170, 0.3);
+        }
+        .btn-magenta:hover {
+            background: rgba(255, 0, 170, 0.1);
+            box-shadow: 0 0 16px rgba(255, 0, 170, 0.2);
+            border-color: var(--neon-magenta);
+        }
+
+        .btn-orange {
+            color: var(--neon-orange);
+            border-color: rgba(255, 107, 53, 0.3);
+        }
+        .btn-orange:hover {
+            background: rgba(255, 107, 53, 0.1);
+            box-shadow: 0 0 16px rgba(255, 107, 53, 0.2);
+            border-color: var(--neon-orange);
+        }
+
+        .btn-green {
+            color: var(--neon-green);
+            border-color: rgba(0, 255, 136, 0.3);
+        }
+        .btn-green:hover {
+            background: rgba(0, 255, 136, 0.1);
+            box-shadow: 0 0 16px rgba(0, 255, 136, 0.2);
+            border-color: var(--neon-green);
+        }
+
+        .btn-yellow {
+            color: var(--neon-yellow);
+            border-color: rgba(255, 225, 0, 0.3);
+        }
+        .btn-yellow:hover {
+            background: rgba(255, 225, 0, 0.1);
+            box-shadow: 0 0 16px rgba(255, 225, 0, 0.2);
+            border-color: var(--neon-yellow);
+        }
+
+        .btn-purple {
+            color: var(--neon-purple);
+            border-color: rgba(167, 139, 250, 0.3);
+        }
+        .btn-purple:hover {
+            background: rgba(167, 139, 250, 0.1);
+            box-shadow: 0 0 16px rgba(167, 139, 250, 0.2);
+            border-color: var(--neon-purple);
+        }
+
+        /* Keyboard hints */
+        .kbd-hint {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .instructions {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-top: 8px;
+        }
+
+        /* Mini game canvas */
+        #miniCanvas {
+            display: block;
+            width: 100%;
+            height: 220px;
+            border-radius: 8px;
+            background: var(--bg-deep);
+            border: 1px solid rgba(0, 240, 255, 0.08);
+            margin-top: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .header { padding: 50px 16px 20px; }
+            #mainCanvas { height: 300px; }
+            .controls-grid { grid-template-columns: 1fr; }
+            .btn { font-size: 11px; padding: 7px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">&larr; Back</a>
+
+<div class="header">
+    <h1>Game Juice Lab</h1>
+    <p class="subtitle">// Interactive Effects Reference &mdash; Click Canvas to Play</p>
+</div>
+
+<div class="main-layout">
+
+    <!-- Main Canvas -->
+    <div class="canvas-section">
+        <div class="section-label">Playground &mdash; Click anywhere / Press keys</div>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-grid">
+
+        <!-- Particles -->
+        <div class="control-panel panel-particles">
+            <h3>Particles</h3>
+            <div class="btn-row">
+                <button class="btn btn-magenta" onclick="demoBurst('explosion')">Explosion <span class="kbd-hint">1</span></button>
+                <button class="btn btn-magenta" onclick="demoBurst('fountain')">Fountain <span class="kbd-hint">2</span></button>
+                <button class="btn btn-magenta" onclick="demoBurst('ring')">Ring <span class="kbd-hint">3</span></button>
+                <button class="btn btn-magenta" onclick="demoBurst('directional')">Directional <span class="kbd-hint">4</span></button>
+            </div>
+            <p class="instructions">Click the canvas for bursts at cursor. Keys 1-4 trigger centered bursts.</p>
+        </div>
+
+        <!-- Screen Shake -->
+        <div class="control-panel panel-shake">
+            <h3>Screen Shake</h3>
+            <div class="btn-row">
+                <button class="btn btn-orange" onclick="demoShake('light')">Light <span class="kbd-hint">Q</span></button>
+                <button class="btn btn-orange" onclick="demoShake('medium')">Medium <span class="kbd-hint">W</span></button>
+                <button class="btn btn-orange" onclick="demoShake('heavy')">Heavy <span class="kbd-hint">E</span></button>
+                <button class="btn btn-orange" onclick="demoShake('earthquake')">Earthquake <span class="kbd-hint">R</span></button>
+            </div>
+            <p class="instructions">Decay-based shake with interpolated samples for smoothness.</p>
+        </div>
+
+        <!-- Tweens -->
+        <div class="control-panel panel-tween">
+            <h3>Tween Engine</h3>
+            <div class="btn-row">
+                <button class="btn btn-green" onclick="demoTween('easeOutElastic')">Elastic <span class="kbd-hint">A</span></button>
+                <button class="btn btn-green" onclick="demoTween('easeOutBounce')">Bounce <span class="kbd-hint">S</span></button>
+                <button class="btn btn-green" onclick="demoTween('easeOutCubic')">Cubic <span class="kbd-hint">D</span></button>
+                <button class="btn btn-green" onclick="demoTween('easeInOutCubic')">InOut <span class="kbd-hint">F</span></button>
+            </div>
+            <p class="instructions">Watch the demo objects animate with different easing curves.</p>
+        </div>
+
+        <!-- Sound -->
+        <div class="control-panel panel-sound">
+            <h3>Sound Synth</h3>
+            <div class="btn-row">
+                <button class="btn btn-yellow" onclick="demoSound('explosion')">Explosion <span class="kbd-hint">Z</span></button>
+                <button class="btn btn-yellow" onclick="demoSound('collect')">Collect <span class="kbd-hint">X</span></button>
+                <button class="btn btn-yellow" onclick="demoSound('hit')">Hit <span class="kbd-hint">C</span></button>
+                <button class="btn btn-yellow" onclick="demoSound('levelUp')">Level Up <span class="kbd-hint">V</span></button>
+                <button class="btn btn-yellow" onclick="demoSound('menuClick')">Click <span class="kbd-hint">B</span></button>
+            </div>
+            <p class="instructions">Pure Web Audio API synthesis. No external files needed.</p>
+        </div>
+
+        <!-- Score Popups -->
+        <div class="control-panel panel-score">
+            <h3>Score Popups</h3>
+            <div class="btn-row">
+                <button class="btn btn-purple" onclick="demoPopup('+100', '#00f0ff')">+100 <span class="kbd-hint">G</span></button>
+                <button class="btn btn-purple" onclick="demoPopup('COMBO x3', '#ff00aa')">Combo <span class="kbd-hint">H</span></button>
+                <button class="btn btn-purple" onclick="demoPopup('CRITICAL!', '#ffe100')">Critical <span class="kbd-hint">J</span></button>
+            </div>
+            <p class="instructions">Floating text with scale-in and fade-out animation.</p>
+        </div>
+
+        <!-- Mini Game -->
+        <div class="control-panel panel-mini">
+            <h3>Mini Game &mdash; Juicy Ball</h3>
+            <canvas id="miniCanvas"></canvas>
+            <p class="instructions">Bouncing ball with particle trails, wall-hit bursts, shake, and sound. All juice combined.</p>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  DEBUG MODE - Set to true for console output during dev
+// ============================================================
+const DEBUG = false;
+
+if (!DEBUG) {
+    const noop = () => {};
+    console.log = noop;
+    console.warn = noop;
+    console.info = noop;
+    // Keep console.error for critical issues
+}
+
+// ============================================================
+//  1. ScreenShake
+//  --------------------------------------------------------
+//  Usage:
+//    const shake = new ScreenShake();
+//    shake.add(intensity, duration, frequency);
+//    // In your game loop:
+//    const offset = shake.update();
+//    ctx.save();
+//    ctx.translate(offset.x, offset.y);
+//    // ... draw ...
+//    ctx.restore();
+// ============================================================
+class ScreenShake {
+    constructor() {
+        /** @type {Array<{intensity: number, duration: number, frequency: number, elapsed: number, samples: Array<{x: number, y: number}>}>} */
+        this.shakes = [];
+    }
+
+    /**
+     * Add a new shake impulse.
+     * @param {number} intensity - Max pixel displacement (default 8)
+     * @param {number} duration  - Duration in ms (default 200)
+     * @param {number} frequency - Number of random sample points (default 10)
+     */
+    add(intensity = 8, duration = 200, frequency = 10) {
+        // Pre-generate random samples for smooth interpolation
+        const samples = [];
+        for (let i = 0; i < frequency; i++) {
+            samples.push({
+                x: (Math.random() * 2 - 1),
+                y: (Math.random() * 2 - 1)
+            });
+        }
+        // End with zero so the shake settles
+        samples.push({ x: 0, y: 0 });
+
+        this.shakes.push({
+            intensity,
+            duration,
+            frequency,
+            elapsed: 0,
+            samples
+        });
+    }
+
+    /**
+     * Call each frame. Returns {x, y} offset to apply via ctx.translate().
+     * @returns {{x: number, y: number}}
+     */
+    update() {
+        let totalX = 0;
+        let totalY = 0;
+
+        for (let i = this.shakes.length - 1; i >= 0; i--) {
+            const s = this.shakes[i];
+            s.elapsed += 16.67; // ~60fps frame time
+
+            if (s.elapsed >= s.duration) {
+                this.shakes.splice(i, 1);
+                continue;
+            }
+
+            // Progress 0..1
+            const progress = s.elapsed / s.duration;
+            // Decay: intensity drops over time
+            const decay = 1 - progress;
+            const currentIntensity = s.intensity * decay;
+
+            // Interpolate between samples
+            const sampleIndex = progress * (s.samples.length - 1);
+            const idx = Math.floor(sampleIndex);
+            const frac = sampleIndex - idx;
+
+            const a = s.samples[idx];
+            const b = s.samples[Math.min(idx + 1, s.samples.length - 1)];
+
+            totalX += (a.x + (b.x - a.x) * frac) * currentIntensity;
+            totalY += (a.y + (b.y - a.y) * frac) * currentIntensity;
+        }
+
+        return { x: totalX, y: totalY };
+    }
+}
+
+// ============================================================
+//  2. ParticleSystem
+//  --------------------------------------------------------
+//  Usage:
+//    const particles = new ParticleSystem(ctx);
+//    particles.burst(x, y, 20, { color: '#ff0', shape: 'star' });
+//    // In game loop:
+//    particles.update(dt);
+//    particles.draw();
+// ============================================================
+class ParticleSystem {
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     */
+    constructor(ctx) {
+        this.ctx = ctx;
+        /** @type {Array<Object>} */
+        this.particles = [];
+    }
+
+    /**
+     * Create a burst of particles at a point.
+     * @param {number} x - Center x
+     * @param {number} y - Center y
+     * @param {number} count - Number of particles
+     * @param {Object} config - Particle configuration
+     * @param {string} [config.color='#fff'] - CSS color or 'random'
+     * @param {number} [config.size=4] - Base size in px
+     * @param {number} [config.speed=3] - Base speed
+     * @param {number} [config.gravity=0] - Gravity pull (positive = down)
+     * @param {number} [config.lifetime=1000] - Lifetime in ms
+     * @param {boolean} [config.fadeOut=true] - Fade opacity over lifetime
+     * @param {string} [config.shape='circle'] - 'circle'|'square'|'star'|'spark'
+     * @param {string} [config.pattern='explosion'] - 'explosion'|'fountain'|'ring'|'directional'
+     * @param {number} [config.angle=0] - Direction angle for 'directional' pattern (radians)
+     * @param {number} [config.spread=0.5] - Spread for 'directional' pattern (radians)
+     */
+    burst(x, y, count, config = {}) {
+        const {
+            color = '#fff',
+            size = 4,
+            speed = 3,
+            gravity = 0,
+            lifetime = 1000,
+            fadeOut = true,
+            shape = 'circle',
+            pattern = 'explosion',
+            angle = 0,
+            spread = 0.5
+        } = config;
+
+        for (let i = 0; i < count; i++) {
+            let dir, spd;
+
+            switch (pattern) {
+                case 'fountain':
+                    dir = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+                    spd = speed * (0.5 + Math.random() * 1.0);
+                    break;
+                case 'ring':
+                    dir = (i / count) * Math.PI * 2;
+                    spd = speed * (0.8 + Math.random() * 0.4);
+                    break;
+                case 'directional':
+                    dir = angle + (Math.random() - 0.5) * spread;
+                    spd = speed * (0.6 + Math.random() * 0.8);
+                    break;
+                default: // explosion
+                    dir = Math.random() * Math.PI * 2;
+                    spd = speed * (0.3 + Math.random() * 1.0);
+                    break;
+            }
+
+            const particleColor = color === 'random'
+                ? `hsl(${Math.random() * 360}, 100%, 65%)`
+                : color;
+
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(dir) * spd,
+                vy: Math.sin(dir) * spd,
+                size: size * (0.5 + Math.random() * 0.8),
+                color: particleColor,
+                gravity,
+                lifetime,
+                age: 0,
+                fadeOut,
+                shape,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.2
+            });
+        }
+    }
+
+    /**
+     * Emit a single trail particle (call every frame for continuous trail).
+     * @param {number} x
+     * @param {number} y
+     * @param {Object} config
+     */
+    trail(x, y, config = {}) {
+        const {
+            color = '#fff',
+            size = 2,
+            speed = 0.5,
+            gravity = 0,
+            lifetime = 400,
+            fadeOut = true,
+            shape = 'circle'
+        } = config;
+
+        const dir = Math.random() * Math.PI * 2;
+        this.particles.push({
+            x: x + (Math.random() - 0.5) * 4,
+            y: y + (Math.random() - 0.5) * 4,
+            vx: Math.cos(dir) * speed * Math.random(),
+            vy: Math.sin(dir) * speed * Math.random(),
+            size: size * (0.3 + Math.random() * 0.7),
+            color,
+            gravity,
+            lifetime,
+            age: 0,
+            fadeOut,
+            shape,
+            rotation: 0,
+            rotationSpeed: 0
+        });
+    }
+
+    /**
+     * Spawn ambient floating particles within bounds (call occasionally).
+     * @param {{x: number, y: number, w: number, h: number}} bounds
+     * @param {Object} config
+     */
+    ambient(bounds, config = {}) {
+        const {
+            color = 'rgba(255,255,255,0.3)',
+            size = 1.5,
+            speed = 0.2,
+            gravity = -0.01,
+            lifetime = 3000,
+            fadeOut = true,
+            shape = 'circle'
+        } = config;
+
+        const x = bounds.x + Math.random() * bounds.w;
+        const y = bounds.y + bounds.h;
+
+        this.particles.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * speed,
+            vy: -speed * (0.5 + Math.random()),
+            size: size * (0.5 + Math.random()),
+            color,
+            gravity,
+            lifetime,
+            age: 0,
+            fadeOut,
+            shape,
+            rotation: 0,
+            rotationSpeed: 0
+        });
+    }
+
+    /**
+     * Update all particles. Call each frame.
+     * @param {number} dt - Delta time in ms
+     */
+    update(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.age += dt;
+
+            if (p.age >= p.lifetime) {
+                this.particles.splice(i, 1);
+                continue;
+            }
+
+            p.vy += p.gravity;
+            p.x += p.vx * (dt / 16.67);
+            p.y += p.vy * (dt / 16.67);
+            p.rotation += p.rotationSpeed;
+        }
+    }
+
+    /**
+     * Draw all particles. Call after update.
+     */
+    draw() {
+        const ctx = this.ctx;
+
+        for (const p of this.particles) {
+            const progress = p.age / p.lifetime;
+            const alpha = p.fadeOut ? 1 - progress : 1;
+            const currentSize = p.size * (1 - progress * 0.3);
+
+            if (alpha <= 0 || currentSize <= 0) continue;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation);
+
+            switch (p.shape) {
+                case 'square':
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-currentSize / 2, -currentSize / 2, currentSize, currentSize);
+                    break;
+
+                case 'star':
+                    ctx.fillStyle = p.color;
+                    this._drawStar(ctx, 0, 0, 5, currentSize, currentSize / 2);
+                    break;
+
+                case 'spark':
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = Math.max(1, currentSize / 3);
+                    ctx.lineCap = 'round';
+                    const len = currentSize * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-len / 2, 0);
+                    ctx.lineTo(len / 2, 0);
+                    ctx.stroke();
+                    break;
+
+                default: // circle
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, currentSize / 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glow
+                    if (currentSize > 2) {
+                        ctx.globalAlpha = alpha * 0.3;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, currentSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    break;
+            }
+
+            ctx.restore();
+        }
+    }
+
+    /** @private */
+    _drawStar(ctx, cx, cy, spikes, outerR, innerR) {
+        let rot = Math.PI / 2 * 3;
+        const step = Math.PI / spikes;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerR);
+        for (let i = 0; i < spikes; i++) {
+            ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+            rot += step;
+            ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+            rot += step;
+        }
+        ctx.lineTo(cx, cy - outerR);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+// ============================================================
+//  3. TweenEngine
+//  --------------------------------------------------------
+//  Usage:
+//    const tweens = new TweenEngine();
+//    tweens.add(myObj, 'x', 0, 100, 500, 'easeOutElastic');
+//    // In game loop:
+//    tweens.update(dt);
+// ============================================================
+class TweenEngine {
+    constructor() {
+        /** @type {Array<{obj: Object, prop: string, from: number, to: number, duration: number, elapsed: number, easing: string, onComplete: Function|null}>} */
+        this.tweens = [];
+    }
+
+    /**
+     * Available easings: linear, easeOutQuad, easeOutCubic,
+     *   easeOutElastic, easeOutBounce, easeInOutCubic
+     *
+     * @param {Object} obj - Target object
+     * @param {string} prop - Property name to animate
+     * @param {number} from - Start value
+     * @param {number} to - End value
+     * @param {number} duration - Duration in ms
+     * @param {string} [easing='easeOutCubic'] - Easing function name
+     * @param {Function|null} [onComplete=null] - Callback on finish
+     */
+    add(obj, prop, from, to, duration, easing = 'easeOutCubic', onComplete = null) {
+        obj[prop] = from;
+        this.tweens.push({ obj, prop, from, to, duration, elapsed: 0, easing, onComplete });
+    }
+
+    /**
+     * Update all tweens. Call each frame.
+     * @param {number} dt - Delta time in ms
+     */
+    update(dt) {
+        for (let i = this.tweens.length - 1; i >= 0; i--) {
+            const t = this.tweens[i];
+            t.elapsed += dt;
+
+            if (t.elapsed >= t.duration) {
+                t.obj[t.prop] = t.to;
+                if (t.onComplete) t.onComplete();
+                this.tweens.splice(i, 1);
+                continue;
+            }
+
+            const progress = t.elapsed / t.duration;
+            const easedProgress = this._ease(progress, t.easing);
+            t.obj[t.prop] = t.from + (t.to - t.from) * easedProgress;
+        }
+    }
+
+    /** @private */
+    _ease(t, type) {
+        switch (type) {
+            case 'linear':
+                return t;
+
+            case 'easeOutQuad':
+                return 1 - (1 - t) * (1 - t);
+
+            case 'easeOutCubic':
+                return 1 - Math.pow(1 - t, 3);
+
+            case 'easeOutElastic': {
+                if (t === 0 || t === 1) return t;
+                const p = 0.3;
+                return Math.pow(2, -10 * t) * Math.sin((t - p / 4) * (2 * Math.PI) / p) + 1;
+            }
+
+            case 'easeOutBounce': {
+                const n1 = 7.5625;
+                const d1 = 2.75;
+                if (t < 1 / d1) return n1 * t * t;
+                if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
+                if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
+                return n1 * (t -= 2.625 / d1) * t + 0.984375;
+            }
+
+            case 'easeInOutCubic':
+                return t < 0.5
+                    ? 4 * t * t * t
+                    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+            default:
+                return t;
+        }
+    }
+}
+
+// ============================================================
+//  4. SoundSynth
+//  --------------------------------------------------------
+//  Usage:
+//    const sound = new SoundSynth();
+//    sound.explosion();
+//    sound.collect();
+//    sound.play('sine', 440, 0.2, 0.3);
+// ============================================================
+class SoundSynth {
+    constructor() {
+        /** @type {AudioContext|null} */
+        this.ctx = null;
+        this.masterVolume = 0.3;
+    }
+
+    /** @private - Lazy init AudioContext (must happen after user gesture) */
+    _ensureCtx() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    /**
+     * Play a raw synthesized tone.
+     * @param {string} type - 'sine'|'square'|'triangle'|'sawtooth'
+     * @param {number} frequency - Hz
+     * @param {number} duration - Seconds
+     * @param {number} [volume=0.3] - 0..1
+     */
+    play(type, frequency, duration, volume = 0.3) {
+        this._ensureCtx();
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(frequency, now);
+
+        gain.gain.setValueAtTime(volume * this.masterVolume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+    }
+
+    /** Explosion: low rumble with noise burst */
+    explosion() {
+        this._ensureCtx();
+        const ctx = this.ctx;
+        const now = ctx.currentTime;
+
+        // Noise burst
+        const bufferSize = ctx.sampleRate * 0.3;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.4 * this.masterVolume, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start(now);
+
+        // Low thud
+        const osc = ctx.createOscillator();
+        const oscGain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(80 + Math.random() * 20, now);
+        osc.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+        oscGain.gain.setValueAtTime(0.5 * this.masterVolume, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(oscGain);
+        oscGain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+
+    /** Collect: bright ascending chime */
+    collect() {
+        this._ensureCtx();
+        const pitchVar = Math.random() * 80;
+        this.play('sine', 520 + pitchVar, 0.12, 0.25);
+        setTimeout(() => this.play('sine', 780 + pitchVar, 0.15, 0.2), 60);
+        setTimeout(() => this.play('sine', 1040 + pitchVar, 0.2, 0.15), 120);
+    }
+
+    /** Hit: short impact thud */
+    hit() {
+        this._ensureCtx();
+        const pitchVar = Math.random() * 40;
+        this.play('square', 150 + pitchVar, 0.08, 0.3);
+        this.play('sine', 80 + pitchVar, 0.12, 0.35);
+    }
+
+    /** Level Up: triumphant ascending arpeggio */
+    levelUp() {
+        this._ensureCtx();
+        const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+            setTimeout(() => {
+                this.play('sine', freq, 0.25, 0.25);
+                this.play('triangle', freq, 0.3, 0.1);
+            }, i * 100);
+        });
+    }
+
+    /** Menu Click: short tick */
+    menuClick() {
+        this._ensureCtx();
+        this.play('sine', 600 + Math.random() * 100, 0.04, 0.15);
+    }
+}
+
+// ============================================================
+//  5. ScorePopup
+//  --------------------------------------------------------
+//  Usage:
+//    const popups = new ScorePopup(ctx);
+//    popups.add(x, y, '+100', '#0ff');
+//    // In game loop:
+//    popups.update(dt);
+//    popups.draw();
+// ============================================================
+class ScorePopup {
+    /**
+     * @param {CanvasRenderingContext2D} ctx
+     */
+    constructor(ctx) {
+        this.ctx = ctx;
+        /** @type {Array<{x: number, y: number, text: string, color: string, age: number, lifetime: number, scale: number}>} */
+        this.popups = [];
+    }
+
+    /**
+     * Add a floating score/text popup.
+     * @param {number} x - Position x
+     * @param {number} y - Position y
+     * @param {string} text - Text to display
+     * @param {string} [color='#fff'] - CSS color
+     * @param {number} [lifetime=1000] - Duration in ms
+     */
+    add(x, y, text, color = '#fff', lifetime = 1000) {
+        this.popups.push({
+            x,
+            y,
+            text,
+            color,
+            age: 0,
+            lifetime,
+            scale: 0 // starts at 0, tweens to 1
+        });
+    }
+
+    /**
+     * Update all popups.
+     * @param {number} dt - Delta time in ms
+     */
+    update(dt) {
+        for (let i = this.popups.length - 1; i >= 0; i--) {
+            const p = this.popups[i];
+            p.age += dt;
+
+            if (p.age >= p.lifetime) {
+                this.popups.splice(i, 1);
+                continue;
+            }
+
+            // Rise
+            p.y -= 1.2 * (dt / 16.67);
+
+            // Scale-in during first 15% of lifetime
+            const scalePhase = Math.min(1, p.age / (p.lifetime * 0.15));
+            // Elastic overshoot for scale
+            if (scalePhase < 1) {
+                const t = scalePhase;
+                p.scale = 1 + Math.sin(t * Math.PI) * 0.3;
+            } else {
+                p.scale = 1;
+            }
+        }
+    }
+
+    /**
+     * Draw all popups.
+     */
+    draw() {
+        const ctx = this.ctx;
+
+        for (const p of this.popups) {
+            const progress = p.age / p.lifetime;
+            // Fade out in last 40%
+            const alpha = progress > 0.6 ? 1 - (progress - 0.6) / 0.4 : 1;
+
+            if (alpha <= 0) continue;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.scale(p.scale, p.scale);
+
+            // Shadow / glow
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 10;
+
+            ctx.fillStyle = p.color;
+            ctx.font = `bold 20px 'Orbitron', monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.text, 0, 0);
+
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+    }
+}
+
+
+// ============================================================
+//  DEMO APPLICATION
+// ============================================================
+(function () {
+    // ---- Main Canvas Setup ----
+    const mainCanvas = document.getElementById('mainCanvas');
+    const mainCtx = mainCanvas.getContext('2d');
+    const miniCanvas = document.getElementById('miniCanvas');
+    const miniCtx = miniCanvas.getContext('2d');
+
+    function resizeCanvas(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        return { w: rect.width, h: rect.height };
+    }
+
+    let mainSize = resizeCanvas(mainCanvas);
+    let miniSize = resizeCanvas(miniCanvas);
+
+    window.addEventListener('resize', () => {
+        mainSize = resizeCanvas(mainCanvas);
+        miniSize = resizeCanvas(miniCanvas);
+    });
+
+    // ---- Instances ----
+    const shake = new ScreenShake();
+    const particles = new ParticleSystem(mainCtx);
+    const tweens = new TweenEngine();
+    const sound = new SoundSynth();
+    const popups = new ScorePopup(mainCtx);
+
+    const miniShake = new ScreenShake();
+    const miniParticles = new ParticleSystem(miniCtx);
+    const miniPopups = new ScorePopup(miniCtx);
+
+    // ---- Tween demo objects ----
+    const tweenDemos = [];
+    const TWEEN_COLORS = ['#00f0ff', '#ff00aa', '#00ff88', '#ffe100'];
+
+    // ---- Ambient particles ----
+    let ambientTimer = 0;
+
+    // ---- Canvas click ----
+    mainCanvas.addEventListener('click', (e) => {
+        const rect = mainCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Random burst type
+        const patterns = ['explosion', 'ring', 'fountain', 'directional'];
+        const shapes = ['circle', 'star', 'spark', 'square'];
+        const colors = ['#00f0ff', '#ff00aa', '#ffe100', '#00ff88', '#a78bfa', '#ff6b35', 'random'];
+
+        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        const shape = shapes[Math.floor(Math.random() * shapes.length)];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+
+        particles.burst(x, y, 30 + Math.floor(Math.random() * 20), {
+            color,
+            size: 3 + Math.random() * 4,
+            speed: 2 + Math.random() * 3,
+            gravity: pattern === 'fountain' ? 0.08 : 0,
+            lifetime: 600 + Math.random() * 600,
+            shape,
+            pattern,
+            angle: Math.random() * Math.PI * 2
+        });
+
+        shake.add(4 + Math.random() * 6, 150, 8);
+        sound.hit();
+
+        const texts = ['+100', '+250', 'HIT!', 'BOOM', 'POW', 'ZAP'];
+        popups.add(x, y - 10, texts[Math.floor(Math.random() * texts.length)], color === 'random' ? '#fff' : color);
+    });
+
+    // ---- Demo functions (called by buttons and keys) ----
+    function centerX() { return mainSize.w / 2; }
+    function centerY() { return mainSize.h / 2; }
+
+    window.demoBurst = function (pattern) {
+        const colors = { explosion: '#ff6b35', fountain: '#00f0ff', ring: '#ff00aa', directional: '#00ff88' };
+        const shapes = { explosion: 'circle', fountain: 'spark', ring: 'star', directional: 'square' };
+        particles.burst(centerX(), centerY(), 40, {
+            color: colors[pattern],
+            size: 5,
+            speed: 3.5,
+            gravity: pattern === 'fountain' ? 0.1 : 0,
+            lifetime: 800,
+            shape: shapes[pattern],
+            pattern,
+            angle: -Math.PI / 4
+        });
+        sound.menuClick();
+    };
+
+    window.demoShake = function (level) {
+        const configs = {
+            light: [4, 100, 6],
+            medium: [10, 200, 10],
+            heavy: [20, 300, 14],
+            earthquake: [35, 500, 20]
+        };
+        shake.add(...configs[level]);
+        sound.hit();
+
+        // Visual feedback burst
+        particles.burst(centerX(), centerY(), 8, {
+            color: '#ff6b35',
+            size: 3,
+            speed: 2,
+            lifetime: 300,
+            shape: 'spark',
+            pattern: 'ring'
+        });
+    };
+
+    window.demoTween = function (easing) {
+        const idx = ['easeOutElastic', 'easeOutBounce', 'easeOutCubic', 'easeInOutCubic'].indexOf(easing);
+        const y = 60 + idx * 70;
+        const obj = {
+            x: 60,
+            y: y,
+            targetY: y,
+            size: 20,
+            color: TWEEN_COLORS[idx],
+            easing: easing,
+            alpha: 1
+        };
+        tweenDemos.push(obj);
+        tweens.add(obj, 'x', 60, mainSize.w - 60, 1200, easing, () => {
+            // Fade out after reaching end
+            tweens.add(obj, 'alpha', 1, 0, 400, 'easeOutCubic', () => {
+                const di = tweenDemos.indexOf(obj);
+                if (di >= 0) tweenDemos.splice(di, 1);
+            });
+        });
+        sound.menuClick();
+    };
+
+    window.demoSound = function (type) {
+        sound[type]();
+
+        // Small visual burst at center
+        const colors = { explosion: '#ff6b35', collect: '#ffe100', hit: '#ff00aa', levelUp: '#00ff88', menuClick: '#a78bfa' };
+        particles.burst(centerX(), centerY(), 12, {
+            color: colors[type],
+            size: 3,
+            speed: 2,
+            lifetime: 400,
+            shape: 'circle',
+            pattern: 'ring'
+        });
+    };
+
+    window.demoPopup = function (text, color) {
+        const x = centerX() + (Math.random() - 0.5) * 100;
+        const y = centerY() + (Math.random() - 0.5) * 60;
+        popups.add(x, y, text, color);
+        sound.menuClick();
+    };
+
+    // ---- Keyboard shortcuts ----
+    document.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+        const map = {
+            '1': () => demoBurst('explosion'),
+            '2': () => demoBurst('fountain'),
+            '3': () => demoBurst('ring'),
+            '4': () => demoBurst('directional'),
+            'q': () => demoShake('light'),
+            'w': () => demoShake('medium'),
+            'e': () => demoShake('heavy'),
+            'r': () => demoShake('earthquake'),
+            'a': () => demoTween('easeOutElastic'),
+            's': () => demoTween('easeOutBounce'),
+            'd': () => demoTween('easeOutCubic'),
+            'f': () => demoTween('easeInOutCubic'),
+            'z': () => demoSound('explosion'),
+            'x': () => demoSound('collect'),
+            'c': () => demoSound('hit'),
+            'v': () => demoSound('levelUp'),
+            'b': () => demoSound('menuClick'),
+            'g': () => demoPopup('+100', '#00f0ff'),
+            'h': () => demoPopup('COMBO x3', '#ff00aa'),
+            'j': () => demoPopup('CRITICAL!', '#ffe100'),
+        };
+        if (map[key]) {
+            e.preventDefault();
+            map[key]();
+        }
+    });
+
+    // ---- Mini Game: Juicy Ball ----
+    const ball = {
+        x: 100,
+        y: 80,
+        vx: 2.5,
+        vy: 2,
+        radius: 10,
+        color: '#00f0ff',
+        trailTimer: 0
+    };
+
+    function updateMiniGame(dt) {
+        const w = miniSize.w;
+        const h = miniSize.h;
+
+        ball.x += ball.vx * (dt / 16.67);
+        ball.y += ball.vy * (dt / 16.67);
+
+        // Trail
+        ball.trailTimer += dt;
+        if (ball.trailTimer > 30) {
+            ball.trailTimer = 0;
+            miniParticles.trail(ball.x, ball.y, {
+                color: ball.color,
+                size: 2,
+                speed: 0.3,
+                lifetime: 300
+            });
+        }
+
+        // Wall bounces
+        let bounced = false;
+        if (ball.x - ball.radius < 0) {
+            ball.x = ball.radius;
+            ball.vx = Math.abs(ball.vx);
+            bounced = true;
+        }
+        if (ball.x + ball.radius > w) {
+            ball.x = w - ball.radius;
+            ball.vx = -Math.abs(ball.vx);
+            bounced = true;
+        }
+        if (ball.y - ball.radius < 0) {
+            ball.y = ball.radius;
+            ball.vy = Math.abs(ball.vy);
+            bounced = true;
+        }
+        if (ball.y + ball.radius > h) {
+            ball.y = h - ball.radius;
+            ball.vy = -Math.abs(ball.vy);
+            bounced = true;
+        }
+
+        if (bounced) {
+            // Particles on bounce
+            miniParticles.burst(ball.x, ball.y, 12, {
+                color: 'random',
+                size: 3,
+                speed: 2,
+                lifetime: 500,
+                shape: 'star',
+                pattern: 'explosion'
+            });
+
+            // Shake
+            miniShake.add(6, 120, 8);
+
+            // Sound
+            sound.hit();
+
+            // Change color
+            const hue = Math.random() * 360;
+            ball.color = `hsl(${hue}, 100%, 65%)`;
+
+            // Score popup
+            miniPopups.add(ball.x, ball.y - 15, 'BOUNCE!', ball.color, 600);
+        }
+
+        miniParticles.update(dt);
+        miniPopups.update(dt);
+    }
+
+    function drawMiniGame() {
+        miniCtx.clearRect(0, 0, miniSize.w, miniSize.h);
+
+        const offset = miniShake.update();
+
+        miniCtx.save();
+        miniCtx.translate(offset.x, offset.y);
+
+        // Draw particles
+        miniParticles.draw();
+
+        // Draw ball
+        miniCtx.beginPath();
+        miniCtx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        miniCtx.fillStyle = ball.color;
+        miniCtx.fill();
+
+        // Ball glow
+        miniCtx.shadowColor = ball.color;
+        miniCtx.shadowBlur = 15;
+        miniCtx.beginPath();
+        miniCtx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        miniCtx.fill();
+        miniCtx.shadowBlur = 0;
+
+        // Popups
+        miniPopups.draw();
+
+        miniCtx.restore();
+    }
+
+    // ---- Main render loop ----
+    let lastTime = performance.now();
+
+    function drawMainCanvas(dt) {
+        mainCtx.clearRect(0, 0, mainSize.w, mainSize.h);
+
+        const offset = shake.update();
+
+        mainCtx.save();
+        mainCtx.translate(offset.x, offset.y);
+
+        // Ambient particles
+        ambientTimer += dt;
+        if (ambientTimer > 200) {
+            ambientTimer = 0;
+            particles.ambient({ x: 0, y: 0, w: mainSize.w, h: mainSize.h }, {
+                color: 'rgba(167, 139, 250, 0.15)',
+                size: 1.5,
+                lifetime: 4000
+            });
+        }
+
+        // Draw particles
+        particles.update(dt);
+        particles.draw();
+
+        // Draw tween demo objects
+        for (const obj of tweenDemos) {
+            mainCtx.save();
+            mainCtx.globalAlpha = obj.alpha;
+
+            // Trail line
+            mainCtx.strokeStyle = obj.color;
+            mainCtx.globalAlpha = obj.alpha * 0.15;
+            mainCtx.lineWidth = 1;
+            mainCtx.setLineDash([4, 4]);
+            mainCtx.beginPath();
+            mainCtx.moveTo(60, obj.targetY);
+            mainCtx.lineTo(mainSize.w - 60, obj.targetY);
+            mainCtx.stroke();
+            mainCtx.setLineDash([]);
+
+            // Object
+            mainCtx.globalAlpha = obj.alpha;
+            mainCtx.fillStyle = obj.color;
+            mainCtx.shadowColor = obj.color;
+            mainCtx.shadowBlur = 12;
+            mainCtx.beginPath();
+            mainCtx.arc(obj.x, obj.targetY, obj.size / 2, 0, Math.PI * 2);
+            mainCtx.fill();
+            mainCtx.shadowBlur = 0;
+
+            // Label
+            mainCtx.font = '10px monospace';
+            mainCtx.fillStyle = obj.color;
+            mainCtx.globalAlpha = obj.alpha * 0.7;
+            mainCtx.textAlign = 'left';
+            mainCtx.fillText(obj.easing, 62, obj.targetY - 16);
+
+            mainCtx.restore();
+        }
+
+        // Draw score popups
+        popups.update(dt);
+        popups.draw();
+
+        // Center crosshair (subtle)
+        mainCtx.save();
+        mainCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+        mainCtx.lineWidth = 1;
+        mainCtx.setLineDash([8, 8]);
+        mainCtx.beginPath();
+        mainCtx.moveTo(centerX() - 30, centerY());
+        mainCtx.lineTo(centerX() + 30, centerY());
+        mainCtx.moveTo(centerX(), centerY() - 30);
+        mainCtx.lineTo(centerX(), centerY() + 30);
+        mainCtx.stroke();
+        mainCtx.setLineDash([]);
+        mainCtx.restore();
+
+        mainCtx.restore();
+    }
+
+    function loop(now) {
+        const dt = Math.min(now - lastTime, 50); // Cap at 50ms to avoid spiral
+        lastTime = now;
+
+        tweens.update(dt);
+
+        drawMainCanvas(dt);
+        updateMiniGame(dt);
+        drawMiniGame();
+
+        requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

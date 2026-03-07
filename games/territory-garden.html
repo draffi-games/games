@@ -462,6 +462,128 @@
             }
         }
 
+        // ============================================
+        // WEB AUDIO - Territory Sound Engine
+        // ============================================
+        class TerritorySoundEngine {
+            constructor() { this.ctx = null; this.initialized = false; }
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch(e) {}
+            }
+            claim() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [440, 554, 659].forEach((f, i) => {
+                    const o = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    g.gain.setValueAtTime(0, now + i * 0.06);
+                    g.gain.linearRampToValueAtTime(0.08, now + i * 0.06 + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.3);
+                    o.connect(g).connect(this.ctx.destination);
+                    o.start(now + i * 0.06); o.stop(now + i * 0.06 + 0.35);
+                });
+            }
+            death() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(400, now);
+                o.frequency.exponentialRampToValueAtTime(80, now + 0.5);
+                g.gain.setValueAtTime(0.06, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(now); o.stop(now + 0.65);
+            }
+            grow() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'triangle'; o.frequency.value = 300 + Math.random() * 200;
+                g.gain.setValueAtTime(0.03, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(now); o.stop(now + 0.2);
+            }
+            victory() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [523, 659, 784, 1047, 784, 1047].forEach((f, i) => {
+                    const o = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    g.gain.setValueAtTime(0, now + i * 0.12);
+                    g.gain.linearRampToValueAtTime(0.1, now + i * 0.12 + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.4);
+                    o.connect(g).connect(this.ctx.destination);
+                    o.start(now + i * 0.12); o.stop(now + i * 0.12 + 0.45);
+                });
+            }
+        }
+        const tSound = new TerritorySoundEngine();
+        document.addEventListener('click', () => tSound.init(), { once: true });
+        document.addEventListener('touchstart', () => tSound.init(), { once: true });
+
+        // ============================================
+        // SCREEN SHAKE & JUICE EFFECTS
+        // ============================================
+        let tShake = 0;
+        function tScreenShake(i) { tShake = i; }
+        function updateTShake() {
+            const cv = document.getElementById('gameCanvas');
+            if (tShake > 0.3 && cv) {
+                cv.style.transform = `translate(${(Math.random()-0.5)*tShake}px, ${(Math.random()-0.5)*tShake}px)`;
+                tShake *= 0.9;
+            } else if (cv) {
+                cv.style.transform = ''; tShake = 0;
+            }
+            requestAnimationFrame(updateTShake);
+        }
+        updateTShake();
+
+        // Expanding ring effect for territory claims
+        const claimRings = [];
+        class ClaimRing {
+            constructor(x, y, color) {
+                this.x = x; this.y = y; this.color = color;
+                this.radius = 5; this.maxRadius = 80; this.life = 1;
+            }
+            update() {
+                this.radius += 2; this.life -= 0.025;
+                return this.life > 0;
+            }
+            draw(ctx) {
+                const rgb = hexToRgb(this.color);
+                ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${this.life * 0.6})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // Ambient nature particles (floating seeds/leaves)
+        const natureParticles = [];
+        function initNatureParticles(w, h) {
+            for (let i = 0; i < 20; i++) {
+                natureParticles.push({
+                    x: Math.random() * w, y: Math.random() * h,
+                    vx: (Math.random() - 0.5) * 0.3, vy: -Math.random() * 0.2 - 0.1,
+                    size: Math.random() * 2 + 1, opacity: Math.random() * 0.2 + 0.05,
+                    wobble: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        // Animated score tracking
+        const animatedScores = {};
+
         // Configuration
         const CONFIG = {
             gridSize: 6,
@@ -805,6 +927,19 @@
                 });
 
                 this.territory.push(...newTerritory);
+                // Spawn claim ring effect
+                const centroid = this.getTerritoryCentroid();
+                claimRings.push(new ClaimRing(centroid.x, centroid.y, this.color));
+                // Spawn capture particles
+                for (let p = 0; p < 15; p++) {
+                    this.particles.push(new Particle(
+                        this.x + (Math.random()-0.5) * 30,
+                        this.y + (Math.random()-0.5) * 30,
+                        this.color
+                    ));
+                }
+                tSound.claim();
+                tScreenShake(3);
                 this.trail = [];
             }
 
@@ -874,8 +1009,10 @@
                         ctx.fillRect(t.x - CONFIG.gridSize/2, t.y - CONFIG.gridSize/2, CONFIG.gridSize, CONFIG.gridSize);
                     });
 
-                    // Draw organic border
+                    // Draw organic border with glow
                     ctx.strokeStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 8;
                     ctx.lineWidth = 2;
                     ctx.globalAlpha = 0.6;
                     ctx.beginPath();
@@ -893,6 +1030,7 @@
                         ctx.stroke();
                     }
                     ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 0;
                 }
 
                 // Draw trail
@@ -1056,6 +1194,12 @@
                     if (player.alive && !player.inTerritory) {
                         if (player.checkTrailCollision(this.players)) {
                             player.alive = false;
+                            tSound.death();
+                            tScreenShake(8);
+                            // Death burst particles
+                            for (let p = 0; p < 25; p++) {
+                                player.particles.push(new Particle(player.x, player.y, player.color));
+                            }
                         }
                     }
                 });
@@ -1100,8 +1244,32 @@
                     this.ctx.stroke();
                 }
 
+                // Draw ambient nature particles
+                const time = Date.now() * 0.001;
+                natureParticles.forEach(np => {
+                    np.wobble += 0.015;
+                    np.x += np.vx + Math.sin(np.wobble) * 0.15;
+                    np.y += np.vy;
+                    if (np.y < -5) { np.y = this.height + 5; np.x = Math.random() * this.width; }
+                    if (np.x < -5) np.x = this.width + 5;
+                    if (np.x > this.width + 5) np.x = -5;
+                    this.ctx.save();
+                    this.ctx.globalAlpha = np.opacity * (0.5 + Math.sin(np.wobble) * 0.5);
+                    this.ctx.fillStyle = '#a8d88a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(np.x, np.y, np.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                });
+
                 // Draw players
                 this.players.forEach(player => player.draw(this.ctx));
+
+                // Draw claim rings
+                for (let i = claimRings.length - 1; i >= 0; i--) {
+                    claimRings[i].draw(this.ctx);
+                    if (!claimRings[i].update()) claimRings.splice(i, 1);
+                }
             }
 
             updateHUD() {
@@ -1110,11 +1278,16 @@
 
                 this.players.forEach((player, index) => {
                     const percent = player.getTerritoryPercent(this.totalArea);
+                    const key = player.plantType;
+                    const prev = animatedScores[key] || 0;
+                    animatedScores[key] = percent;
+                    const changed = Math.abs(percent - prev) > 0.5;
                     const statDiv = document.createElement('div');
                     statDiv.className = 'player-stat';
+                    const pctSpan = `<span class="player-percent" style="${changed ? 'transform:scale(1.3);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)' : ''}">${percent.toFixed(1)}%</span>`;
                     statDiv.innerHTML = `
                         <span class="player-icon">${PLANTS[player.plantType].emoji}</span>
-                        <span class="player-percent">${percent.toFixed(1)}%</span>
+                        ${pctSpan}
                     `;
                     statDiv.style.opacity = player.alive ? '1' : '0.3';
                     statsContainer.appendChild(statDiv);
@@ -1131,6 +1304,8 @@
                 this.running = false;
                 this.eventManager.removeAll();
 
+                tSound.victory();
+                tScreenShake(6);
                 const isPlayer = !winner.isAI;
                 const percent = winner.getTerritoryPercent(this.totalArea);
                 const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
@@ -1218,7 +1393,11 @@
             canvas.height = canvas.offsetHeight;
             ctx = canvas.getContext('2d');
 
+            // Init ambient particles
+            if (natureParticles.length === 0) initNatureParticles(canvas.width, canvas.height);
+
             // Start game
+            tSound.init();
             game = new Game(canvas, selectedPlant, gameConfig.aiCount, gameConfig.targetPercent, gameConfig.difficulty);
         }
 

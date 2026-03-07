@@ -108,12 +108,12 @@
             display: none;
             box-shadow: 0 0 50px rgba(255,255,0,0.5);
         }
-        
+
         .ship-selection {
             display: block;
             min-width: 500px;
         }
-        
+
         .ship-option {
             display: inline-block;
             margin: 20px;
@@ -125,19 +125,19 @@
             transition: all 0.3s ease;
             min-width: 180px;
         }
-        
+
         .ship-option:hover {
             background: rgba(0, 50, 100, 0.9);
             transform: scale(1.05);
             box-shadow: 0 0 20px #ffff00;
         }
-        
+
         .ship-option h3 {
             color: #ffff00;
             margin-bottom: 10px;
             font-size: 18px;
         }
-        
+
         .ship-preview {
             width: 120px;
             height: 80px;
@@ -161,7 +161,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        
+
         .game-over button:hover {
             background: linear-gradient(45deg, #0088ff, #00aaff);
             box-shadow: 0 0 20px #00ffff;
@@ -180,19 +180,29 @@
         .bar-fill {
             height: 100%;
             border-radius: 4px;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+        }
+
+        .hud-pop {
+            animation: hudPop 0.2s ease-out;
+        }
+
+        @keyframes hudPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    
+
     <div class="hud">
         <div><span class="team-red">█ EMPIRE: <span id="redScore">4</span></span></div>
         <div><span class="team-blue">█ REBELLION: <span id="blueScore">4</span></span></div>
         <div style="margin-top: 8px; font-size: 10px; color: #aaa;">BATTLE STATUS</div>
     </div>
-    
+
     <div class="tactical-display">
         <div style="color: #ffaa00; font-weight: bold;">TACTICAL DATA</div>
         <div style="margin-top: 8px;">
@@ -214,7 +224,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="system-status">
         <div style="color: #00ff00; font-weight: bold;">SYSTEM STATUS</div>
         <div style="margin-top: 8px; font-size: 10px;">
@@ -224,7 +234,7 @@
             <div>NAV: <span id="navStatus">ONLINE</span></div>
         </div>
     </div>
-    
+
     <div class="controls">
         <div><strong>SHIP CONTROLS:</strong></div>
         <div>WASD - Engines</div>
@@ -234,13 +244,13 @@
         <div>T - Target Computer</div>
         <div>SHIFT - Hyperdrive Boost</div>
     </div>
-    
+
     <div class="ship-selection" id="shipSelection">
         <h2 style="color: #ffff00; margin-bottom: 30px;">CHOOSE YOUR SIDE</h2>
-        
+
         <div style="margin-bottom: 30px;">
             <h3 style="color: #ffaa00; margin-bottom: 15px;">REBELLION (Good)</h3>
-            
+
             <div class="ship-option" onclick="selectShip('xwing', 'rebellion')">
                 <h3>X-WING FIGHTER</h3>
                 <div class="ship-preview">✈️</div>
@@ -252,10 +262,10 @@
                 </div>
             </div>
         </div>
-        
+
         <div>
             <h3 style="color: #ff6666; margin-bottom: 15px;">EMPIRE (Evil)</h3>
-            
+
             <div class="ship-option" onclick="selectShip('tiefighter', 'empire')">
                 <h3>TIE FIGHTER</h3>
                 <div class="ship-preview">⬢</div>
@@ -266,7 +276,7 @@
                     <div>Role: Imperial Pilot</div>
                 </div>
             </div>
-            
+
             <div class="ship-option" onclick="selectShip('stardestroyer', 'empire')">
                 <h3>STAR DESTROYER</h3>
                 <div class="ship-preview">🚢</div>
@@ -286,7 +296,7 @@
         <button onclick="startNewGame()">New Mission</button>
         <button onclick="location.href='../index.html'" style="background: linear-gradient(45deg, #666, #888); border-color: #aaa;">Exit to Hangar</button>
     </div>
-    
+
     <a href="../index.html" class="back-btn">← Exit to Hangar</a>
 
     <script>
@@ -297,6 +307,16 @@
             console.log = noop;
             console.warn = noop;
             console.info = noop;
+        }
+
+        // Safe localStorage
+        function safeGetItem(key, defaultValue = null) {
+            try { const item = localStorage.getItem(key); return item !== null ? item : defaultValue; }
+            catch (e) { return defaultValue; }
+        }
+        function safeSetItem(key, value) {
+            try { localStorage.setItem(key, value); return true; }
+            catch (e) { return false; }
         }
 
         // Event Manager - Prevents memory leaks by tracking and cleaning up event listeners
@@ -320,6 +340,120 @@
 
         const eventManager = new EventManager();
 
+        // ===== GAME JUICE: Screen Shake =====
+        class ScreenShake {
+            constructor() { this.shakes = []; }
+            add(intensity = 8, duration = 200) {
+                this.shakes.push({ intensity, duration, elapsed: 0, samples: Array.from({length: 10}, () => Math.random() * 2 - 1) });
+            }
+            update(dt) {
+                let x = 0, y = 0;
+                this.shakes = this.shakes.filter(s => {
+                    s.elapsed += dt;
+                    if (s.elapsed >= s.duration) return false;
+                    const decay = 1 - s.elapsed / s.duration;
+                    const idx = (s.elapsed / s.duration) * s.samples.length;
+                    const sample = s.samples[Math.floor(idx) % s.samples.length];
+                    const offset = sample * s.intensity * decay;
+                    x += offset; y += offset * 0.7;
+                    return true;
+                });
+                return { x, y };
+            }
+        }
+        const screenShake = new ScreenShake();
+
+        // ===== GAME JUICE: Sound Synthesizer =====
+        class SoundSynth {
+            constructor() { this.ctx = null; this.initialized = false; }
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch(e) {}
+            }
+            play(freq, type = 'square', dur = 0.1, vol = 0.12) {
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type; osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + dur);
+                } catch(e) {}
+            }
+            shoot() { this.play(900, 'square', 0.04, 0.08); }
+            hit() { this.play(180, 'sawtooth', 0.12, 0.1); }
+            explode() {
+                this.play(80, 'sawtooth', 0.3, 0.15);
+                this.play(60, 'square', 0.4, 0.1);
+                // Noise burst via rapid oscillation
+                setTimeout(() => this.play(40, 'sawtooth', 0.2, 0.08), 50);
+            }
+            rocketLaunch() { this.play(400, 'sawtooth', 0.15, 0.08); this.play(300, 'square', 0.2, 0.06); }
+            shieldHit() { this.play(1200, 'sine', 0.08, 0.06); this.play(800, 'sine', 0.12, 0.05); }
+            bossWarning() { this.play(200, 'square', 0.3, 0.12); setTimeout(() => this.play(150, 'square', 0.3, 0.12), 300); }
+            victory() { this.play(523, 'sine', 0.15, 0.1); setTimeout(() => this.play(659, 'sine', 0.15, 0.1), 100); setTimeout(() => this.play(784, 'sine', 0.3, 0.1), 200); }
+            defeat() { this.play(200, 'sawtooth', 0.3, 0.12); setTimeout(() => this.play(150, 'sawtooth', 0.4, 0.1), 200); }
+        }
+        const sound = new SoundSynth();
+
+        // ===== GAME JUICE: Score Popups =====
+        let scorePopups = [];
+        class ScorePopup {
+            constructor(x, y, text, color = '#ffdd44') {
+                this.x = x; this.y = y; this.text = text; this.color = color;
+                this.life = 50; this.maxLife = 50; this.vy = -1.5; this.scale = 0;
+            }
+            update() {
+                this.y += this.vy; this.vy *= 0.97; this.life--;
+                const progress = 1 - (this.life / this.maxLife);
+                if (progress < 0.2) { this.scale = (progress / 0.2) * 1.2; }
+                else if (progress < 0.3) { this.scale = 1.2 - (progress - 0.2) / 0.1 * 0.2; }
+                else { this.scale = 1; }
+                return this.life > 0;
+            }
+            draw() {
+                const alpha = Math.min(1, this.life / 15);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.scale, this.scale);
+                ctx.font = 'bold 14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.fillText(this.text, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // ===== GAME JUICE: Screen Flash =====
+        class ScreenFlash {
+            constructor() { this.flashes = []; }
+            add(color = 'rgba(255,255,255,0.3)', duration = 150) {
+                this.flashes.push({ color, duration, elapsed: 0 });
+            }
+            update(dt) {
+                this.flashes = this.flashes.filter(f => { f.elapsed += dt; return f.elapsed < f.duration; });
+            }
+            draw() {
+                this.flashes.forEach(f => {
+                    const alpha = 1 - f.elapsed / f.duration;
+                    ctx.save();
+                    ctx.globalAlpha = alpha * 0.35;
+                    ctx.fillStyle = f.color;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                });
+            }
+        }
+        const screenFlash = new ScreenFlash();
+
         // Global game variables (moved outside functions to fix scoping)
         let canvas, ctx;
         let gameRunning = false;
@@ -337,6 +471,7 @@
         let playerShipType = 'xwing'; // 'xwing', 'tiefighter', 'stardestroyer'
         let playerFaction = 'rebellion'; // 'rebellion' or 'empire'
         let gameStarted = false;
+        let lastFrameTime = performance.now();
 
         // Input handling
         const keys = {};
@@ -346,14 +481,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             try {
                 console.log('Initializing Star Wars Battle Arena...');
-                
+
                 canvas = document.getElementById('gameCanvas');
                 ctx = canvas.getContext('2d');
-                
+
                 if (!canvas || !ctx) {
                     throw new Error('Canvas initialization failed');
                 }
-                
+
                 // Setup canvas
                 function resizeCanvas() {
                     canvas.width = window.innerWidth;
@@ -362,37 +497,38 @@
                 }
                 resizeCanvas();
                 eventManager.add(window, 'resize', resizeCanvas);
-                
+
                 // Setup input handling
                 setupInputHandlers();
-                
+
                 // Initialize background but don't start game yet
                 initBackground();
                 drawBackground();
-                
+
                 console.log('Game initialized, waiting for ship selection...');
-                
+
             } catch (error) {
                 console.error('Failed to initialize game:', error);
                 // Show error message to user
                 document.body.innerHTML = '<div style="color: red; text-align: center; margin-top: 50px; font-size: 24px;">Game initialization failed. Please refresh the page.</div>';
             }
         });
-        
+
         // Ship selection function
         function selectShip(shipType, faction) {
+            sound.init();
             playerShipType = shipType;
             playerFaction = faction;
             document.getElementById('shipSelection').style.display = 'none';
             gameStarted = true;
-            
+
             // Start the game with selected ship
             initGame();
             gameLoop();
-            
+
             console.log('Starting game with ship type:', shipType, 'faction:', faction);
         }
-        
+
         function initBackground() {
             // Create stars - MANY MORE for epic space battles
             starField = [];
@@ -402,7 +538,10 @@
                     y: Math.random() * window.innerHeight,
                     size: Math.random() * 2 + 0.5,
                     brightness: Math.random(),
-                    twinkle: Math.random() * 100
+                    twinkle: Math.random() * 100,
+                    // HSB-harmonized star colors
+                    hue: Math.random() < 0.1 ? (200 + Math.random() * 60) : 0, // some blue stars
+                    colored: Math.random() < 0.15
                 });
             }
         }
@@ -413,6 +552,7 @@
 
         function setupInputHandlers() {
             eventManager.add(window, 'keydown', (e) => {
+                sound.init();
                 if (!keys[e.code]) keysPressed[e.code] = true;
                 keys[e.code] = true;
                 e.preventDefault();
@@ -426,6 +566,7 @@
             // Touch controls for mobile
             eventManager.add(canvas, 'touchstart', (e) => {
                 e.preventDefault();
+                sound.init();
                 if (!gameStarted) return;
                 for (const touch of e.changedTouches) {
                     if (touch.clientX < canvas.width / 2) {
@@ -484,37 +625,38 @@
                 this.team = team;
                 this.isPlayer = isPlayer;
                 this.isBoss = isBoss;
-                this.shipType = shipType; // 'fighter', 'xwing', 'tiefighter', 'stardestroyer'
+                this.shipType = shipType;
                 this.angle = 0;
                 this.vx = 0;
                 this.vy = 0;
-                
-                // Set stats based on ship type - REDUCED SIZES for zoomed-out perspective
+
+                // Set stats based on ship type
                 if (shipType === 'stardestroyer' || isBoss) {
                     this.health = 500;
                     this.maxHealth = 500;
                     this.shield = 300;
                     this.maxShield = 300;
-                    this.size = 40; // Reduced from 75
+                    this.size = 40;
                 } else if (shipType === 'tiefighter') {
                     this.health = 80;
                     this.maxHealth = 80;
                     this.shield = 60;
                     this.maxShield = 60;
-                    this.size = 12; // Reduced from 20
+                    this.size = 12;
                 } else {
                     this.health = 100;
                     this.maxHealth = 100;
                     this.shield = 100;
                     this.maxShield = 100;
-                    this.size = 15; // Reduced from 25
+                    this.size = 15;
                 }
-                
+
                 this.shootCooldown = 0;
                 this.rocketCooldown = 0;
                 this.alive = true;
                 this.lastDamageTime = 0;
-                
+                this.hitFlash = 0;
+
                 // Realistic systems
                 this.fuel = 100;
                 this.maxFuel = 100;
@@ -528,26 +670,26 @@
                     shields: 1.0,
                     navigation: 1.0
                 };
-                
+
                 this.heatSignature = 20;
                 this.target = null;
                 this.aiTimer = 0;
                 this.lastShotTime = 0;
-                
+
                 // Smart AI properties
-                this.aiState = 'hunt'; // hunt, attack, evade, retreat, flank
+                this.aiState = 'hunt';
                 this.evasionTimer = 0;
                 this.lastDamageTime = 0;
                 this.preferredRange = isBoss ? 400 + Math.random() * 200 : 250 + Math.random() * 150;
                 this.aggressiveness = isBoss ? 0.9 : 0.3 + Math.random() * 0.7;
                 this.flankDirection = Math.random() < 0.5 ? 1 : -1;
-                
+
                 // Boss specific properties
                 if (isBoss || shipType === 'stardestroyer') {
                     this.multiShotCooldown = 0;
                     this.bossPhase = 1;
                     this.circleTimer = 0;
-                    this.spawnCooldown = 0; // For TIE Fighter spawning
+                    this.spawnCooldown = 0;
                 }
             }
 
@@ -569,13 +711,13 @@
                 // Physics
                 this.x += this.vx;
                 this.y += this.vy;
-                
+
                 // Fuel consumption
                 if (this.thrustPower > 0) {
                     this.fuel -= this.thrustPower * 0.02;
                     this.fuel = Math.max(0, this.fuel);
                 }
-                
+
                 // High friction to prevent sliding
                 this.vx *= 0.88;
                 this.vy *= 0.88;
@@ -591,12 +733,12 @@
                 if (this.rocketCooldown > 0) this.rocketCooldown--;
                 if ((this.isBoss || this.shipType === 'stardestroyer') && this.multiShotCooldown > 0) this.multiShotCooldown--;
                 if ((this.isBoss || this.shipType === 'stardestroyer') && this.spawnCooldown > 0) this.spawnCooldown--;
-                
+
                 if (this.weaponHeat > 0) this.weaponHeat -= 0.8;
                 if (this.engineHeat > 0) this.engineHeat -= 0.5;
-                
+
                 this.heatSignature = 20 + (this.engineHeat * 0.3) + (this.weaponHeat * 0.2);
-                
+
                 // Shield regeneration
                 const now = Date.now();
                 if (now - this.lastDamageTime > 5000) {
@@ -610,16 +752,15 @@
                     this.health += 0.02;
                     this.health = Math.min(this.health, this.maxHealth);
                 }
-                
+
                 this.thrustPower *= 0.85;
+                if (this.hitFlash > 0) this.hitFlash--;
             }
 
             handlePlayerInput() {
-                // Rotation (always works)
                 if (keys['KeyA']) this.angle -= 0.06;
                 if (keys['KeyD']) this.angle += 0.06;
 
-                // Movement (basic movement always works, fuel only affects efficiency)
                 let thrust = 0;
                 if (keys['KeyW']) {
                     thrust = 0.4;
@@ -628,7 +769,6 @@
                         this.thrustPower = Math.max(this.thrustPower, thrust);
                         this.fuel -= 0.02;
                     } else {
-                        // Emergency movement with reduced power when out of fuel
                         thrust = 0.15;
                         this.thrustPower = Math.max(this.thrustPower, thrust);
                     }
@@ -640,13 +780,11 @@
                         this.thrustPower = Math.max(this.thrustPower, Math.abs(thrust));
                         this.fuel -= 0.015;
                     } else {
-                        // Emergency movement with reduced power when out of fuel
                         thrust = -0.08;
                         this.thrustPower = Math.max(this.thrustPower, Math.abs(thrust));
                     }
                 }
-                
-                // Afterburner (requires fuel)
+
                 if (keys['ShiftLeft'] && this.fuel > 5) {
                     thrust *= 2.5;
                     this.engineHeat += 3;
@@ -659,36 +797,33 @@
                     this.createEngineExhaust(thrust);
                 }
 
-                // Weapons
                 if (keys['Space'] && this.shootCooldown <= 0) {
                     if (this.weaponHeat < this.maxWeaponHeat * 0.9) {
                         this.shoot();
                     }
                 }
-                
+
                 if (keys['KeyE'] && this.rocketCooldown <= 0) {
                     this.shootRocket();
                 }
-                
-                // F key does nothing for regular ships
+
                 if (keysPressed['KeyF']) {
                     keysPressed['KeyF'] = false;
                 }
-                
+
                 if (keysPressed['KeyT']) {
                     this.cycleTarget();
                     keysPressed['KeyT'] = false;
                 }
             }
-            
+
             handlePlayerBossInput() {
-                // Star Destroyer controls (slower but more powerful)
-                if (keys['KeyA']) this.angle -= 0.03; // Slower turning
+                if (keys['KeyA']) this.angle -= 0.03;
                 if (keys['KeyD']) this.angle += 0.03;
 
                 let thrust = 0;
                 if (keys['KeyW']) {
-                    thrust = 0.2; // Slower movement
+                    thrust = 0.2;
                     if (this.fuel > 1) {
                         this.engineHeat += 1.5;
                         this.thrustPower = Math.max(this.thrustPower, thrust);
@@ -716,44 +851,40 @@
                     this.createEngineExhaust(thrust);
                 }
 
-                // Heavy weapons
                 if (keys['Space'] && this.shootCooldown <= 0) {
                     if (this.weaponHeat < this.maxWeaponHeat * 0.8) {
                         this.shoot();
                     }
                 }
-                
-                // Multi-shot ability for player Star Destroyer
+
                 if (keys['KeyE'] && this.multiShotCooldown <= 0) {
                     this.bossMultiShot();
                     this.multiShotCooldown = 45;
                 }
-                
-                // Spawn TIE Fighter ability for player Star Destroyer - RAPID DEPLOYMENT
+
                 if (keysPressed['KeyF'] && this.spawnCooldown <= 0) {
                     this.spawnTIEFighter();
-                    this.spawnCooldown = 30; // 0.5 second cooldown - MUCH FASTER!
+                    this.spawnCooldown = 30;
                     keysPressed['KeyF'] = false;
                 }
-                
-                // Continuous spawning while holding F
+
                 if (keys['KeyF'] && this.spawnCooldown <= 0) {
                     this.spawnTIEFighter();
-                    this.spawnCooldown = 15; // Even faster when holding F
+                    this.spawnCooldown = 15;
                 }
-                
+
                 if (keysPressed['KeyT']) {
                     this.cycleTarget();
                     keysPressed['KeyT'] = false;
                 }
             }
-            
+
             createEngineExhaust(thrustLevel) {
                 const exhaustCount = Math.floor(Math.abs(thrustLevel) * 6);
                 for (let i = 0; i < exhaustCount; i++) {
                     const exhaustX = this.x - Math.cos(this.angle) * (this.size + 5);
                     const exhaustY = this.y - Math.sin(this.angle) * (this.size + 5);
-                    
+
                     particles.push(new Particle(
                         exhaustX + (Math.random() - 0.5) * 6,
                         exhaustY + (Math.random() - 0.5) * 6,
@@ -768,8 +899,7 @@
             handleBossAI() {
                 this.aiTimer++;
                 this.circleTimer++;
-                
-                // Find targets periodically - boss always targets player first
+
                 if (this.aiTimer % 30 === 0) {
                     this.target = player && player.alive ? player : this.findBestTarget();
                 }
@@ -778,50 +908,43 @@
                     const dx = this.target.x - this.x;
                     const dy = this.target.y - this.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // Boss behavior phases based on health
+
                     const healthPercent = this.health / this.maxHealth;
-                    
+
                     if (healthPercent > 0.7) {
-                        // Phase 1: Aggressive pursuit
                         this.bossPhase1(dx, dy, distance);
                     } else if (healthPercent > 0.3) {
-                        // Phase 2: Circle strafe with multi-shot
                         this.bossPhase2(dx, dy, distance);
                     } else {
-                        // Phase 3: Desperate barrage
                         this.bossPhase3(dx, dy, distance);
                     }
                 }
             }
-            
+
             bossPhase1(dx, dy, distance) {
-                // Direct aggressive pursuit
                 const targetAngle = Math.atan2(dy, dx);
                 this.turnTowards(targetAngle);
-                
+
                 if (distance > 350) {
                     this.moveForward(0.3);
                 } else if (distance < 250) {
                     this.moveForward(-0.1);
                 }
-                
-                // Frequent shooting
+
                 if (this.shootCooldown <= 0) {
                     this.shoot();
                 }
-                
+
                 if (this.rocketCooldown <= 0 && distance > 200) {
                     this.shootRocket();
                 }
             }
-            
+
             bossPhase2(dx, dy, distance) {
-                // Circle strafe pattern
                 const targetAngle = Math.atan2(dy, dx);
                 const circleAngle = targetAngle + Math.PI * 0.5 * Math.sin(this.circleTimer * 0.02);
                 this.turnTowards(circleAngle);
-                
+
                 const idealDistance = 300;
                 if (distance < idealDistance - 50) {
                     this.moveForward(-0.2);
@@ -830,50 +953,45 @@
                 } else {
                     this.moveForward(0.15);
                 }
-                
-                // Multi-shot burst
+
                 if (this.multiShotCooldown <= 0) {
                     this.bossMultiShot();
                     this.multiShotCooldown = 60;
                 }
-                
+
                 if (this.rocketCooldown <= 0) {
                     this.shootRocket();
                 }
             }
-            
+
             bossPhase3(dx, dy, distance) {
-                // Desperate all-out attack
                 const targetAngle = Math.atan2(dy, dx);
                 this.turnTowards(targetAngle);
-                
-                this.moveForward(0.4); // Full speed
-                
-                // Constant firing
+
+                this.moveForward(0.4);
+
                 if (this.shootCooldown <= 0) {
                     this.shoot();
                 }
-                
+
                 if (this.multiShotCooldown <= 0) {
                     this.bossMultiShot();
-                    this.multiShotCooldown = 30; // Faster multishot
+                    this.multiShotCooldown = 30;
                 }
-                
+
                 if (this.rocketCooldown <= 0 && Math.random() < 0.7) {
                     this.shootRocket();
                 }
             }
-            
+
             bossMultiShot() {
-                // Fire 5 bullets in a spread pattern
                 for (let i = 0; i < 5; i++) {
                     const spreadAngle = this.angle + (i - 2) * 0.3;
                     const muzzleX = this.x + Math.cos(spreadAngle) * this.size;
                     const muzzleY = this.y + Math.sin(spreadAngle) * this.size;
-                    
+
                     bullets.push(new Bullet(muzzleX, muzzleY, spreadAngle, this.team));
-                    
-                    // Muzzle flash
+
                     for (let j = 0; j < 3; j++) {
                         particles.push(new Particle(
                             muzzleX, muzzleY,
@@ -885,18 +1003,19 @@
                     }
                 }
                 this.weaponHeat += 25;
+                screenShake.add(4, 100);
+                sound.shoot();
             }
-            
+
             spawnTIEFighter() {
-                // Spawn TIE Fighter next to Star Destroyer
                 const spawnDistance = this.size + 50;
                 const spawnAngle = this.angle + (Math.random() - 0.5) * Math.PI;
                 const spawnX = this.x + Math.cos(spawnAngle) * spawnDistance;
                 const spawnY = this.y + Math.sin(spawnAngle) * spawnDistance;
-                
+
                 const tieShip = new Ship(spawnX, spawnY, this.team, false, false, 'tiefighter');
                 ships.push(tieShip);
-                
+
                 // Spawn effect
                 for (let i = 0; i < 20; i++) {
                     particles.push(new Particle(
@@ -907,18 +1026,17 @@
                         30
                     ));
                 }
-                
+
+                screenFlash.add('#00ff00', 80);
                 console.log('TIE Fighter spawned!');
             }
 
             handleAI() {
                 this.aiTimer++;
                 this.evasionTimer++;
-                
-                // Update AI state based on situation
+
                 this.updateAIState();
-                
-                // Find targets periodically
+
                 if (this.aiTimer % 30 === 0) {
                     this.target = this.findBestTarget();
                 }
@@ -927,34 +1045,22 @@
                     const dx = this.target.x - this.x;
                     const dy = this.target.y - this.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    // Execute behavior based on AI state
+
                     switch (this.aiState) {
-                        case 'hunt':
-                            this.huntBehavior(dx, dy, distance);
-                            break;
-                        case 'attack':
-                            this.attackBehavior(dx, dy, distance);
-                            break;
-                        case 'evade':
-                            this.evadeBehavior(dx, dy, distance);
-                            break;
-                        case 'retreat':
-                            this.retreatBehavior(dx, dy, distance);
-                            break;
-                        case 'flank':
-                            this.flankBehavior(dx, dy, distance);
-                            break;
+                        case 'hunt': this.huntBehavior(dx, dy, distance); break;
+                        case 'attack': this.attackBehavior(dx, dy, distance); break;
+                        case 'evade': this.evadeBehavior(dx, dy, distance); break;
+                        case 'retreat': this.retreatBehavior(dx, dy, distance); break;
+                        case 'flank': this.flankBehavior(dx, dy, distance); break;
                     }
                 }
             }
-            
+
             updateAIState() {
                 const healthPercent = this.health / this.maxHealth;
                 const shieldPercent = this.shield / this.maxShield;
                 const recentDamage = Date.now() - this.lastDamageTime < 3000;
-                
-                // State transitions based on situation
+
                 if (healthPercent < 0.3 || (healthPercent < 0.6 && shieldPercent < 0.2)) {
                     this.aiState = 'retreat';
                 } else if (recentDamage && this.evasionTimer % 120 < 60) {
@@ -972,145 +1078,133 @@
                     this.aiState = 'hunt';
                 }
             }
-            
+
             huntBehavior(dx, dy, distance) {
-                // Approach target with some unpredictability
                 const targetAngle = Math.atan2(dy, dx);
                 const wobble = Math.sin(this.aiTimer * 0.02) * 0.3;
                 this.turnTowards(targetAngle + wobble);
-                
+
                 if (distance > this.preferredRange) {
                     this.moveForward(0.25);
                 }
-                
+
                 this.tryShoot(distance);
             }
-            
+
             attackBehavior(dx, dy, distance) {
-                // Aggressive direct attack
                 const targetAngle = Math.atan2(dy, dx);
                 this.turnTowards(targetAngle);
-                
+
                 if (distance > 150) {
                     this.moveForward(0.3);
                 } else if (distance < 100) {
-                    this.moveForward(-0.15); // Back away if too close
+                    this.moveForward(-0.15);
                 }
-                
+
                 this.tryShoot(distance);
                 this.tryRockets(distance);
             }
-            
+
             evadeBehavior(dx, dy, distance) {
-                // Evasive maneuvers - spiral or zigzag
                 const evasionPattern = this.evasionTimer % 180;
                 let evasionAngle;
-                
+
                 if (evasionPattern < 60) {
-                    // Spiral out
                     evasionAngle = Math.atan2(dy, dx) + Math.PI * 0.5 * this.flankDirection;
                 } else if (evasionPattern < 120) {
-                    // Zigzag
                     evasionAngle = Math.atan2(dy, dx) + Math.PI * 0.3 * (evasionPattern % 20 > 10 ? 1 : -1);
                 } else {
-                    // Break away
                     evasionAngle = Math.atan2(dy, dx) + Math.PI;
                 }
-                
+
                 this.turnTowards(evasionAngle);
                 this.moveForward(0.35);
-                
-                // Still try to shoot if opportunity arises
+
                 if (Math.random() < 0.3) {
                     this.tryShoot(distance);
                 }
             }
-            
+
             retreatBehavior(dx, dy, distance) {
-                // Retreat while trying to maintain some offensive capability
-                const retreatAngle = Math.atan2(dy, dx) + Math.PI; // Opposite direction
+                const retreatAngle = Math.atan2(dy, dx) + Math.PI;
                 const variance = (Math.random() - 0.5) * 0.5;
                 this.turnTowards(retreatAngle + variance);
                 this.moveForward(0.3);
-                
-                // Defensive shooting
+
                 if (distance < 400 && Math.random() < 0.4) {
                     this.tryRockets(distance);
                 }
             }
-            
+
             flankBehavior(dx, dy, distance) {
-                // Circle around target to attack from the side
                 const targetAngle = Math.atan2(dy, dx);
                 const flankAngle = targetAngle + (Math.PI * 0.5 * this.flankDirection);
                 this.turnTowards(flankAngle);
-                
+
                 const idealDistance = this.preferredRange;
                 if (distance < idealDistance * 0.8) {
-                    this.moveForward(-0.1); // Move away
+                    this.moveForward(-0.1);
                 } else if (distance > idealDistance * 1.2) {
-                    this.moveForward(0.2); // Move closer
+                    this.moveForward(0.2);
                 } else {
-                    this.moveForward(0.15); // Maintain flanking
+                    this.moveForward(0.15);
                 }
-                
+
                 this.tryShoot(distance);
-                
-                // Change flanking direction occasionally
+
                 if (this.aiTimer % 300 === 0) {
                     this.flankDirection *= -1;
                 }
             }
-            
+
             turnTowards(targetAngle) {
                 let angleDiff = targetAngle - this.angle;
                 while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                
+
                 const turnRate = 0.05 + this.aggressiveness * 0.02;
                 if (Math.abs(angleDiff) > 0.1) {
                     this.angle += Math.sign(angleDiff) * turnRate;
                 }
             }
-            
+
             moveForward(thrust) {
                 if (Math.abs(thrust) < 0.01) return;
-                
+
                 let actualThrust = thrust;
                 if (this.fuel < 10) {
                     actualThrust *= 0.4;
                 }
-                
+
                 this.vx += Math.cos(this.angle) * actualThrust;
                 this.vy += Math.sin(this.angle) * actualThrust;
-                
+
                 if (this.fuel > 1) {
                     this.engineHeat += Math.abs(actualThrust) * 2;
                     this.fuel -= Math.abs(actualThrust) * 0.02;
                 }
                 this.thrustPower = Math.abs(actualThrust);
-                
+
                 if (Math.random() < 0.4) {
                     this.createEngineExhaust(actualThrust);
                 }
             }
-            
+
             tryShoot(distance) {
                 if (distance < 350 && this.shootCooldown <= 0 && this.weaponHeat < this.maxWeaponHeat * 0.8) {
-                    // Predictive aiming
                     const targetAngle = this.predictiveAim();
                     if (targetAngle !== null) {
                         let angleDiff = targetAngle - this.angle;
                         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                        
+
                         if (Math.abs(angleDiff) < 0.3) {
                             this.shoot();
                         }
                     }
                 }
             }
-            
+
             tryRockets(distance) {
                 if (distance < 500 && distance > 200 && this.rocketCooldown <= 0 && this.weaponHeat < this.maxWeaponHeat * 0.7) {
                     const targetAngle = this.predictiveAim();
@@ -1118,62 +1212,55 @@
                         let angleDiff = targetAngle - this.angle;
                         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                        
+
                         if (Math.abs(angleDiff) < 0.4 && Math.random() < 0.4) {
                             this.shootRocket();
                         }
                     }
                 }
             }
-            
+
             predictiveAim() {
                 if (!this.target) return null;
-                
-                // Predict where target will be
-                const bulletSpeed = 8; // Bullet speed from Bullet class
+
+                const bulletSpeed = 8;
                 const distance = Math.sqrt((this.target.x - this.x)**2 + (this.target.y - this.y)**2);
                 const timeToHit = distance / bulletSpeed;
-                
+
                 const predictedX = this.target.x + this.target.vx * timeToHit;
                 const predictedY = this.target.y + this.target.vy * timeToHit;
-                
+
                 return Math.atan2(predictedY - this.y, predictedX - this.x);
             }
 
             findBestTarget() {
                 let bestTarget = null;
                 let bestScore = -1;
-                
+
                 for (let ship of ships) {
                     if (ship && ship.team !== this.team && ship.alive) {
                         const dx = ship.x - this.x;
                         const dy = ship.y - this.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        // Scoring factors for target selection
+
                         let score = 0;
-                        
-                        // Prefer closer targets
                         score += (1000 - Math.min(distance, 1000)) / 1000 * 40;
-                        
-                        // Prefer damaged enemies (easier kills)
+
                         const enemyHealthPercent = ship.health / ship.maxHealth;
                         score += (1 - enemyHealthPercent) * 30;
-                        
-                        // Prefer targets facing away (easier to hit)
+
                         const angleToTarget = Math.atan2(dy, dx);
                         const enemyFacingAngle = ship.angle;
                         let angleDiff = Math.abs(angleToTarget - enemyFacingAngle);
                         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                         if (Math.abs(angleDiff) > Math.PI * 0.5) {
-                            score += 20; // Target is facing away
+                            score += 20;
                         }
-                        
-                        // Prefer player ship if aggressive
+
                         if (ship.isPlayer && this.aggressiveness > 0.7) {
                             score += 25;
                         }
-                        
+
                         if (score > bestScore) {
                             bestScore = score;
                             bestTarget = ship;
@@ -1182,23 +1269,22 @@
                 }
                 return bestTarget;
             }
-            
+
             findNearestEnemy() {
-                // Fallback for compatibility
                 return this.findBestTarget();
             }
 
             shoot() {
                 if (this.weaponHeat >= this.maxWeaponHeat * 0.9) return;
-                
+
                 const muzzleX = this.x + Math.cos(this.angle) * this.size;
                 const muzzleY = this.y + Math.sin(this.angle) * this.size;
-                
+
                 bullets.push(new Bullet(muzzleX, muzzleY, this.angle, this.team));
                 this.shootCooldown = 7;
                 this.weaponHeat += 8;
-                
-                // Muzzle flash
+
+                // Muzzle flash particles with glow
                 for (let i = 0; i < 5; i++) {
                     particles.push(new Particle(
                         muzzleX, muzzleY,
@@ -1208,15 +1294,17 @@
                         12
                     ));
                 }
+
+                if (this.isPlayer) sound.shoot();
             }
-            
+
             shootRocket() {
                 const rocketTarget = this.isPlayer ? currentTarget : this.target;
                 if (!rocketTarget || this.weaponHeat >= this.maxWeaponHeat * 0.7) return;
-                
+
                 const launchX = this.x + Math.cos(this.angle) * this.size;
                 const launchY = this.y + Math.sin(this.angle) * this.size;
-                
+
                 rockets.push(new Rocket(launchX, launchY, this.angle, this.team, rocketTarget));
                 this.rocketCooldown = 0;
                 this.weaponHeat += 25;
@@ -1231,15 +1319,20 @@
                         25
                     ));
                 }
+
+                if (this.isPlayer) {
+                    sound.rocketLaunch();
+                    screenShake.add(3, 80);
+                }
             }
-            
+
             cycleTarget() {
                 const enemies = ships.filter(ship => ship && ship.team !== this.team && ship.alive);
                 if (enemies.length === 0) {
                     currentTarget = null;
                     return;
                 }
-                
+
                 let currentIndex = currentTarget ? enemies.indexOf(currentTarget) : -1;
                 currentIndex = (currentIndex + 1) % enemies.length;
                 currentTarget = enemies[currentIndex];
@@ -1248,14 +1341,15 @@
 
             takeDamage(amount) {
                 this.lastDamageTime = Date.now();
-                
+                this.hitFlash = 4;
+
                 // Shields first
                 if (this.shield > 0) {
                     const shieldDamage = Math.min(this.shield, amount);
                     this.shield -= shieldDamage;
                     amount -= shieldDamage;
-                    
-                    // Shield effects
+
+                    // Shield effect particles
                     for (let i = 0; i < 8; i++) {
                         const angle = Math.random() * Math.PI * 2;
                         const speed = 2 + Math.random() * 3;
@@ -1268,23 +1362,42 @@
                             20
                         ));
                     }
+
+                    if (this.isPlayer) sound.shieldHit();
                 }
-                
+
                 // Hull damage
                 if (amount > 0) {
                     this.health -= amount;
-                    
+
+                    // Red damage sparks for player
+                    if (this.isPlayer) {
+                        for (let i = 0; i < 6; i++) {
+                            particles.push(new Particle(
+                                this.x + (Math.random() - 0.5) * this.size,
+                                this.y + (Math.random() - 0.5) * this.size,
+                                (Math.random() - 0.5) * 5,
+                                (Math.random() - 0.5) * 5,
+                                '#ff3333',
+                                18
+                            ));
+                        }
+                        screenShake.add(6, 150);
+                        screenFlash.add('#ff0000', 120);
+                        sound.hit();
+                    }
+
                     // System damage chance
                     if (Math.random() < 0.15) {
                         this.damageRandomSystem();
                     }
-                    
+
                     if (this.health <= 0) {
                         this.die();
                     }
                 }
             }
-            
+
             damageRandomSystem() {
                 const systems = ['engines', 'weapons', 'shields', 'navigation'];
                 const system = systems[Math.floor(Math.random() * systems.length)];
@@ -1293,42 +1406,47 @@
 
             die() {
                 this.alive = false;
-                
+
                 // Clear ALL references to this ship
                 if (this === currentTarget) {
                     currentTarget = null;
                 }
-                
-                // Clear any rockets targeting this ship
+
                 rockets.forEach(rocket => {
                     if (rocket && rocket.target === this) {
                         rocket.target = null;
                         rocket.hasTarget = false;
                     }
                 });
-                
-                // Clear AI ship targets
+
                 ships.forEach(ship => {
                     if (ship && ship.target === this) {
                         ship.target = null;
                     }
                 });
-                
-                // Explosion
-                for (let i = 0; i < 30; i++) {
+
+                // Big explosion with color based on team
+                const explosionCount = this.isBoss || this.shipType === 'stardestroyer' ? 60 : 30;
+                const teamColors = this.team === 'red'
+                    ? ['#ff6600', '#ff0000', '#ffaa00', '#ff4400', '#ff8800']
+                    : ['#4488ff', '#0066ff', '#00aaff', '#6644ff', '#88aaff'];
+
+                for (let i = 0; i < explosionCount; i++) {
                     const angle = Math.random() * Math.PI * 2;
                     const speed = 2 + Math.random() * 6;
                     particles.push(new Particle(
-                        this.x, this.y,
+                        this.x + (Math.random() - 0.5) * this.size,
+                        this.y + (Math.random() - 0.5) * this.size,
                         Math.cos(angle) * speed,
                         Math.sin(angle) * speed,
-                        ['#ff6600', '#ff0000', '#ffaa00'][Math.floor(Math.random() * 3)],
+                        teamColors[Math.floor(Math.random() * teamColors.length)],
                         40 + Math.random() * 20
                     ));
                 }
-                
+
                 // Debris
-                for (let i = 0; i < 8; i++) {
+                const debrisCount = this.isBoss || this.shipType === 'stardestroyer' ? 15 : 8;
+                for (let i = 0; i < debrisCount; i++) {
                     debris.push({
                         x: this.x + (Math.random() - 0.5) * 20,
                         y: this.y + (Math.random() - 0.5) * 20,
@@ -1339,7 +1457,18 @@
                         rotation: Math.random() * Math.PI * 2
                     });
                 }
-                
+
+                // Screen shake and flash on kill
+                const shakeIntensity = this.isBoss || this.shipType === 'stardestroyer' ? 15 : 6;
+                screenShake.add(shakeIntensity, 300);
+                screenFlash.add('#ffffff', 200);
+                sound.explode();
+
+                // Score popup
+                const killText = this.isBoss ? 'BOSS DESTROYED' : (this.shipType === 'stardestroyer' ? 'CAPITAL SHIP DOWN' : 'KILL');
+                const killColor = this.team === 'red' ? '#ff6666' : '#6688ff';
+                scorePopups.push(new ScorePopup(this.x, this.y - 20, killText, killColor));
+
                 // Delayed HUD update to avoid race conditions
                 setTimeout(() => {
                     updateHUD();
@@ -1382,22 +1511,22 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
 
-                // Star Wars Ship Design
+                // Star Wars Ship Design - flash white on hit
                 const gradient = ctx.createLinearGradient(-this.size, -this.size, this.size, this.size);
-                
-                if (this.shipType === 'stardestroyer' || this.isBoss) {
-                    // Star Destroyer - Imperial Grey
+
+                if (this.hitFlash > 0) {
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(1, '#cccccc');
+                } else if (this.shipType === 'stardestroyer' || this.isBoss) {
                     gradient.addColorStop(0, '#cccccc');
                     gradient.addColorStop(0.3, '#999999');
                     gradient.addColorStop(0.6, '#666666');
                     gradient.addColorStop(1, '#444444');
                 } else if (this.shipType === 'tiefighter' || (this.team === 'red' && this.shipType !== 'xwing')) {
-                    // TIE Fighter - Dark Imperial
                     gradient.addColorStop(0, '#444444');
                     gradient.addColorStop(0.5, '#333333');
                     gradient.addColorStop(1, '#222222');
                 } else {
-                    // X-Wing - Rebel Orange/White
                     gradient.addColorStop(0, '#ffaa44');
                     gradient.addColorStop(0.3, '#ff8822');
                     gradient.addColorStop(0.6, '#ffffff');
@@ -1408,9 +1537,8 @@
                 ctx.fillStyle = gradient;
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1.5;
-                
+
                 if (this.shipType === 'stardestroyer' || this.isBoss) {
-                    // Star Destroyer - triangle shape
                     ctx.beginPath();
                     ctx.moveTo(this.size * 0.9, 0);
                     ctx.lineTo(-this.size * 0.8, -this.size * 0.6);
@@ -1418,13 +1546,11 @@
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
-                    
-                    // Command bridge
+
                     ctx.fillStyle = '#888888';
                     ctx.fillRect(-this.size * 0.6, -this.size * 0.1, this.size * 0.3, this.size * 0.2);
-                    
+
                 } else if (this.shipType === 'tiefighter') {
-                    // TIE Fighter - hexagonal cockpit with panels
                     ctx.beginPath();
                     for (let i = 0; i < 6; i++) {
                         const angle = (i * Math.PI) / 3;
@@ -1436,16 +1562,13 @@
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
-                    
-                    // Solar panels
+
                     ctx.fillStyle = '#666666';
                     ctx.fillRect(-this.size * 0.2, -this.size * 0.8, this.size * 0.1, this.size * 1.6);
                     ctx.fillRect(this.size * 0.1, -this.size * 0.8, this.size * 0.1, this.size * 1.6);
-                    
+
                 } else {
-                    // X-Wing
                     ctx.beginPath();
-                    // Main body
                     ctx.moveTo(this.size * 0.9, 0);
                     ctx.lineTo(this.size * 0.2, -this.size * 0.15);
                     ctx.lineTo(-this.size * 0.8, -this.size * 0.1);
@@ -1461,47 +1584,38 @@
                     ctx.fillStyle = gradient;
                     ctx.strokeStyle = '#ffffff';
                     ctx.lineWidth = 1;
-                    
-                    // X-Wing wings in X formation
-                    // Top-right wing
+
                     ctx.beginPath();
                     ctx.moveTo(this.size * 0.1, -this.size * 0.15);
                     ctx.lineTo(this.size * 0.3, -this.size * 0.5);
                     ctx.lineTo(this.size * 0.1, -this.size * 0.7);
                     ctx.lineTo(-this.size * 0.1, -this.size * 0.35);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    
-                    // Bottom-right wing
+                    ctx.fill(); ctx.stroke();
+
                     ctx.beginPath();
                     ctx.moveTo(this.size * 0.1, this.size * 0.15);
                     ctx.lineTo(this.size * 0.3, this.size * 0.5);
                     ctx.lineTo(this.size * 0.1, this.size * 0.7);
                     ctx.lineTo(-this.size * 0.1, this.size * 0.35);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    
-                    // Top-left wing
+                    ctx.fill(); ctx.stroke();
+
                     ctx.beginPath();
                     ctx.moveTo(-this.size * 0.1, -this.size * 0.15);
                     ctx.lineTo(-this.size * 0.3, -this.size * 0.5);
                     ctx.lineTo(-this.size * 0.5, -this.size * 0.4);
                     ctx.lineTo(-this.size * 0.3, -this.size * 0.05);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    
-                    // Bottom-left wing
+                    ctx.fill(); ctx.stroke();
+
                     ctx.beginPath();
                     ctx.moveTo(-this.size * 0.1, this.size * 0.15);
                     ctx.lineTo(-this.size * 0.3, this.size * 0.5);
                     ctx.lineTo(-this.size * 0.5, this.size * 0.4);
                     ctx.lineTo(-this.size * 0.3, this.size * 0.05);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
+                    ctx.fill(); ctx.stroke();
                 }
 
                 // Cockpit/Details
@@ -1511,22 +1625,24 @@
                     ctx.lineWidth = 1;
                     ctx.beginPath();
                     if (this.shipType === 'stardestroyer') {
-                        // Bridge windows
                         ctx.fillRect(-this.size * 0.5, -this.size * 0.05, this.size * 0.2, this.size * 0.1);
                     } else {
-                        // X-Wing cockpit
                         ctx.ellipse(this.size * 0.3, 0, this.size * 0.15, this.size * 0.12, 0, 0, Math.PI * 2);
                     }
                     ctx.fill();
                     ctx.stroke();
                 }
 
-                // Engine exhausts based on ship type
+                // Engine exhausts
                 const exhaustColor = this.thrustPower > 0 ? '#00aaff' : '#333333';
                 ctx.fillStyle = exhaustColor;
-                
+
+                if (this.thrustPower > 0) {
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#00aaff';
+                }
+
                 if (this.shipType === 'stardestroyer') {
-                    // Multiple large engines
                     for (let i = 0; i < 6; i++) {
                         const y = (i - 2.5) * this.size * 0.15;
                         ctx.beginPath();
@@ -1534,46 +1650,39 @@
                         ctx.fill();
                     }
                 } else if (this.shipType === 'tiefighter') {
-                    // Single central engine
                     ctx.beginPath();
                     ctx.arc(-this.size * 0.3, 0, this.size * 0.1, 0, Math.PI * 2);
                     ctx.fill();
                 } else {
-                    // X-Wing: 4 engines on wing tips
                     ctx.beginPath();
                     ctx.arc(-this.size * 0.4, -this.size * 0.3, this.size * 0.05, 0, Math.PI * 2);
                     ctx.fill();
-                    
                     ctx.beginPath();
                     ctx.arc(-this.size * 0.4, this.size * 0.3, this.size * 0.05, 0, Math.PI * 2);
                     ctx.fill();
-                    
                     ctx.beginPath();
                     ctx.arc(this.size * 0.05, -this.size * 0.6, this.size * 0.04, 0, Math.PI * 2);
                     ctx.fill();
-                    
                     ctx.beginPath();
                     ctx.arc(this.size * 0.05, this.size * 0.6, this.size * 0.04, 0, Math.PI * 2);
                     ctx.fill();
                 }
+                ctx.shadowBlur = 0;
 
-                // Weapon hardpoints based on ship type
+                // Weapon hardpoints
                 ctx.fillStyle = this.team === 'red' ? '#ff4444' : '#4488ff';
-                
+
                 if (this.shipType === 'stardestroyer' || this.isBoss) {
-                    // Star Destroyer: Multiple turbolaser batteries
                     for (let i = 0; i < 8; i++) {
                         const y = (i - 3.5) * this.size * 0.12;
                         ctx.fillRect(-this.size * 0.3, y - this.size * 0.02, this.size * 0.08, this.size * 0.04);
                     }
                 } else if (this.shipType === 'xwing') {
-                    // X-Wing: Laser cannons on wing tips
                     ctx.fillRect(this.size * 0.25, -this.size * 0.65, this.size * 0.04, this.size * 0.06);
                     ctx.fillRect(this.size * 0.25, this.size * 0.59, this.size * 0.04, this.size * 0.06);
                     ctx.fillRect(-this.size * 0.35, -this.size * 0.45, this.size * 0.04, this.size * 0.06);
                     ctx.fillRect(-this.size * 0.35, this.size * 0.39, this.size * 0.04, this.size * 0.06);
                 } else if (this.shipType === 'tiefighter') {
-                    // TIE Fighter: Laser cannons
                     ctx.fillRect(this.size * 0.3, -this.size * 0.08, this.size * 0.06, this.size * 0.03);
                     ctx.fillRect(this.size * 0.3, this.size * 0.05, this.size * 0.06, this.size * 0.03);
                 }
@@ -1587,29 +1696,26 @@
                 if (this.health < this.maxHealth || this.shield < this.maxShield) {
                     const barWidth = 35;
                     const barHeight = 4;
-                    
-                    // Health
+
                     ctx.fillStyle = '#333';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth, barHeight);
                     const healthPct = this.health / this.maxHealth;
                     ctx.fillStyle = healthPct > 0.6 ? '#00ff00' : healthPct > 0.3 ? '#ffff00' : '#ff0000';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth * healthPct, barHeight);
 
-                    // Shield
                     ctx.fillStyle = '#333';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth, barHeight);
                     ctx.fillStyle = '#00aaff';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth * (this.shield / this.maxShield), barHeight);
                 }
             }
-            
+
             drawTargetingSystem() {
                 if (!player || this.team === player.team) return;
-                
+
                 ctx.save();
                 const isTarget = currentTarget === this;
-                
-                // Special targeting for boss
+
                 if (this.isBoss) {
                     ctx.strokeStyle = isTarget ? '#ff0000' : '#ff6666';
                     ctx.lineWidth = isTarget ? 5 : 3;
@@ -1619,37 +1725,38 @@
                     ctx.lineWidth = isTarget ? 3 : 1;
                     ctx.setLineDash(isTarget ? [] : [3, 3]);
                 }
-                
+
+                // Add glow to targeting reticle
+                if (isTarget) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.isBoss ? '#ff0000' : '#00ff00';
+                }
+
                 const size = this.size + 18;
                 ctx.strokeRect(this.x - size, this.y - size, size * 2, size * 2);
-                
+
                 if (isTarget) {
-                    // Corner brackets
                     const corner = 8;
                     ctx.beginPath();
-                    // Top-left
                     ctx.moveTo(this.x - size, this.y - size);
                     ctx.lineTo(this.x - size + corner, this.y - size);
                     ctx.moveTo(this.x - size, this.y - size);
                     ctx.lineTo(this.x - size, this.y - size + corner);
-                    // Top-right  
                     ctx.moveTo(this.x + size, this.y - size);
                     ctx.lineTo(this.x + size - corner, this.y - size);
                     ctx.moveTo(this.x + size, this.y - size);
                     ctx.lineTo(this.x + size, this.y - size + corner);
-                    // Bottom-left
                     ctx.moveTo(this.x - size, this.y + size);
                     ctx.lineTo(this.x - size + corner, this.y + size);
                     ctx.moveTo(this.x - size, this.y + size);
                     ctx.lineTo(this.x - size, this.y + size - corner);
-                    // Bottom-right
                     ctx.moveTo(this.x + size, this.y + size);
                     ctx.lineTo(this.x + size - corner, this.y + size);
                     ctx.moveTo(this.x + size, this.y + size);
                     ctx.lineTo(this.x + size, this.y + size - corner);
                     ctx.stroke();
                 }
-                
+
                 ctx.restore();
             }
         }
@@ -1664,9 +1771,14 @@
                 this.team = team;
                 this.life = 150;
                 this.size = 3;
+                this.trail = [];
             }
 
             update() {
+                // Store trail
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 4) this.trail.shift();
+
                 this.x += this.vx;
                 this.y += this.vy;
                 this.life--;
@@ -1680,12 +1792,33 @@
             }
 
             draw() {
+                const color = this.team === 'red' ? '#ff4444' : '#4444ff';
+
+                // Draw trail
+                for (let i = 0; i < this.trail.length; i++) {
+                    const t = this.trail[i];
+                    const alpha = (i + 1) / this.trail.length * 0.3;
+                    ctx.save();
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, this.size * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
                 ctx.save();
-                ctx.fillStyle = this.team === 'red' ? '#ff4444' : '#4444ff';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = this.team === 'red' ? '#ff4444' : '#4444ff';
+                ctx.fillStyle = color;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                // Bright core
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.4, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             }
@@ -1709,27 +1842,25 @@
             }
 
             update() {
-                // Homing
                 if (this.target && this.target.alive) {
                     const dx = this.target.x - this.x;
                     const dy = this.target.y - this.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     const targetAngle = Math.atan2(dy, dx);
-                    
-                    // Proximity detonation
+
                     if (distance < 35) {
                         this.explode();
                         return false;
                     }
-                    
+
                     let angleDiff = targetAngle - this.angle;
                     while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                     while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                    
+
                     if (Math.abs(angleDiff) > 0.05) {
                         this.angle += Math.sign(angleDiff) * this.turnSpeed;
                     }
-                    
+
                     this.vx = Math.cos(this.angle) * this.speed;
                     this.vy = Math.sin(this.angle) * this.speed;
                     this.hasTarget = true;
@@ -1760,21 +1891,26 @@
 
                 return this.life > 0;
             }
-            
+
             explode() {
-                // Explosion
-                for (let i = 0; i < 25; i++) {
+                // Bigger, juicier explosion
+                for (let i = 0; i < 35; i++) {
                     const angle = Math.random() * Math.PI * 2;
                     const speed = 3 + Math.random() * 6;
                     particles.push(new Particle(
                         this.x, this.y,
                         Math.cos(angle) * speed,
                         Math.sin(angle) * speed,
-                        ['#ff6600', '#ffaa00', '#ff0000'][Math.floor(Math.random() * 3)],
+                        ['#ff6600', '#ffaa00', '#ff0000', '#ffff00', '#ff8800'][Math.floor(Math.random() * 5)],
                         35
                     ));
                 }
-                
+
+                // Screen effects
+                screenShake.add(8, 200);
+                screenFlash.add('#ff6600', 150);
+                sound.explode();
+
                 // Damage nearby ships
                 for (let ship of ships) {
                     if (ship && ship.alive && ship.team !== this.team) {
@@ -1793,18 +1929,20 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
-                
-                // Rocket body
+
+                // Glow effect
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.hasTarget ? '#00ff00' : '#ff6600';
+
                 ctx.fillStyle = this.hasTarget ? '#ff6600' : (this.team === 'red' ? '#ff4444' : '#4444ff');
                 ctx.strokeStyle = this.hasTarget ? '#00ff00' : '#ffffff';
                 ctx.lineWidth = 2;
-                
+
                 ctx.beginPath();
                 ctx.ellipse(0, 0, this.size, this.size * 0.4, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
-                
-                // Nose
+
                 ctx.fillStyle = '#ffffff';
                 ctx.beginPath();
                 ctx.moveTo(this.size, 0);
@@ -1812,8 +1950,7 @@
                 ctx.lineTo(this.size * 0.6, this.size * 0.2);
                 ctx.closePath();
                 ctx.fill();
-                
-                // Fins
+
                 ctx.fillStyle = '#555555';
                 ctx.beginPath();
                 ctx.moveTo(-this.size * 0.7, 0);
@@ -1821,14 +1958,14 @@
                 ctx.lineTo(-this.size * 0.2, -this.size * 0.3);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 ctx.beginPath();
                 ctx.moveTo(-this.size * 0.7, 0);
                 ctx.lineTo(-this.size * 0.4, this.size * 0.5);
                 ctx.lineTo(-this.size * 0.2, this.size * 0.3);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 ctx.restore();
 
                 // Guidance laser
@@ -1846,7 +1983,7 @@
             }
         }
 
-        // Particle class
+        // Particle class with glow
         class Particle {
             constructor(x, y, vx, vy, color, life) {
                 this.x = x;
@@ -1872,9 +2009,11 @@
                 const alpha = this.life / this.maxLife;
                 ctx.save();
                 ctx.globalAlpha = alpha;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = this.color;
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             }
@@ -1891,139 +2030,97 @@
                 currentTarget = null;
                 gameRunning = true;
                 bossSpawned = false;
-                
-                // Create stars - MANY MORE for epic space battles
+                scorePopups = [];
+
                 starField = [];
                 for (let i = 0; i < 800; i++) {
                     starField.push({
                         x: Math.random() * canvas.width,
                         y: Math.random() * canvas.height,
                         size: Math.random() * 2 + 0.5,
-                        brightness: Math.random()
+                        brightness: Math.random(),
+                        twinkle: Math.random() * 100,
+                        hue: Math.random() < 0.1 ? (200 + Math.random() * 60) : 0,
+                        colored: Math.random() < 0.15
                     });
                 }
-                
-                // Create player with selected ship type and faction
+
                 const team = playerFaction === 'empire' ? 'red' : 'blue';
                 const enemyTeam = playerFaction === 'empire' ? 'blue' : 'red';
-                
+
                 player = new Ship(canvas.width * 0.1, canvas.height / 2, team, true, false, playerShipType);
                 ships.push(player);
-                
-                // Create teams based on player faction - MASSIVE BATTLES
-                if (playerFaction === 'empire') {
-                    // Player is Empire, allies are Empire, enemies are Rebellion
 
-                    // Create allied Empire Star Destroyers (3)
+                if (playerFaction === 'empire') {
                     for (let i = 0; i < 3; i++) {
                         ships.push(new Ship(
                             Math.random() * canvas.width * 0.3,
                             100 + i * (canvas.height / 4),
-                            'red',
-                            false,
-                            false,
-                            'stardestroyer'
+                            'red', false, false, 'stardestroyer'
                         ));
                     }
-
-                    // Create allied TIE Fighters (20)
                     for (let i = 0; i < 20; i++) {
                         ships.push(new Ship(
                             Math.random() * canvas.width * 0.35,
                             50 + Math.random() * (canvas.height - 100),
-                            'red',
-                            false,
-                            false,
-                            'tiefighter'
+                            'red', false, false, 'tiefighter'
                         ));
                     }
-
-                    // Create enemy Rebellion Star Destroyers (2)
                     for (let i = 0; i < 2; i++) {
                         ships.push(new Ship(
                             canvas.width * 0.75 + Math.random() * canvas.width * 0.2,
                             150 + i * (canvas.height / 3),
-                            'blue',
-                            false,
-                            false,
-                            'stardestroyer'
+                            'blue', false, false, 'stardestroyer'
                         ));
                     }
-
-                    // Create enemy X-Wings (30)
                     for (let i = 0; i < 30; i++) {
                         ships.push(new Ship(
                             canvas.width * 0.65 + Math.random() * canvas.width * 0.35,
                             50 + Math.random() * (canvas.height - 100),
-                            'blue',
-                            false,
-                            false,
-                            'xwing'
+                            'blue', false, false, 'xwing'
                         ));
                     }
                 } else {
-                    // Player is Rebellion, allies are Rebellion, enemies are Empire
-
-                    // Create allied Rebellion Star Destroyers (2)
                     for (let i = 0; i < 2; i++) {
                         ships.push(new Ship(
                             Math.random() * canvas.width * 0.3,
                             150 + i * (canvas.height / 3),
-                            'blue',
-                            false,
-                            false,
-                            'stardestroyer'
+                            'blue', false, false, 'stardestroyer'
                         ));
                     }
-
-                    // Create allied X-Wings (25)
                     for (let i = 0; i < 25; i++) {
                         ships.push(new Ship(
                             Math.random() * canvas.width * 0.35,
                             50 + Math.random() * (canvas.height - 100),
-                            'blue',
-                            false,
-                            false,
-                            'xwing'
+                            'blue', false, false, 'xwing'
                         ));
                     }
-
-                    // Create enemy Empire Star Destroyers (4)
                     for (let i = 0; i < 4; i++) {
                         ships.push(new Ship(
                             canvas.width * 0.7 + Math.random() * canvas.width * 0.25,
                             80 + i * (canvas.height / 5),
-                            'red',
-                            false,
-                            false,
-                            'stardestroyer'
+                            'red', false, false, 'stardestroyer'
                         ));
                     }
-
-                    // Create enemy TIE Fighters (35)
                     for (let i = 0; i < 35; i++) {
                         ships.push(new Ship(
                             canvas.width * 0.65 + Math.random() * canvas.width * 0.35,
                             50 + Math.random() * (canvas.height - 100),
-                            'red',
-                            false,
-                            false,
-                            'tiefighter'
+                            'red', false, false, 'tiefighter'
                         ));
                     }
                 }
-                
-                // Auto-target
+
                 setTimeout(() => {
                     const enemies = ships.filter(ship => ship && ship.team !== player.team && ship.alive);
                     if (enemies.length > 0) {
                         currentTarget = enemies[0];
                     }
                 }, 100);
-                
+
                 updateHUD();
                 console.log('Game initialized with', ships.length, 'ships');
-                
+
             } catch (error) {
                 console.error('Game initialization error:', error);
             }
@@ -2031,37 +2128,47 @@
 
         function checkCollisions() {
             try {
-                // Bullet collisions
                 for (let i = bullets.length - 1; i >= 0; i--) {
                     const bullet = bullets[i];
                     if (!bullet) continue;
-                    
+
                     for (let ship of ships) {
                         if (ship && ship.alive && ship.team !== bullet.team) {
                             const dx = ship.x - bullet.x;
                             const dy = ship.y - bullet.y;
                             const dist = Math.sqrt(dx * dx + dy * dy);
-                            
+
                             if (dist < ship.size) {
                                 ship.takeDamage(35);
+
+                                // Impact particles
+                                for (let j = 0; j < 4; j++) {
+                                    particles.push(new Particle(
+                                        bullet.x, bullet.y,
+                                        (Math.random() - 0.5) * 4,
+                                        (Math.random() - 0.5) * 4,
+                                        bullet.team === 'red' ? '#ff8844' : '#4488ff',
+                                        10
+                                    ));
+                                }
+
                                 bullets.splice(i, 1);
                                 break;
                             }
                         }
                     }
                 }
-                
-                // Rocket collisions
+
                 for (let i = rockets.length - 1; i >= 0; i--) {
                     const rocket = rockets[i];
                     if (!rocket) continue;
-                    
+
                     for (let ship of ships) {
                         if (ship && ship.alive && ship.team !== rocket.team) {
                             const dx = ship.x - rocket.x;
                             const dy = ship.y - rocket.y;
                             const dist = Math.sqrt(dx * dx + dy * dy);
-                            
+
                             if (dist < ship.size + rocket.size) {
                                 rocket.explode();
                                 rockets.splice(i, 1);
@@ -2079,17 +2186,16 @@
             try {
                 const redAlive = ships.filter(s => s && s.team === 'red' && s.alive).length;
                 const blueAlive = ships.filter(s => s && s.team === 'blue' && s.alive).length;
-                
+
                 const redEl = document.getElementById('redScore');
                 const blueEl = document.getElementById('blueScore');
                 if (redEl) redEl.textContent = redAlive;
                 if (blueEl) blueEl.textContent = blueAlive;
-                
-                // Check if boss should spawn
+
                 if (!bossSpawned && blueAlive === 1 && !ships.some(s => s && s.isBoss && s.alive)) {
                     spawnBoss();
                 }
-                
+
                 if (player && player.alive) {
                     const shieldEl = document.getElementById('shieldPercent');
                     const shieldBarEl = document.getElementById('shieldBar');
@@ -2109,7 +2215,6 @@
                     if (fuelEl) fuelEl.textContent = Math.round(player.fuel);
                     if (fuelBarEl) fuelBarEl.style.width = player.fuel + '%';
 
-                    // System status updates
                     const engEl = document.getElementById('engineStatus');
                     const wpnEl = document.getElementById('weaponStatus');
                     const sldEl = document.getElementById('shieldStatus');
@@ -2136,7 +2241,7 @@
                         navEl.style.color = eff >= 90 ? '#00ff00' : eff >= 60 ? '#ffaa00' : '#ff0000';
                     }
                 }
-                
+
                 // Game over
                 if (redAlive === 0 || blueAlive === 0) {
                     gameRunning = false;
@@ -2151,12 +2256,17 @@
                         if (playerWon && playerTeamWon) {
                             winnerEl.textContent = 'VICTORY - MISSION COMPLETE';
                             winnerEl.style.color = '#00ff00';
+                            sound.victory();
+                            screenFlash.add('#00ff00', 500);
                         } else if (playerTeamWon) {
                             winnerEl.textContent = 'PYRRHIC VICTORY';
                             winnerEl.style.color = '#ffaa00';
+                            sound.victory();
                         } else {
                             winnerEl.textContent = 'MISSION FAILED';
                             winnerEl.style.color = '#ff4444';
+                            sound.defeat();
+                            screenFlash.add('#ff0000', 500);
                         }
                     }
 
@@ -2176,43 +2286,35 @@
                 console.error('HUD update error:', error);
             }
         }
-        
+
         function spawnBoss() {
             try {
                 console.log('Spawning boss!');
                 bossSpawned = true;
-                
-                // Spawn boss at edge of screen
+
                 const side = Math.floor(Math.random() * 4);
                 let x, y;
-                
+
                 switch(side) {
-                    case 0: // Top
-                        x = Math.random() * canvas.width;
-                        y = -100;
-                        break;
-                    case 1: // Right
-                        x = canvas.width + 100;
-                        y = Math.random() * canvas.height;
-                        break;
-                    case 2: // Bottom
-                        x = Math.random() * canvas.width;
-                        y = canvas.height + 100;
-                        break;
-                    case 3: // Left
-                        x = -100;
-                        y = Math.random() * canvas.height;
-                        break;
+                    case 0: x = Math.random() * canvas.width; y = -100; break;
+                    case 1: x = canvas.width + 100; y = Math.random() * canvas.height; break;
+                    case 2: x = Math.random() * canvas.width; y = canvas.height + 100; break;
+                    case 3: x = -100; y = Math.random() * canvas.height; break;
                 }
-                
+
                 const boss = new Ship(x, y, 'blue', false, true);
                 ships.push(boss);
-                
-                // Auto-target boss if no current target
+
                 if (!currentTarget || !currentTarget.alive) {
                     currentTarget = boss;
                 }
-                
+
+                // Boss warning effects
+                screenShake.add(10, 500);
+                screenFlash.add('#ff0000', 400);
+                sound.bossWarning();
+                scorePopups.push(new ScorePopup(canvas.width / 2, canvas.height / 2 - 50, 'BOSS INCOMING!', '#ff0000'));
+
                 console.log('Boss spawned at', x, y);
             } catch (error) {
                 console.error('Boss spawn error:', error);
@@ -2221,7 +2323,6 @@
 
         function drawBackground() {
             try {
-                // Deep space gradient
                 const gradient = ctx.createRadialGradient(
                     canvas.width/2, canvas.height/2, 0,
                     canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)
@@ -2232,19 +2333,23 @@
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Twinkling stars
-                ctx.fillStyle = 'white';
+                // Twinkling stars with color variation
                 for (let star of starField) {
                     ctx.save();
-                    // Twinkling effect
                     star.twinkle += 0.1;
                     const twinkleAlpha = star.brightness * (0.7 + 0.3 * Math.sin(star.twinkle));
                     ctx.globalAlpha = twinkleAlpha;
-                    
-                    // Larger, more visible stars
-                    ctx.shadowBlur = star.size * 2;
-                    ctx.shadowColor = 'white';
-                    
+
+                    if (star.colored) {
+                        ctx.fillStyle = `hsl(${star.hue}, 60%, 80%)`;
+                        ctx.shadowBlur = star.size * 3;
+                        ctx.shadowColor = `hsl(${star.hue}, 80%, 70%)`;
+                    } else {
+                        ctx.fillStyle = 'white';
+                        ctx.shadowBlur = star.size * 2;
+                        ctx.shadowColor = 'white';
+                    }
+
                     ctx.beginPath();
                     ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
                     ctx.fill();
@@ -2252,7 +2357,6 @@
                 }
             } catch (error) {
                 console.error('Background rendering error:', error);
-                // Fallback background
                 ctx.fillStyle = '#001122';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
@@ -2269,14 +2373,12 @@
 
             ctx.save();
 
-            // Background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.lineWidth = 1;
             ctx.fillRect(mmX, mmY, mmSize, mmSize);
             ctx.strokeRect(mmX, mmY, mmSize, mmSize);
 
-            // Ships
             for (const ship of ships) {
                 if (!ship || !ship.alive) continue;
                 const sx = mmX + ship.x * scaleX;
@@ -2294,7 +2396,6 @@
                 }
             }
 
-            // Target indicator
             if (currentTarget && currentTarget.alive) {
                 const tx = mmX + currentTarget.x * scaleX;
                 const ty = mmY + currentTarget.y * scaleY;
@@ -2303,7 +2404,6 @@
                 ctx.strokeRect(tx - 4, ty - 4, 8, 8);
             }
 
-            // Label
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.font = '8px monospace';
             ctx.textAlign = 'center';
@@ -2315,14 +2415,24 @@
         function gameLoop() {
             try {
                 if (!gameRunning) return;
-                
+
+                const now = performance.now();
+                const dt = now - lastFrameTime;
+                lastFrameTime = now;
+
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Apply screen shake
+                ctx.save();
+                const shake = screenShake.update(dt);
+                ctx.translate(shake.x, shake.y);
+
                 drawBackground();
-                
+
                 // Update all objects and remove dead ships
                 ships = ships.filter(ship => ship && ship.alive);
                 ships.forEach(ship => ship && ship.update());
-                
+
                 bullets = bullets.filter(bullet => {
                     if (bullet && bullet.update()) {
                         bullet.draw();
@@ -2330,7 +2440,7 @@
                     }
                     return false;
                 });
-                
+
                 rockets = rockets.filter(rocket => {
                     if (rocket && rocket.update()) {
                         rocket.draw();
@@ -2338,7 +2448,7 @@
                     }
                     return false;
                 });
-                
+
                 particles = particles.filter(particle => {
                     if (particle && particle.update()) {
                         particle.draw();
@@ -2346,14 +2456,16 @@
                     }
                     return false;
                 });
-                
+
                 debris = debris.filter(d => {
                     if (d && d.life > 0) {
                         d.x += d.vx;
                         d.y += d.vy;
                         d.life--;
-                        
+                        d.rotation += 0.05;
+
                         ctx.save();
+                        ctx.globalAlpha = Math.min(1, d.life / 50);
                         ctx.fillStyle = '#666666';
                         ctx.translate(d.x, d.y);
                         ctx.rotate(d.rotation);
@@ -2363,20 +2475,41 @@
                     }
                     return false;
                 });
-                
+
                 ships.forEach(ship => ship && ship.alive && ship.draw());
+
+                // Draw score popups
+                scorePopups = scorePopups.filter(p => { if (p.update()) { p.draw(); return true; } return false; });
 
                 // Draw minimap
                 drawMinimap();
 
+                // Screen flash
+                screenFlash.update(dt);
+                screenFlash.draw();
+
+                // Low health warning vignette
+                if (player && player.alive && player.health < player.maxHealth * 0.3) {
+                    const vignette = ctx.createRadialGradient(
+                        canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
+                        canvas.width / 2, canvas.height / 2, canvas.width * 0.6
+                    );
+                    const pulse = 0.15 + Math.sin(Date.now() * 0.006) * 0.08;
+                    vignette.addColorStop(0, 'rgba(255, 0, 0, 0)');
+                    vignette.addColorStop(1, `rgba(255, 0, 0, ${pulse})`);
+                    ctx.fillStyle = vignette;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
+                ctx.restore(); // Restore from screen shake
+
                 checkCollisions();
                 updateHUD();
-                
+
                 requestAnimationFrame(gameLoop);
-                
+
             } catch (error) {
                 console.error('Game loop error:', error);
-                // Try to continue
                 if (gameRunning) {
                     setTimeout(() => requestAnimationFrame(gameLoop), 100);
                 }
@@ -2389,17 +2522,17 @@
                 console.log('Restarting game...');
                 gameRunning = false;
                 gameStarted = false;
-                
+
                 const gameOverEl = document.getElementById('gameOver');
                 const shipSelectionEl = document.getElementById('shipSelection');
-                
+
                 if (gameOverEl) gameOverEl.style.display = 'none';
                 if (shipSelectionEl) shipSelectionEl.style.display = 'block';
-                
+
                 // Reset background
                 initBackground();
                 drawBackground();
-                
+
             } catch (error) {
                 console.error('New game start error:', error);
             }

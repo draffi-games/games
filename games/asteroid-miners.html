@@ -331,6 +331,287 @@
         const eventManager = new EventManager();
         eventManager.add(window, 'resize', resizeCanvas);
 
+        // === JUICE SYSTEMS ===
+
+        // Screen Shake
+        const screenShake = {
+            x: 0, y: 0, intensity: 0, decay: 0.92,
+            trigger(intensity) {
+                this.intensity = Math.max(this.intensity, intensity);
+            },
+            update() {
+                if (this.intensity > 0.5) {
+                    this.x = (Math.random() - 0.5) * this.intensity;
+                    this.y = (Math.random() - 0.5) * this.intensity;
+                    this.intensity *= this.decay;
+                } else {
+                    this.x = 0; this.y = 0; this.intensity = 0;
+                }
+            }
+        };
+
+        // Sound Synthesizer
+        class SoundSynth {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.lastPlay = {};
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) { this.enabled = false; }
+            }
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            throttle(name, ms) {
+                const now = Date.now();
+                if (this.lastPlay[name] && now - this.lastPlay[name] < ms) return false;
+                this.lastPlay[name] = now;
+                return true;
+            }
+            miningLaser() {
+                if (!this.enabled || !this.ctx || !this.throttle('mine', 120)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180 + Math.random()*40, t);
+                osc.frequency.linearRampToValueAtTime(120, t + 0.08);
+                g.gain.setValueAtTime(0.08, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.08);
+            }
+            rockBreak() {
+                if (!this.enabled || !this.ctx || !this.throttle('rock', 200)) return;
+                const t = this.ctx.currentTime;
+                const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.15, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 1.5);
+                const src = this.ctx.createBufferSource();
+                const g = this.ctx.createGain();
+                const f = this.ctx.createBiquadFilter();
+                src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 2;
+                g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                src.connect(f); f.connect(g); g.connect(this.ctx.destination); src.start(t);
+            }
+            oreCollect() {
+                if (!this.enabled || !this.ctx || !this.throttle('ore', 100)) return;
+                const t = this.ctx.currentTime;
+                [600, 900, 1200].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, t + i * 0.06);
+                    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + i*0.06);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.06 + 0.12);
+                    osc.connect(g); g.connect(this.ctx.destination);
+                    osc.start(t + i*0.06); osc.stop(t + i*0.06 + 0.12);
+                });
+            }
+            thruster() {
+                if (!this.enabled || !this.ctx || !this.throttle('thrust', 80)) return;
+                const t = this.ctx.currentTime;
+                const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.06, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * 0.3;
+                const src = this.ctx.createBufferSource();
+                const g = this.ctx.createGain();
+                const f = this.ctx.createBiquadFilter();
+                src.buffer = buf; f.type = 'lowpass'; f.frequency.value = 300;
+                g.gain.setValueAtTime(0.04, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+                src.connect(f); f.connect(g); g.connect(this.ctx.destination); src.start(t);
+            }
+            shoot() {
+                if (!this.enabled || !this.ctx || !this.throttle('shoot', 60)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(900, t);
+                osc.frequency.exponentialRampToValueAtTime(200, t + 0.1);
+                g.gain.setValueAtTime(0.1, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.1);
+            }
+            explosion() {
+                if (!this.enabled || !this.ctx || !this.throttle('explode', 100)) return;
+                const t = this.ctx.currentTime;
+                const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.4, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2);
+                const src = this.ctx.createBufferSource();
+                const g = this.ctx.createGain();
+                const f = this.ctx.createBiquadFilter();
+                src.buffer = buf; f.type = 'lowpass';
+                f.frequency.setValueAtTime(800, t); f.frequency.exponentialRampToValueAtTime(80, t + 0.3);
+                g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                src.connect(f); f.connect(g); g.connect(this.ctx.destination); src.start(t);
+            }
+            boost() {
+                if (!this.enabled || !this.ctx || !this.throttle('boost', 200)) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, t);
+                osc.frequency.linearRampToValueAtTime(300, t + 0.15);
+                g.gain.setValueAtTime(0.12, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                osc.connect(g); g.connect(this.ctx.destination);
+                osc.start(t); osc.stop(t + 0.2);
+            }
+            deposit() {
+                if (!this.enabled || !this.ctx || !this.throttle('deposit', 200)) return;
+                const t = this.ctx.currentTime;
+                [400, 600, 800, 1000].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, t + i * 0.05);
+                    g.gain.setValueAtTime(0.06, t + i*0.05);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + i*0.05 + 0.15);
+                    osc.connect(g); g.connect(this.ctx.destination);
+                    osc.start(t + i*0.05); osc.stop(t + i*0.05 + 0.15);
+                });
+            }
+        }
+        const sfx = new SoundSynth();
+
+        // Starfield with parallax
+        class Starfield {
+            constructor(count = 300) {
+                this.layers = [
+                    { stars: [], speed: 0.0, count: Math.floor(count * 0.5), maxSize: 1.2 },
+                    { stars: [], speed: 0.0, count: Math.floor(count * 0.3), maxSize: 1.8 },
+                    { stars: [], speed: 0.0, count: Math.floor(count * 0.2), maxSize: 2.5 }
+                ];
+                this.init();
+            }
+            init() {
+                this.layers.forEach(layer => {
+                    layer.stars = [];
+                    for (let i = 0; i < layer.count; i++) {
+                        layer.stars.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            size: Math.random() * layer.maxSize + 0.5,
+                            brightness: Math.random(),
+                            twinkleSpeed: 0.001 + Math.random() * 0.003,
+                            twinkleOffset: Math.random() * Math.PI * 2
+                        });
+                    }
+                });
+            }
+            draw(ctx, time) {
+                this.layers.forEach((layer, li) => {
+                    layer.stars.forEach(s => {
+                        const b = s.brightness * (0.5 + 0.5 * Math.sin(time * s.twinkleSpeed + s.twinkleOffset));
+                        const alpha = Math.max(0.1, Math.min(1, b));
+                        if (li === 2 && s.brightness > 0.8) {
+                            ctx.fillStyle = `rgba(180,220,255,${alpha * 0.3})`;
+                            ctx.beginPath();
+                            ctx.arc(s.x, s.y, s.size * 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
+                        ctx.fillRect(s.x - s.size * 0.5, s.y - s.size * 0.5, s.size, s.size);
+                    });
+                });
+            }
+        }
+
+        // Tween helper
+        function easeOutElastic(t) {
+            if (t === 0 || t === 1) return t;
+            return Math.pow(2, -10 * t) * Math.sin((t - 0.075) * (2 * Math.PI) / 0.3) + 1;
+        }
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        // Damage Numbers
+        const damageNumbers = [];
+        function spawnDamageNumber(x, y, text, color) {
+            damageNumbers.push({
+                x, y, text, color,
+                life: 1.0,
+                vy: -2,
+                scale: 0
+            });
+        }
+        function updateDamageNumbers() {
+            for (let i = damageNumbers.length - 1; i >= 0; i--) {
+                const d = damageNumbers[i];
+                d.life -= 0.02;
+                d.y += d.vy;
+                d.vy *= 0.96;
+                const t = 1 - d.life;
+                d.scale = t < 0.3 ? easeOutElastic(t / 0.3) : 1;
+                if (d.life <= 0) damageNumbers.splice(i, 1);
+            }
+        }
+        function drawDamageNumbers(ctx) {
+            damageNumbers.forEach(d => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, d.life);
+                ctx.translate(d.x, d.y);
+                ctx.scale(d.scale, d.scale);
+                ctx.font = 'bold 14px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#000';
+                ctx.fillText(d.text, 1, 1);
+                ctx.fillStyle = d.color;
+                ctx.fillText(d.text, 0, 0);
+                ctx.restore();
+            });
+        }
+
+        // Wave announcement
+        const announcements = [];
+        function showAnnouncement(text, color = '#00ffff', duration = 2.0) {
+            announcements.push({ text, color, life: duration, maxLife: duration, x: -200 });
+        }
+        function updateAnnouncements() {
+            for (let i = announcements.length - 1; i >= 0; i--) {
+                const a = announcements[i];
+                a.life -= 0.016;
+                const t = 1 - (a.life / a.maxLife);
+                if (t < 0.15) {
+                    a.x = easeInOutCubic(t / 0.15) * (canvas.width / 2 + 200) - 200;
+                } else if (t > 0.85) {
+                    a.x = canvas.width / 2 + (1 - easeInOutCubic((1-t) / 0.15)) * (canvas.width / 2 + 200);
+                } else {
+                    a.x = canvas.width / 2;
+                }
+                if (a.life <= 0) announcements.splice(i, 1);
+            }
+        }
+        function drawAnnouncements(ctx) {
+            announcements.forEach(a => {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, a.life * 3);
+                ctx.font = 'bold 28px monospace';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = a.color;
+                ctx.fillStyle = a.color;
+                ctx.fillText(a.text, a.x, canvas.height * 0.3);
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            });
+        }
+
+        // Animated score display
+        const displayScores = {};
+        function getAnimatedScore(id, target) {
+            if (!displayScores[id]) displayScores[id] = 0;
+            displayScores[id] += (target - displayScores[id]) * 0.1;
+            if (Math.abs(displayScores[id] - target) < 0.5) displayScores[id] = target;
+            return Math.round(displayScores[id]);
+        }
+
         const gameState = {
             running: false,
             paused: false,
@@ -343,7 +624,8 @@
             particles: [],
             base: null,
             frame: 0,
-            winningScore: 100
+            winningScore: 100,
+            pirateWaveNum: 0
         };
 
         const gamepadState = {
@@ -352,6 +634,7 @@
         };
 
         const keys = {};
+        let starfield = new Starfield();
 
         class Vector2 {
             constructor(x = 0, y = 0) {
@@ -387,30 +670,51 @@
         }
 
         class Particle {
-            constructor(x, y, vx, vy, color, life) {
+            constructor(x, y, vx, vy, color, life, size = 4) {
                 this.pos = new Vector2(x, y);
                 this.vel = new Vector2(vx, vy);
                 this.color = color;
                 this.life = life;
                 this.maxLife = life;
+                this.size = size;
             }
 
             update() {
                 this.pos = this.pos.add(this.vel);
                 this.life -= 1;
-                this.vel = this.vel.multiply(0.98);
+                this.vel = this.vel.multiply(0.97);
             }
 
             draw(ctx) {
                 const alpha = this.life / this.maxLife;
-                ctx.fillStyle = this.color;
+                const s = this.size * (0.5 + 0.5 * alpha);
+                ctx.save();
                 ctx.globalAlpha = alpha;
-                ctx.fillRect(this.pos.x - 2, this.pos.y - 2, 4, 4);
-                ctx.globalAlpha = 1;
+                ctx.shadowBlur = s * 2;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, s * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
 
             isDead() {
                 return this.life <= 0;
+            }
+        }
+
+        // Explosion helper with multi-stage particles
+        function spawnExplosion(x, y, color, count, speed, life, size) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const spd = Math.random() * speed;
+                gameState.particles.push(new Particle(
+                    x, y,
+                    Math.cos(angle) * spd,
+                    Math.sin(angle) * spd,
+                    color, life + Math.random() * 10, size
+                ));
             }
         }
 
@@ -424,9 +728,12 @@
                 );
                 this.playerId = playerId;
                 this.life = 60;
+                this.trail = [];
             }
 
             update() {
+                this.trail.push({ x: this.pos.x, y: this.pos.y });
+                if (this.trail.length > 6) this.trail.shift();
                 this.pos = this.pos.add(this.vel);
                 this.life--;
 
@@ -437,7 +744,23 @@
             }
 
             draw(ctx) {
+                // Trail
+                ctx.save();
+                for (let i = 0; i < this.trail.length; i++) {
+                    const a = (i / this.trail.length) * 0.4;
+                    ctx.globalAlpha = a;
+                    ctx.fillStyle = this.playerId >= 0 ? '#ffff00' : '#ff4444';
+                    const s = 2 + (i / this.trail.length) * 2;
+                    ctx.beginPath();
+                    ctx.arc(this.trail[i].x, this.trail[i].y, s, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+
                 // Glow
+                ctx.save();
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = this.playerId >= 0 ? '#ffff00' : '#ff4444';
                 ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
                 ctx.beginPath();
                 ctx.arc(this.pos.x, this.pos.y, 6, 0, Math.PI * 2);
@@ -448,6 +771,7 @@
                 ctx.beginPath();
                 ctx.arc(this.pos.x, this.pos.y, 3, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
             }
 
             isDead() {
@@ -461,9 +785,12 @@
                 this.size = size;
                 this.radius = size * 15 + 10;
                 this.resources = size * 10;
+                this.maxResources = size * 10;
                 this.angle = Math.random() * Math.PI * 2;
                 this.rotationSpeed = (Math.random() - 0.5) * 0.02;
                 this.vertices = this.generateVertices();
+                this.craters = this.generateCraters();
+                this.mineFlash = 0;
             }
 
             generateVertices() {
@@ -480,8 +807,24 @@
                 return vertices;
             }
 
+            generateCraters() {
+                const craters = [];
+                const count = 2 + Math.floor(Math.random() * 3);
+                for (let i = 0; i < count; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const d = Math.random() * this.radius * 0.5;
+                    craters.push({
+                        x: Math.cos(a) * d,
+                        y: Math.sin(a) * d,
+                        r: 3 + Math.random() * (this.radius * 0.15)
+                    });
+                }
+                return craters;
+            }
+
             update() {
                 this.angle += this.rotationSpeed;
+                if (this.mineFlash > 0) this.mineFlash -= 0.05;
             }
 
             draw(ctx) {
@@ -500,9 +843,11 @@
                 ctx.fill();
 
                 // Body
-                const resourcePct = this.resources / (this.size * 10);
-                const bodyColor = resourcePct > 0.5 ? '#555' : '#3a3a3a';
-                ctx.fillStyle = bodyColor;
+                const resourcePct = this.resources / this.maxResources;
+                const r = Math.floor(85 + this.mineFlash * 170);
+                const g = Math.floor(85 + this.mineFlash * 100);
+                const b = Math.floor(85 + this.mineFlash * 50);
+                ctx.fillStyle = resourcePct > 0.5 ? `rgb(${r},${g},${b})` : `rgb(${58+this.mineFlash*100},${58+this.mineFlash*60},${58+this.mineFlash*30})`;
                 ctx.strokeStyle = '#777';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -514,13 +859,41 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // Craters
+                this.craters.forEach(c => {
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                });
+
                 // Crystal deposits glow
                 if (this.resources > 0) {
-                    const glowAlpha = 0.3 + 0.1 * Math.sin(Date.now() * 0.003 + this.pos.x);
+                    const glowAlpha = 0.3 + 0.15 * Math.sin(Date.now() * 0.003 + this.pos.x);
+                    ctx.save();
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#00ffff';
                     ctx.fillStyle = `rgba(0, 255, 255, ${glowAlpha})`;
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.restore();
+
+                    // Ore shimmer spots
+                    for (let i = 0; i < 3; i++) {
+                        const shimA = (Date.now() * 0.002 + i * 2.1 + this.pos.x * 0.01) % (Math.PI * 2);
+                        const shimR = this.radius * 0.25;
+                        const sx = Math.cos(shimA + i) * shimR;
+                        const sy = Math.sin(shimA + i * 1.5) * shimR;
+                        const shimAlpha = 0.3 + 0.3 * Math.sin(Date.now() * 0.005 + i * 3);
+                        ctx.fillStyle = `rgba(100, 255, 255, ${shimAlpha})`;
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
 
                     ctx.fillStyle = '#00ffff';
                     ctx.font = 'bold 12px monospace';
@@ -534,6 +907,7 @@
             mine(amount) {
                 const mined = Math.min(amount, this.resources);
                 this.resources -= mined;
+                this.mineFlash = 1;
                 return mined;
             }
 
@@ -563,11 +937,15 @@
                 ctx.fill();
 
                 // Ring
+                ctx.save();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00ff00';
                 ctx.strokeStyle = '#00ff00';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
                 ctx.stroke();
+                ctx.restore();
 
                 // Inner fill
                 ctx.fillStyle = 'rgba(0, 255, 0, 0.08)';
@@ -603,6 +981,7 @@
                 this.angle = Math.random() * Math.PI * 2;
                 this.radius = 15;
                 this.health = 30;
+                this.maxHealth = 30;
                 this.shootCooldown = 0;
                 this.targetPlayerId = null;
             }
@@ -645,6 +1024,17 @@
                 if (this.pos.y > canvas.height) this.pos.y = 0;
 
                 this.shootCooldown--;
+
+                // Engine particles
+                if (this.vel.length() > 0.3) {
+                    gameState.particles.push(new Particle(
+                        this.pos.x - Math.cos(this.angle) * this.radius,
+                        this.pos.y - Math.sin(this.angle) * this.radius,
+                        -Math.cos(this.angle) * 1 + (Math.random() - 0.5) * 0.5,
+                        -Math.sin(this.angle) * 1 + (Math.random() - 0.5) * 0.5,
+                        '#ff4400', 12, 3
+                    ));
+                }
             }
 
             shoot() {
@@ -654,6 +1044,7 @@
                     this.angle,
                     -1
                 ));
+                sfx.shoot();
             }
 
             draw(ctx) {
@@ -669,6 +1060,18 @@
                 ctx.save();
                 ctx.translate(this.pos.x, this.pos.y);
                 ctx.rotate(this.angle);
+
+                // Engine glow
+                if (this.vel.length() > 0.3) {
+                    ctx.save();
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ff4400';
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.ellipse(-12, 0, 4 + Math.random() * 3, 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
 
                 ctx.fillStyle = '#cc0000';
                 ctx.strokeStyle = '#ff4444';
@@ -686,13 +1089,16 @@
 
                 // Eye
                 ctx.fillStyle = '#ffff00';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = '#ffff00';
                 ctx.beginPath();
                 ctx.arc(5, 0, 2, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.shadowBlur = 0;
 
                 ctx.restore();
 
-                // Health bar (always show)
+                // Health bar
                 const barWidth = 30;
                 const barHeight = 4;
                 ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -700,11 +1106,22 @@
                 ctx.fillStyle = '#ff0000';
                 ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth, barHeight);
                 ctx.fillStyle = this.health > 15 ? '#00ff00' : '#ffff00';
-                ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth * (this.health / 30), barHeight);
+                ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth * (this.health / this.maxHealth), barHeight);
             }
 
             takeDamage(amount) {
                 this.health -= amount;
+                screenShake.trigger(3);
+                spawnDamageNumber(this.pos.x, this.pos.y - 20, '-' + amount, '#ff4444');
+                // Hit sparks
+                for (let i = 0; i < 4; i++) {
+                    gameState.particles.push(new Particle(
+                        this.pos.x, this.pos.y,
+                        (Math.random() - 0.5) * 4,
+                        (Math.random() - 0.5) * 4,
+                        '#ffaa00', 15, 3
+                    ));
+                }
                 return this.health <= 0;
             }
         }
@@ -725,6 +1142,7 @@
                 this.alive = true;
                 this.respawnTimer = 0;
                 this.totalScore = 0;
+                this.prevScore = 0;
             }
 
             update(input) {
@@ -749,14 +1167,21 @@
                         stickY * thrustPower
                     ));
 
-                    for (let i = 0; i < 2; i++) {
+                    sfx.thruster();
+
+                    // Thruster exhaust particles - varied
+                    for (let i = 0; i < 3; i++) {
+                        const spread = (Math.random() - 0.5) * 0.8;
+                        const backAngle = this.angle + Math.PI + spread;
+                        const spd = 1.5 + Math.random() * 1.5;
                         gameState.particles.push(new Particle(
                             this.pos.x - Math.cos(this.angle) * this.radius,
                             this.pos.y - Math.sin(this.angle) * this.radius,
-                            -Math.cos(this.angle) * 2 + (Math.random() - 0.5),
-                            -Math.sin(this.angle) * 2 + (Math.random() - 0.5),
-                            this.color,
-                            20
+                            Math.cos(backAngle) * spd,
+                            Math.sin(backAngle) * spd,
+                            Math.random() > 0.5 ? this.color : '#ff8800',
+                            15 + Math.random() * 10,
+                            2 + Math.random() * 2
                         ));
                     }
                 }
@@ -769,14 +1194,20 @@
                     ));
                     this.boostCooldown = 60;
 
-                    for (let i = 0; i < 10; i++) {
+                    sfx.boost();
+                    screenShake.trigger(4);
+
+                    for (let i = 0; i < 15; i++) {
+                        const a = this.angle + Math.PI + (Math.random() - 0.5) * 1.5;
+                        const spd = 2 + Math.random() * 4;
                         gameState.particles.push(new Particle(
                             this.pos.x,
                             this.pos.y,
-                            (Math.random() - 0.5) * 4,
-                            (Math.random() - 0.5) * 4,
-                            this.color,
-                            30
+                            Math.cos(a) * spd,
+                            Math.sin(a) * spd,
+                            Math.random() > 0.3 ? this.color : '#ffffff',
+                            25 + Math.random() * 15,
+                            3 + Math.random() * 3
                         ));
                     }
                 }
@@ -789,6 +1220,17 @@
                         this.id
                     ));
                     this.shootCooldown = 15;
+                    sfx.shoot();
+                    // Muzzle flash
+                    for (let i = 0; i < 3; i++) {
+                        gameState.particles.push(new Particle(
+                            this.pos.x + Math.cos(this.angle) * (this.radius + 4),
+                            this.pos.y + Math.sin(this.angle) * (this.radius + 4),
+                            Math.cos(this.angle + (Math.random()-0.5)*0.5) * 3,
+                            Math.sin(this.angle + (Math.random()-0.5)*0.5) * 3,
+                            '#ffff88', 8, 3
+                        ));
+                    }
                 }
 
                 if (input.action) {
@@ -810,22 +1252,35 @@
 
                 this.shootCooldown--;
                 this.boostCooldown--;
+
+                // Check score change for announcement
+                if (this.totalScore !== this.prevScore && this.totalScore > 0 && this.totalScore % 25 === 0) {
+                    showAnnouncement(`P${this.id+1} reached ${this.totalScore}!`, this.color);
+                }
+                this.prevScore = this.totalScore;
             }
 
             handleAction() {
                 if (gameState.base && this.pos.distance(gameState.base.pos) < gameState.base.radius + this.radius) {
                     if (this.resources > 0) {
+                        spawnDamageNumber(this.pos.x, this.pos.y - 25, '+' + this.resources, '#00ff00');
                         this.totalScore += this.resources;
                         this.resources = 0;
 
-                        for (let i = 0; i < 20; i++) {
+                        sfx.deposit();
+                        screenShake.trigger(3);
+
+                        // Ore collection sparkle burst
+                        for (let i = 0; i < 25; i++) {
+                            const a = Math.random() * Math.PI * 2;
+                            const spd = 1 + Math.random() * 3;
                             gameState.particles.push(new Particle(
-                                this.pos.x,
-                                this.pos.y,
-                                (Math.random() - 0.5) * 4,
-                                (Math.random() - 0.5) * 4,
-                                '#00ff00',
-                                40
+                                this.pos.x, this.pos.y,
+                                Math.cos(a) * spd,
+                                Math.sin(a) * spd,
+                                Math.random() > 0.5 ? '#00ff00' : '#88ff88',
+                                30 + Math.random() * 20,
+                                2 + Math.random() * 3
                             ));
                         }
                     }
@@ -839,16 +1294,38 @@
                             const mined = asteroid.mine(Math.min(space, 10));
                             this.resources += mined;
 
-                            for (let i = 0; i < 5; i++) {
+                            sfx.miningLaser();
+                            sfx.rockBreak();
+                            screenShake.trigger(2);
+                            spawnDamageNumber(asteroid.pos.x, asteroid.pos.y - asteroid.radius - 10, '+' + mined, '#00ffff');
+
+                            // Mining sparks
+                            for (let i = 0; i < 8; i++) {
+                                const a = Math.random() * Math.PI * 2;
+                                const spd = 1 + Math.random() * 3;
                                 gameState.particles.push(new Particle(
                                     asteroid.pos.x + (Math.random() - 0.5) * asteroid.radius,
                                     asteroid.pos.y + (Math.random() - 0.5) * asteroid.radius,
-                                    (Math.random() - 0.5) * 2,
-                                    (Math.random() - 0.5) * 2,
-                                    '#00ffff',
-                                    30
+                                    Math.cos(a) * spd,
+                                    Math.sin(a) * spd,
+                                    Math.random() > 0.4 ? '#00ffff' : '#ffaa00',
+                                    20 + Math.random() * 15,
+                                    2 + Math.random() * 2
                                 ));
                             }
+
+                            // Asteroid fragment particles
+                            for (let i = 0; i < 3; i++) {
+                                gameState.particles.push(new Particle(
+                                    asteroid.pos.x + (Math.random()-0.5) * asteroid.radius * 0.8,
+                                    asteroid.pos.y + (Math.random()-0.5) * asteroid.radius * 0.8,
+                                    (Math.random()-0.5) * 2,
+                                    (Math.random()-0.5) * 2,
+                                    '#666', 25, 4
+                                ));
+                            }
+
+                            if (mined > 0) sfx.oreCollect();
                         }
                     }
                 });
@@ -877,6 +1354,9 @@
                 const speed = this.vel.length();
                 if (speed > 1) {
                     const glowSize = 8 + speed * 2;
+                    ctx.save();
+                    ctx.shadowBlur = glowSize;
+                    ctx.shadowColor = this.color;
                     const glow = ctx.createRadialGradient(-this.radius, 0, 0, -this.radius, 0, glowSize);
                     glow.addColorStop(0, this.color + '88');
                     glow.addColorStop(1, 'rgba(0,0,0,0)');
@@ -884,6 +1364,7 @@
                     ctx.beginPath();
                     ctx.arc(-this.radius, 0, glowSize, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.restore();
                 }
 
                 // Ship body
@@ -899,11 +1380,15 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Cockpit
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                // Cockpit with glow
+                ctx.save();
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = 'rgba(255,255,255,0.6)';
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
                 ctx.arc(2, 0, 4, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
 
                 // Boost indicator
                 if (this.boostCooldown > 0) {
@@ -930,8 +1415,13 @@
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
                     ctx.fillRect(this.pos.x - barWidth/2 - 1, this.pos.y + this.radius + 7, barWidth + 2, barHeight + 2);
                     const pct = this.resources / this.cargoCapacity;
-                    ctx.fillStyle = pct > 0.8 ? '#ffff00' : '#00ffff';
+                    const barColor = pct > 0.8 ? '#ffff00' : '#00ffff';
+                    ctx.save();
+                    ctx.shadowBlur = pct > 0.8 ? 8 : 0;
+                    ctx.shadowColor = barColor;
+                    ctx.fillStyle = barColor;
                     ctx.fillRect(this.pos.x - barWidth/2, this.pos.y + this.radius + 8, barWidth * pct, barHeight);
+                    ctx.restore();
                 }
             }
 
@@ -940,14 +1430,22 @@
                 this.respawnTimer = 180;
                 this.resources = 0;
 
-                for (let i = 0; i < 30; i++) {
+                sfx.explosion();
+                screenShake.trigger(10);
+
+                // Multi-stage explosion
+                spawnExplosion(this.pos.x, this.pos.y, this.color, 20, 5, 40, 4);
+                spawnExplosion(this.pos.x, this.pos.y, '#ff6600', 15, 4, 35, 5);
+                spawnExplosion(this.pos.x, this.pos.y, '#ffffff', 5, 2, 20, 3);
+
+                // Debris
+                for (let i = 0; i < 6; i++) {
+                    const a = Math.random() * Math.PI * 2;
                     gameState.particles.push(new Particle(
-                        this.pos.x,
-                        this.pos.y,
-                        (Math.random() - 0.5) * 6,
-                        (Math.random() - 0.5) * 6,
-                        this.color,
-                        50
+                        this.pos.x, this.pos.y,
+                        Math.cos(a) * (1 + Math.random()*3),
+                        Math.sin(a) * (1 + Math.random()*3),
+                        '#888', 50 + Math.random()*20, 5
                     ));
                 }
             }
@@ -960,6 +1458,10 @@
                 );
                 this.vel = new Vector2(0, 0);
                 this.resources = 0;
+
+                // Respawn sparkle
+                spawnExplosion(this.pos.x, this.pos.y, this.color, 12, 3, 25, 3);
+                spawnExplosion(this.pos.x, this.pos.y, '#ffffff', 6, 2, 20, 2);
             }
         }
 
@@ -1068,28 +1570,18 @@
 
         eventManager.add(window, 'keydown', (e) => {
             keys[e.key] = true;
+            sfx.resume();
         });
 
         eventManager.add(window, 'keyup', (e) => {
             keys[e.key] = false;
         });
 
-        function initStars() {
-            gameState.stars = [];
-            for (let i = 0; i < 200; i++) {
-                gameState.stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 2,
-                    brightness: Math.random()
-                });
-            }
-        }
-
         function initGame() {
             gameState.running = true;
             gameState.paused = false;
             gameState.frame = 0;
+            gameState.pirateWaveNum = 0;
 
             gameState.base = new Base(canvas.width / 2, canvas.height / 2);
 
@@ -1125,9 +1617,12 @@
             gameState.bullets = [];
             gameState.pirates = [];
             gameState.particles = [];
+            damageNumbers.length = 0;
+            announcements.length = 0;
 
-            initStars();
+            starfield = new Starfield();
             updateScorePanel();
+            showAnnouncement('MINE ASTEROIDS! FIRST TO 100 WINS!', '#ffff00', 3);
         }
 
         function updateScorePanel() {
@@ -1139,11 +1634,12 @@
                 const status = player.alive ?
                     `Cargo: ${player.resources}/${player.cargoCapacity}` :
                     `Respawning... ${Math.ceil(player.respawnTimer / 60)}s`;
+                const animScore = getAnimatedScore('p' + i, player.totalScore || 0);
 
                 html += `
                     <div class="${className}">
                         <h3>Player ${i + 1}</h3>
-                        <div class="resources">Score: ${player.totalScore || 0}</div>
+                        <div class="resources">Score: ${animScore}</div>
                         <div class="status">${status}</div>
                     </div>
                 `;
@@ -1164,6 +1660,10 @@
             }
 
             gameState.pirates.push(new Pirate(x, y));
+            gameState.pirateWaveNum++;
+            if (gameState.pirateWaveNum % 3 === 0) {
+                showAnnouncement('PIRATE WAVE INCOMING!', '#ff4444', 2);
+            }
         }
 
         function checkWinner() {
@@ -1177,6 +1677,9 @@
             if (!gameState.running || gameState.paused) return;
 
             gameState.frame++;
+            screenShake.update();
+            updateDamageNumbers();
+            updateAnnouncements();
 
             gameState.players.forEach((player, i) => {
                 const input = getPlayerInput(i);
@@ -1215,17 +1718,22 @@
                         if (bullet.pos.distance(pirate.pos) < pirate.radius) {
                             if (pirate.takeDamage(10)) {
                                 gameState.pirates.splice(pirateIndex, 1);
+                                sfx.explosion();
+                                screenShake.trigger(8);
 
-                                for (let i = 0; i < 20; i++) {
+                                // Multi-stage pirate explosion
+                                spawnExplosion(pirate.pos.x, pirate.pos.y, '#ff0000', 15, 5, 35, 4);
+                                spawnExplosion(pirate.pos.x, pirate.pos.y, '#ff6600', 10, 3, 30, 5);
+                                spawnExplosion(pirate.pos.x, pirate.pos.y, '#ffff00', 5, 2, 25, 3);
+                                // Debris
+                                for (let i = 0; i < 4; i++) {
                                     gameState.particles.push(new Particle(
-                                        pirate.pos.x,
-                                        pirate.pos.y,
-                                        (Math.random() - 0.5) * 5,
-                                        (Math.random() - 0.5) * 5,
-                                        '#ff0000',
-                                        40
+                                        pirate.pos.x, pirate.pos.y,
+                                        (Math.random()-0.5)*4, (Math.random()-0.5)*4,
+                                        '#666', 40, 5
                                     ));
                                 }
+                                spawnDamageNumber(pirate.pos.x, pirate.pos.y - 30, 'DESTROYED', '#ff8800');
                             }
                             bullet.life = 0;
                         }
@@ -1248,6 +1756,7 @@
                 gameState.players.forEach(player => {
                     if (player.alive && pirate.pos.distance(player.pos) < pirate.radius + player.radius) {
                         player.die();
+                        screenShake.trigger(12);
                     }
                 });
             });
@@ -1257,24 +1766,34 @@
         }
 
         function draw() {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(screenShake.x, screenShake.y);
 
-            // Subtle nebula
-            const nebula = ctx.createRadialGradient(
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-5, -5, canvas.width + 10, canvas.height + 10);
+
+            // Nebula ambient glow
+            const nebula1 = ctx.createRadialGradient(
                 canvas.width * 0.3, canvas.height * 0.4, 0,
                 canvas.width * 0.3, canvas.height * 0.4, canvas.width * 0.4
             );
-            nebula.addColorStop(0, 'rgba(0, 30, 60, 0.3)');
-            nebula.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = nebula;
+            nebula1.addColorStop(0, 'rgba(20, 0, 40, 0.4)');
+            nebula1.addColorStop(0.5, 'rgba(0, 20, 50, 0.2)');
+            nebula1.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = nebula1;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            gameState.stars.forEach(star => {
-                const twinkle = star.brightness * (0.8 + 0.2 * Math.sin(Date.now() * 0.003 + star.x * 0.1));
-                ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
-                ctx.fillRect(star.x, star.y, star.size, star.size);
-            });
+            const nebula2 = ctx.createRadialGradient(
+                canvas.width * 0.75, canvas.height * 0.7, 0,
+                canvas.width * 0.75, canvas.height * 0.7, canvas.width * 0.3
+            );
+            nebula2.addColorStop(0, 'rgba(40, 0, 20, 0.3)');
+            nebula2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = nebula2;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Starfield
+            starfield.draw(ctx, Date.now());
 
             if (gameState.base) {
                 gameState.base.draw(ctx);
@@ -1289,16 +1808,14 @@
             gameState.pirates.forEach(pirate => pirate.draw(ctx));
 
             gameState.players.forEach(player => player.draw(ctx));
+
+            drawDamageNumbers(ctx);
+            drawAnnouncements(ctx);
+
+            ctx.restore();
         }
 
         let mainLoopRunning = false;
-
-        function gameLoop() {
-            update();
-            draw();
-            if (gameState.running || !mainLoopRunning) return;
-            requestAnimationFrame(gameLoop);
-        }
 
         function mainLoop() {
             if (!gameState.running) {
@@ -1308,12 +1825,7 @@
                 ctx.fillStyle = '#000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Twinkling stars
-                gameState.stars.forEach(star => {
-                    const twinkle = star.brightness * (0.7 + 0.3 * Math.sin(Date.now() * 0.002 + star.x));
-                    ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
-                    ctx.fillRect(star.x, star.y, star.size, star.size);
-                });
+                starfield.draw(ctx, Date.now());
             } else {
                 update();
                 draw();
@@ -1323,6 +1835,7 @@
         }
 
         function startGame() {
+            sfx.resume();
             document.getElementById('menuScreen').style.display = 'none';
             document.getElementById('gameOverScreen').style.display = 'none';
             initGame();
@@ -1378,7 +1891,6 @@
         }
 
         updateControllerList();
-        initStars();
         mainLoop();
 
         function toggleFullscreen() {

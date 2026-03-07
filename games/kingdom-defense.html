@@ -569,6 +569,194 @@
         const { canvas, ctx } = canvasSetup;
         const eventManager = new EventManager();
 
+        // ========== GAME JUICE ENGINE ==========
+        // Screen Shake
+        const shake = { x: 0, y: 0, intensity: 0, decay: 0.92 };
+        function triggerShake(intensity) {
+            shake.intensity = Math.max(shake.intensity, intensity);
+        }
+        function updateShake() {
+            if (shake.intensity > 0.5) {
+                shake.x = (Math.random() - 0.5) * shake.intensity;
+                shake.y = (Math.random() - 0.5) * shake.intensity;
+                shake.intensity *= shake.decay;
+            } else {
+                shake.x = shake.y = shake.intensity = 0;
+            }
+        }
+
+        // Sound Synthesis
+        let _audioCtx = null;
+        function getAudioCtx() {
+            try {
+                if (!_audioCtx || _audioCtx.state === 'closed') _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (_audioCtx.state === 'suspended') _audioCtx.resume();
+                return _audioCtx;
+            } catch(e) { return null; }
+        }
+        function playSound(freq, dur, type='sine', vol=0.08) {
+            const ac = getAudioCtx(); if (!ac) return;
+            try {
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.frequency.setValueAtTime(freq, ac.currentTime);
+                o.type = type;
+                g.gain.setValueAtTime(vol, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+                o.start(ac.currentTime); o.stop(ac.currentTime + dur);
+            } catch(e) {}
+        }
+        function sfxArrowFire() { playSound(800, 0.08, 'triangle', 0.06); }
+        function sfxImpact() { playSound(120, 0.15, 'sawtooth', 0.1); }
+        function sfxExplosion() {
+            playSound(60, 0.3, 'sawtooth', 0.12);
+            playSound(40, 0.4, 'square', 0.08);
+        }
+        function sfxGoldCollect() {
+            playSound(1200, 0.06, 'sine', 0.05);
+            setTimeout(() => playSound(1600, 0.06, 'sine', 0.04), 60);
+        }
+        function sfxWaveHorn() {
+            const ac = getAudioCtx(); if (!ac) return;
+            try {
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.type = 'sawtooth';
+                o.frequency.setValueAtTime(220, ac.currentTime);
+                o.frequency.linearRampToValueAtTime(330, ac.currentTime + 0.3);
+                g.gain.setValueAtTime(0.06, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.8);
+                o.start(ac.currentTime); o.stop(ac.currentTime + 0.8);
+            } catch(e) {}
+        }
+        function sfxBuild() { playSound(400, 0.1, 'square', 0.06); playSound(600, 0.1, 'sine', 0.04); }
+        function sfxBossAppear() {
+            playSound(80, 0.5, 'sawtooth', 0.1);
+            playSound(100, 0.6, 'square', 0.06);
+            triggerShake(12);
+        }
+
+        // Tweened counters
+        const tweenedValues = { gold: 250, lives: 20, wave: 0 };
+        function updateTweenedValues() {
+            tweenedValues.gold += (gold - tweenedValues.gold) * 0.15;
+            tweenedValues.lives += (lives - tweenedValues.lives) * 0.2;
+            tweenedValues.wave += (currentWave - tweenedValues.wave) * 0.1;
+        }
+
+        // Enhanced particles for gold sparkle
+        function createGoldSparkle(x, y) {
+            for (let i = 0; i < 6; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: (Math.random() - 0.5) * 3 - 2,
+                    life: 20 + Math.random() * 15,
+                    maxLife: 35,
+                    color: `hsl(${45 + Math.random()*15}, 100%, ${60 + Math.random()*30}%)`,
+                    size: 2 + Math.random() * 3,
+                    isSparkle: true,
+                    update() {
+                        this.x += this.vx; this.y += this.vy;
+                        this.vy += 0.1; this.life--;
+                        return this.life <= 0;
+                    },
+                    draw() {
+                        ctx.globalAlpha = this.life / this.maxLife;
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size * (this.life / this.maxLife), 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                });
+            }
+        }
+
+        // Dust particles for building
+        function createDustCloud(x, y) {
+            for (let i = 0; i < 10; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 2;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1,
+                    life: 20 + Math.random() * 15,
+                    maxLife: 35,
+                    color: `rgba(139,115,85,${0.5 + Math.random()*0.3})`,
+                    size: 4 + Math.random() * 6,
+                    update() {
+                        this.x += this.vx; this.y += this.vy;
+                        this.vx *= 0.95; this.vy *= 0.95;
+                        this.life--;
+                        return this.life <= 0;
+                    },
+                    draw() {
+                        ctx.globalAlpha = (this.life / this.maxLife) * 0.6;
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size * (0.5 + 0.5 * this.life / this.maxLife), 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                });
+            }
+        }
+
+        // Muzzle flash effect
+        function createMuzzleFlash(x, y, color) {
+            effects.push({
+                x, y, life: 6, maxLife: 6, color,
+                update() { this.life--; return this.life <= 0; },
+                draw() {
+                    const alpha = this.life / this.maxLife;
+                    const r = 8 + (1 - alpha) * 12;
+                    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r);
+                    grad.addColorStop(0, `rgba(255,255,255,${alpha * 0.8})`);
+                    grad.addColorStop(0.3, this.color.replace(')', `,${alpha * 0.6})`).replace('rgb', 'rgba'));
+                    grad.addColorStop(1, 'rgba(255,255,255,0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Enemy death burst
+        function createDeathBurst(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const speed = 2 + Math.random() * 3;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 15 + Math.random() * 10,
+                    maxLife: 25,
+                    color: i % 3 === 0 ? '#fff' : color,
+                    size: 2 + Math.random() * 4,
+                    update() {
+                        this.x += this.vx; this.y += this.vy;
+                        this.vx *= 0.92; this.vy *= 0.92;
+                        this.life--;
+                        return this.life <= 0;
+                    },
+                    draw() {
+                        ctx.globalAlpha = this.life / this.maxLife;
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size * (this.life / this.maxLife), 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                });
+            }
+        }
+
+        // ========== END GAME JUICE ENGINE ==========
+
         // Game state
         let gold = 250;
         let lives = 20;
@@ -818,6 +1006,9 @@
                 if (this.target) {
                     projectiles.push(new Projectile(this.x, this.y, this.target, this.type, stats.damage, this.level));
                     this.lastShot = timestamp;
+                    sfxArrowFire();
+                    triggerShake(2);
+                    createMuzzleFlash(this.x, this.y, `rgb(${parseInt(stats.color.slice(1,3),16)},${parseInt(stats.color.slice(3,5),16)},${parseInt(stats.color.slice(5,7),16)})`);
                 }
             }
 
@@ -883,12 +1074,19 @@
                     ctx.fillText(this.level, this.x + size * 0.7, this.y - size * 0.7);
                 }
 
-                // Range indicator if selected
+                // Range indicator with glow if selected
                 if (this === selectedTower) {
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.lineWidth = 2;
+                    const pulse = 0.2 + Math.sin(Date.now() / 300) * 0.1;
+                    const rangeGrad = ctx.createRadialGradient(this.x, this.y, stats.range - 10, this.x, this.y, stats.range);
+                    rangeGrad.addColorStop(0, `rgba(255, 255, 255, 0)`);
+                    rangeGrad.addColorStop(0.7, `rgba(255, 215, 0, ${pulse})`);
+                    rangeGrad.addColorStop(1, `rgba(255, 215, 0, 0)`);
+                    ctx.fillStyle = rangeGrad;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, stats.range, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = `rgba(255, 215, 0, ${0.3 + pulse})`;
+                    ctx.lineWidth = 2;
                     ctx.stroke();
                 }
             }
@@ -933,6 +1131,8 @@
 
                 if (this.pathIndex >= path.length - 1) {
                     lives--;
+                    triggerShake(10);
+                    sfxExplosion();
                     updateDisplay();
                     if (lives <= 0) gameOver();
                     return true;
@@ -970,6 +1170,11 @@
                     gold += this.reward;
                     updateDisplay();
                     createParticles(this.x, this.y, enemyTypes[this.type].color);
+                    createDeathBurst(this.x, this.y, enemyTypes[this.type].color);
+                    createGoldSparkle(this.x, this.y);
+                    sfxGoldCollect();
+                    sfxImpact();
+                    triggerShake(3);
                     return true;
                 }
                 return false;
@@ -1092,6 +1297,8 @@
                         }
                     }
                     createParticles(this.target.x, this.target.y, '#FF8800', 15);
+                    sfxExplosion();
+                    triggerShake(6);
                 } else if (stats.pierce) {
                     // Pierce damage
                     const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
@@ -1147,18 +1354,32 @@
             draw() {
                 const stats = towerTypes[this.towerType];
 
-                // Draw trail
+                // Glow trail
                 this.trail.forEach((point, index) => {
-                    ctx.globalAlpha = (index / this.trail.length) * 0.5;
-                    ctx.fillStyle = stats.projectileColor;
+                    const t = index / this.trail.length;
+                    ctx.globalAlpha = t * 0.4;
+                    const glowR = 6 + t * 4;
+                    const grad = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, glowR);
+                    grad.addColorStop(0, stats.projectileColor);
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = grad;
                     ctx.beginPath();
-                    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+                    ctx.arc(point.x, point.y, glowR, 0, Math.PI * 2);
                     ctx.fill();
                 });
                 ctx.globalAlpha = 1;
 
-                // Main projectile
+                // Main projectile with glow
                 const size = stats.projectileSize || 5;
+                const projGrad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, size + 4);
+                projGrad.addColorStop(0, '#fff');
+                projGrad.addColorStop(0.4, stats.projectileColor);
+                projGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = projGrad;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, size + 4, 0, Math.PI * 2);
+                ctx.fill();
+
                 ctx.fillStyle = stats.projectileColor;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
@@ -1364,6 +1585,17 @@
                 }
             });
 
+            // Ambient path glow
+            ctx.shadowColor = 'rgba(200, 150, 80, 0.3)';
+            ctx.shadowBlur = 12;
+            ctx.strokeStyle = 'rgba(200, 150, 80, 0.08)';
+            ctx.lineWidth = 50;
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
             // Spawn marker
             const start = path[0];
             ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
@@ -1430,6 +1662,8 @@
             waveInProgress = true;
             updateDisplay();
             showWaveAnnouncement(`Welle ${currentWave}`);
+            sfxWaveHorn();
+            triggerShake(5);
 
             const waveConfig = waves[currentWave - 1];
             let enemyQueue = [];
@@ -1458,6 +1692,14 @@
         // Game loop
         function gameLoop(timestamp) {
             if (!gameRunning) return;
+
+            // Update juice systems
+            updateShake();
+            updateTweenedValues();
+
+            // Apply screen shake
+            ctx.save();
+            ctx.translate(shake.x, shake.y);
 
             // Clear canvas with gradient
             const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
@@ -1521,6 +1763,9 @@
             // Wave announcement
             drawWaveAnnouncement();
 
+            // Restore shake transform
+            ctx.restore();
+
             // Draw tower preview
             if (selectedTowerType && !selectedTower) {
                 const stats = towerTypes[selectedTowerType];
@@ -1545,8 +1790,8 @@
 
         // Update display
         function updateDisplay() {
-            document.getElementById('goldDisplay').textContent = gold;
-            document.getElementById('livesDisplay').textContent = lives;
+            document.getElementById('goldDisplay').textContent = Math.round(tweenedValues.gold);
+            document.getElementById('livesDisplay').textContent = Math.round(tweenedValues.lives);
             document.getElementById('waveDisplay').textContent = currentWave;
 
             document.getElementById('archerBtn').disabled = gold < 50;
@@ -1568,20 +1813,29 @@
             waveAnnouncement.timer = 90;
         }
 
+        function easeOutElastic(t) {
+            if (t === 0 || t === 1) return t;
+            return Math.pow(2, -10 * t) * Math.sin((t - 0.1) * 5 * Math.PI) + 1;
+        }
         function drawWaveAnnouncement() {
             if (waveAnnouncement.timer <= 0) return;
             waveAnnouncement.timer--;
-            const alpha = waveAnnouncement.timer > 60 ? 1 : waveAnnouncement.timer / 60;
-            const scale = waveAnnouncement.timer > 75 ? 1 + (waveAnnouncement.timer - 75) * 0.03 : 1;
+            const progress = 1 - waveAnnouncement.timer / 90;
+            const alpha = waveAnnouncement.timer > 30 ? 1 : waveAnnouncement.timer / 30;
+            const elasticT = Math.min(1, progress * 3);
+            const scale = progress < 0.33 ? easeOutElastic(elasticT) : 1;
+            const slideX = progress < 0.33 ? (1 - easeOutElastic(elasticT)) * -200 : 0;
             ctx.save();
             ctx.globalAlpha = alpha;
-            ctx.font = `bold ${28 * scale}px Segoe UI`;
+            ctx.translate(canvas.width / 2 + slideX, canvas.height / 2);
+            ctx.scale(scale, scale);
+            ctx.font = `bold 32px Segoe UI`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#ffd700';
-            ctx.shadowColor = 'rgba(0,0,0,0.6)';
-            ctx.shadowBlur = 8;
-            ctx.fillText(waveAnnouncement.text, canvas.width / 2, canvas.height / 2);
+            ctx.shadowColor = 'rgba(255,215,0,0.5)';
+            ctx.shadowBlur = 15;
+            ctx.fillText(waveAnnouncement.text, 0, 0);
             ctx.shadowBlur = 0;
             ctx.restore();
         }
@@ -1639,6 +1893,9 @@
                     gold -= stats.cost;
                     updateDisplay();
                     createParticles(x, y, '#ffd700', 12);
+                    createDustCloud(x, y);
+                    sfxBuild();
+                    triggerShake(3);
                 }
             }
 
@@ -1672,6 +1929,9 @@
                     gold -= stats.cost;
                     updateDisplay();
                     createParticles(x, y, '#ffd700', 12);
+                    createDustCloud(x, y);
+                    sfxBuild();
+                    triggerShake(3);
                 }
             }
             updateTowerInfo();

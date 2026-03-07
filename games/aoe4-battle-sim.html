@@ -360,7 +360,11 @@
             transition: opacity 0.5s ease;
         }
 
-        .battle-result.visible { display: flex; opacity: 1; }
+        .battle-result.visible { display: flex; opacity: 1; animation: resultFadeIn 0.6s ease-out; }
+        @keyframes resultFadeIn {
+            0% { opacity: 0; backdrop-filter: blur(0); }
+            100% { opacity: 1; backdrop-filter: blur(6px); }
+        }
 
         .result-content { text-align: center; padding: 40px; }
 
@@ -584,6 +588,159 @@
         }
 
         const eventManager = new EventManager();
+
+        // ============================================
+        // GAME JUICE ENGINE
+        // ============================================
+        const juiceShake = { x: 0, y: 0, intensity: 0, decay: 0.9 };
+        function triggerShake(intensity) { juiceShake.intensity = Math.max(juiceShake.intensity, intensity); }
+        function updateShake() {
+            if (juiceShake.intensity > 0.3) {
+                juiceShake.x = (Math.random() - 0.5) * juiceShake.intensity;
+                juiceShake.y = (Math.random() - 0.5) * juiceShake.intensity;
+                juiceShake.intensity *= juiceShake.decay;
+            } else { juiceShake.x = juiceShake.y = juiceShake.intensity = 0; }
+        }
+
+        // Sound Synthesis
+        let _aCtx = null;
+        function getACtx() {
+            try {
+                if (!_aCtx || _aCtx.state === 'closed') _aCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (_aCtx.state === 'suspended') _aCtx.resume();
+                return _aCtx;
+            } catch(e) { return null; }
+        }
+        function sfx(freq, dur, type='sine', vol=0.06) {
+            const ac = getACtx(); if (!ac) return;
+            try {
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.frequency.setValueAtTime(freq, ac.currentTime);
+                o.type = type;
+                g.gain.setValueAtTime(vol, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+                o.start(ac.currentTime); o.stop(ac.currentTime + dur);
+            } catch(e) {}
+        }
+        function sfxSwordClash() { sfx(300, 0.06, 'sawtooth', 0.08); sfx(500, 0.04, 'square', 0.05); }
+        function sfxBowFire() { sfx(900, 0.05, 'triangle', 0.04); }
+        function sfxSiegeFire() {
+            sfx(60, 0.4, 'sawtooth', 0.1);
+            sfx(40, 0.5, 'square', 0.06);
+            triggerShake(8);
+        }
+        function sfxBuildingComplete() {
+            sfx(440, 0.1, 'sine', 0.05);
+            setTimeout(() => sfx(660, 0.1, 'sine', 0.04), 100);
+            setTimeout(() => sfx(880, 0.15, 'sine', 0.04), 200);
+        }
+        function sfxHorn() {
+            const ac = getACtx(); if (!ac) return;
+            try {
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.type = 'sawtooth';
+                o.frequency.setValueAtTime(220, ac.currentTime);
+                o.frequency.linearRampToValueAtTime(330, ac.currentTime + 0.4);
+                g.gain.setValueAtTime(0.05, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.8);
+                o.start(ac.currentTime); o.stop(ac.currentTime + 0.8);
+            } catch(e) {}
+        }
+        function sfxDeath() { sfx(200, 0.15, 'sawtooth', 0.06); sfx(100, 0.2, 'square', 0.04); }
+
+        // Spark effects for melee combat
+        class CombatSpark {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.life = 1.0;
+                this.particles = [];
+                for (let i = 0; i < 5; i++) {
+                    this.particles.push({
+                        x: 0, y: 0,
+                        vx: (Math.random() - 0.5) * 80,
+                        vy: (Math.random() - 0.5) * 80 - 20,
+                        size: 1 + Math.random() * 2
+                    });
+                }
+            }
+            update(dt) {
+                this.life -= dt * 3;
+                for (const p of this.particles) {
+                    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 80 * dt;
+                }
+                return this.life > 0;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.globalAlpha = this.life;
+                for (const p of this.particles) {
+                    ctx.fillStyle = Math.random() > 0.5 ? '#ffdd44' : '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(this.x + p.x, this.y + p.y, p.size * this.life, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        // Fire particles for siege
+        class FireParticle {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.life = 1.0;
+                this.vx = (Math.random() - 0.5) * 30;
+                this.vy = -20 - Math.random() * 40;
+                this.size = 3 + Math.random() * 5;
+            }
+            update(dt) {
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                this.life -= dt * 2;
+                return this.life > 0;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.globalAlpha = this.life * 0.7;
+                const r = this.size * this.life;
+                const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r);
+                grad.addColorStop(0, '#ffff88');
+                grad.addColorStop(0.4, '#ff6600');
+                grad.addColorStop(1, 'rgba(255,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Battle dust cloud
+        class DustCloud {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.life = 1.0;
+                this.size = 5 + Math.random() * 10;
+                this.vx = (Math.random() - 0.5) * 20;
+                this.vy = -5 - Math.random() * 10;
+            }
+            update(dt) {
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                this.size += dt * 15;
+                this.life -= dt * 1.5;
+                return this.life > 0;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.globalAlpha = this.life * 0.25;
+                ctx.fillStyle = '#8B7355';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Tweened stat counters
+        const tweenedStats = { playerCount: 0, enemyCount: 0 };
+        function updateTweenedStats(pa, ea) {
+            tweenedStats.playerCount += (pa - tweenedStats.playerCount) * 0.15;
+            tweenedStats.enemyCount += (ea - tweenedStats.enemyCount) * 0.15;
+        }
 
         // ============================================
         // VECTOR2D CLASS
@@ -1122,6 +1279,11 @@
                 ctx.rotate(this.angle);
 
                 if (this.type === 'arrow') {
+                    // Arrow glow trail
+                    ctx.fillStyle = 'rgba(139,69,19,0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(-6, 0, 10, 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
                     ctx.strokeStyle = '#8B4513';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
@@ -1148,15 +1310,23 @@
                     ctx.lineTo(14, 4);
                     ctx.fill();
                 } else if (this.type === 'cannonball') {
+                    // Fire glow
+                    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 12);
+                    glow.addColorStop(0, 'rgba(255,200,50,0.6)');
+                    glow.addColorStop(1, 'rgba(255,100,0,0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                    ctx.fill();
                     ctx.fillStyle = '#333';
                     ctx.beginPath();
                     ctx.arc(0, 0, 5, 0, Math.PI * 2);
                     ctx.fill();
                     // Smoke trail
-                    ctx.fillStyle = 'rgba(100,100,100,0.5)';
-                    ctx.beginPath();
-                    ctx.arc(-8, 0, 4, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillStyle = 'rgba(100,100,100,0.4)';
+                    ctx.beginPath(); ctx.arc(-10, 1, 5, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'rgba(80,80,80,0.2)';
+                    ctx.beginPath(); ctx.arc(-18, 2, 4, 0, Math.PI * 2); ctx.fill();
                 } else if (this.type === 'stone') {
                     ctx.fillStyle = '#666';
                     ctx.beginPath();
@@ -1258,6 +1428,7 @@
                 this.icon = data.icon;
                 this.size = this.classes.includes('siege') ? 18 : this.classes.includes('cavalry') ? 14 : 11;
                 this.color = team === 'player' ? '#4488ff' : '#ff4444';
+                this.displayHp = data.hp; // For smooth HP bar transition
 
                 this.applyFactionBonuses();
             }
@@ -1376,10 +1547,24 @@
                         target.pos.x, target.pos.y,
                         dmg, projType, this.team
                     ));
+                    if (this.classes.includes('siege')) {
+                        sfxSiegeFire();
+                        for (let i = 0; i < 3; i++) simulation.juiceEffects.push(new FireParticle(this.pos.x, this.pos.y));
+                    } else { sfxBowFire(); }
                     return { dmg, delayed: true, target };
                 }
 
                 target.takeDamage(dmg, simulation);
+                sfxSwordClash();
+                triggerShake(2);
+                simulation.juiceEffects.push(new CombatSpark(
+                    (this.pos.x + target.pos.x) / 2,
+                    (this.pos.y + target.pos.y) / 2
+                ));
+                simulation.juiceEffects.push(new DustCloud(
+                    (this.pos.x + target.pos.x) / 2,
+                    (this.pos.y + target.pos.y) / 2
+                ));
                 return { dmg, delayed: false };
             }
 
@@ -1390,6 +1575,9 @@
                     this.hp = 0;
                     this.state = 'dead';
                     simulation.deathEffects.push(new DeathEffect(this.pos.x, this.pos.y, this.type));
+                    sfxDeath();
+                    triggerShake(3);
+                    for (let i = 0; i < 2; i++) simulation.juiceEffects.push(new DustCloud(this.pos.x, this.pos.y));
                 }
             }
 
@@ -1451,11 +1639,12 @@
                 // Draw detailed unit sprite
                 UnitRenderer.drawUnit(ctx, this, this.pos.x, this.pos.y);
 
-                // Health bar
+                // Smooth health bar
+                this.displayHp += (this.hp - this.displayHp) * 0.15;
                 const barW = this.size * 2;
                 const barH = 3;
                 const barY = this.pos.y - this.size - 12;
-                const hpPct = this.hp / this.maxHp;
+                const hpPct = this.displayHp / this.maxHp;
 
                 ctx.fillStyle = '#222';
                 ctx.fillRect(this.pos.x - barW / 2 - 1, barY - 1, barW + 2, barH + 2);
@@ -1545,6 +1734,7 @@
                 this.projectiles = [];
                 this.damageNumbers = [];
                 this.deathEffects = [];
+                this.juiceEffects = [];
 
                 this.state = 'setup';
                 this.speed = 1;
@@ -1733,7 +1923,10 @@
                 this.projectiles = [];
                 this.damageNumbers = [];
                 this.deathEffects = [];
+                this.juiceEffects = [];
 
+                sfxHorn();
+                triggerShake(6);
                 document.getElementById('battle-stats').style.display = 'flex';
                 document.getElementById('btn-start').style.display = 'none';
                 document.getElementById('btn-pause').style.display = 'inline-block';
@@ -1794,6 +1987,13 @@
                             const dist = Math.sqrt((t.pos.x - p.tx) ** 2 + (t.pos.y - p.ty) ** 2);
                             if (dist < 20) {
                                 t.takeDamage(p.damage, this);
+                                if (p.type === 'stone' || p.type === 'cannonball') {
+                                    triggerShake(5);
+                                    for (let i = 0; i < 4; i++) this.juiceEffects.push(new FireParticle(p.tx, p.ty));
+                                    for (let i = 0; i < 2; i++) this.juiceEffects.push(new DustCloud(p.tx, p.ty));
+                                } else {
+                                    this.juiceEffects.push(new CombatSpark(p.tx, p.ty));
+                                }
                                 break;
                             }
                         }
@@ -1803,12 +2003,18 @@
 
                 this.damageNumbers = this.damageNumbers.filter(d => d.update(dt));
                 this.deathEffects = this.deathEffects.filter(e => e.update(dt));
+                this.juiceEffects = this.juiceEffects.filter(e => e.update(dt));
+                updateShake();
             }
 
             render() {
                 const ctx = this.ctx;
                 const w = this.canvas.width;
                 const h = this.canvas.height;
+
+                // Apply screen shake
+                ctx.save();
+                ctx.translate(juiceShake.x, juiceShake.y);
 
                 // Grass background
                 const gradient = ctx.createLinearGradient(0, 0, w, h);
@@ -1871,7 +2077,11 @@
 
                 // Draw effects
                 for (const e of this.deathEffects) e.draw(ctx);
+                for (const e of this.juiceEffects) e.draw(ctx);
                 for (const d of this.damageNumbers) d.draw(ctx);
+
+                // Restore shake transform
+                ctx.restore();
             }
 
             renderMinimap() {
@@ -1903,8 +2113,9 @@
             updateUI() {
                 const pa = this.playerUnits.filter(u => u.hp > 0).length;
                 const ea = this.enemyUnits.filter(u => u.hp > 0).length;
-                document.getElementById('player-units-count').textContent = pa;
-                document.getElementById('enemy-units-count').textContent = ea;
+                updateTweenedStats(pa, ea);
+                document.getElementById('player-units-count').textContent = Math.round(tweenedStats.playerCount);
+                document.getElementById('enemy-units-count').textContent = Math.round(tweenedStats.enemyCount);
 
                 const m = Math.floor(this.battleTime / 60);
                 const s = Math.floor(this.battleTime % 60);
@@ -1914,6 +2125,8 @@
 
             endBattle(victory) {
                 this.state = 'ended';
+                triggerShake(12);
+                sfxHorn();
                 const rc = document.getElementById('result-content');
                 rc.className = 'result-content ' + (victory ? 'victory' : 'defeat');
                 rc.querySelector('h2').textContent = victory ? 'SIEG!' : 'NIEDERLAGE';
@@ -1952,6 +2165,7 @@
                 this.projectiles = [];
                 this.damageNumbers = [];
                 this.deathEffects = [];
+                this.juiceEffects = [];
                 this.selectedUnits = [];
                 this.battleTime = 0;
 

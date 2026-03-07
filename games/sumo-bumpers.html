@@ -72,6 +72,18 @@
             box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
         }
 
+        .playerScore.score-bump {
+            animation: scoreBump 0.4s ease-out;
+        }
+
+        @keyframes scoreBump {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.35); }
+            50% { transform: scale(0.9); }
+            70% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
         #lobbyScreen {
             position: absolute;
             top: 0;
@@ -382,6 +394,210 @@
         let roundTransitionTimer = 0;
         let roundTransitionText = '';
         let arenaRotation = 0;
+        let ambientParticles = [];
+        let impactFlashes = [];
+        let forceLines = [];
+
+        // === SOUND SYNTHESIS ===
+        let audioCtx;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {}
+
+        function playSound(type, intensity) {
+            if (!audioCtx) return;
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const gain = audioCtx.createGain();
+                gain.connect(audioCtx.destination);
+
+                if (type === 'impact') {
+                    // Thud sound - pitch based on force
+                    const osc = audioCtx.createOscillator();
+                    const freq = 60 + intensity * 15;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+                    osc.connect(gain);
+                    gain.gain.setValueAtTime(Math.min(0.15, intensity * 0.02), now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+
+                    // Noise burst for impact texture
+                    const bufferSize = audioCtx.sampleRate * 0.05;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/bufferSize);
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = buffer;
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(Math.min(0.08, intensity * 0.01), now);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                    noise.connect(noiseGain);
+                    noiseGain.connect(audioCtx.destination);
+                    noise.start(now);
+                    noise.stop(now + 0.06);
+                } else if (type === 'ringout') {
+                    // Gong sound
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.8);
+                    osc.connect(gain);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+
+                    // Harmonic
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(440, now);
+                    osc2.frequency.exponentialRampToValueAtTime(220, now + 0.6);
+                    osc2.connect(gain2);
+                    gain2.connect(audioCtx.destination);
+                    gain2.gain.setValueAtTime(0.06, now);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                    osc2.start(now);
+                    osc2.stop(now + 0.6);
+                } else if (type === 'dash') {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                    osc.connect(gain);
+                    gain.gain.setValueAtTime(0.04, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'crowd') {
+                    // Crowd cheer - filtered noise
+                    const bufferSize = audioCtx.sampleRate * 0.6;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        const env = Math.sin(Math.PI * i / bufferSize);
+                        data[i] = (Math.random() * 2 - 1) * env * 0.3;
+                    }
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = buffer;
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = 800;
+                    filter.Q.value = 0.5;
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                    noise.start(now);
+                    noise.stop(now + 0.6);
+                } else if (type === 'roundStart') {
+                    for (let i = 0; i < 3; i++) {
+                        const osc = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(440 + i * 220, now + i * 0.12);
+                        osc.connect(g);
+                        g.connect(audioCtx.destination);
+                        g.gain.setValueAtTime(0.06, now + i * 0.12);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.2);
+                        osc.start(now + i * 0.12);
+                        osc.stop(now + i * 0.12 + 0.2);
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // === TWEEN HELPERS ===
+        function easeOutElastic(t) {
+            const c4 = (2 * Math.PI) / 3;
+            return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+        }
+
+        function easeOutBack(t) {
+            const c1 = 1.70158;
+            const c3 = c1 + 1;
+            return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+        }
+
+        // === AMBIENT PARTICLES ===
+        function initAmbientParticles() {
+            for (let i = 0; i < 30; i++) {
+                ambientParticles.push({
+                    x: Math.random() * CANVAS_WIDTH,
+                    y: Math.random() * CANVAS_HEIGHT,
+                    size: Math.random() * 2 + 0.5,
+                    speed: Math.random() * 0.3 + 0.1,
+                    alpha: Math.random() * 0.3 + 0.1,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+        initAmbientParticles();
+
+        // === IMPACT FLASH ===
+        class ImpactFlash {
+            constructor(x, y, radius, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.maxRadius = radius;
+                this.color = color;
+                this.life = 1;
+            }
+            update() {
+                this.life -= 0.08;
+                this.radius = this.maxRadius * (1 + (1 - this.life) * 0.5);
+            }
+            draw() {
+                if (this.life <= 0) return;
+                ctx.globalAlpha = this.life * 0.6;
+                const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, this.color);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // === FORCE LINE ===
+        class ForceLine {
+            constructor(x, y, angle, length) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.length = length;
+                this.life = 1;
+            }
+            update() {
+                this.life -= 0.06;
+            }
+            draw() {
+                if (this.life <= 0) return;
+                ctx.globalAlpha = this.life * 0.7;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2 * this.life;
+                ctx.beginPath();
+                const startDist = this.length * 0.3 * (1 - this.life);
+                ctx.moveTo(
+                    this.x + Math.cos(this.angle) * (startDist + 10),
+                    this.y + Math.sin(this.angle) * (startDist + 10)
+                );
+                ctx.lineTo(
+                    this.x + Math.cos(this.angle) * (this.length * this.life + 10),
+                    this.y + Math.sin(this.angle) * (this.length * this.life + 10)
+                );
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+        }
 
         class Player {
             constructor(id, color, controls) {
@@ -393,6 +609,7 @@
                 this.alive = true;
                 this.trailPositions = [];
                 this.hitFlash = 0;
+                this.indicatorPulse = 0;
             }
 
             reset() {
@@ -409,10 +626,13 @@
                 this.trailPositions = [];
                 this.hitFlash = 0;
                 this.scaleAnim = 0;
+                this.indicatorPulse = 0;
             }
 
             update() {
                 if (!this.alive) return;
+
+                this.indicatorPulse += 0.05;
 
                 const input = this.getInput();
 
@@ -432,13 +652,28 @@
                         this.dashCooldown = DASH_COOLDOWN;
                         this.createDashParticles();
                         addScreenShake(3);
+                        playSound('dash', 1);
                     }
+                }
+
+                // Dust clouds when moving on arena
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > 3 && Math.random() < 0.3) {
+                    particles.push(new Particle(
+                        this.x + (Math.random() - 0.5) * 10,
+                        this.y + this.radius,
+                        (Math.random() - 0.5) * 0.5,
+                        -Math.random() * 0.8,
+                        'rgba(180, 150, 100, 0.5)',
+                        20 + Math.random() * 10,
+                        2 + Math.random() * 2,
+                        true
+                    ));
                 }
 
                 this.vx *= FRICTION;
                 this.vy *= FRICTION;
 
-                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                 const maxSpeed = 15;
                 if (speed > maxSpeed) {
                     this.vx = (this.vx / speed) * maxSpeed;
@@ -470,7 +705,9 @@
                     if (distFromCenter > arenaRadius + this.radius) {
                         this.alive = false;
                         this.createDeathParticles();
-                        addScreenShake(8);
+                        addScreenShake(10);
+                        playSound('ringout', 1);
+                        playSound('crowd', 1);
                         return;
                     }
 
@@ -539,32 +776,35 @@
             }
 
             createDeathParticles() {
-                for (let i = 0; i < 40; i++) {
-                    const angle = (Math.PI * 2 * i) / 40;
-                    const speed = 3 + Math.random() * 5;
+                // Ring-out burst
+                for (let i = 0; i < 50; i++) {
+                    const angle = (Math.PI * 2 * i) / 50;
+                    const speed = 3 + Math.random() * 6;
                     particles.push(new Particle(
                         this.x,
                         this.y,
                         Math.cos(angle) * speed,
                         Math.sin(angle) * speed,
                         i % 2 === 0 ? this.color.main : this.color.light,
-                        40 + Math.random() * 20,
+                        50 + Math.random() * 25,
                         2 + Math.random() * 4
                     ));
                 }
                 // Ring burst
-                for (let i = 0; i < 20; i++) {
-                    const angle = (Math.PI * 2 * i) / 20;
+                for (let i = 0; i < 24; i++) {
+                    const angle = (Math.PI * 2 * i) / 24;
                     particles.push(new Particle(
                         this.x + Math.cos(angle) * this.radius,
                         this.y + Math.sin(angle) * this.radius,
-                        Math.cos(angle) * 2,
-                        Math.sin(angle) * 2,
+                        Math.cos(angle) * 3,
+                        Math.sin(angle) * 3,
                         '#ffffff',
-                        20,
-                        1.5
+                        25,
+                        2
                     ));
                 }
+                // Impact flash at death position
+                impactFlashes.push(new ImpactFlash(this.x, this.y, 60, this.color.main));
             }
 
             draw() {
@@ -599,6 +839,17 @@
                     ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
                     ctx.fill();
                 }
+
+                // Pulsing indicator ring
+                const indicatorAlpha = 0.15 + Math.sin(this.indicatorPulse) * 0.1;
+                ctx.strokeStyle = this.color.main;
+                ctx.globalAlpha = indicatorAlpha;
+                ctx.lineWidth = 2;
+                const indicatorRadius = this.radius + 10 + Math.sin(this.indicatorPulse) * 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, indicatorRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
 
                 // Shadow
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -673,7 +924,7 @@
         }
 
         class Particle {
-            constructor(x, y, vx, vy, color, life, size = 3) {
+            constructor(x, y, vx, vy, color, life, size = 3, isDust = false) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
@@ -682,19 +933,25 @@
                 this.life = life;
                 this.maxLife = life;
                 this.size = size;
+                this.isDust = isDust;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vy += 0.15;
+                if (!this.isDust) {
+                    this.vy += 0.15;
+                } else {
+                    this.vy -= 0.02;
+                    this.vx *= 0.96;
+                }
                 this.vx *= 0.98;
                 this.life--;
             }
 
             draw() {
                 const alpha = this.life / this.maxLife;
-                const size = this.size * alpha;
+                const size = this.size * (this.isDust ? (0.5 + alpha * 0.5) : alpha);
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
@@ -725,6 +982,8 @@
 
         function handleKeyDown(e) {
             keys[e.key] = true;
+            // Resume audio on first interaction
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         }
 
         function handleKeyUp(e) {
@@ -793,23 +1052,41 @@
                         p1.scaleAnim = Math.min(1, impactSpeed * 0.1);
                         p2.scaleAnim = Math.min(1, impactSpeed * 0.1);
 
-                        // Collision particles
-                        const numParticles = Math.min(20, Math.floor(impactSpeed * 2));
+                        // Impact flash
+                        if (impactSpeed > 3) {
+                            impactFlashes.push(new ImpactFlash(impactX, impactY, 15 + impactSpeed * 3, '#ffffff'));
+                        }
+
+                        // Force lines on collision
+                        if (impactSpeed > 4) {
+                            const numLines = Math.min(6, Math.floor(impactSpeed));
+                            for (let k = 0; k < numLines; k++) {
+                                const lineAngle = angle + (Math.random() - 0.5) * 1.5;
+                                forceLines.push(new ForceLine(impactX, impactY, lineAngle, 20 + impactSpeed * 5));
+                                forceLines.push(new ForceLine(impactX, impactY, lineAngle + Math.PI, 20 + impactSpeed * 5));
+                            }
+                        }
+
+                        // Impact sparks
+                        const numParticles = Math.min(25, Math.floor(impactSpeed * 2.5));
                         for (let k = 0; k < numParticles; k++) {
                             const pAngle = Math.random() * Math.PI * 2;
-                            const pSpeed = Math.random() * impactSpeed * 0.5 + 1;
+                            const pSpeed = Math.random() * impactSpeed * 0.6 + 1;
+                            const sparkColor = k % 4 === 0 ? '#ffdd44' : (k % 3 === 0 ? '#ffffff' : (k % 2 === 0 ? p1.color.light : p2.color.light));
                             particles.push(new Particle(
                                 impactX,
                                 impactY,
                                 Math.cos(pAngle) * pSpeed,
                                 Math.sin(pAngle) * pSpeed,
-                                k % 3 === 0 ? '#ffffff' : (k % 2 === 0 ? p1.color.light : p2.color.light),
+                                sparkColor,
                                 15 + Math.random() * 10,
                                 1.5 + Math.random() * 2
                             ));
                         }
 
-                        addScreenShake(Math.min(6, impactSpeed * 0.5));
+                        // Sound based on force
+                        playSound('impact', impactSpeed);
+                        addScreenShake(Math.min(8, impactSpeed * 0.6));
                     }
                 }
             }
@@ -822,26 +1099,40 @@
             // Background
             const bgGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, CANVAS_WIDTH * 0.6);
             bgGrad.addColorStop(0, '#c9e6f7');
-            bgGrad.addColorStop(1, '#87a5be');
+            bgGrad.addColorStop(1, '#6b8fa8');
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+            // Ambient particles
+            ambientParticles.forEach(p => {
+                p.y -= p.speed;
+                p.x += Math.sin(p.phase + Date.now() * 0.001) * 0.3;
+                if (p.y < -10) { p.y = CANVAS_HEIGHT + 10; p.x = Math.random() * CANVAS_WIDTH; }
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+
             // Abyss around arena
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             ctx.beginPath();
-            ctx.arc(centerX, centerY + 15, arenaRadius + 30, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY + 15, arenaRadius + 35, 0, Math.PI * 2);
             ctx.fill();
 
             // Shadow under arena
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.beginPath();
-            ctx.ellipse(centerX, centerY + 20, arenaRadius + 5, arenaRadius * 0.95, 0, 0, Math.PI * 2);
+            ctx.ellipse(centerX, centerY + 22, arenaRadius + 8, arenaRadius * 0.95, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Arena main body
-            const arenaGradient = ctx.createRadialGradient(centerX - 30, centerY - 30, 0, centerX, centerY, arenaRadius);
-            arenaGradient.addColorStop(0, '#fff7e0');
-            arenaGradient.addColorStop(0.5, '#fde68a');
+            // Arena main body with improved gradient
+            const arenaGradient = ctx.createRadialGradient(centerX - 40, centerY - 40, 0, centerX, centerY, arenaRadius);
+            arenaGradient.addColorStop(0, '#fffbe6');
+            arenaGradient.addColorStop(0.3, '#fef3c7');
+            arenaGradient.addColorStop(0.6, '#fde68a');
             arenaGradient.addColorStop(0.85, '#f59e0b');
             arenaGradient.addColorStop(1, '#d97706');
             ctx.fillStyle = arenaGradient;
@@ -849,15 +1140,30 @@
             ctx.arc(centerX, centerY, arenaRadius, 0, Math.PI * 2);
             ctx.fill();
 
-            // Border
+            // Subtle sand texture
+            ctx.globalAlpha = 0.03;
+            for (let i = 0; i < 200; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const r = Math.random() * arenaRadius * 0.95;
+                const sx = centerX + Math.cos(a) * r;
+                const sy = centerY + Math.sin(a) * r;
+                ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
+                ctx.fillRect(sx, sy, 2, 2);
+            }
+            ctx.globalAlpha = 1;
+
+            // Border with glow
+            ctx.shadowColor = 'rgba(146, 64, 14, 0.4)';
+            ctx.shadowBlur = 15;
             ctx.strokeStyle = '#92400e';
             ctx.lineWidth = 6;
             ctx.beginPath();
             ctx.arc(centerX, centerY, arenaRadius, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.shadowBlur = 0;
 
             // Inner decorative rings
-            ctx.strokeStyle = 'rgba(146, 64, 14, 0.15)';
+            ctx.strokeStyle = 'rgba(146, 64, 14, 0.12)';
             ctx.lineWidth = 2;
             for (let i = 0; i < 3; i++) {
                 ctx.beginPath();
@@ -889,7 +1195,15 @@
                 ctx.stroke();
             }
 
-            // Center emblem
+            // Center emblem with glow
+            const emblemGlow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 30);
+            emblemGlow.addColorStop(0, 'rgba(146, 64, 14, 0.2)');
+            emblemGlow.addColorStop(1, 'rgba(146, 64, 14, 0)');
+            ctx.fillStyle = emblemGlow;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
+            ctx.fill();
+
             ctx.fillStyle = 'rgba(146, 64, 14, 0.15)';
             ctx.beginPath();
             ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
@@ -900,14 +1214,14 @@
             for (let i = 0; i < 120; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 12 + 4;
-                const colors = [color, '#fbbf24', '#ffffff', '#f59e0b'];
+                const colors = [color, '#fbbf24', '#ffffff', '#f59e0b', '#ef4444', '#3b82f6'];
                 particles.push(new Particle(
                     CANVAS_WIDTH / 2,
                     CANVAS_HEIGHT / 2,
                     Math.cos(angle) * speed,
                     Math.sin(angle) * speed - 8,
                     colors[Math.floor(Math.random() * colors.length)],
-                    60 + Math.random() * 30,
+                    70 + Math.random() * 40,
                     2 + Math.random() * 3
                 ));
             }
@@ -975,6 +1289,7 @@
             updateScoreBoard();
             updateRoundInfo();
             showRoundTransition('ROUND 1');
+            playSound('roundStart', 1);
         }
 
         function showRoundTransition(text) {
@@ -1000,6 +1315,15 @@
             });
         }
 
+        function animateScoreBump() {
+            const scores = document.querySelectorAll('.playerScore');
+            scores.forEach(s => {
+                s.classList.remove('score-bump');
+                void s.offsetWidth; // trigger reflow
+                s.classList.add('score-bump');
+            });
+        }
+
         function updateRoundInfo() {
             document.getElementById('roundInfo').textContent = `Round ${currentRound}/${MAX_ROUNDS}`;
         }
@@ -1011,9 +1335,11 @@
                 if (alivePlayers.length === 1) {
                     alivePlayers[0].score++;
                     createConfetti(alivePlayers[0].color.main);
+                    playSound('crowd', 1);
                 }
 
                 updateScoreBoard();
+                animateScoreBump();
 
                 setTimeout(() => {
                     if (currentRound >= MAX_ROUNDS) {
@@ -1033,6 +1359,7 @@
             players.forEach(p => p.reset());
             updateRoundInfo();
             showRoundTransition(`ROUND ${currentRound}`);
+            playSound('roundStart', 1);
             gameState = 'playing';
         }
 
@@ -1090,6 +1417,16 @@
                 return p.life > 0;
             });
 
+            impactFlashes = impactFlashes.filter(f => {
+                f.update();
+                return f.life > 0;
+            });
+
+            forceLines = forceLines.filter(f => {
+                f.update();
+                return f.life > 0;
+            });
+
             updateScreenShake();
 
             if (roundTransitionTimer > 0) {
@@ -1105,23 +1442,55 @@
 
             ctx.clearRect(-10, -10, CANVAS_WIDTH + 20, CANVAS_HEIGHT + 20);
             drawArena();
+
+            // Draw force lines behind players
+            forceLines.forEach(f => f.draw());
+
             particles.forEach(p => p.draw());
+
+            // Draw impact flashes
+            impactFlashes.forEach(f => f.draw());
+
             players.forEach(p => p.draw());
 
-            // Round transition text
+            // Round transition text with elastic tween
             if (roundTransitionTimer > 0) {
-                const alpha = roundTransitionTimer > 60 ? 1 : roundTransitionTimer / 60;
-                const scale = roundTransitionTimer > 70 ? 1 + (roundTransitionTimer - 70) * 0.05 : 1;
+                const totalFrames = 90;
+                const progress = 1 - (roundTransitionTimer / totalFrames);
+                let alpha, scale, yOffset;
+
+                if (roundTransitionTimer > 60) {
+                    // Slide in phase with elastic
+                    const slideProgress = (totalFrames - roundTransitionTimer) / 30;
+                    const elasticVal = easeOutElastic(Math.min(1, slideProgress));
+                    scale = elasticVal;
+                    alpha = Math.min(1, slideProgress * 2);
+                    yOffset = (1 - elasticVal) * -80;
+                } else {
+                    // Hold then fade
+                    alpha = roundTransitionTimer / 60;
+                    scale = 1;
+                    yOffset = 0;
+                }
+
                 ctx.save();
                 ctx.globalAlpha = alpha;
                 ctx.font = `bold ${48 * scale}px Arial Black`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+
+                // Text glow
+                ctx.shadowColor = 'rgba(251, 191, 36, 0.6)';
+                ctx.shadowBlur = 20;
                 ctx.fillStyle = '#fbbf24';
-                ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.shadowBlur = 10;
-                ctx.fillText(roundTransitionText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+                ctx.fillText(roundTransitionText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + yOffset);
+
+                // Outline
                 ctx.shadowBlur = 0;
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(roundTransitionText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + yOffset);
+
                 ctx.restore();
             }
 

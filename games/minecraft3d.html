@@ -240,6 +240,33 @@
             opacity: 0;
             transition: opacity 0.15s;
         }
+
+        #particleOverlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 450;
+        }
+
+        /* Footstep indicator */
+        .step-indicator {
+            position: absolute;
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+            z-index: 500;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        .step-indicator.active {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -281,6 +308,8 @@
             </div>
             
             <div id="blockBreakEffect"></div>
+            <canvas id="particleOverlay"></canvas>
+            <div class="step-indicator" id="stepIndicator"></div>
 
             <div id="debug">
                 <div>Debug Info:</div>
@@ -345,6 +374,170 @@
                 });
                 this.listeners = [];
             }
+        }
+
+        // ============================================
+        // WEB AUDIO - Minecraft Sound Engine
+        // ============================================
+        class McSoundEngine {
+            constructor() { this.ctx = null; this.initialized = false; this.stepTimer = 0; }
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch(e) {}
+            }
+            blockBreak() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                // Crunchy break sound
+                for (let i = 0; i < 3; i++) {
+                    const o = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    o.type = 'square';
+                    o.frequency.setValueAtTime(150 + Math.random() * 200, now + i * 0.03);
+                    o.frequency.exponentialRampToValueAtTime(50, now + i * 0.03 + 0.08);
+                    g.gain.setValueAtTime(0.08, now + i * 0.03);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.03 + 0.1);
+                    o.connect(g).connect(this.ctx.destination);
+                    o.start(now + i * 0.03); o.stop(now + i * 0.03 + 0.12);
+                }
+            }
+            blockPlace() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(200, now);
+                o.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+                g.gain.setValueAtTime(0.07, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(now); o.stop(now + 0.15);
+            }
+            footstep() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'sine';
+                o.frequency.value = 80 + Math.random() * 40;
+                g.gain.setValueAtTime(0.03, now);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(now); o.stop(now + 0.08);
+            }
+        }
+        const mcSound = new McSoundEngine();
+        document.addEventListener('click', () => mcSound.init(), { once: true });
+
+        // ============================================
+        // 2D PARTICLE OVERLAY
+        // ============================================
+        const mcParticles = [];
+        let pOverlay, pOCtx;
+
+        class McParticle {
+            constructor(x, y, color, opts = {}) {
+                this.x = x; this.y = y;
+                this.vx = (opts.vx || 0) + (Math.random() - 0.5) * (opts.spread || 8);
+                this.vy = (opts.vy || 0) + (Math.random() - 0.5) * (opts.spread || 8);
+                this.color = color;
+                this.life = opts.life || 40;
+                this.maxLife = this.life;
+                this.size = opts.size || (Math.random() * 4 + 2);
+                this.gravity = opts.gravity || 0.15;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.3;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vy += this.gravity;
+                this.vx *= 0.98; this.vy *= 0.98;
+                this.rotation += this.rotSpeed;
+                this.life--;
+                return this.life > 0;
+            }
+            draw(ctx) {
+                const a = this.life / this.maxLife;
+                ctx.save();
+                ctx.globalAlpha = a;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = this.color;
+                // Draw as small square (block fragment)
+                const s = this.size * a;
+                ctx.fillRect(-s/2, -s/2, s, s);
+                ctx.restore();
+            }
+        }
+
+        function spawnBlockParticles(color) {
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            for (let i = 0; i < 12; i++) {
+                mcParticles.push(new McParticle(cx, cy, color, {
+                    spread: 10, life: 30 + Math.random() * 20,
+                    size: Math.random() * 5 + 2, gravity: 0.2
+                }));
+            }
+        }
+
+        function animateMcParticles() {
+            if (!pOCtx) {
+                pOverlay = document.getElementById('particleOverlay');
+                if (pOverlay) {
+                    pOverlay.width = window.innerWidth;
+                    pOverlay.height = window.innerHeight;
+                    pOCtx = pOverlay.getContext('2d');
+                }
+            }
+            if (pOCtx) {
+                pOCtx.clearRect(0, 0, pOverlay.width, pOverlay.height);
+                for (let i = mcParticles.length - 1; i >= 0; i--) {
+                    mcParticles[i].draw(pOCtx);
+                    if (!mcParticles[i].update()) mcParticles.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(animateMcParticles);
+        }
+        animateMcParticles();
+        window.addEventListener('resize', () => {
+            if (pOverlay) {
+                pOverlay.width = window.innerWidth;
+                pOverlay.height = window.innerHeight;
+            }
+        });
+
+        // ============================================
+        // SCREEN SHAKE
+        // ============================================
+        let mcShake = 0;
+        function mcScreenShake(intensity) { mcShake = intensity; }
+        function updateMcShake() {
+            if (mcShake > 0.3) {
+                const cv = document.getElementById('gameCanvas');
+                if (cv) cv.style.transform = `translate(${(Math.random()-0.5)*mcShake}px, ${(Math.random()-0.5)*mcShake}px)`;
+                mcShake *= 0.88;
+            } else {
+                const cv = document.getElementById('gameCanvas');
+                if (cv) cv.style.transform = '';
+                mcShake = 0;
+            }
+            requestAnimationFrame(updateMcShake);
+        }
+        updateMcShake();
+
+        // Block color to CSS color mapping
+        function blockColorToCSS(blockType) {
+            const colors = {
+                1: '#996633', 2: '#33cc33', 3: '#b3b3b3',
+                4: '#994d1a', 5: '#3366cc', 6: '#e6cc66',
+                7: '#cc3333', 8: '#9999cc', 9: '#1a1a33'
+            };
+            return colors[blockType] || '#ffffff';
         }
 
         // Game constants
@@ -987,6 +1180,11 @@
                     // Visual break effect
                     this.showBreakEffect(BLOCK_TEXTURES[blockType] || '?');
 
+                    // Juice effects
+                    mcSound.blockBreak();
+                    mcScreenShake(4);
+                    spawnBlockParticles(blockColorToCSS(blockType));
+
                     this.createMesh();
                 }
             }
@@ -1006,7 +1204,7 @@
             placeBlock() {
                 const selectedBlockType = this.player.inventory[this.player.selectedSlot];
                 if (selectedBlockType === BLOCKS.AIR) return;
-                
+
                 const position = this.getPlacementPosition();
                 if (position && this.isValidPlacement(position)) {
                     this.world[position.x][position.y][position.z] = selectedBlockType;
@@ -1018,6 +1216,18 @@
                     // Stats
                     this.blocksPlaced++;
                     safeSetItem('minecraft3d_blocksPlaced', this.blocksPlaced.toString());
+
+                    // Juice effects
+                    mcSound.blockPlace();
+                    mcScreenShake(2);
+                    // Small placement sparkle
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    for (let i = 0; i < 6; i++) {
+                        mcParticles.push(new McParticle(cx, cy, '#ffffff', {
+                            spread: 5, life: 15, size: 2, gravity: 0.05
+                        }));
+                    }
 
                     this.createMesh();
                 }
@@ -1123,9 +1333,21 @@
                 }
                 
                 // Apply movement
+                const isMoving = (velocity.x !== 0 || velocity.z !== 0);
                 this.camera.x += velocity.x * moveSpeed;
                 this.camera.y += velocity.y * moveSpeed;
                 this.camera.z += velocity.z * moveSpeed;
+
+                // Footstep sound & indicator
+                if (isMoving) {
+                    mcSound.stepTimer = (mcSound.stepTimer || 0) + deltaTime;
+                    if (mcSound.stepTimer > 0.35) {
+                        mcSound.stepTimer = 0;
+                        mcSound.footstep();
+                        const si = document.getElementById('stepIndicator');
+                        if (si) { si.classList.add('active'); setTimeout(() => si.classList.remove('active'), 100); }
+                    }
+                }
                 
                 // Keep player in bounds
                 this.camera.x = Math.max(0.5, Math.min(WORLD_SIZE - 0.5, this.camera.x));

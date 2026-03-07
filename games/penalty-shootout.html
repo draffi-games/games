@@ -77,11 +77,11 @@
             color: var(--neon-green);
             font-weight: bold;
             font-size: 18px;
-            transition: transform 0.2s;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .stat-value.bump {
-            transform: scale(1.4);
+            transform: scale(1.5);
         }
 
         .game-container {
@@ -317,6 +317,13 @@
             border: 2px solid var(--neon-yellow);
         }
 
+        .message.crossbar {
+            color: #ff8c00;
+            text-shadow: 0 0 20px #ff8c00;
+            background: rgba(255, 140, 0, 0.1);
+            border: 2px solid #ff8c00;
+        }
+
         .round-info {
             position: absolute;
             bottom: 70px;
@@ -445,6 +452,203 @@
         canvas.width = 900;
         canvas.height = 700;
 
+        // === SCREEN SHAKE ===
+        let screenShake = { x: 0, y: 0, intensity: 0 };
+        function addScreenShake(intensity) {
+            screenShake.intensity = Math.max(screenShake.intensity, intensity);
+        }
+        function updateScreenShake() {
+            if (screenShake.intensity > 0) {
+                screenShake.x = (Math.random() - 0.5) * screenShake.intensity * 2;
+                screenShake.y = (Math.random() - 0.5) * screenShake.intensity * 2;
+                screenShake.intensity *= 0.82;
+                if (screenShake.intensity < 0.5) {
+                    screenShake.intensity = 0;
+                    screenShake.x = 0;
+                    screenShake.y = 0;
+                }
+            }
+        }
+
+        // === SOUND SYNTHESIS ===
+        let audioContext;
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {}
+
+        function playSound(type, param) {
+            if (!audioContext) return;
+            try {
+                if (audioContext.state === 'suspended') audioContext.resume();
+                const now = audioContext.currentTime;
+
+                if (type === 'kick') {
+                    // Kick sound with thump
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200 + param * 100, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+
+                    // Impact noise
+                    const buf = audioContext.createBuffer(1, audioContext.sampleRate * 0.04, audioContext.sampleRate);
+                    const d = buf.getChannelData(0);
+                    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                    const ns = audioContext.createBufferSource();
+                    ns.buffer = buf;
+                    const ng = audioContext.createGain();
+                    ng.gain.setValueAtTime(0.08, now);
+                    ng.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                    ns.connect(ng);
+                    ng.connect(audioContext.destination);
+                    ns.start(now);
+                    ns.stop(now + 0.04);
+                } else if (type === 'net') {
+                    // Net swish
+                    const buf = audioContext.createBuffer(1, audioContext.sampleRate * 0.2, audioContext.sampleRate);
+                    const d = buf.getChannelData(0);
+                    for (let i = 0; i < d.length; i++) {
+                        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2) * 0.3;
+                    }
+                    const ns = audioContext.createBufferSource();
+                    ns.buffer = buf;
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.value = 2000;
+                    const gain = audioContext.createGain();
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    ns.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+                    ns.start(now);
+                    ns.stop(now + 0.2);
+                } else if (type === 'save') {
+                    // Save thud
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'crossbar') {
+                    // Metallic ping
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1200, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.5);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                    // Harmonic
+                    const osc2 = audioContext.createOscillator();
+                    const g2 = audioContext.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(2400, now);
+                    osc2.connect(g2);
+                    g2.connect(audioContext.destination);
+                    g2.gain.setValueAtTime(0.04, now);
+                    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc2.start(now);
+                    osc2.stop(now + 0.3);
+                } else if (type === 'crowd') {
+                    // Crowd roar
+                    const duration = param || 0.8;
+                    const buf = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
+                    const d = buf.getChannelData(0);
+                    for (let i = 0; i < d.length; i++) {
+                        const env = Math.sin(Math.PI * i / d.length);
+                        d[i] = (Math.random() * 2 - 1) * env * 0.4;
+                    }
+                    const ns = audioContext.createBufferSource();
+                    ns.buffer = buf;
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = 600;
+                    filter.Q.value = 0.4;
+                    const gain = audioContext.createGain();
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    ns.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+                    ns.start(now);
+                    ns.stop(now + duration);
+                } else if (type === 'whistle') {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(900, now);
+                    osc.frequency.setValueAtTime(1100, now + 0.1);
+                    osc.frequency.setValueAtTime(900, now + 0.2);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'goalCheer') {
+                    // Rising tone celebration
+                    for (let i = 0; i < 3; i++) {
+                        const osc = audioContext.createOscillator();
+                        const g = audioContext.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(400 + i * 200, now + i * 0.1);
+                        osc.connect(g);
+                        g.connect(audioContext.destination);
+                        g.gain.setValueAtTime(0.06, now + i * 0.1);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.25);
+                        osc.start(now + i * 0.1);
+                        osc.stop(now + i * 0.1 + 0.25);
+                    }
+                } else if (type === 'miss') {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    gain.gain.setValueAtTime(0.04, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'aim') {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    gain.gain.setValueAtTime(0.04, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                }
+            } catch (e) {}
+        }
+
+        // === TWEEN HELPERS ===
+        function easeOutElastic(t) {
+            const c4 = (2 * Math.PI) / 3;
+            return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+        }
+
         let gameState = {
             difficulty: 'medium',
             score: 0,
@@ -465,7 +669,12 @@
             crowdCheer: 0,
             shotChecked: false,
             aimIndicator: null,
-            running: false
+            running: false,
+            netRipples: [],
+            grassParticles: [],
+            confetti: [],
+            spotlightAngle: 0,
+            messageAnim: { scale: 0, targetScale: 0 }
         };
 
         const difficulties = {
@@ -474,35 +683,12 @@
             hard: { speed: 0.35, reactionTime: 0.12, prediction: 0.85, coverage: 0.9 }
         };
 
-        let audioContext;
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            // Audio not available
-        }
-
-        function playSound(frequency, duration, type = 'sine') {
-            if (!audioContext) return;
-            try {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-                oscillator.type = type;
-                gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + duration);
-            } catch (e) {
-                // Sound failed silently
-            }
-        }
-
         function bumpStat(id) {
             const el = document.getElementById(id);
+            el.classList.remove('bump');
+            void el.offsetWidth;
             el.classList.add('bump');
-            setTimeout(() => el.classList.remove('bump'), 200);
+            setTimeout(() => el.classList.remove('bump'), 300);
         }
 
         function startGame(difficulty) {
@@ -517,14 +703,15 @@
 
         function initCrowd() {
             gameState.crowd = [];
-            for (let i = 0; i < 120; i++) {
+            for (let i = 0; i < 150; i++) {
                 gameState.crowd.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * 180 + 20,
                     size: Math.random() * 3 + 2,
-                    color: ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c'][Math.floor(Math.random() * 4)],
+                    color: ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#cc5de8', '#ff922b'][Math.floor(Math.random() * 6)],
                     phase: Math.random() * Math.PI * 2,
-                    speed: 0.03 + Math.random() * 0.02
+                    speed: 0.03 + Math.random() * 0.02,
+                    armPhase: Math.random() * Math.PI * 2
                 });
             }
         }
@@ -537,13 +724,16 @@
             gameState.powerDirection = 1;
             gameState.shotChecked = false;
             gameState.aimIndicator = null;
+            gameState.netRipples = [];
+            gameState.confetti = [];
             gameState.ball = {
                 x: canvas.width / 2,
                 y: canvas.height - 120,
                 vx: 0, vy: 0,
                 z: 0, vz: 0,
                 radius: 18,
-                rotation: 0
+                rotation: 0,
+                spin: 0
             };
             gameState.goalkeeper = {
                 x: canvas.width / 2,
@@ -578,7 +768,7 @@
                     gameState.targetY = y;
                     gameState.phase = 'power';
                     document.getElementById('powerContainer').classList.add('active');
-                    playSound(800, 0.1);
+                    playSound('aim');
                 }
             } else if (gameState.phase === 'power') {
                 shootBall();
@@ -596,7 +786,6 @@
         });
 
         eventManager.add(canvas, 'click', (e) => {
-            // Resume audio context on first click
             if (audioContext && audioContext.state === 'suspended') {
                 audioContext.resume();
             }
@@ -645,6 +834,22 @@
             gameState.ball.vx = (dx / distance) * speed + accuracyBonus * 0.3;
             gameState.ball.vy = (dy / distance) * speed;
             gameState.ball.vz = 12 + gameState.power * 8;
+            gameState.ball.spin = (Math.random() - 0.5) * 0.4;
+
+            // Grass particles on kick
+            for (let i = 0; i < 20; i++) {
+                const angle = Math.random() * Math.PI - Math.PI;
+                const spd = Math.random() * 4 + 1;
+                gameState.grassParticles.push({
+                    x: gameState.ball.x + (Math.random() - 0.5) * 20,
+                    y: gameState.ball.y + 10,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd - 2,
+                    size: Math.random() * 3 + 1,
+                    color: Math.random() > 0.5 ? '#2d7a3e' : '#3da550',
+                    life: 1
+                });
+            }
 
             // AI goalkeeper
             const difficulty = difficulties[gameState.difficulty];
@@ -661,14 +866,17 @@
                 gk.diving = true;
                 gk.diveDirection = gk.targetX > gk.x ? 1 : -1;
 
-                playSound(400, 0.2);
             }, difficulty.reactionTime * 1000);
 
-            playSound(600, 0.3, 'square');
+            playSound('kick', gameState.power);
+            playSound('whistle');
+            addScreenShake(3);
         }
 
         function update() {
             updatePowerBar();
+            updateScreenShake();
+            gameState.spotlightAngle += 0.02;
 
             if (gameState.phase === 'shooting') {
                 // Update ball
@@ -676,17 +884,17 @@
                 gameState.ball.y += gameState.ball.vy;
                 gameState.ball.z += gameState.ball.vz;
                 gameState.ball.vz -= 0.6;
-                gameState.ball.rotation += 0.2;
+                gameState.ball.rotation += gameState.ball.spin || 0.2;
 
                 // Trail particles
-                if (gameState.ball.z > 0 && Math.random() > 0.5) {
+                if (gameState.ball.z > 0 && Math.random() > 0.3) {
                     gameState.particles.push({
                         x: gameState.ball.x + (Math.random() - 0.5) * 5,
                         y: gameState.ball.y - gameState.ball.z + (Math.random() - 0.5) * 5,
-                        vx: 0, vy: 0,
-                        color: 'rgba(255,255,255,0.4)',
-                        life: 0.5,
-                        size: 3
+                        vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+                        color: 'rgba(255,255,255,0.5)',
+                        life: 0.6,
+                        size: 2 + Math.random() * 2
                     });
                 }
 
@@ -721,9 +929,10 @@
             }
 
             // Update crowd
-            gameState.crowdCheer = Math.max(0, gameState.crowdCheer - 0.015);
+            gameState.crowdCheer = Math.max(0, gameState.crowdCheer - 0.012);
             gameState.crowd.forEach(person => {
                 person.phase += person.speed + gameState.crowdCheer * 0.15;
+                person.armPhase += person.speed * 1.5;
             });
 
             // Update particles
@@ -734,6 +943,34 @@
                 p.life -= 0.015;
                 return p.life > 0;
             });
+
+            // Update grass particles
+            gameState.grassParticles = gameState.grassParticles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.1;
+                p.vx *= 0.98;
+                p.life -= 0.02;
+                return p.life > 0;
+            });
+
+            // Update net ripples
+            gameState.netRipples = gameState.netRipples.filter(r => {
+                r.radius += 2;
+                r.life -= 0.025;
+                return r.life > 0;
+            });
+
+            // Update confetti
+            gameState.confetti = gameState.confetti.filter(c => {
+                c.x += c.vx;
+                c.y += c.vy;
+                c.vy += 0.08;
+                c.vx *= 0.99;
+                c.rotation += c.rotSpeed;
+                c.life -= 0.008;
+                return c.life > 0;
+            });
         }
 
         function checkGoal() {
@@ -743,10 +980,32 @@
             const inGoalX = ball.x > 220 && ball.x < 680;
             const inGoalY = ball.y > 80 && ball.y < 400;
 
+            // Check crossbar hit (near top of goal)
+            const nearCrossbar = ball.y > 70 && ball.y < 100 && inGoalX;
+            const nearPost = (Math.abs(ball.x - 220) < 20 || Math.abs(ball.x - 680) < 20) && inGoalY;
+
+            if (nearCrossbar || nearPost) {
+                showMessage('CROSSBAR!', 'crossbar');
+                gameState.streak = 0;
+                playSound('crossbar');
+                addScreenShake(12);
+                updateStats();
+                gameState.crowdCheer = 0.7;
+
+                // Crossbar sparks
+                createParticles(ball.x, ball.y, '#ff8c00', 25);
+                createParticles(ball.x, ball.y, '#ffffff', 10);
+
+                // Bounce ball away
+                ball.vy = Math.abs(ball.vy) * 0.5;
+                ball.vz = 8;
+                return;
+            }
+
             if (!inGoalX || !inGoalY) {
                 showMessage('WIDE!', 'miss');
                 gameState.streak = 0;
-                playSound(200, 0.5, 'sawtooth');
+                playSound('miss');
                 updateStats();
                 return;
             }
@@ -765,12 +1024,13 @@
             if (ballHitsGK) {
                 showMessage('SAVED!', 'save');
                 gameState.streak = 0;
-                playSound(300, 0.3, 'square');
+                playSound('save');
+                addScreenShake(5);
                 updateStats();
                 gameState.crowdCheer = 0.5;
 
                 // Save particles
-                createParticles(ball.x, ball.y, '#ffed4e', 15);
+                createParticles(ball.x, ball.y, '#ffed4e', 20);
             } else {
                 // GOAL!
                 gameState.goals++;
@@ -788,11 +1048,42 @@
                 }
 
                 showMessage(`GOAL! +${points}`, 'goal');
-                createParticles(ball.x, ball.y, '#00ff41', 30);
-                createParticles(ball.x, ball.y, '#ffd43b', 20);
-                playSound(800, 0.2);
-                setTimeout(() => playSound(1000, 0.2), 100);
-                setTimeout(() => playSound(1200, 0.3), 200);
+
+                // Net ripple effect
+                for (let i = 0; i < 5; i++) {
+                    gameState.netRipples.push({
+                        x: ball.x,
+                        y: ball.y,
+                        radius: 5 + i * 3,
+                        life: 1 - i * 0.1
+                    });
+                }
+
+                // Goal particles
+                createParticles(ball.x, ball.y, '#00ff41', 35);
+                createParticles(ball.x, ball.y, '#ffd43b', 25);
+
+                // Confetti on goal
+                for (let i = 0; i < 60; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 6 + 2;
+                    gameState.confetti.push({
+                        x: ball.x,
+                        y: ball.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 4,
+                        color: ['#00ff41', '#ffd43b', '#ff073a', '#00d4ff', '#ffffff'][Math.floor(Math.random() * 5)],
+                        life: 1,
+                        size: Math.random() * 4 + 2,
+                        rotation: Math.random() * Math.PI * 2,
+                        rotSpeed: (Math.random() - 0.5) * 0.2
+                    });
+                }
+
+                playSound('goalCheer');
+                playSound('net');
+                playSound('crowd', 1.2);
+                addScreenShake(7);
                 updateStats();
                 gameState.crowdCheer = 1.0;
                 bumpStat('score');
@@ -835,6 +1126,9 @@
         }
 
         function draw() {
+            ctx.save();
+            ctx.translate(screenShake.x, screenShake.y);
+
             // Sky gradient
             const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             skyGradient.addColorStop(0, '#0a1628');
@@ -846,7 +1140,33 @@
             drawCrowd();
             drawField();
             drawGoal();
+
+            // Draw net ripple effects
+            gameState.netRipples.forEach(r => {
+                ctx.globalAlpha = r.life * 0.3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            ctx.globalAlpha = 1;
+
             drawGoalkeeper();
+
+            // Spotlight on shooter during aiming
+            if (gameState.phase === 'aiming' && gameState.ball) {
+                const spotGrad = ctx.createRadialGradient(
+                    gameState.ball.x, gameState.ball.y - 20, 10,
+                    gameState.ball.x, gameState.ball.y - 20, 120
+                );
+                spotGrad.addColorStop(0, 'rgba(255, 255, 200, 0.08)');
+                spotGrad.addColorStop(1, 'rgba(255, 255, 200, 0)');
+                ctx.fillStyle = spotGrad;
+                ctx.beginPath();
+                ctx.arc(gameState.ball.x, gameState.ball.y - 20, 120, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             // Draw aim indicator
             if (gameState.phase === 'aiming' && gameState.aimIndicator) {
@@ -861,11 +1181,14 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    // Aim circle
+                    // Aim circle with glow
+                    ctx.shadowColor = 'rgba(0, 255, 65, 0.4)';
+                    ctx.shadowBlur = 10;
                     ctx.strokeStyle = 'rgba(0, 255, 65, 0.5)';
                     ctx.beginPath();
                     ctx.arc(ai.x, ai.y, 20, 0, Math.PI * 2);
                     ctx.stroke();
+                    ctx.shadowBlur = 0;
                 }
             }
 
@@ -874,8 +1197,17 @@
                 drawTarget(gameState.targetX, gameState.targetY);
             }
 
+            // Draw grass particles
+            gameState.grassParticles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size * 2);
+            });
+            ctx.globalAlpha = 1;
+
             drawBall();
             drawParticles();
+            drawConfetti();
 
             // Instruction text
             if (gameState.phase === 'aiming') {
@@ -884,6 +1216,8 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Click on the goal to aim your shot!', canvas.width / 2, canvas.height - 40);
             }
+
+            ctx.restore();
         }
 
         function drawCrowd() {
@@ -899,23 +1233,41 @@
             ctx.fillRect(0, 0, 180, 200);
             ctx.fillRect(canvas.width - 180, 0, 180, 200);
 
-            // Stadium lights
+            // Stadium lights with animated glow
             for (let i = 0; i < 4; i++) {
                 const lx = 150 + i * 200;
-                ctx.fillStyle = 'rgba(255, 255, 200, 0.03)';
+                const flicker = 0.02 + Math.sin(Date.now() * 0.003 + i) * 0.01;
+                ctx.fillStyle = `rgba(255, 255, 200, ${flicker})`;
                 ctx.beginPath();
-                ctx.arc(lx, 10, 100, 0, Math.PI * 2);
+                ctx.arc(lx, 10, 120, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Light beam
+                ctx.fillStyle = `rgba(255, 255, 200, ${flicker * 0.3})`;
+                ctx.beginPath();
+                ctx.moveTo(lx - 5, 10);
+                ctx.lineTo(lx - 60, 200);
+                ctx.lineTo(lx + 60, 200);
+                ctx.lineTo(lx + 5, 10);
+                ctx.closePath();
                 ctx.fill();
             }
 
-            // Crowd
+            // Crowd with arm animation during cheers
             gameState.crowd.forEach(person => {
                 const bounce = Math.sin(person.phase) * 3 * gameState.crowdCheer;
+                const armUp = gameState.crowdCheer > 0.3 ? Math.abs(Math.sin(person.armPhase)) * 4 * gameState.crowdCheer : 0;
+
                 ctx.fillStyle = person.color;
                 ctx.globalAlpha = 0.7;
+                // Head
                 ctx.beginPath();
                 ctx.arc(person.x, person.y + bounce, person.size, 0, Math.PI * 2);
                 ctx.fill();
+                // Arms (during cheer)
+                if (armUp > 1) {
+                    ctx.fillRect(person.x - 1, person.y + bounce - armUp - person.size, 2, armUp);
+                }
             });
             ctx.globalAlpha = 1;
         }
@@ -928,12 +1280,20 @@
             ctx.fillStyle = fieldGradient;
             ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
 
-            // Grass stripes
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+            // Grass stripes with better visibility
             for (let i = 0; i < 8; i++) {
                 if (i % 2 === 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
                     ctx.fillRect(0, 200 + i * 62, canvas.width, 62);
                 }
+            }
+
+            // Grass texture
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
+            for (let i = 0; i < 100; i++) {
+                const gx = Math.random() * canvas.width;
+                const gy = 200 + Math.random() * (canvas.height - 200);
+                ctx.fillRect(gx, gy, 1, 3);
             }
 
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
@@ -952,11 +1312,14 @@
             // Goal box
             ctx.strokeRect(320, 240, 260, 80);
 
-            // Penalty spot
+            // Penalty spot with glow
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+            ctx.shadowBlur = 8;
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(canvas.width / 2, canvas.height - 120, 5, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
 
             // Center arc
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
@@ -966,13 +1329,15 @@
         }
 
         function drawGoal() {
-            // Back net
+            // Back net with slight animation
+            const netSway = Math.sin(Date.now() * 0.002) * 0.5;
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 12; i++) {
+                const sway = netSway * (i / 12);
                 ctx.beginPath();
-                ctx.moveTo(220 + i * 38, 80);
-                ctx.lineTo(220 + i * 38, 400);
+                ctx.moveTo(220 + i * 38 + sway, 80);
+                ctx.lineTo(220 + i * 38 + sway, 400);
                 ctx.stroke();
             }
             for (let i = 0; i < 9; i++) {
@@ -982,10 +1347,13 @@
                 ctx.stroke();
             }
 
-            // Main frame
+            // Main frame with glow
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
+            ctx.shadowBlur = 12;
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 6;
             ctx.strokeRect(220, 80, 460, 320);
+            ctx.shadowBlur = 0;
 
             // 3D side posts
             ctx.strokeStyle = '#cccccc';
@@ -997,11 +1365,11 @@
             ctx.moveTo(680, 400); ctx.lineTo(715, 415);
             ctx.stroke();
 
-            // Post glow
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
-            ctx.shadowBlur = 10;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.lineWidth = 8;
+            // Post glow effect
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.2)';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = 10;
             ctx.strokeRect(218, 78, 464, 324);
             ctx.shadowBlur = 0;
         }
@@ -1059,10 +1427,10 @@
             ctx.lineTo(22 + Math.cos(rightArmAngle) * 40, -8 + Math.sin(rightArmAngle) * 40);
             ctx.stroke();
 
-            // Gloves
+            // Gloves with enhanced glow
             ctx.fillStyle = '#00d4ff';
             ctx.shadowColor = '#00d4ff';
-            ctx.shadowBlur = 6;
+            ctx.shadowBlur = 10;
             ctx.beginPath();
             ctx.arc(-22 + Math.cos(leftArmAngle) * 40, -8 + Math.sin(leftArmAngle) * 40, 12, 0, Math.PI * 2);
             ctx.arc(22 + Math.cos(rightArmAngle) * 40, -8 + Math.sin(rightArmAngle) * 40, 12, 0, Math.PI * 2);
@@ -1105,6 +1473,12 @@
 
             const ballY = ball.y - ball.z;
 
+            // Ball glow when moving
+            if (gameState.phase === 'shooting' && ball.z > 0) {
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+                ctx.shadowBlur = 15;
+            }
+
             // Ball gradient
             const gradient = ctx.createRadialGradient(
                 ball.x - radius * 0.3, ballY - radius * 0.3, 1,
@@ -1118,14 +1492,16 @@
             ctx.beginPath();
             ctx.arc(ball.x, ballY, radius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
 
-            // Ball pattern
+            // Ball pattern (spin effect)
             ctx.save();
             ctx.translate(ball.x, ballY);
             ctx.rotate(ball.rotation || 0);
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
             ctx.lineWidth = 1.5;
 
+            // Pentagon pattern for soccer ball look
             for (let i = 0; i < 5; i++) {
                 const angle = (i * Math.PI * 2) / 5;
                 ctx.beginPath();
@@ -1133,6 +1509,25 @@
                 ctx.lineTo(Math.cos(angle) * radius * 0.55, Math.sin(angle) * radius * 0.55);
                 ctx.stroke();
             }
+
+            // Small pentagons
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * Math.PI * 2) / 5 + Math.PI / 5;
+                const cx = Math.cos(angle) * radius * 0.4;
+                const cy = Math.sin(angle) * radius * 0.4;
+                ctx.beginPath();
+                for (let j = 0; j < 5; j++) {
+                    const a = (j * Math.PI * 2) / 5 + angle;
+                    const px = cx + Math.cos(a) * radius * 0.15;
+                    const py = cy + Math.sin(a) * radius * 0.15;
+                    if (j === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+
             ctx.restore();
 
             // Ball outline
@@ -1163,11 +1558,14 @@
 
             ctx.setLineDash([]);
 
-            // Inner dot
+            // Inner dot with glow
+            ctx.shadowColor = 'rgba(0, 255, 65, 0.6)';
+            ctx.shadowBlur = 8;
             ctx.fillStyle = 'rgba(0, 255, 65, 0.6)';
             ctx.beginPath();
             ctx.arc(x, y, 4, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
         }
 
         function drawParticles() {
@@ -1177,6 +1575,19 @@
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
                 ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        function drawConfetti() {
+            gameState.confetti.forEach(c => {
+                ctx.save();
+                ctx.globalAlpha = c.life;
+                ctx.translate(c.x, c.y);
+                ctx.rotate(c.rotation);
+                ctx.fillStyle = c.color;
+                ctx.fillRect(-c.size / 2, -c.size / 4, c.size, c.size / 2);
+                ctx.restore();
             });
             ctx.globalAlpha = 1;
         }
