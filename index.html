@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI Game Collection - 30+ Browser-Spiele</title>
+    <title>KI Game Collection - Browser-Spiele</title>
 
     <!-- SEO Meta Tags -->
-    <meta name="description" content="30+ KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Puzzle, TRON-Collection und mehr. Keine Installation erforderlich!">
-    <meta name="keywords" content="HTML5 Spiele, Browser Games, KI-generiert, TRON Spiele, JavaScript Games, kostenlose Spiele, Indie Games, Web Games, Canvas Games, Arcade Games">
+    <meta name="description" content="KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Arcade, Mehrspieler und Simulationen. Keine Installation erforderlich!">
+    <meta name="keywords" content="HTML5 Spiele, Browser Games, KI-generiert, JavaScript Games, kostenlose Spiele, Indie Games, Web Games, Canvas Games, Arcade Games">
     <meta name="author" content="KI Game Collection">
     <meta name="robots" content="index, follow">
     <meta name="language" content="German">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="KI Game Collection - 30+ Browser-Spiele">
-    <meta property="og:description" content="30+ KI-generierte HTML5-Spiele direkt im Browser spielbar. Von Action bis TRON - keine Installation erforderlich!">
+    <meta property="og:title" content="KI Game Collection - Browser-Spiele">
+    <meta property="og:description" content="KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Arcade und mehr!">
     <meta property="og:site_name" content="KI Game Collection">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="KI Game Collection - 30+ Browser-Spiele">
-    <meta name="twitter:description" content="30+ KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Puzzle, TRON und mehr!">
+    <meta name="twitter:title" content="KI Game Collection - Browser-Spiele">
+    <meta name="twitter:description" content="KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Arcade und mehr!">
 
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI4IiBmaWxsPSIjMWExMjJmIi8+PHRleHQgeD0iMTYiIHk9IjIyIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjE4IiBmaWxsPSIjYTc4YmZhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXdlaWdodD0iYm9sZCI+RzwvdGV4dD48L3N2Zz4=">
@@ -31,59 +31,38 @@
            Design System - CSS Custom Properties
            ========================================== */
         :root {
-            /* Background */
             --bg-primary: #0a0e17;
             --bg-secondary: #111827;
             --bg-card: #1a1f2e;
             --bg-card-hover: #242a3d;
-            --bg-surface: rgba(255, 255, 255, 0.03);
-            --bg-glass: rgba(17, 24, 39, 0.7);
 
-            /* Accent Colors */
             --accent-primary: #a78bfa;
             --accent-secondary: #818cf8;
             --accent-tertiary: #6366f1;
-            --accent-warm: #f59e0b;
-            --accent-tron: #00d4ff;
-            --accent-sim: #667eea;
-            --accent-strategy: #d4a537;
             --accent-success: #34d399;
-            --accent-danger: #f87171;
 
-            /* Text */
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
 
-            /* Borders */
             --border-subtle: rgba(148, 163, 184, 0.1);
             --border-medium: rgba(148, 163, 184, 0.15);
 
-            /* Gradients */
-            --gradient-hero: linear-gradient(135deg, #1a1033 0%, #0d1321 50%, #0a1628 100%);
-            --gradient-card: linear-gradient(145deg, rgba(167, 139, 250, 0.08), rgba(99, 102, 241, 0.04));
-            --gradient-card-hover: linear-gradient(145deg, rgba(167, 139, 250, 0.15), rgba(99, 102, 241, 0.08));
             --gradient-accent: linear-gradient(135deg, #a78bfa, #6366f1);
 
-            /* Shadows */
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
             --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
             --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
             --shadow-glow-hover: 0 0 40px rgba(167, 139, 250, 0.25);
 
-            /* Sizing */
             --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 16px;
-            --radius-xl: 20px;
             --radius-pill: 100px;
 
-            /* Typography */
             --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 
-            /* Transitions */
             --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
             --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
             --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -101,7 +80,6 @@
         html {
             scroll-behavior: smooth;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
@@ -138,7 +116,6 @@
             background: radial-gradient(circle, rgba(167, 139, 250, 0.15), transparent 70%);
             top: -200px;
             left: -100px;
-            animation-delay: 0s;
         }
 
         .ambient-orb:nth-child(2) {
@@ -169,18 +146,7 @@
         }
 
         /* ==========================================
-           Layout Container
-           ========================================== */
-        .app-container {
-            position: relative;
-            z-index: 1;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        /* ==========================================
-           Header / Navigation Bar
+           Header
            ========================================== */
         .site-header {
             position: sticky;
@@ -188,7 +154,7 @@
             z-index: 100;
             backdrop-filter: blur(20px) saturate(1.5);
             -webkit-backdrop-filter: blur(20px) saturate(1.5);
-            background: rgba(10, 14, 23, 0.8);
+            background: rgba(10, 14, 23, 0.85);
             border-bottom: 1px solid var(--border-subtle);
         }
 
@@ -233,12 +199,6 @@
             color: var(--accent-primary);
         }
 
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
         .game-count-badge {
             font-family: var(--font-mono);
             font-size: 12px;
@@ -249,333 +209,108 @@
             border: 1px solid rgba(167, 139, 250, 0.2);
         }
 
-
         /* ==========================================
-           Hero Section
+           Main Content
            ========================================== */
-        .hero {
-            padding: 48px 0 32px;
-        }
-
-        .hero-content {
-            text-align: center;
-            max-width: 680px;
-            margin: 0 auto;
-        }
-
-        .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--accent-primary);
-            background: rgba(167, 139, 250, 0.1);
-            padding: 6px 14px;
-            border-radius: var(--radius-pill);
-            border: 1px solid rgba(167, 139, 250, 0.2);
-            margin-bottom: 20px;
-        }
-
-        .hero-badge .pulse-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--accent-success);
-            animation: pulseDot 2s ease-in-out infinite;
-        }
-
-        @keyframes pulseDot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
-        }
-
-        .hero h1 {
-            font-size: clamp(32px, 5vw, 48px);
-            font-weight: 800;
-            letter-spacing: -1px;
-            line-height: 1.1;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-primary) 50%, var(--accent-secondary) 100%);
-            background-size: 200% 200%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: shimmerText 6s ease-in-out infinite;
-        }
-
-        @keyframes shimmerText {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-
-        .hero p {
-            font-size: 16px;
-            color: var(--text-secondary);
-            max-width: 500px;
-            margin: 0 auto;
-            line-height: 1.7;
-        }
-
-        /* ==========================================
-           Featured Game Spotlight
-           ========================================== */
-        .featured-section {
-            margin-bottom: 40px;
-        }
-
-        .featured-card {
+        .app-container {
             position: relative;
-            border-radius: var(--radius-xl);
-            overflow: hidden;
-            background: var(--gradient-hero);
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ==========================================
+           Filter & Search Bar
+           ========================================== */
+        .filter-bar {
+            position: sticky;
+            top: 64px;
+            z-index: 90;
+            backdrop-filter: blur(16px) saturate(1.4);
+            -webkit-backdrop-filter: blur(16px) saturate(1.4);
+            background: rgba(10, 14, 23, 0.8);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 16px 0;
+        }
+
+        .filter-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .filter-pill {
+            padding: 8px 18px;
+            border-radius: var(--radius-pill);
             border: 1px solid var(--border-medium);
-            padding: 2px;
-            cursor: pointer;
-            transition: all var(--transition-slow);
-        }
-
-        .featured-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: var(--radius-xl);
-            padding: 2px;
-            background: linear-gradient(135deg, var(--accent-primary), transparent 40%, transparent 60%, var(--accent-tertiary));
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: xor;
-            -webkit-mask-composite: xor;
-            opacity: 0.5;
-            transition: opacity var(--transition-base);
-        }
-
-        .featured-card:hover::before {
-            opacity: 1;
-        }
-
-        .featured-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-glow-hover);
-        }
-
-        .featured-inner {
-            border-radius: calc(var(--radius-xl) - 2px);
-            overflow: hidden;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            min-height: 280px;
-            background: var(--gradient-hero);
-        }
-
-        .featured-info {
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 16px;
-        }
-
-        .featured-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: var(--accent-warm);
-        }
-
-        .featured-info h2 {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            line-height: 1.2;
-        }
-
-        .featured-info p {
-            font-size: 15px;
+            background: transparent;
             color: var(--text-secondary);
-            line-height: 1.7;
-        }
-
-        .featured-play-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 28px;
-            background: var(--gradient-accent);
-            color: white;
-            border: none;
-            border-radius: var(--radius-pill);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-base);
-            width: fit-content;
-            text-decoration: none;
             font-family: var(--font-body);
-        }
-
-        .featured-play-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(167, 139, 250, 0.4);
-        }
-
-        .featured-visual {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(167, 139, 250, 0.03);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .featured-icon-display {
-            font-size: 120px;
-            filter: drop-shadow(0 0 40px rgba(167, 139, 250, 0.3));
-            animation: floatIcon 4s ease-in-out infinite;
-        }
-
-        @keyframes floatIcon {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-12px) rotate(2deg); }
-        }
-
-        .featured-visual::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, rgba(167, 139, 250, 0.1) 0%, transparent 70%);
-        }
-
-        /* Featured navigation dots */
-        .featured-nav {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 16px;
-        }
-
-        .featured-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--border-medium);
-            border: none;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all var(--transition-base);
-            padding: 0;
+            white-space: nowrap;
+            user-select: none;
         }
 
-        .featured-dot.active {
-            background: var(--accent-primary);
-            width: 24px;
-            border-radius: 4px;
-        }
-
-        /* ==========================================
-           Special Collections
-           ========================================== */
-        .collections-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 40px;
-        }
-
-        .collection-card {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 20px 24px;
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border-subtle);
-            text-decoration: none;
+        .filter-pill:hover {
+            border-color: var(--accent-primary);
             color: var(--text-primary);
-            transition: all var(--transition-base);
-            overflow: hidden;
+            background: rgba(167, 139, 250, 0.08);
         }
 
-        .collection-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            opacity: 0.05;
-            transition: opacity var(--transition-base);
-        }
-
-        .collection-card:hover::before {
-            opacity: 0.1;
-        }
-
-        .collection-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--border-medium);
-        }
-
-        .collection-card.tron {
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.06), rgba(0, 212, 255, 0.02));
-        }
-        .collection-card.tron::before { background: var(--accent-tron); }
-        .collection-card.tron:hover { box-shadow: 0 0 30px rgba(0, 212, 255, 0.1); border-color: rgba(0, 212, 255, 0.3); }
-
-        .collection-card.sim {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.06), rgba(102, 126, 234, 0.02));
-        }
-        .collection-card.sim::before { background: var(--accent-sim); }
-        .collection-card.sim:hover { box-shadow: 0 0 30px rgba(102, 126, 234, 0.1); border-color: rgba(102, 126, 234, 0.3); }
-
-        .collection-card.strategy {
-            background: linear-gradient(135deg, rgba(212, 165, 55, 0.06), rgba(212, 165, 55, 0.02));
-        }
-        .collection-card.strategy::before { background: var(--accent-strategy); }
-        .collection-card.strategy:hover { box-shadow: 0 0 30px rgba(212, 165, 55, 0.1); border-color: rgba(212, 165, 55, 0.3); }
-
-        .collection-icon {
-            font-size: 28px;
-            flex-shrink: 0;
-        }
-
-        .collection-info h3 {
-            font-size: 14px;
+        .filter-pill.active {
+            background: var(--gradient-accent);
+            border-color: transparent;
+            color: white;
             font-weight: 600;
-            margin-bottom: 2px;
+            box-shadow: 0 2px 12px rgba(167, 139, 250, 0.3);
         }
 
-        .collection-info p {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .collection-arrow {
-            margin-left: auto;
-            color: var(--text-muted);
-            transition: transform var(--transition-base);
-            flex-shrink: 0;
-        }
-
-        .collection-card:hover .collection-arrow {
-            transform: translateX(4px);
-        }
-
-        /* ==========================================
-           Search Bar
-           ========================================== */
-        .search-section {
-            margin-bottom: 24px;
-        }
-
-        .search-wrapper {
+        .search-box {
             position: relative;
-            max-width: 480px;
+            min-width: 200px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 16px 8px 38px;
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border-medium);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 14px;
+            outline: none;
+            transition: all var(--transition-base);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-primary);
+            background: rgba(167, 139, 250, 0.06);
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
         }
 
         .search-icon {
             position: absolute;
-            left: 16px;
+            left: 12px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-muted);
@@ -583,241 +318,145 @@
             pointer-events: none;
         }
 
-        .search-input {
-            width: 100%;
-            padding: 12px 16px 12px 42px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            color: var(--text-primary);
-            font-family: var(--font-body);
-            font-size: 14px;
-            outline: none;
-            transition: all var(--transition-base);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .search-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .search-input:focus {
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .search-clear {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(148, 163, 184, 0.15);
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 12px;
-            display: none;
+        /* ==========================================
+           Game Counter
+           ========================================== */
+        .results-info {
+            padding: 24px 0 16px;
+            display: flex;
             align-items: center;
-            justify-content: center;
-            transition: all var(--transition-fast);
+            justify-content: space-between;
         }
 
-        .search-clear.visible {
-            display: flex;
-        }
-
-        .search-clear:hover {
-            background: rgba(148, 163, 184, 0.25);
-            color: var(--text-primary);
-        }
-
-        /* ==========================================
-           Category Navigation (Pills)
-           ========================================== */
-        .category-nav {
-            margin-bottom: 32px;
-            position: relative;
-        }
-
-        .category-pills {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-
-        .category-pills::-webkit-scrollbar {
-            display: none;
-        }
-
-        .pill {
-            flex-shrink: 0;
-            padding: 8px 18px;
-            border-radius: var(--radius-pill);
-            border: 1px solid var(--border-subtle);
-            background: transparent;
-            color: var(--text-secondary);
-            font-family: var(--font-body);
-            font-size: 13px;
+        .results-count {
+            font-size: 14px;
+            color: var(--text-muted);
             font-weight: 500;
-            cursor: pointer;
-            transition: all var(--transition-base);
-            white-space: nowrap;
         }
 
-        .pill:hover {
-            border-color: var(--border-medium);
+        .results-count strong {
             color: var(--text-primary);
-            background: var(--bg-surface);
-        }
-
-        .pill.active {
-            background: var(--accent-primary);
-            color: white;
-            border-color: var(--accent-primary);
-            box-shadow: 0 2px 12px rgba(167, 139, 250, 0.3);
-        }
-
-        .pill-count {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            opacity: 0.7;
-            margin-left: 4px;
+            font-weight: 700;
         }
 
         /* ==========================================
-           Games Grid
+           Game Grid
            ========================================== */
-        .games-section {
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
             padding-bottom: 80px;
         }
 
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+        @media (max-width: 1200px) {
+            .game-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 800px) {
+            .game-grid { grid-template-columns: repeat(2, 1fr); }
+            .filter-inner { flex-direction: column; align-items: stretch; }
+            .search-box { min-width: unset; }
+        }
+
+        @media (max-width: 480px) {
+            .game-grid { grid-template-columns: 1fr; gap: 14px; }
         }
 
         /* ==========================================
            Game Card
            ========================================== */
         .game-card {
-            position: relative;
-            border-radius: var(--radius-lg);
+            background: linear-gradient(145deg, rgba(167, 139, 250, 0.06), rgba(99, 102, 241, 0.03));
             border: 1px solid var(--border-subtle);
-            background: var(--gradient-card);
-            overflow: hidden;
+            border-radius: var(--radius-lg);
+            padding: 24px 20px 18px;
             cursor: pointer;
-            transition: all var(--transition-base);
+            text-decoration: none;
+            color: inherit;
             display: flex;
             flex-direction: column;
-            opacity: 0;
-            transform: translateY(16px);
+            gap: 10px;
+            transition: all var(--transition-base);
+            position: relative;
+            overflow: hidden;
         }
 
-        .game-card.revealed {
-            opacity: 1;
-            transform: translateY(0);
-            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                        transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-                        border-color var(--transition-base),
-                        box-shadow var(--transition-base),
-                        background var(--transition-base);
+        .game-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(145deg, rgba(167, 139, 250, 0.12), rgba(99, 102, 241, 0.06));
+            opacity: 0;
+            transition: opacity var(--transition-base);
         }
 
         .game-card:hover {
             border-color: rgba(167, 139, 250, 0.3);
-            background: var(--gradient-card-hover);
             transform: translateY(-4px);
-            box-shadow: var(--shadow-glow);
+            box-shadow: var(--shadow-glow-hover);
         }
 
-        .game-card-top {
-            padding: 28px 24px 16px;
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
+        .game-card:hover::before {
+            opacity: 1;
         }
 
-        .game-card-icon {
-            font-size: 40px;
+        .game-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-icon {
+            font-size: 36px;
             line-height: 1;
-            flex-shrink: 0;
             filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
         }
 
-        .game-card-meta {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .game-card-title {
+        .card-title {
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: -0.2px;
-            margin-bottom: 4px;
-            color: var(--text-primary);
-            line-height: 1.3;
+            line-height: 1.2;
         }
 
-        .game-card-category {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            color: var(--accent-primary);
-            opacity: 0.8;
-        }
-
-        .game-card-desc {
-            padding: 0 24px 24px;
+        .card-desc {
             font-size: 13px;
             color: var(--text-secondary);
-            line-height: 1.6;
-            flex: 1;
+            line-height: 1.5;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
-        .game-card-footer {
-            padding: 12px 24px;
-            border-top: 1px solid var(--border-subtle);
+        .card-tags {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: auto;
+            padding-top: 6px;
         }
 
-        .game-card-tag {
-            font-family: var(--font-mono);
+        .card-tag {
             font-size: 11px;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .play-indicator {
-            font-size: 12px;
+            font-family: var(--font-mono);
             color: var(--accent-primary);
-            opacity: 0;
-            transform: translateX(-8px);
-            transition: all var(--transition-base);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-weight: 500;
+            background: rgba(167, 139, 250, 0.1);
+            padding: 3px 10px;
+            border-radius: var(--radius-pill);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            white-space: nowrap;
         }
 
-        .game-card:hover .play-indicator {
-            opacity: 1;
-            transform: translateX(0);
+        /* Filter transition */
+        .game-card.hiding {
+            opacity: 0;
+            transform: scale(0.92);
+            pointer-events: none;
+        }
+
+        .game-card.hidden {
+            display: none;
         }
 
         /* ==========================================
@@ -826,7 +465,8 @@
         .no-results {
             grid-column: 1 / -1;
             text-align: center;
-            padding: 80px 20px;
+            padding: 60px 20px;
+            color: var(--text-muted);
         }
 
         .no-results-icon {
@@ -835,321 +475,74 @@
             opacity: 0.5;
         }
 
-        .no-results h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-secondary);
-        }
-
-        .no-results p {
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        /* ==========================================
-           Loading Screen
-           ========================================== */
-        .loading-screen {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            background: var(--bg-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 24px;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-
-        .loading-screen.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .loading-logo {
-            width: 56px;
-            height: 56px;
-            border-radius: var(--radius-md);
-            background: var(--gradient-accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 24px;
-            color: white;
-            animation: loadPulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes loadPulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(167, 139, 250, 0); }
-        }
-
-        .loading-bar {
-            width: 200px;
-            height: 3px;
-            background: rgba(148, 163, 184, 0.1);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .loading-bar-fill {
-            height: 100%;
-            background: var(--gradient-accent);
-            border-radius: 2px;
-            width: 0%;
-            animation: loadFill 1.2s ease-out forwards;
-        }
-
-        @keyframes loadFill {
-            0% { width: 0%; }
-            100% { width: 100%; }
+        .no-results-text {
+            font-size: 16px;
         }
 
         /* ==========================================
            Footer
            ========================================== */
         .site-footer {
-            border-top: 1px solid var(--border-subtle);
-            padding: 24px 0;
             text-align: center;
-        }
-
-        .footer-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 13px;
+            padding: 32px 24px;
             color: var(--text-muted);
-        }
-
-        .footer-inner span {
-            color: var(--text-secondary);
-        }
-
-        /* ==========================================
-           Responsive
-           ========================================== */
-        @media (max-width: 1024px) {
-            .featured-inner {
-                grid-template-columns: 1fr;
-                min-height: auto;
-            }
-
-            .featured-visual {
-                height: 200px;
-            }
-
-            .featured-info {
-                padding: 32px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .hero {
-                padding: 32px 0 24px;
-            }
-
-            .hero h1 {
-                font-size: 28px;
-            }
-
-            .collections-row {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-
-            .games-grid {
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-                gap: 16px;
-            }
-
-            .featured-info h2 {
-                font-size: 22px;
-            }
-
-            .featured-visual {
-                height: 160px;
-            }
-
-            .featured-icon-display {
-                font-size: 80px;
-            }
-
-            .header-inner {
-                padding: 0 16px;
-            }
-
-            .app-container {
-                padding: 0 16px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .games-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .search-wrapper {
-                max-width: 100%;
-            }
-
-            .featured-info {
-                padding: 24px;
-            }
-
-            .game-count-badge {
-                display: none;
-            }
-        }
-
-        /* ==========================================
-           Scrollbar
-           ========================================== */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.15);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 0.25);
-        }
-
-        /* ==========================================
-           Accessibility
-           ========================================== */
-        .game-card:focus-visible,
-        .pill:focus-visible,
-        .featured-card:focus-visible,
-        .collection-card:focus-visible {
-            outline: 2px solid var(--accent-primary);
-            outline-offset: 2px;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
+            font-size: 13px;
+            border-top: 1px solid var(--border-subtle);
         }
 
         /* ==========================================
            Game Launch Overlay
            ========================================== */
-        .game-launch-overlay {
+        .launch-overlay {
             position: fixed;
             inset: 0;
-            z-index: 2000;
-            background: var(--bg-primary);
+            z-index: 10000;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-direction: column;
-            gap: 16px;
+            background: rgba(10, 14, 23, 0.95);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s;
         }
 
-        .game-launch-overlay.active {
+        .launch-overlay.active {
             opacity: 1;
-            pointer-events: all;
+            pointer-events: auto;
+        }
+
+        .launch-content {
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .launch-overlay.active .launch-content {
+            transform: scale(1);
         }
 
         .launch-icon {
             font-size: 64px;
-            filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.4));
-            animation: launchBounce 0.8s ease-in-out infinite;
+            margin-bottom: 16px;
+            animation: launchBounce 0.6s ease-out;
         }
 
-        .launch-title {
-            font-size: 18px;
+        .launch-text {
+            font-size: 20px;
             font-weight: 600;
             color: var(--text-primary);
-            letter-spacing: -0.3px;
-        }
-
-        .launch-bar {
-            width: 120px;
-            height: 3px;
-            background: rgba(148, 163, 184, 0.1);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .launch-bar-fill {
-            height: 100%;
-            background: var(--gradient-accent);
-            border-radius: 2px;
-            width: 0%;
-            animation: launchFill 0.5s ease-out forwards;
         }
 
         @keyframes launchBounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
-        }
-
-        @keyframes launchFill {
-            0% { width: 0%; }
-            100% { width: 100%; }
-        }
-
-        /* ==========================================
-           Section Headers
-           ========================================== */
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .section-header h2 {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.3px;
-        }
-
-        .results-count {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--text-muted);
+            0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+            60% { transform: scale(1.15) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
-    <div class="loading-screen" id="loadingScreen">
-        <div class="loading-logo">G</div>
-        <div class="loading-bar"><div class="loading-bar-fill"></div></div>
-    </div>
-
-    <!-- Game Launch Overlay -->
-    <div class="game-launch-overlay" id="gameLaunchOverlay" aria-hidden="true">
-        <div class="launch-icon" id="launchIcon"></div>
-        <div class="launch-title" id="launchTitle"></div>
-        <div class="launch-bar"><div class="launch-bar-fill"></div></div>
-    </div>
-
     <!-- Ambient Background -->
-    <div class="ambient-bg" aria-hidden="true">
+    <div class="ambient-bg">
         <div class="ambient-orb"></div>
         <div class="ambient-orb"></div>
         <div class="ambient-orb"></div>
@@ -1158,838 +551,468 @@
     <!-- Header -->
     <header class="site-header">
         <div class="header-inner">
-            <a href="#" class="logo" aria-label="KI Game Collection Home">
+            <a href="index.html" class="logo">
                 <div class="logo-icon">G</div>
-                <div class="logo-text">Game<span>Vault</span></div>
+                <div class="logo-text">Game<span>Collection</span></div>
             </a>
-            <div class="header-actions">
-                <div class="game-count-badge" id="totalGameCount"></div>
-            </div>
+            <div class="game-count-badge" id="totalBadge"></div>
         </div>
     </header>
 
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter-inner">
+            <div class="filter-pills" id="filterPills"></div>
+            <div class="search-box">
+                <span class="search-icon">&#128269;</span>
+                <input type="text" id="searchInput" placeholder="Spiel suchen..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <div class="app-container">
-        <!-- Hero -->
-        <section class="hero">
-            <div class="hero-content">
-                <div class="hero-badge">
-                    <div class="pulse-dot"></div>
-                    KI-generiert &middot; Direkt im Browser spielbar
-                </div>
-                <h1>Deine Game Collection</h1>
-                <p>Action, Strategie, Puzzle und mehr &mdash; alles KI-generiert, alles direkt spielbar. Keine Installation, kein Download.</p>
-            </div>
-        </section>
-
-        <!-- Featured Game Spotlight -->
-        <section class="featured-section" aria-label="Featured Game">
-            <div class="featured-card" id="featuredCard" role="link" tabindex="0">
-                <div class="featured-inner">
-                    <div class="featured-info">
-                        <div class="featured-label">&#11088; Featured</div>
-                        <h2 id="featuredTitle"></h2>
-                        <p id="featuredDesc"></p>
-                        <a class="featured-play-btn" id="featuredPlayBtn">
-                            &#9654; Jetzt spielen
-                        </a>
-                    </div>
-                    <div class="featured-visual">
-                        <div class="featured-icon-display" id="featuredIcon"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="featured-nav" id="featuredNav" role="tablist" aria-label="Featured game navigation"></div>
-        </section>
-
-        <!-- Special Collections -->
-        <div class="collections-row">
-            <a href="tron-index.html" class="collection-card tron" aria-label="TRON: Ares Collection">
-                <div class="collection-icon">&#9889;</div>
-                <div class="collection-info">
-                    <h3>TRON: Enter the Grid</h3>
-                    <p>Light Cycles &amp; Neon Arenas</p>
-                </div>
-                <div class="collection-arrow">&rarr;</div>
-            </a>
-            <a href="games/simulations-index.html" class="collection-card sim" aria-label="Simulationen Collection">
-                <div class="collection-icon">&#129516;</div>
-                <div class="collection-info">
-                    <h3>Simulationen</h3>
-                    <p>Physik, Chemie, Musik &amp; mehr</p>
-                </div>
-                <div class="collection-arrow">&rarr;</div>
-            </a>
-            <a href="games/strategy-index.html" class="collection-card strategy" aria-label="Strategie Collection">
-                <div class="collection-icon">&#9876;&#65039;</div>
-                <div class="collection-info">
-                    <h3>Strategie-Simulatoren</h3>
-                    <p>AoE4, Helldivers &amp; mehr</p>
-                </div>
-                <div class="collection-arrow">&rarr;</div>
-            </a>
+    <main class="app-container">
+        <div class="results-info">
+            <span class="results-count" id="resultsCount"></span>
         </div>
+        <div class="game-grid" id="gameGrid"></div>
+    </main>
 
-        <!-- Search -->
-        <div class="search-section">
-            <div class="search-wrapper">
-                <div class="search-icon">&#128269;</div>
-                <input type="text" class="search-input" id="searchInput"
-                       placeholder="Spiele durchsuchen..."
-                       aria-label="Search games by title or description">
-                <button class="search-clear" id="searchClear" aria-label="Clear search">&times;</button>
-            </div>
+    <!-- Launch Overlay -->
+    <div class="launch-overlay" id="launchOverlay">
+        <div class="launch-content">
+            <div class="launch-icon" id="launchIcon"></div>
+            <div class="launch-text" id="launchText">Starte Spiel...</div>
         </div>
-
-        <!-- Category Pills -->
-        <nav class="category-nav" aria-label="Game categories">
-            <div class="category-pills" id="categoryPills" role="tablist">
-                <!-- Generated by JS -->
-            </div>
-        </nav>
-
-        <!-- Games Grid -->
-        <section class="games-section">
-            <div class="section-header">
-                <h2 id="sectionTitle">Featured</h2>
-                <div class="results-count" id="resultsCount"></div>
-            </div>
-            <main role="main" aria-label="Games Gallery">
-                <div class="games-grid" id="gamesGrid" role="list">
-                    <!-- Game cards rendered by JS -->
-                </div>
-            </main>
-        </section>
     </div>
 
     <!-- Footer -->
     <footer class="site-footer">
-        <div class="footer-inner">
-            <span>GameVault</span> &middot; KI-generierte Browser-Spiele
-        </div>
+        KI Game Collection &mdash; Alle Spiele sind KI-generiert und laufen direkt im Browser.
     </footer>
 
     <script>
         // ==========================================
-        // Debug Mode
+        // Games Data - flat array, no duplicates
         // ==========================================
-        const DEBUG = false;
-
-        if (!DEBUG) {
-            const noop = () => {};
-            console.log = noop;
-            console.warn = noop;
-            console.info = noop;
-        }
-
-        // ==========================================
-        // Event Manager (prevents memory leaks)
-        // ==========================================
-        class EventManager {
-            constructor() {
-                this.listeners = [];
+        const games = [
+            // --- Action ---
+            {
+                title: "Space Battle Arena",
+                description: "Intensiver 4v4 Weltraumkampf! WASD-Steuerung, Schilde und epische Raumschlachten.",
+                url: "games/space-battle.html",
+                icon: "\uD83D\uDE80",
+                tags: ["action"]
+            },
+            {
+                title: "Zombie Waves",
+                description: "Top-Down Shooter gegen Zombie-Wellen! Baue Barrikaden, sammle Ressourcen und \u00fcberlebe.",
+                url: "games/zombie-waves.html",
+                icon: "\uD83E\uDDDF",
+                tags: ["action"]
+            },
+            {
+                title: "VOID PROTOCOL",
+                description: "Dungeon Crawler mit prozeduralen Leveln, 4 Androiden-Typen, 6 Waffen und Fog of War.",
+                url: "games/void-protocol.html",
+                icon: "\uD83C\uDFAF",
+                tags: ["action", "mehrspieler"]
+            },
+            // --- Strategie ---
+            {
+                title: "AoE4 Battle Simulator",
+                description: "Age of Empires 4 Kampfsimulator! 16 Fraktionen, KI-Counter-Empfehlungen und Echtzeit-Taktik.",
+                url: "games/aoe4-battle-sim.html",
+                icon: "\u2694\uFE0F",
+                tags: ["strategie"]
+            },
+            {
+                title: "Space Command",
+                description: "StarCraft-inspirierte Weltraum-RTS! Raumschiffe befehligen, Basen bauen, epische Schlachten.",
+                url: "games/space-command.html",
+                icon: "\uD83D\uDEF0\uFE0F",
+                tags: ["strategie"]
+            },
+            {
+                title: "Helldivers 2 Stratego",
+                description: "Klassisches Stratego mit Helldivers 2 Thematik! Super Earth vs Automatons.",
+                url: "games/helldivers-stratego.html",
+                icon: "\u2694\uFE0F",
+                tags: ["strategie", "mehrspieler"]
+            },
+            {
+                title: "Kingdom Defense",
+                description: "Tower Defense! Bogensch\u00fctzen, Kanonen und Magier-T\u00fcrme gegen 15 Wellen platzieren.",
+                url: "games/kingdom-defense.html",
+                icon: "\uD83C\uDFF0",
+                tags: ["strategie"]
+            },
+            // --- Arcade ---
+            {
+                title: "Snake",
+                description: "Das klassische Snake-Spiel - sammle \u00c4pfel und werde l\u00e4nger!",
+                url: "games/snake.html",
+                icon: "\uD83D\uDC0D",
+                tags: ["arcade"]
+            },
+            {
+                title: "Brick Breaker",
+                description: "Zerst\u00f6re Bl\u00f6cke und sammle Power-Ups f\u00fcr Multi-Ball und Laser-Waffen!",
+                url: "games/brickbreaker.html",
+                icon: "\uD83E\uDDF1",
+                tags: ["arcade"]
+            },
+            {
+                title: "Flappy Bird",
+                description: "Steuere den Vogel durch die R\u00f6hren. Einfach zu lernen, schwer zu meistern!",
+                url: "games/flappy-bird.html",
+                icon: "\uD83D\uDC26",
+                tags: ["arcade"]
+            },
+            {
+                title: "Frogger Rush",
+                description: "Klassisches Frogger! \u00dcberquere Stra\u00dfen und springe auf Baumst\u00e4mme \u00fcber den Fluss.",
+                url: "games/frogger-rush.html",
+                icon: "\uD83D\uDC38",
+                tags: ["arcade"]
+            },
+            {
+                title: "Neon Tetris",
+                description: "Tetris mit Cyberpunk-\u00c4sthetik! Ghost-Piece, Wall-Kicks und Glow-Effekte.",
+                url: "games/neon-tetris.html",
+                icon: "\uD83D\uDFE6",
+                tags: ["arcade"]
+            },
+            {
+                title: "Territory Garden",
+                description: "Paper.io-inspiriert! Erobere Territorium als Pflanze gegen intelligente KI.",
+                url: "games/territory-garden.html",
+                icon: "\uD83C\uDF3F",
+                tags: ["arcade"]
+            },
+            {
+                title: "Penalty Shootout",
+                description: "Elfmeterschie\u00dfen! Perfekte Schusskraft w\u00e4hlen und den Torwart bezwingen.",
+                url: "games/penalty-shootout.html",
+                icon: "\u26BD",
+                tags: ["arcade"]
+            },
+            {
+                title: "Racing Circuit",
+                description: "Top-Down Rennspiel mit Zeitrennen! 5 Runden auf dem Circuit, Bestzeiten aufstellen.",
+                url: "games/racing-circuit.html",
+                icon: "\uD83C\uDFCE\uFE0F",
+                tags: ["arcade"]
+            },
+            {
+                title: "Das Geheimnis des Professors",
+                description: "R\u00e4tselabenteuer! Professor Blackwood ist verschwunden - l\u00f6se R\u00e4tsel in 5 R\u00e4umen.",
+                url: "games/cipher-detective.html",
+                icon: "\uD83D\uDCDA",
+                tags: ["arcade"]
+            },
+            // --- Mehrspieler ---
+            {
+                title: "Jedi Stickman Arena",
+                description: "Physik-basierter Lichtschwert-Kampf mit Ragdoll-Physik und Force-Kr\u00e4ften!",
+                url: "games/jedi-stickman.html",
+                icon: "\u2694\uFE0F",
+                tags: ["action", "mehrspieler"]
+            },
+            {
+                title: "Volleyball",
+                description: "Volleyball-Action f\u00fcr zwei Spieler mit realistischer Physik!",
+                url: "games/volleyball.html",
+                icon: "\uD83C\uDFD0",
+                tags: ["mehrspieler"]
+            },
+            {
+                title: "Maze Runner",
+                description: "Zwei-Spieler Labyrinth-Rennen! WASD vs Pfeiltasten - wer findet zuerst das Ziel?",
+                url: "games/maze-runner.html",
+                icon: "\uD83C\uDFAF",
+                tags: ["mehrspieler"]
+            },
+            {
+                title: "Asteroid Miners",
+                description: "Kooperatives Weltraum-Mining f\u00fcr 2-4 Spieler! Asteroiden abbauen, Piraten ausweichen.",
+                url: "games/asteroid-miners.html",
+                icon: "\u26CF\uFE0F",
+                tags: ["mehrspieler", "action"]
+            },
+            {
+                title: "Sumo Bumpers",
+                description: "Arena-Kampf f\u00fcr 2-4 Spieler! Gegner von der schrumpfenden Plattform sto\u00dfen.",
+                url: "games/sumo-bumpers.html",
+                icon: "\uD83E\uDD3C",
+                tags: ["mehrspieler"]
+            },
+            // --- 3D ---
+            {
+                title: "Tron: 3D Arena WebGL",
+                description: "ULTIMATE 3D Tron mit Three.js! Light Cycles, Split-Screen Duell, Turbo-Boost.",
+                url: "games/tron/tron-3d-dual-arena-threejs.html",
+                icon: "\uD83C\uDF1F",
+                tags: ["action", "mehrspieler"]
+            },
+            {
+                title: "Minecraft 3D",
+                description: "3D Voxel-Spiel - baue, erkunde und \u00fcberlebe in deiner eigenen Blockwelt!",
+                url: "games/minecraft3d.html",
+                icon: "\u26CF\uFE0F",
+                tags: ["action"]
+            },
+            // --- Simulationen ---
+            {
+                title: "Bio-Sim: Mikrobiologie-Labor",
+                description: "Beobachte Zellen, Bakterien und Immunzellen. Zellteilung und Phagozytose erleben.",
+                url: "games/bio-sim.html",
+                icon: "\uD83E\uDDA0",
+                tags: ["simulation"]
+            },
+            {
+                title: "Ecosystem Simulator",
+                description: "NPC-basiertes Ecosystem mit Flocking und Predator-Prey-Dynamik.",
+                url: "games/simulations/ecosystem-simulator.html",
+                icon: "\uD83E\uDDEC",
+                tags: ["simulation"]
+            },
+            {
+                title: "Gravity Sandbox",
+                description: "Planeten und Sterne erstellen, Gravitationsfelder und Orbits beobachten.",
+                url: "games/simulations/gravity-sandbox.html",
+                icon: "\uD83C\uDF0C",
+                tags: ["simulation"]
+            },
+            {
+                title: "Wave Simulator",
+                description: "Wellenmechanik! Interferenz, Beugung, Reflexion und stehende Wellen.",
+                url: "games/simulations/wave-simulator.html",
+                icon: "\uD83C\uDF0A",
+                tags: ["simulation"]
+            },
+            {
+                title: "Interaktives Periodensystem",
+                description: "Alle 118 Elemente mit Details. Filterbar nach Gruppen und Eigenschaften.",
+                url: "games/simulations/periodic-table.html",
+                icon: "\u2697\uFE0F",
+                tags: ["simulation"]
+            },
+            {
+                title: "Chemische Reaktionen",
+                description: "Chemische Reaktionen simulieren! Elemente mischen, Molek\u00fclstrukturen sehen.",
+                url: "games/simulations/chemical-reactions.html",
+                icon: "\uD83E\uDDEA",
+                tags: ["simulation"]
+            },
+            {
+                title: "Web Synthesizer",
+                description: "Vollwertiger Synthesizer! Oszillatoren, Filter, ADSR und Sequencer.",
+                url: "games/simulations/synthesizer.html",
+                icon: "\uD83C\uDFB9",
+                tags: ["simulation"]
+            },
+            {
+                title: "Frequency Lab",
+                description: "Schallwellen und Frequenzen erforschen! Wellenformen und Obert\u00f6ne visualisieren.",
+                url: "games/simulations/frequency-lab.html",
+                icon: "\uD83D\uDD0A",
+                tags: ["simulation"]
+            },
+            {
+                title: "Circuit Builder",
+                description: "Elektronische Schaltkreise bauen! Widerst\u00e4nde, LEDs und Transistoren.",
+                url: "games/simulations/circuit-builder.html",
+                icon: "\u26A1",
+                tags: ["simulation"]
+            },
+            {
+                title: "Logic Gate Simulator",
+                description: "Digitale Logikschaltungen entwerfen! AND, OR, NOT, XOR und mehr.",
+                url: "games/simulations/logic-gates.html",
+                icon: "\uD83D\uDD27",
+                tags: ["simulation"]
+            },
+            {
+                title: "Solar System Orrery",
+                description: "Interaktives Sonnensystem mit korrekten Orbits und Planeten-Infos.",
+                url: "games/simulations/solar-system.html",
+                icon: "\uD83E\uDE90",
+                tags: ["simulation"]
+            },
+            {
+                title: "Weather System",
+                description: "Wettersysteme simulieren! Hoch-/Tiefdruckgebiete, Wolken und Wind.",
+                url: "games/simulations/weather-system.html",
+                icon: "\u26C8\uFE0F",
+                tags: ["simulation"]
             }
-
-            add(element, event, handler, options) {
-                element.addEventListener(event, handler, options);
-                this.listeners.push({ element, event, handler, options });
-            }
-
-            removeAll() {
-                this.listeners.forEach(({ element, event, handler, options }) => {
-                    element.removeEventListener(event, handler, options);
-                });
-                this.listeners = [];
-            }
-        }
-
-        // ==========================================
-        // Safe LocalStorage
-        // ==========================================
-        function safeGetItem(key, defaultValue = null) {
-            try {
-                const item = localStorage.getItem(key);
-                return item !== null ? item : defaultValue;
-            } catch (error) {
-                console.error('LocalStorage not available:', error);
-                return defaultValue;
-            }
-        }
-
-        function safeSetItem(key, value) {
-            try {
-                localStorage.setItem(key, value);
-                return true;
-            } catch (error) {
-                console.error('LocalStorage not available:', error);
-                return false;
-            }
-        }
-
-        // ==========================================
-        // Game Categories Data
-        // ==========================================
-        const gameCategories = {
-            "Featured": {
-                title: "Featured",
-                icon: "\u2b50",
-                games: [
-                    {
-                        title: "Tron: 3D Arena WebGL",
-                        description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System.",
-                        url: "games/tron/tron-3d-dual-arena-threejs.html",
-                        icon: "\ud83c\udf1f"
-                    },
-                    {
-                        title: "Minecraft 3D",
-                        description: "Vollst\u00e4ndiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und \u00fcberlebe in deiner eigenen Blockwelt!",
-                        url: "games/minecraft3d.html",
-                        icon: "\u26cf\ufe0f"
-                    },
-                    {
-                        title: "Space Command",
-                        description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und f\u00fchre epische Schlachten.",
-                        url: "games/space-command.html",
-                        icon: "\ud83d\udef0\ufe0f"
-                    },
-                    {
-                        title: "Jedi Stickman Arena",
-                        description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kr\u00e4ften und Bluetooth Controller Support.",
-                        url: "games/jedi-stickman.html",
-                        icon: "\u2694\ufe0f"
-                    },
-                    {
-                        title: "Neon Tetris",
-                        description: "Tetris mit coolen 3D-Neon-Bl\u00f6cken! Klassisches Gameplay trifft auf moderne Cyberpunk-\u00c4sthetik mit Glow-Effekten.",
-                        url: "games/neon-tetris.html",
-                        icon: "\ud83d\udfe6"
-                    },
-                    {
-                        title: "Territory Garden",
-                        description: "Paper.io-inspiriert mit organischem Natur-Theme! Erobere Territorium als Pflanze, 4 Schwierigkeitsgrade, intelligente KI.",
-                        url: "games/territory-garden.html",
-                        icon: "\ud83c\udf3f"
-                    },
-                    {
-                        title: "AoE4 Battle Simulator",
-                        description: "Age of Empires 4 Kampfsimulator! 16 Fraktionen, KI-Counter-Empfehlungen und Echtzeit-Taktik-Schlacht.",
-                        url: "games/aoe4-battle-sim.html",
-                        icon: "\u2694\ufe0f"
-                    },
-                    {
-                        title: "Asteroid Miners",
-                        description: "Kooperatives Weltraum-Mining! 2-4 Spieler sammeln Ressourcen von Asteroiden, weichen Piraten aus und liefern an der Basis ab.",
-                        url: "games/asteroid-miners.html",
-                        icon: "\u26cf\ufe0f"
-                    },
-                    {
-                        title: "Sumo Bumpers",
-                        description: "Arena-Kampf f\u00fcr 2-4 Spieler! Sto\u00dfe Gegner von der schrumpfenden Plattform. Dash und elastische Kollisionen!",
-                        url: "games/sumo-bumpers.html",
-                        icon: "\ud83e\udd3c"
-                    }
-                ]
-            },
-            "3D": {
-                title: "3D Spiele",
-                icon: "\ud83c\udfae",
-                games: [
-                    {
-                        title: "Tron: 3D Arena WebGL",
-                        description: "ULTIMATE 3D Tron mit Three.js Engine! Detaillierte Light Cycles, Split-Screen Duell, Turbo-Boost System und instant-responsive Steuerung.",
-                        url: "games/tron/tron-3d-dual-arena-threejs.html",
-                        icon: "\ud83c\udf1f"
-                    },
-                    {
-                        title: "Minecraft 3D",
-                        description: "Vollst\u00e4ndiges 3D Voxel-Spiel wie Minecraft - baue, erkunde und \u00fcberlebe in deiner eigenen Blockwelt!",
-                        url: "games/minecraft3d.html",
-                        icon: "\u26cf\ufe0f"
-                    },
-                ]
-            },
-            "Strategy": {
-                title: "Strategie",
-                icon: "\ud83c\udfae",
-                games: [
-                    {
-                        title: "AoE4 Battle Simulator",
-                        description: "Age of Empires 4 Kampfsimulator! 16 Fraktionen, KI-Counter-Empfehlungen, Echtzeit-Taktik-Schlacht mit Flanken, R\u00fcckzug und Fokus-Feuer.",
-                        url: "games/aoe4-battle-sim.html",
-                        icon: "\u2694\ufe0f"
-                    },
-                    {
-                        title: "Space Command",
-                        description: "StarCraft-inspirierte Weltraum-RTS! Befehlige Raumschiffe, sammle Energie-Kristalle, baue Basen und f\u00fchre epische Schlachten gegen die KI.",
-                        url: "games/space-command.html",
-                        icon: "\ud83d\udef0\ufe0f"
-                    },
-                    {
-                        title: "Helldivers 2 Stratego",
-                        description: "Klassisches Stratego mit Helldivers 2 Thematik! Super Earth vs Automatons in epischen taktischen Duellen mit versteckten R\u00e4ngen.",
-                        url: "games/helldivers-stratego.html",
-                        icon: "\u2694\ufe0f"
-                    },
-                    {
-                        title: "Kingdom Defense",
-                        description: "Mittelalterliches Tower Defense! Platziere Bogensch\u00fctzen, Kanonen und Magier-T\u00fcrme, um 15 Wellen von Soldaten, Rittern und Giganten abzuwehren.",
-                        url: "games/kingdom-defense.html",
-                        icon: "\ud83c\udff0"
-                    },
-                ]
-            },
-            "Arcade": {
-                title: "Arcade & Klassiker",
-                icon: "\ud83d\udd79\ufe0f",
-                games: [
-                    {
-                        title: "Snake",
-                        description: "Das klassische Snake-Spiel - sammle \u00c4pfel und werde l\u00e4nger!",
-                        url: "games/snake.html",
-                        icon: "\ud83d\udc0d"
-                    },
-                    {
-                        title: "Brick Breaker",
-                        description: "Zerst\u00f6re Bl\u00f6cke und sammle Power-Ups f\u00fcr Multi-Ball und Laser-Waffen!",
-                        url: "games/brickbreaker.html",
-                        icon: "\ud83e\uddf1"
-                    },
-                    {
-                        title: "Flappy Bird",
-                        description: "Das s\u00fcchtig machende Flugspiel! Steuere den Vogel durch die R\u00f6hren. Einfach zu lernen, schwer zu meistern!",
-                        url: "games/flappy-bird.html",
-                        icon: "\ud83d\udc26"
-                    },
-                    {
-                        title: "Frogger Rush",
-                        description: "Klassisches Frogger! \u00dcberquere gef\u00e4hrliche Stra\u00dfen voller Autos und springe auf Baumst\u00e4mme \u00fcber den Fluss.",
-                        url: "games/frogger-rush.html",
-                        icon: "\ud83d\udc38"
-                    },
-                    {
-                        title: "Neon Tetris",
-                        description: "Tetris mit coolen 3D-Neon-Bl\u00f6cken! Klassisches Gameplay trifft auf moderne Cyberpunk-\u00c4sthetik mit Glow-Effekten.",
-                        url: "games/neon-tetris.html",
-                        icon: "\ud83d\udfe6"
-                    },
-                    {
-                        title: "Territory Garden",
-                        description: "Paper.io-inspiriert mit organischem Natur-Theme! Erobere Territorium als Pflanze, 4 Schwierigkeitsgrade, intelligente KI.",
-                        url: "games/territory-garden.html",
-                        icon: "\ud83c\udf3f"
-                    }
-                ]
-            },
-            "Multiplayer": {
-                title: "Mehrspieler",
-                icon: "\ud83d\udc65",
-                games: [
-                    {
-                        title: "Jedi Stickman Arena",
-                        description: "Physik-basierter Lichtschwert-Kampf! Stickman-Jedis mit realistischer Ragdoll-Physik, Force-Kr\u00e4ften und Bluetooth Controller Support.",
-                        url: "games/jedi-stickman.html",
-                        icon: "\u2694\ufe0f"
-                    },
-                    {
-                        title: "Volleyball",
-                        description: "Spannende Volleyball-Action f\u00fcr zwei Spieler mit realistischer Physik!",
-                        url: "games/volleyball.html",
-                        icon: "\ud83c\udfd0"
-                    },
-                    {
-                        title: "Maze Runner",
-                        description: "Zwei-Spieler Labyrinth-Rennen! Spieler 1 mit WASD, Spieler 2 mit Pfeiltasten. Erreiche als Erster das Ziel!",
-                        url: "games/maze-runner.html",
-                        icon: "\ud83c\udfaf"
-                    },
-                    {
-                        title: "Asteroid Miners",
-                        description: "Kooperatives Weltraum-Mining! 2-4 Spieler sammeln Ressourcen von Asteroiden, weichen Piraten aus und liefern an der Basis ab. Erster mit 100 Ressourcen gewinnt!",
-                        url: "games/asteroid-miners.html",
-                        icon: "\u26cf\ufe0f"
-                    },
-                    {
-                        title: "Sumo Bumpers",
-                        description: "Arena-Kampf f\u00fcr 2-4 Spieler! Sto\u00dfe Gegner von der schrumpfenden Plattform. Dash, Bremse und elastische Kollisionen. Best of 5 Runden!",
-                        url: "games/sumo-bumpers.html",
-                        icon: "\ud83e\udd3c"
-                    },
-                    {
-                        title: "VOID PROTOCOL",
-                        description: "Alien-Breed-Style Dungeon Crawler! Prozedurale Level, 4 Androiden-Typen, 6 Waffen, Fog of War mit Flashlight, Terminal-Hack + Countdown-Flucht. WASD + Maus!",
-                        url: "games/void-protocol.html",
-                        icon: "\ud83c\udfaf"
-                    }
-                ]
-            },
-            "Action": {
-                title: "Action",
-                icon: "\ud83d\udca5",
-                games: [
-                    {
-                        title: "Space Battle Arena",
-                        description: "Intensiver 4v4 Weltraumkampf! F\u00fchre das rote Team zum Sieg gegen die blauen Feinde. WASD-Steuerung, Schilde und epische Raumschlachten!",
-                        url: "games/space-battle.html",
-                        icon: "\ud83d\ude80"
-                    },
-                    {
-                        title: "Zombie Waves",
-                        description: "\u00dcberlebe gegen Zombie-Wellen! Baue Barrikaden zur Verteidigung, t\u00f6te Zombies f\u00fcr Ressourcen. Top-Down Shooter mit strategischem Bau-System!",
-                        url: "games/zombie-waves.html",
-                        icon: "\ud83e\udddf"
-                    }
-                ]
-            },
-            "Sports": {
-                title: "Sport & Racing",
-                icon: "\u26bd",
-                games: [
-                    {
-                        title: "Penalty Shootout",
-                        description: "Elfmeterschie\u00dfen! Ziele aufs Tor, w\u00e4hle die perfekte Schusskraft und bezwinge den Torwart. Mit Streak-Bonus und drei Schwierigkeitsgraden!",
-                        url: "games/penalty-shootout.html",
-                        icon: "\u26bd"
-                    },
-                    {
-                        title: "Racing Circuit",
-                        description: "Top-Down Rennspiel mit Zeitrennen! Fahre 5 Runden auf dem Circuit und stelle neue Bestzeiten auf!",
-                        url: "games/racing-circuit.html",
-                        icon: "\ud83c\udfce\ufe0f"
-                    }
-                ]
-            },
-            "Puzzle": {
-                title: "Puzzle & R\u00e4tsel",
-                icon: "\ud83e\udde9",
-                games: [
-                    {
-                        title: "Das Geheimnis des Professors",
-                        description: "Ein mysteri\u00f6ses R\u00e4tselabenteuer! Professor Blackwood ist verschwunden und hat Hinweise hinterlassen. L\u00f6se einfache R\u00e4tsel in 5 R\u00e4umen seines Hauses.",
-                        url: "games/cipher-detective.html",
-                        icon: "\ud83d\udcda"
-                    }
-                ]
-            },
-            "Simulationen": {
-                title: "Simulationen",
-                icon: "\ud83e\uddec",
-                games: [
-                    {
-                        title: "Bio-Sim: Mikrobiologie-Labor",
-                        description: "Interaktive Biologie-Simulation! Beobachte Zellen, Bakterien, Viren und Immunzellen. Lerne \u00fcber Zellteilung, Infektion und Phagozytose.",
-                        url: "games/bio-sim.html",
-                        icon: "\ud83e\udda0"
-                    },
-                    {
-                        title: "Ecosystem Simulator",
-                        description: "NPC-basiertes Ecosystem mit Flocking, Predator-Prey-Dynamik, Ressourcen-Wettbewerb und Stammesverhalten. Emergente Muster beobachten!",
-                        url: "games/simulations/ecosystem-simulator.html",
-                        icon: "\ud83e\uddec"
-                    },
-                    {
-                        title: "Gravity Sandbox",
-                        description: "Erstelle Planeten und Sterne, beobachte Gravitationsfelder und Orbits in Echtzeit. Newtonsche Physik zum Anfassen!",
-                        url: "games/simulations/gravity-sandbox.html",
-                        icon: "\ud83c\udf0c"
-                    },
-                    {
-                        title: "Wave Simulator",
-                        description: "Visualisiere Wellenmechanik! Interferenz, Beugung, Reflexion und stehende Wellen interaktiv erleben.",
-                        url: "games/simulations/wave-simulator.html",
-                        icon: "\ud83c\udf0a"
-                    },
-                    {
-                        title: "Interaktives Periodensystem",
-                        description: "Erkunde alle 118 Elemente mit Detailinfos. Filterbar nach Gruppen, Aggregatzustand und Eigenschaften.",
-                        url: "games/simulations/periodic-table.html",
-                        icon: "\u2697\ufe0f"
-                    },
-                    {
-                        title: "Chemische Reaktionen",
-                        description: "Simuliere chemische Reaktionen! Mische Elemente, beobachte Reaktionsgleichungen und Molek\u00fclstrukturen.",
-                        url: "games/simulations/chemical-reactions.html",
-                        icon: "\ud83e\uddea"
-                    },
-                    {
-                        title: "Web Synthesizer",
-                        description: "Vollwertiger Synthesizer im Browser! Oszillatoren, Filter, ADSR-H\u00fcllkurve, Effekte und Sequencer.",
-                        url: "games/simulations/synthesizer.html",
-                        icon: "\ud83c\udfb9"
-                    },
-                    {
-                        title: "Frequency Lab",
-                        description: "Erforsche Schallwellen und Frequenzen! Visualisiere Wellenformen, Obert\u00f6ne und akustische Ph\u00e4nomene.",
-                        url: "games/simulations/frequency-lab.html",
-                        icon: "\ud83d\udd0a"
-                    },
-                    {
-                        title: "Circuit Builder",
-                        description: "Baue elektronische Schaltkreise! Widerst\u00e4nde, LEDs und Transistoren auf einer virtuellen Platine.",
-                        url: "games/simulations/circuit-builder.html",
-                        icon: "\u26a1"
-                    },
-                    {
-                        title: "Logic Gate Simulator",
-                        description: "Entwirf digitale Logikschaltungen! AND, OR, NOT, XOR und mehr. Baue eigene Prozessor-Komponenten.",
-                        url: "games/simulations/logic-gates.html",
-                        icon: "\ud83d\udd27"
-                    },
-                    {
-                        title: "Solar System Orrery",
-                        description: "Interaktives Orrery des Sonnensystems! Alle Planeten mit korrekten Orbits und Informationen.",
-                        url: "games/simulations/solar-system.html",
-                        icon: "\ud83e\ude90"
-                    },
-                    {
-                        title: "Weather System",
-                        description: "Simuliere Wettersysteme! Hoch-/Tiefdruckgebiete, Wolkenbildung, Wind und Niederschlag beobachten.",
-                        url: "games/simulations/weather-system.html",
-                        icon: "\u26c8\ufe0f"
-                    }
-                ]
-            }
-        };
-
-        // ==========================================
-        // Application State
-        // ==========================================
-        let activeCategory = 'Featured';
-        let searchQuery = '';
-        let featuredIndex = 0;
-        let featuredInterval = null;
-        const eventManager = new EventManager();
-
-        // Featured games pool (curated selection)
-        const featuredGames = [
-            gameCategories['Featured'].games[0],  // Tron 3D
-            gameCategories['Featured'].games[1],  // Minecraft 3D
-            gameCategories['Featured'].games[2],  // Space Command
-            gameCategories['Featured'].games[3],  // Jedi Stickman
-            gameCategories['Featured'].games[7],  // AoE4
         ];
 
         // ==========================================
-        // Count total unique games
+        // Tag display names
         // ==========================================
-        function countUniqueGames() {
-            const urls = new Set();
-            Object.values(gameCategories).forEach(cat => {
-                cat.games.forEach(g => urls.add(g.url));
-            });
-            return urls.size;
-        }
+        const tagLabels = {
+            alle: "Alle",
+            action: "Action",
+            strategie: "Strategie",
+            arcade: "Arcade",
+            mehrspieler: "Mehrspieler",
+            simulation: "Simulation"
+        };
 
         // ==========================================
-        // Featured Section
+        // State
         // ==========================================
-        function updateFeatured() {
-            const game = featuredGames[featuredIndex];
-            if (!game) return;
+        let activeFilter = 'alle';
+        let searchQuery = '';
 
-            const title = document.getElementById('featuredTitle');
-            const desc = document.getElementById('featuredDesc');
-            const icon = document.getElementById('featuredIcon');
-            const btn = document.getElementById('featuredPlayBtn');
-            const card = document.getElementById('featuredCard');
-
-            title.textContent = game.title;
-            desc.textContent = game.description;
-            icon.textContent = game.icon;
-            btn.href = game.url;
-
-            card.onclick = () => { launchGame(game.url, game.icon, game.title); };
-
-            // Update dots
-            document.querySelectorAll('.featured-dot').forEach((dot, i) => {
-                dot.classList.toggle('active', i === featuredIndex);
-            });
-        }
-
-        function initFeatured() {
-            const nav = document.getElementById('featuredNav');
-            nav.innerHTML = '';
-
-            featuredGames.forEach((_, i) => {
-                const dot = document.createElement('button');
-                dot.className = 'featured-dot' + (i === 0 ? ' active' : '');
-                dot.setAttribute('role', 'tab');
-                dot.setAttribute('aria-label', 'Featured game ' + (i + 1));
-                dot.addEventListener('click', () => {
-                    featuredIndex = i;
-                    updateFeatured();
-                    resetFeaturedRotation();
+        // ==========================================
+        // Render filter pills
+        // ==========================================
+        function renderFilters() {
+            const container = document.getElementById('filterPills');
+            Object.entries(tagLabels).forEach(([key, label]) => {
+                const btn = document.createElement('button');
+                btn.className = 'filter-pill' + (key === 'alle' ? ' active' : '');
+                btn.textContent = label;
+                btn.dataset.filter = key;
+                btn.addEventListener('click', () => {
+                    activeFilter = key;
+                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    applyFilters();
                 });
-                nav.appendChild(dot);
-            });
-
-            updateFeatured();
-            startFeaturedRotation();
-        }
-
-        function startFeaturedRotation() {
-            featuredInterval = setInterval(() => {
-                featuredIndex = (featuredIndex + 1) % featuredGames.length;
-                updateFeatured();
-            }, 6000);
-        }
-
-        function resetFeaturedRotation() {
-            clearInterval(featuredInterval);
-            startFeaturedRotation();
-        }
-
-        // ==========================================
-        // Category Navigation
-        // ==========================================
-        function initCategoryPills() {
-            const container = document.getElementById('categoryPills');
-            container.innerHTML = '';
-
-            // "All" pill
-            const allGamesCount = countUniqueGames();
-            const allPill = createPill('All', 'Alle', allGamesCount);
-            container.appendChild(allPill);
-
-            // Category pills
-            Object.keys(gameCategories).forEach(key => {
-                const cat = gameCategories[key];
-                const pill = createPill(key, cat.icon + ' ' + cat.title, cat.games.length);
-                container.appendChild(pill);
+                container.appendChild(btn);
             });
         }
 
-        function createPill(categoryKey, label, count) {
-            const pill = document.createElement('button');
-            pill.className = 'pill' + (categoryKey === activeCategory ? ' active' : '');
-            pill.setAttribute('role', 'tab');
-            pill.setAttribute('data-category', categoryKey);
-            pill.innerHTML = label + '<span class="pill-count">' + count + '</span>';
-            pill.addEventListener('click', () => switchCategory(categoryKey));
-            return pill;
-        }
-
-        function switchCategory(category) {
-            activeCategory = category;
-
-            // Update pill styles
-            document.querySelectorAll('.pill').forEach(pill => {
-                pill.classList.toggle('active', pill.getAttribute('data-category') === category);
-            });
-
-            // Update section title
-            if (category === 'All') {
-                document.getElementById('sectionTitle').textContent = 'Alle Spiele';
-            } else {
-                const cat = gameCategories[category];
-                document.getElementById('sectionTitle').textContent = cat ? cat.icon + ' ' + cat.title : category;
-            }
-
-            loadGames();
-        }
-
         // ==========================================
-        // Game Card Creation
+        // Render game cards
         // ==========================================
-        function findGameCategory(gameUrl) {
-            for (const [key, cat] of Object.entries(gameCategories)) {
-                if (key === 'Featured') continue;
-                if (cat.games.some(g => g.url === gameUrl)) {
-                    return cat.icon + ' ' + cat.title;
-                }
-            }
-            return '';
-        }
-
-        // ==========================================
-        // Game Launch Transition
-        // ==========================================
-        function launchGame(url, icon, title) {
-            var overlay = document.getElementById('gameLaunchOverlay');
-            var launchIcon = document.getElementById('launchIcon');
-            var launchTitle = document.getElementById('launchTitle');
-            if (overlay && launchIcon && launchTitle) {
-                launchIcon.textContent = icon;
-                launchTitle.textContent = title;
-                overlay.classList.add('active');
-                setTimeout(function() {
-                    window.location.href = url;
-                }, 600);
-            } else {
-                window.location.href = url;
-            }
-        }
-
-        function createGameCard(game, index) {
-            const card = document.createElement('article');
-            card.className = 'game-card';
-            card.setAttribute('role', 'listitem');
-            card.setAttribute('tabindex', '0');
-            card.setAttribute('aria-label', 'Play ' + game.title + ': ' + game.description);
-            card.style.transitionDelay = (index * 40) + 'ms';
-
-            const categoryLabel = findGameCategory(game.url);
-
-            card.innerHTML =
-                '<div class="game-card-top">' +
-                    '<div class="game-card-icon">' + game.icon + '</div>' +
-                    '<div class="game-card-meta">' +
-                        '<div class="game-card-title">' + game.title + '</div>' +
-                        (categoryLabel ? '<div class="game-card-category">' + categoryLabel + '</div>' : '') +
-                    '</div>' +
-                '</div>' +
-                '<div class="game-card-desc">' + game.description + '</div>' +
-                '<div class="game-card-footer">' +
-                    '<div class="game-card-tag">HTML5</div>' +
-                    '<div class="play-indicator">Spielen &#8594;</div>' +
-                '</div>';
-
-            const navigate = () => { launchGame(game.url, game.icon, game.title); };
-            card.addEventListener('click', navigate);
-            card.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigate();
-                }
-            });
-
-            return card;
-        }
-
-        // ==========================================
-        // Load & Render Games
-        // ==========================================
-        function loadGames() {
-            const grid = document.getElementById('gamesGrid');
+        function renderCards() {
+            const grid = document.getElementById('gameGrid');
             grid.innerHTML = '';
 
-            let gamesToShow = [];
+            games.forEach(game => {
+                const card = document.createElement('a');
+                card.className = 'game-card';
+                card.href = game.url;
+                card.dataset.tags = game.tags.join(',');
+                card.dataset.search = (game.title + ' ' + game.description).toLowerCase();
 
-            if (activeCategory === 'All') {
-                Object.values(gameCategories).forEach(cat => {
-                    gamesToShow.push(...cat.games);
+                card.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    launchGame(game.url, game.icon, game.title);
                 });
-            } else if (gameCategories[activeCategory]) {
-                gamesToShow = [...gameCategories[activeCategory].games];
-            }
 
-            // Filter by search
-            if (searchQuery) {
-                gamesToShow = gamesToShow.filter(game =>
-                    game.title.toLowerCase().includes(searchQuery) ||
-                    game.description.toLowerCase().includes(searchQuery)
-                );
-            }
+                card.innerHTML = `
+                    <div class="card-icon">${game.icon}</div>
+                    <div class="card-title">${game.title}</div>
+                    <div class="card-desc">${game.description}</div>
+                    <div class="card-tags">
+                        ${game.tags.map(t => `<span class="card-tag">${tagLabels[t] || t}</span>`).join('')}
+                    </div>
+                `;
 
-            // Deduplicate by URL
-            const uniqueGames = [];
-            const seenUrls = new Set();
-            gamesToShow.forEach(game => {
-                if (!seenUrls.has(game.url)) {
-                    seenUrls.add(game.url);
-                    uniqueGames.push(game);
+                grid.appendChild(card);
+            });
+
+            document.getElementById('totalBadge').textContent = games.length + ' Spiele';
+            updateResultsCount(games.length);
+        }
+
+        // ==========================================
+        // Apply filters + search
+        // ==========================================
+        function applyFilters() {
+            const cards = document.querySelectorAll('.game-card');
+            let visibleCount = 0;
+            const query = searchQuery.toLowerCase().trim();
+
+            cards.forEach(card => {
+                const tags = card.dataset.tags;
+                const searchText = card.dataset.search;
+
+                const matchesFilter = activeFilter === 'alle' || tags.includes(activeFilter);
+                const matchesSearch = !query || searchText.includes(query);
+                const visible = matchesFilter && matchesSearch;
+
+                if (visible) {
+                    card.classList.remove('hiding', 'hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hiding');
+                    setTimeout(() => {
+                        if (card.classList.contains('hiding')) {
+                            card.classList.add('hidden');
+                        }
+                    }, 250);
                 }
             });
 
-            // Update results count
-            const countEl = document.getElementById('resultsCount');
-            countEl.textContent = uniqueGames.length + (uniqueGames.length === 1 ? ' Spiel' : ' Spiele');
+            updateResultsCount(visibleCount);
+        }
 
-            if (uniqueGames.length > 0) {
-                uniqueGames.forEach((game, i) => {
-                    const card = createGameCard(game, i);
-                    grid.appendChild(card);
-                });
-
-                // Trigger scroll reveal
-                requestAnimationFrame(() => {
-                    observeCards();
-                });
+        // ==========================================
+        // Results count
+        // ==========================================
+        function updateResultsCount(count) {
+            const el = document.getElementById('resultsCount');
+            const filterName = tagLabels[activeFilter] || 'Alle';
+            if (activeFilter === 'alle' && !searchQuery) {
+                el.innerHTML = `<strong>${count}</strong> Spiele`;
             } else {
-                const noResults = document.createElement('div');
-                noResults.className = 'no-results';
-                noResults.innerHTML =
-                    '<div class="no-results-icon">&#128269;</div>' +
-                    '<h3>Keine Spiele gefunden</h3>' +
-                    '<p>Versuche einen anderen Suchbegriff oder w\u00e4hle eine andere Kategorie.</p>';
-                grid.appendChild(noResults);
+                el.innerHTML = `<strong>${count}</strong> ${count === 1 ? 'Spiel' : 'Spiele'} ${activeFilter !== 'alle' ? 'in ' + filterName : ''} ${searchQuery ? 'f\u00fcr "' + searchQuery + '"' : ''}`.trim();
             }
         }
 
         // ==========================================
-        // Scroll Reveal (IntersectionObserver)
+        // Launch game with overlay
         // ==========================================
-        let cardObserver = null;
+        function launchGame(url, icon, title) {
+            const overlay = document.getElementById('launchOverlay');
+            document.getElementById('launchIcon').textContent = icon;
+            document.getElementById('launchText').textContent = title;
+            overlay.classList.add('active');
 
-        function observeCards() {
-            if (cardObserver) {
-                cardObserver.disconnect();
-            }
-
-            cardObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('revealed');
-                        cardObserver.unobserve(entry.target);
-                    }
-                });
-            }, {
-                threshold: 0.05,
-                rootMargin: '20px'
-            });
-
-            document.querySelectorAll('.game-card:not(.revealed)').forEach(card => {
-                cardObserver.observe(card);
-            });
+            setTimeout(() => {
+                window.location.href = url;
+            }, 500);
         }
 
         // ==========================================
-        // Search
-        // ==========================================
-        function initSearch() {
-            const input = document.getElementById('searchInput');
-            const clearBtn = document.getElementById('searchClear');
-
-            eventManager.add(input, 'input', (e) => {
-                searchQuery = e.target.value.toLowerCase();
-                clearBtn.classList.toggle('visible', searchQuery.length > 0);
-                loadGames();
-            });
-
-            eventManager.add(clearBtn, 'click', () => {
-                input.value = '';
-                searchQuery = '';
-                clearBtn.classList.remove('visible');
-                loadGames();
-                input.focus();
-            });
-        }
-
-
-        // ==========================================
-        // Initialize Application
+        // Init
         // ==========================================
         function init() {
-            // Set total game count
-            var total = countUniqueGames();
-            document.getElementById('totalGameCount').textContent = total + ' Spiele';
+            renderFilters();
+            renderCards();
 
-            // Initialize all modules
-            initFeatured();
-            initCategoryPills();
-            initSearch();
-            loadGames();
-            // Remove loading screen
-            setTimeout(function() {
-                document.getElementById('loadingScreen').classList.add('hidden');
-            }, 1300);
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                applyFilters();
+            });
+
+            // Keyboard shortcut: Escape clears search + filter
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    searchQuery = '';
+                    activeFilter = 'alle';
+                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                    document.querySelector('.filter-pill[data-filter="alle"]').classList.add('active');
+                    applyFilters();
+                }
+                // Focus search on /
+                if (e.key === '/' && document.activeElement !== searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
         }
 
-        // Start when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
+        init();
     </script>
 </body>
 </html>
