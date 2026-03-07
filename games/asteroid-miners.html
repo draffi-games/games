@@ -83,7 +83,8 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
             z-index: 10;
         }
 
@@ -91,7 +92,8 @@
             font-size: 64px;
             margin-bottom: 20px;
             color: #00ffff;
-            text-shadow: 0 0 20px #00ffff;
+            text-shadow: 0 0 30px #00ffff, 0 0 60px rgba(0, 255, 255, 0.3);
+            letter-spacing: 6px;
         }
 
         .menu-screen p {
@@ -435,7 +437,14 @@
             }
 
             draw(ctx) {
-                ctx.fillStyle = '#ffff00';
+                // Glow
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Bullet
+                ctx.fillStyle = this.playerId >= 0 ? '#ffff00' : '#ff4444';
                 ctx.beginPath();
                 ctx.arc(this.pos.x, this.pos.y, 3, 0, Math.PI * 2);
                 ctx.fill();
@@ -480,8 +489,21 @@
                 ctx.translate(this.pos.x, this.pos.y);
                 ctx.rotate(this.angle);
 
-                ctx.strokeStyle = '#888';
-                ctx.fillStyle = '#444';
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.moveTo(this.vertices[0].x + 3, this.vertices[0].y + 3);
+                for (let i = 1; i < this.vertices.length; i++) {
+                    ctx.lineTo(this.vertices[i].x + 3, this.vertices[i].y + 3);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Body
+                const resourcePct = this.resources / (this.size * 10);
+                const bodyColor = resourcePct > 0.5 ? '#555' : '#3a3a3a';
+                ctx.fillStyle = bodyColor;
+                ctx.strokeStyle = '#777';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
@@ -492,9 +514,16 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // Crystal deposits glow
                 if (this.resources > 0) {
+                    const glowAlpha = 0.3 + 0.1 * Math.sin(Date.now() * 0.003 + this.pos.x);
+                    ctx.fillStyle = `rgba(0, 255, 255, ${glowAlpha})`;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+
                     ctx.fillStyle = '#00ffff';
-                    ctx.font = '12px monospace';
+                    ctx.font = 'bold 12px monospace';
                     ctx.textAlign = 'center';
                     ctx.fillText(this.resources, 0, 4);
                 }
@@ -520,21 +549,50 @@
             }
 
             draw(ctx) {
+                // Outer glow
+                const pulseSize = Math.sin(Date.now() * 0.002) * 5;
+                const outerGlow = ctx.createRadialGradient(
+                    this.pos.x, this.pos.y, this.radius - 10,
+                    this.pos.x, this.pos.y, this.radius + 15 + pulseSize
+                );
+                outerGlow.addColorStop(0, 'rgba(0, 255, 0, 0.15)');
+                outerGlow.addColorStop(1, 'rgba(0, 255, 0, 0)');
+                ctx.fillStyle = outerGlow;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, this.radius + 15 + pulseSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ring
                 ctx.strokeStyle = '#00ff00';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
                 ctx.stroke();
 
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+                // Inner fill
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.08)';
                 ctx.beginPath();
                 ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
                 ctx.fill();
 
+                // Rotating dashed ring
+                ctx.save();
+                ctx.translate(this.pos.x, this.pos.y);
+                ctx.rotate(Date.now() * 0.001);
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([8, 12]);
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius - 8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+
+                // Text
                 ctx.fillStyle = '#00ff00';
-                ctx.font = '24px monospace';
+                ctx.font = 'bold 20px monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText('BASE', this.pos.x, this.pos.y + 8);
+                ctx.fillText('BASE', this.pos.x, this.pos.y + 6);
             }
         }
 
@@ -599,32 +657,50 @@
             }
 
             draw(ctx) {
+                // Danger glow
+                const dangerGlow = ctx.createRadialGradient(this.pos.x, this.pos.y, 0, this.pos.x, this.pos.y, 30);
+                dangerGlow.addColorStop(0, 'rgba(255, 0, 0, 0.15)');
+                dangerGlow.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                ctx.fillStyle = dangerGlow;
+                ctx.beginPath();
+                ctx.arc(this.pos.x, this.pos.y, 30, 0, Math.PI * 2);
+                ctx.fill();
+
                 ctx.save();
                 ctx.translate(this.pos.x, this.pos.y);
                 ctx.rotate(this.angle);
 
-                ctx.fillStyle = '#ff0000';
-                ctx.strokeStyle = '#ff6666';
+                ctx.fillStyle = '#cc0000';
+                ctx.strokeStyle = '#ff4444';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(15, 0);
-                ctx.lineTo(-10, -8);
-                ctx.lineTo(-5, 0);
-                ctx.lineTo(-10, 8);
+                ctx.moveTo(16, 0);
+                ctx.lineTo(-10, -9);
+                ctx.lineTo(-5, -3);
+                ctx.lineTo(-8, 0);
+                ctx.lineTo(-5, 3);
+                ctx.lineTo(-10, 9);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
+                // Eye
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(5, 0, 2, 0, Math.PI * 2);
+                ctx.fill();
+
                 ctx.restore();
 
-                if (this.health < 30) {
-                    const barWidth = 30;
-                    const barHeight = 4;
-                    ctx.fillStyle = '#ff0000';
-                    ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth, barHeight);
-                    ctx.fillStyle = '#00ff00';
-                    ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth * (this.health / 30), barHeight);
-                }
+                // Health bar (always show)
+                const barWidth = 30;
+                const barHeight = 4;
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(this.pos.x - barWidth/2 - 1, this.pos.y - this.radius - 11, barWidth + 2, barHeight + 2);
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth, barHeight);
+                ctx.fillStyle = this.health > 15 ? '#00ff00' : '#ffff00';
+                ctx.fillRect(this.pos.x - barWidth/2, this.pos.y - this.radius - 10, barWidth * (this.health / 30), barHeight);
             }
 
             takeDamage(amount) {
@@ -779,38 +855,83 @@
             }
 
             draw(ctx) {
-                if (!this.alive) return;
+                if (!this.alive) {
+                    // Respawn indicator
+                    if (this.respawnTimer > 0) {
+                        ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() * 0.005);
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(this.pos.x, this.pos.y, this.radius + 5, 0, Math.PI * 2 * (1 - this.respawnTimer / 180));
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                    }
+                    return;
+                }
 
                 ctx.save();
                 ctx.translate(this.pos.x, this.pos.y);
                 ctx.rotate(this.angle);
 
+                // Engine glow
+                const speed = this.vel.length();
+                if (speed > 1) {
+                    const glowSize = 8 + speed * 2;
+                    const glow = ctx.createRadialGradient(-this.radius, 0, 0, -this.radius, 0, glowSize);
+                    glow.addColorStop(0, this.color + '88');
+                    glow.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(-this.radius, 0, glowSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Ship body
                 ctx.fillStyle = this.color;
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(this.radius, 0);
+                ctx.moveTo(this.radius + 2, 0);
                 ctx.lineTo(-this.radius, -this.radius * 0.7);
-                ctx.lineTo(-this.radius * 0.5, 0);
+                ctx.lineTo(-this.radius * 0.4, 0);
                 ctx.lineTo(-this.radius, this.radius * 0.7);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.fillStyle = '#fff';
-                ctx.font = '10px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(this.id + 1, 0, 3);
+                // Cockpit
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(2, 0, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Boost indicator
+                if (this.boostCooldown > 0) {
+                    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    const progress = 1 - this.boostCooldown / 60;
+                    ctx.arc(0, 0, this.radius + 4, -Math.PI/2, -Math.PI/2 + Math.PI * 2 * progress);
+                    ctx.stroke();
+                }
 
                 ctx.restore();
 
+                // Player label
+                ctx.fillStyle = this.color;
+                ctx.font = 'bold 9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('P' + (this.id + 1), this.pos.x, this.pos.y - this.radius - 5);
+
+                // Cargo bar
                 if (this.resources > 0) {
                     const barWidth = 30;
                     const barHeight = 4;
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                    ctx.fillRect(this.pos.x - barWidth/2, this.pos.y + this.radius + 8, barWidth, barHeight);
-                    ctx.fillStyle = '#00ffff';
-                    ctx.fillRect(this.pos.x - barWidth/2, this.pos.y + this.radius + 8, barWidth * (this.resources / this.cargoCapacity), barHeight);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(this.pos.x - barWidth/2 - 1, this.pos.y + this.radius + 7, barWidth + 2, barHeight + 2);
+                    const pct = this.resources / this.cargoCapacity;
+                    ctx.fillStyle = pct > 0.8 ? '#ffff00' : '#00ffff';
+                    ctx.fillRect(this.pos.x - barWidth/2, this.pos.y + this.radius + 8, barWidth * pct, barHeight);
                 }
             }
 
@@ -1139,8 +1260,19 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Subtle nebula
+            const nebula = ctx.createRadialGradient(
+                canvas.width * 0.3, canvas.height * 0.4, 0,
+                canvas.width * 0.3, canvas.height * 0.4, canvas.width * 0.4
+            );
+            nebula.addColorStop(0, 'rgba(0, 30, 60, 0.3)');
+            nebula.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = nebula;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             gameState.stars.forEach(star => {
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+                const twinkle = star.brightness * (0.8 + 0.2 * Math.sin(Date.now() * 0.003 + star.x * 0.1));
+                ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
                 ctx.fillRect(star.x, star.y, star.size, star.size);
             });
 
@@ -1159,17 +1291,41 @@
             gameState.players.forEach(player => player.draw(ctx));
         }
 
+        let mainLoopRunning = false;
+
         function gameLoop() {
             update();
             draw();
+            if (gameState.running || !mainLoopRunning) return;
             requestAnimationFrame(gameLoop);
+        }
+
+        function mainLoop() {
+            if (!gameState.running) {
+                checkStartInput();
+
+                // Draw menu background
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Twinkling stars
+                gameState.stars.forEach(star => {
+                    const twinkle = star.brightness * (0.7 + 0.3 * Math.sin(Date.now() * 0.002 + star.x));
+                    ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
+                    ctx.fillRect(star.x, star.y, star.size, star.size);
+                });
+            } else {
+                update();
+                draw();
+            }
+
+            requestAnimationFrame(mainLoop);
         }
 
         function startGame() {
             document.getElementById('menuScreen').style.display = 'none';
             document.getElementById('gameOverScreen').style.display = 'none';
             initGame();
-            gameLoop();
         }
 
         function endGame() {
@@ -1181,14 +1337,15 @@
 
             const winner = sortedPlayers[0];
             const winnerDisplay = document.getElementById('winnerDisplay');
-            winnerDisplay.innerHTML = `<span style="color: ${winner.color}; font-size: 48px;">Player ${winner.id + 1} Wins!</span>`;
+            winnerDisplay.innerHTML = `<span style="color: ${winner.color}; font-size: 48px; text-shadow: 0 0 20px ${winner.color};">Player ${winner.id + 1} Wins!</span>`;
 
             const finalScores = document.getElementById('finalScores');
             let scoresHtml = '<h3>Final Scores:</h3>';
             sortedPlayers.forEach((player, i) => {
+                const medal = i === 0 ? '👑 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
                 scoresHtml += `
                     <div class="final-score-item" style="border-left: 4px solid ${player.color}">
-                        ${i + 1}. Player ${player.id + 1}: ${player.totalScore || 0} resources
+                        ${medal}${i + 1}. Player ${player.id + 1}: ${player.totalScore || 0} resources
                     </div>
                 `;
             });
@@ -1206,6 +1363,7 @@
             if (gameState.running) return;
 
             if (keys[' ']) {
+                keys[' '] = false;
                 startGame();
                 return;
             }
@@ -1219,29 +1377,9 @@
             });
         }
 
-        function menuLoop() {
-            checkStartInput();
-            requestAnimationFrame(menuLoop);
-        }
-
         updateControllerList();
         initStars();
-        menuLoop();
-
-        function drawMenuStars() {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            gameState.stars.forEach(star => {
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
-                ctx.fillRect(star.x, star.y, star.size, star.size);
-            });
-
-            if (!gameState.running) {
-                requestAnimationFrame(drawMenuStars);
-            }
-        }
-        drawMenuStars();
+        mainLoop();
 
         function toggleFullscreen() {
             if (!document.fullscreenElement) {

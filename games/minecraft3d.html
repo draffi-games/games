@@ -175,6 +175,70 @@
             font-size: 12px;
             font-family: monospace;
             max-width: 300px;
+            display: none;
+        }
+
+        #debug.visible {
+            display: block;
+        }
+
+        .back-button {
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-button:hover {
+            background: rgba(50,120,255,0.6) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(50,120,255,0.3);
+        }
+
+        #info {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: opacity 0.3s;
+        }
+
+        #instructions {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .hotbar-slot {
+            transition: all 0.2s;
+        }
+
+        .hotbar-slot:hover {
+            background: rgba(255,255,255,0.3) !important;
+            transform: scale(1.1);
+        }
+
+        .hotbar-slot.selected {
+            border-color: #4fc3f7 !important;
+            background: rgba(79,195,247,0.25) !important;
+            box-shadow: 0 0 12px rgba(79,195,247,0.4);
+        }
+
+        #hotbar {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+
+        #blockBreakEffect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 500;
+            font-size: 32px;
+            opacity: 0;
+            transition: opacity 0.15s;
         }
     </style>
 </head>
@@ -184,7 +248,7 @@
         <div id="crosshair"></div>
         
         <div id="ui">
-            <button class="back-button" onclick="window.location.href='../index.html'">← Zurück</button>
+            <a href="../index.html" class="back-button">← Zurück zur Galerie</a>
             
             <div id="info">
                 <div>Position: <span id="position">32, 25, 32</span></div>
@@ -216,6 +280,8 @@
                 <div class="hotbar-slot empty" data-slot="8"></div>
             </div>
             
+            <div id="blockBreakEffect"></div>
+
             <div id="debug">
                 <div>Debug Info:</div>
                 <div id="debugInfo">Loading...</div>
@@ -237,6 +303,48 @@
             console.log = noop;
             console.warn = noop;
             console.info = noop;
+        } else {
+            document.getElementById('debug').classList.add('visible');
+        }
+
+        // Safe localStorage access
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Event Manager Class - Prevents memory leaks
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
         }
 
         // Game constants
@@ -332,10 +440,21 @@
                 // Input
                 this.keys = {};
                 this.mousePressed = false;
-                
+                this.eventManager = new EventManager();
+
+                // Bound handlers (for proper removal)
+                this._handleMouseMove = this.handleMouseMove.bind(this);
+                this._handleMouseDown = this.handleMouseDown.bind(this);
+                this._handleMouseUp = this.handleMouseUp.bind(this);
+
+                // Stats
+                this.blocksPlaced = parseInt(safeGetItem('minecraft3d_blocksPlaced', '0'));
+                this.blocksDestroyed = parseInt(safeGetItem('minecraft3d_blocksDestroyed', '0'));
+
                 // Timing
                 this.lastTime = 0;
                 this.frameCount = 0;
+                this.lastMeshRebuild = 0;
                 
                 // Debug
                 this.debugInfo = {
@@ -708,42 +827,43 @@
             }
             
             setupEventListeners() {
-                console.log('🎮 Setting up input controls...');
-                
-                // Mouse controls
-                this.canvas.addEventListener('click', () => {
+                console.log('Setting up input controls...');
+                const em = this.eventManager;
+
+                // Mouse controls - click to capture pointer
+                em.add(this.canvas, 'click', () => {
                     this.canvas.requestPointerLock();
                 });
-                
-                document.addEventListener('pointerlockchange', () => {
+
+                // Pointer lock change - use bound handlers to avoid leaking listeners
+                em.add(document, 'pointerlockchange', () => {
                     if (document.pointerLockElement === this.canvas) {
-                        document.addEventListener('mousemove', this.handleMouseMove.bind(this));
-                        document.addEventListener('mousedown', this.handleMouseDown.bind(this));
-                        document.addEventListener('mouseup', this.handleMouseUp.bind(this));
-                        console.log('🔒 Pointer locked - mouse control active');
+                        document.addEventListener('mousemove', this._handleMouseMove);
+                        document.addEventListener('mousedown', this._handleMouseDown);
+                        document.addEventListener('mouseup', this._handleMouseUp);
                     } else {
-                        console.log('🔓 Pointer unlocked');
+                        document.removeEventListener('mousemove', this._handleMouseMove);
+                        document.removeEventListener('mousedown', this._handleMouseDown);
+                        document.removeEventListener('mouseup', this._handleMouseUp);
                     }
                 });
-                
+
                 // Keyboard controls
-                document.addEventListener('keydown', this.handleKeyDown.bind(this));
-                document.addEventListener('keyup', this.handleKeyUp.bind(this));
-                
+                em.add(document, 'keydown', this.handleKeyDown.bind(this));
+                em.add(document, 'keyup', this.handleKeyUp.bind(this));
+
                 // Hotbar selection
                 document.querySelectorAll('.hotbar-slot').forEach((slot, index) => {
-                    slot.addEventListener('click', () => {
+                    em.add(slot, 'click', () => {
                         this.selectSlot(index);
                     });
                 });
-                
+
                 // Window resize
-                window.addEventListener('resize', this.resizeCanvas.bind(this));
-                
+                em.add(window, 'resize', this.resizeCanvas.bind(this));
+
                 // Prevent context menu
-                document.addEventListener('contextmenu', e => e.preventDefault());
-                
-                console.log('✅ Input controls setup complete');
+                em.add(document, 'contextmenu', e => e.preventDefault());
             }
             
             handleMouseMove(e) {
@@ -856,13 +976,31 @@
                 if (target) {
                     const blockType = this.world[target.x][target.y][target.z];
                     this.world[target.x][target.y][target.z] = BLOCKS.AIR;
-                    
+
                     // Add to inventory
                     this.addToInventory(blockType);
-                    
+
+                    // Stats
+                    this.blocksDestroyed++;
+                    safeSetItem('minecraft3d_blocksDestroyed', this.blocksDestroyed.toString());
+
+                    // Visual break effect
+                    this.showBreakEffect(BLOCK_TEXTURES[blockType] || '?');
+
                     this.createMesh();
-                    console.log(`⚡ Broke ${Object.keys(BLOCKS)[blockType]} at (${target.x}, ${target.y}, ${target.z})`);
                 }
+            }
+
+            showBreakEffect(emoji) {
+                const el = document.getElementById('blockBreakEffect');
+                if (!el) return;
+                el.textContent = emoji;
+                el.style.opacity = '1';
+                el.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                }, 200);
             }
             
             placeBlock() {
@@ -872,13 +1010,16 @@
                 const position = this.getPlacementPosition();
                 if (position && this.isValidPlacement(position)) {
                     this.world[position.x][position.y][position.z] = selectedBlockType;
-                    
+
                     // Remove from inventory
                     this.player.inventory[this.player.selectedSlot] = BLOCKS.AIR;
                     this.updateHotbarDisplay();
-                    
+
+                    // Stats
+                    this.blocksPlaced++;
+                    safeSetItem('minecraft3d_blocksPlaced', this.blocksPlaced.toString());
+
                     this.createMesh();
-                    console.log(`🧱 Placed ${Object.keys(BLOCKS)[selectedBlockType]} at (${position.x}, ${position.y}, ${position.z})`);
                 }
             }
             
@@ -1140,6 +1281,14 @@
                     
                     // Update game
                     this.updatePlayer(deltaTime);
+
+                    // Rebuild mesh periodically as camera moves (render distance)
+                    this.lastMeshRebuild += deltaTime;
+                    if (this.lastMeshRebuild > 0.5) {
+                        this.lastMeshRebuild = 0;
+                        this.createMesh();
+                    }
+
                     this.render();
                     
                     requestAnimationFrame(gameLoop);

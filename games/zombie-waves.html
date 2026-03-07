@@ -387,8 +387,49 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        // Debug Configuration
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Event Manager - Prevents memory leaks
+        class EventManager {
+            constructor() { this.listeners = []; }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+        const eventManager = new EventManager();
+
+        // Safe localStorage
+        function safeGetItem(key, defaultValue = null) {
+            try { const item = localStorage.getItem(key); return item !== null ? item : defaultValue; }
+            catch (e) { return defaultValue; }
+        }
+        function safeSetItem(key, value) {
+            try { localStorage.setItem(key, value); return true; }
+            catch (e) { return false; }
+        }
+
+        // Safe Canvas Context
+        const _canvas = document.getElementById('gameCanvas');
+        const _ctx = _canvas ? _canvas.getContext('2d') : null;
+        if (!_canvas || !_ctx) {
+            alert('Your browser does not support Canvas. Please use a modern browser.');
+        }
+        const canvas = _canvas;
+        const ctx = _ctx;
 
         const GRID_SIZE = 40;
         const PLAYER_SIZE = 15;
@@ -425,7 +466,7 @@
                 particles: [],
                 effects: []
             },
-            bestWave: parseInt(localStorage.getItem('zombieWavesBest')) || 0
+            bestWave: parseInt(safeGetItem('zombieWavesBest', '0'))
         };
 
         class Player {
@@ -591,6 +632,7 @@
                         game.health -= this.damage;
                         this.damageCooldown = 60;
                         game.shakeAmount = 8;
+                        game.damageFlash = 10;
                         if (game.health <= 0) {
                             game.gameOver();
                         }
@@ -950,9 +992,13 @@
             const bonus = 50 + this.wave * 10;
             this.resources += bonus;
 
+            this.waveAnnouncement = { text: `WELLE ${this.wave}`, timer: 90 };
+
             this.spawnWave();
             this.updateHUD();
         };
+
+        game.waveAnnouncement = { text: '', timer: 0 };
 
         game.waveComplete = function() {
             this.state = 'waveComplete';
@@ -963,12 +1009,14 @@
             document.getElementById('waveCompleteOverlay').classList.remove('hidden');
         };
 
+        game.damageFlash = 0;
+
         game.gameOver = function() {
             this.state = 'gameover';
 
             if (this.wave > this.bestWave) {
                 this.bestWave = this.wave;
-                localStorage.setItem('zombieWavesBest', this.bestWave);
+                safeSetItem('zombieWavesBest', this.bestWave);
             }
 
             document.getElementById('finalWave').textContent = this.wave;
@@ -1233,18 +1281,55 @@
                 effect.draw();
             }
 
+            // Wave announcement
+            if (game.waveAnnouncement && game.waveAnnouncement.timer > 0) {
+                const wa = game.waveAnnouncement;
+                wa.timer--;
+                const alpha = Math.min(wa.timer / 30, 1);
+                const scale = 1 + (1 - Math.min(wa.timer / 60, 1)) * 0.3;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#ff4444';
+                ctx.font = `bold ${Math.round(48 * scale)}px Courier New`;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ff0000';
+                ctx.fillText(wa.text, canvas.width / 2, canvas.height / 2);
+                ctx.restore();
+            }
+
+            // Damage flash overlay
+            if (game.damageFlash > 0) {
+                ctx.fillStyle = `rgba(255, 0, 0, ${game.damageFlash * 0.03})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                game.damageFlash--;
+            }
+
+            // Low health vignette
+            if (game.health < 30 && game.state === 'playing') {
+                const vignette = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
+                    canvas.width / 2, canvas.height / 2, canvas.width * 0.7
+                );
+                const pulse = 0.2 + Math.sin(Date.now() * 0.005) * 0.1;
+                vignette.addColorStop(0, 'rgba(255, 0, 0, 0)');
+                vignette.addColorStop(1, `rgba(255, 0, 0, ${pulse})`);
+                ctx.fillStyle = vignette;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
             ctx.restore();
 
             requestAnimationFrame(gameLoop);
         }
 
-        canvas.addEventListener('mousemove', (e) => {
+        eventManager.add(canvas, 'mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             game.mouseX = e.clientX - rect.left;
             game.mouseY = e.clientY - rect.top;
         });
 
-        canvas.addEventListener('mousedown', (e) => {
+        eventManager.add(canvas, 'mousedown', (e) => {
             if (game.state !== 'playing') return;
 
             if (game.buildMode) {
@@ -1256,7 +1341,7 @@
             }
         });
 
-        document.addEventListener('keydown', (e) => {
+        eventManager.add(document, 'keydown', (e) => {
             game.keys[e.key] = true;
 
             if (e.key === 'b' || e.key === 'B') {
@@ -1276,7 +1361,7 @@
             }
         });
 
-        document.addEventListener('keyup', (e) => {
+        eventManager.add(document, 'keyup', (e) => {
             game.keys[e.key] = false;
         });
 

@@ -302,6 +302,110 @@
             pointer-events: none;
             letter-spacing: 4px;
         }
+
+        /* Game Over Overlay */
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(0, 10, 30, 0.9) 0%, rgba(0, 0, 0, 0.95) 70%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            animation: menuFadeIn 0.5s ease-out;
+        }
+
+        .game-over-overlay .winner-text {
+            font-size: 52px;
+            font-weight: bold;
+            text-shadow: 0 0 40px currentColor;
+            margin-bottom: 15px;
+            letter-spacing: 6px;
+            animation: titleGlow 2s ease-in-out infinite;
+        }
+
+        .game-over-overlay .stats-text {
+            font-size: 18px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+
+        .game-over-overlay .menu-button {
+            pointer-events: auto;
+        }
+
+        /* Touch Controls */
+        .touch-overlay {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            z-index: 60;
+            pointer-events: none;
+        }
+
+        @media (pointer: coarse) {
+            .touch-overlay { display: flex; justify-content: space-between; padding: 20px; }
+        }
+
+        .touch-zone {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+            align-items: flex-end;
+        }
+
+        .touch-action-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,255,255,0.4);
+            background: rgba(0,255,255,0.1);
+            color: rgba(0,255,255,0.8);
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .touch-action-btn:active, .touch-action-btn.active {
+            background: rgba(0,255,255,0.3);
+            border-color: #00ffff;
+        }
+
+        .touch-move-area {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,255,255,0.2);
+            background: rgba(0,255,255,0.05);
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        .touch-stick {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0,255,255,0.4);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -366,6 +470,26 @@
 
     <div class="gamepad-status disconnected" id="gamepadStatus">Controller: Nicht verbunden</div>
 
+    <!-- Touch Controls -->
+    <div class="touch-overlay" id="touchOverlay">
+        <div class="touch-zone">
+            <div class="touch-move-area" id="touchMoveArea">
+                <div class="touch-stick" id="touchStick"></div>
+            </div>
+        </div>
+        <div class="touch-zone" style="flex-direction: column; gap: 10px;">
+            <div style="display: flex; gap: 8px;">
+                <div class="touch-action-btn" data-action="forcePush">PUSH</div>
+                <div class="touch-action-btn" data-action="forcePull">PULL</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <div class="touch-action-btn" data-action="jump">JUMP</div>
+                <div class="touch-action-btn" data-action="attack">ATK</div>
+                <div class="touch-action-btn" data-action="block">BLK</div>
+            </div>
+        </div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -376,6 +500,46 @@
             console.log = noop;
             console.warn = noop;
             console.info = noop;
+        }
+
+        // Safe localStorage access
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Event Manager Class
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
         }
 
         // ==================== CONFIGURATION ====================
@@ -597,26 +761,92 @@
                 this.keys = {};
                 this.gamepads = [];
                 this.gamepadConnected = false;
+                this.eventManager = new EventManager();
+                this.touchInput = { moveX: 0, attack: false, block: false, jump: false, forcePush: false, forcePull: false };
 
-                // WICHTIG: e.code verwenden, nicht e.key!
-                window.addEventListener('keydown', (e) => {
+                const em = this.eventManager;
+
+                em.add(window, 'keydown', (e) => {
                     this.keys[e.code.toLowerCase()] = true;
+                    if (['arrowup','arrowdown','arrowleft','arrowright','space'].includes(e.code.toLowerCase())) {
+                        e.preventDefault();
+                    }
                 });
-                window.addEventListener('keyup', (e) => {
+                em.add(window, 'keyup', (e) => {
                     this.keys[e.code.toLowerCase()] = false;
                 });
 
-                window.addEventListener('gamepadconnected', (e) => {
-                    console.log('Gamepad connected:', e.gamepad);
+                em.add(window, 'gamepadconnected', (e) => {
                     this.gamepadConnected = true;
                     this.updateGamepadStatus();
                 });
 
-                window.addEventListener('gamepaddisconnected', (e) => {
-                    console.log('Gamepad disconnected');
+                em.add(window, 'gamepaddisconnected', (e) => {
                     this.gamepadConnected = false;
                     this.updateGamepadStatus();
                 });
+
+                this.setupTouchControls(em);
+            }
+
+            setupTouchControls(em) {
+                // Virtual joystick
+                const moveArea = document.getElementById('touchMoveArea');
+                const stick = document.getElementById('touchStick');
+                if (!moveArea || !stick) return;
+
+                let touchActive = false;
+                let centerX = 0, centerY = 0;
+
+                em.add(moveArea, 'touchstart', (e) => {
+                    e.preventDefault();
+                    touchActive = true;
+                    const rect = moveArea.getBoundingClientRect();
+                    centerX = rect.left + rect.width / 2;
+                    centerY = rect.top + rect.height / 2;
+                }, { passive: false });
+
+                em.add(moveArea, 'touchmove', (e) => {
+                    e.preventDefault();
+                    if (!touchActive) return;
+                    const t = e.touches[0];
+                    const dx = t.clientX - centerX;
+                    const maxDist = 50;
+                    const clampedDx = Math.max(-maxDist, Math.min(maxDist, dx));
+                    this.touchInput.moveX = clampedDx / maxDist;
+                    stick.style.transform = `translate(calc(-50% + ${clampedDx}px), -50%)`;
+                }, { passive: false });
+
+                const resetStick = () => {
+                    touchActive = false;
+                    this.touchInput.moveX = 0;
+                    stick.style.transform = 'translate(-50%, -50%)';
+                };
+                em.add(moveArea, 'touchend', resetStick);
+                em.add(moveArea, 'touchcancel', resetStick);
+
+                // Action buttons
+                document.querySelectorAll('.touch-action-btn[data-action]').forEach(btn => {
+                    const action = btn.dataset.action;
+                    em.add(btn, 'touchstart', (e) => {
+                        e.preventDefault();
+                        this.touchInput[action] = true;
+                        btn.classList.add('active');
+                    }, { passive: false });
+                    em.add(btn, 'touchend', (e) => {
+                        e.preventDefault();
+                        this.touchInput[action] = false;
+                        btn.classList.remove('active');
+                    }, { passive: false });
+                    em.add(btn, 'touchcancel', () => {
+                        this.touchInput[action] = false;
+                        btn.classList.remove('active');
+                    });
+                });
+            }
+
+            cleanup() {
+                this.eventManager.removeAll();
             }
 
             updateGamepadStatus() {
@@ -665,21 +895,26 @@
                     input.forcePull = this.keys['numpad2'];
                 }
 
-                // Gamepad input (überschreibt Keyboard wenn vorhanden)
+                // Gamepad input (overrides keyboard if present)
                 if (this.gamepads[playerIndex]) {
                     const gp = this.gamepads[playerIndex];
+                    if (Math.abs(gp.axes[0]) > 0.2) input.moveX = gp.axes[0];
+                    if (gp.buttons[7]?.pressed) input.attack = true;
+                    if (gp.buttons[6]?.pressed) input.block = true;
+                    if (gp.buttons[0]?.pressed) input.jump = true;
+                    if (gp.buttons[5]?.pressed) input.forcePush = true;
+                    if (gp.buttons[4]?.pressed) input.forcePull = true;
+                }
 
-                    // Linker Stick nur horizontal
-                    if (Math.abs(gp.axes[0]) > 0.2) {
-                        input.moveX = gp.axes[0];
-                    }
-
-                    // Buttons
-                    if (gp.buttons[7]?.pressed) input.attack = true;   // RT
-                    if (gp.buttons[6]?.pressed) input.block = true;    // LT
-                    if (gp.buttons[0]?.pressed) input.jump = true;     // A
-                    if (gp.buttons[5]?.pressed) input.forcePush = true; // RB
-                    if (gp.buttons[4]?.pressed) input.forcePull = true; // LB
+                // Touch input (only for player 0)
+                if (playerIndex === 0) {
+                    const ti = this.touchInput;
+                    if (Math.abs(ti.moveX) > 0.1) input.moveX = ti.moveX;
+                    if (ti.attack) input.attack = true;
+                    if (ti.block) input.block = true;
+                    if (ti.jump) input.jump = true;
+                    if (ti.forcePush) input.forcePush = true;
+                    if (ti.forcePull) input.forcePull = true;
                 }
 
                 return input;
@@ -1122,8 +1357,13 @@
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
+                if (!this.ctx) {
+                    alert('Canvas 2D wird nicht unterstützt.');
+                    return;
+                }
+                this.globalEventManager = new EventManager();
                 this.resizeCanvas();
-                window.addEventListener('resize', () => this.resizeCanvas());
+                this.globalEventManager.add(window, 'resize', () => this.resizeCanvas());
 
                 this.audio = new AudioEngine();
                 this.particles = new ParticleSystem();
@@ -1205,11 +1445,17 @@
                 // Check winner
                 const alive = this.players.filter(p => p.health > 0);
                 if (alive.length === 1 && this.players.length > 1) {
-                    setTimeout(() => {
-                        this.showAnnouncement('JEDI ' + (alive[0].playerIndex + 1) + ' GEWINNT!');
-                        setTimeout(() => this.returnToMenu(), 3000);
-                    }, 500);
                     this.gameState = 'ended';
+                    const winner = alive[0];
+
+                    // Track wins
+                    const key = `jedi_p${winner.playerIndex + 1}_wins`;
+                    const wins = parseInt(safeGetItem(key, '0')) + 1;
+                    safeSetItem(key, wins.toString());
+
+                    setTimeout(() => {
+                        this.showGameOver(winner);
+                    }, 800);
                 }
             }
 
@@ -1283,6 +1529,37 @@
                         if (stamina) stamina.style.width = Math.max(0, p.stamina) + '%';
                         if (force) force.style.width = Math.max(0, p.force) + '%';
                     }
+                });
+            }
+
+            showGameOver(winner) {
+                const existing = document.getElementById('gameOverOverlay');
+                if (existing) existing.remove();
+
+                const overlay = document.createElement('div');
+                overlay.className = 'game-over-overlay';
+                overlay.id = 'gameOverOverlay';
+
+                const color = winner.color;
+                const idx = winner.playerIndex + 1;
+                const wins = parseInt(safeGetItem(`jedi_p${idx}_wins`, '0'));
+
+                overlay.innerHTML = `
+                    <div class="winner-text" style="color: ${color};">JEDI ${idx} GEWINNT!</div>
+                    <div class="stats-text">Siege: ${wins}</div>
+                    <button class="menu-button" id="rematchBtn">REMATCH</button>
+                    <button class="menu-button" id="menuBtn">HAUPTMENU</button>
+                `;
+
+                document.body.appendChild(overlay);
+
+                document.getElementById('rematchBtn').addEventListener('click', () => {
+                    overlay.remove();
+                    this.startGame(this.players.length);
+                });
+                document.getElementById('menuBtn').addEventListener('click', () => {
+                    overlay.remove();
+                    this.returnToMenu();
                 });
             }
 

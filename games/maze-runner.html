@@ -51,6 +51,7 @@
             padding: 10px 20px;
             border-radius: 10px;
             min-width: 200px;
+            transition: all 0.3s;
         }
 
         .player-info.player1 {
@@ -61,6 +62,15 @@
         .player-info.player2 {
             border: 2px solid #ff4757;
             box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
+        }
+
+        .player-info.winner {
+            animation: winGlow 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes winGlow {
+            0% { box-shadow: 0 0 15px rgba(0, 255, 0, 0.5); }
+            100% { box-shadow: 0 0 40px rgba(0, 255, 0, 0.9); }
         }
 
         .player-info h3 {
@@ -151,76 +161,127 @@
         }
 
         @keyframes popIn {
-            0% {
-                transform: translate(-50%, -50%) scale(0);
-            }
-            50% {
-                transform: translate(-50%, -50%) scale(1.1);
-            }
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-            }
+            0% { transform: translate(-50%, -50%) scale(0); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            transition: width 0.5s linear;
+            border-radius: 3px;
         }
 
         @media (max-width: 768px) {
-            h1 {
-                font-size: 1.8em;
-            }
-
-            .game-container {
-                padding: 10px;
-            }
-
-            #gameCanvas {
-                max-width: 100%;
-                height: auto;
-            }
+            h1 { font-size: 1.8em; }
+            .game-container { padding: 10px; }
+            #gameCanvas { max-width: 100%; height: auto; }
+            .player-info { min-width: 140px; padding: 8px 12px; }
         }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>🎯 Maze Runner</h1>
+        <h1>Maze Runner</h1>
 
         <div class="controls">
-            <div class="player-info player1">
+            <div class="player-info player1" id="p1Info">
                 <h3>Spieler 1 (Blau)</h3>
                 <div>WASD Tasten</div>
                 <div class="wins">Siege: <span id="player1Wins">0</span></div>
             </div>
-            <div class="player-info player2">
+            <div class="player-info player2" id="p2Info">
                 <h3>Spieler 2 (Rot)</h3>
                 <div>Pfeiltasten</div>
                 <div class="wins">Siege: <span id="player2Wins">0</span></div>
             </div>
         </div>
 
+        <div class="timer-bar">
+            <div class="timer-fill" id="timerFill" style="width:100%"></div>
+        </div>
+
         <canvas id="gameCanvas" width="630" height="630"></canvas>
 
         <div class="button-container">
-            <button onclick="resetGame()">Neu starten</button>
-            <button onclick="toggleFullscreen()">Vollbild</button>
+            <button id="btnReset">Neu starten</button>
+            <button id="btnFullscreen">Vollbild</button>
+            <button id="btnResetScore">Score Reset</button>
         </div>
 
         <div class="instructions">
-            Erreiche als Erster das grüne Ziel! 🏁<br>
-            ⚠️ Achtung: Wände bewegen sich und das Labyrinth verändert sich!
+            Erreiche als Erster das gruene Ziel!<br>
+            Achtung: Waende bewegen sich und das Labyrinth veraendert sich!
         </div>
 
-        <a href="../index.html" class="back-link">← Zurück zur Galerie</a>
+        <a href="../index.html" class="back-link">&larr; Zurueck zur Galerie</a>
     </div>
 
     <div id="winMessage"></div>
 
     <script>
+        // === DEBUG MODE ===
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // === SAFE LOCALSTORAGE ===
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+        function safeSetItem(key, value) {
+            try { localStorage.setItem(key, value); return true; }
+            catch (error) { console.error('LocalStorage not available:', error); return false; }
+        }
+
+        // === EVENT MANAGER ===
+        class EventManager {
+            constructor() { this.listeners = []; }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+        const eventManager = new EventManager();
+
+        // === SAFE CANVAS ===
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        if (!canvas || !ctx) {
+            alert('Dein Browser unterstuetzt kein Canvas.');
+        }
 
         const TILE_SIZE = 30;
         const GRID_SIZE = 21;
 
-        // Labyrinth-Definition: 0 = Weg, 1 = Wand, 2 = Ziel
-        let maze = [
+        // Original maze template for resets
+        const MAZE_TEMPLATE = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
             [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1],
@@ -244,46 +305,79 @@
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        // Bewegbare Wände
+        let maze = MAZE_TEMPLATE.map(row => [...row]);
+
+        // Moving walls
         let movingWalls = [];
-
-        // Wand-Animationen (für erscheinende/verschwindende Wände)
         let wallAnimations = [];
+        let particles = [];
 
-        // Spieler-Objekte
+        // Round timer
+        const ROUND_TIME = 60;
+        let roundTimer = ROUND_TIME;
+
+        // Players
         let player1 = {
-            x: 1,
-            y: 1,
+            x: 1, y: 1,
             color: '#00bfff',
             glowColor: 'rgba(0, 191, 255, 0.5)',
-            wins: parseInt(localStorage.getItem('mazePlayer1Wins')) || 0
+            trail: [],
+            wins: parseInt(safeGetItem('mazePlayer1Wins', '0'))
         };
 
         let player2 = {
-            x: 19,
-            y: 1,
+            x: 19, y: 1,
             color: '#ff4757',
             glowColor: 'rgba(255, 71, 87, 0.5)',
-            wins: parseInt(localStorage.getItem('mazePlayer2Wins')) || 0
+            trail: [],
+            wins: parseInt(safeGetItem('mazePlayer2Wins', '0'))
         };
 
         let gameRunning = true;
         let lastMoveTime = { player1: 0, player2: 0 };
-        const MOVE_COOLDOWN = 100; // Millisekunden zwischen Bewegungen
+        const MOVE_COOLDOWN = 100;
 
-        // Tastatur-State
         const keys = {};
 
-        // Event Listeners
-        document.addEventListener('keydown', (e) => {
+        // === EVENT LISTENERS ===
+        eventManager.add(document, 'keydown', (e) => {
             keys[e.key.toLowerCase()] = true;
+            // Prevent scrolling with arrow keys
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
         });
 
-        document.addEventListener('keyup', (e) => {
+        eventManager.add(document, 'keyup', (e) => {
             keys[e.key.toLowerCase()] = false;
         });
 
-        // Spieler bewegen
+        eventManager.add(document.getElementById('btnReset'), 'click', () => resetGame());
+        eventManager.add(document.getElementById('btnFullscreen'), 'click', () => toggleFullscreen());
+        eventManager.add(document.getElementById('btnResetScore'), 'click', () => {
+            player1.wins = 0;
+            player2.wins = 0;
+            safeSetItem('mazePlayer1Wins', '0');
+            safeSetItem('mazePlayer2Wins', '0');
+            updateScoreDisplay();
+        });
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                particles.push({
+                    x: x * TILE_SIZE + TILE_SIZE / 2,
+                    y: y * TILE_SIZE + TILE_SIZE / 2,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    color: color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
         function movePlayer(player, dx, dy, playerNum) {
             if (!gameRunning) return;
 
@@ -293,14 +387,16 @@
             const newX = player.x + dx;
             const newY = player.y + dy;
 
-            // Kollisionserkennung
             if (newX >= 0 && newX < GRID_SIZE && newY >= 0 && newY < GRID_SIZE) {
                 if (maze[newY][newX] !== 1) {
+                    // Add trail
+                    player.trail.push({ x: player.x, y: player.y, life: 1 });
+                    if (player.trail.length > 15) player.trail.shift();
+
                     player.x = newX;
                     player.y = newY;
                     lastMoveTime[`player${playerNum}`] = now;
 
-                    // Ziel erreicht?
                     if (maze[newY][newX] === 2) {
                         playerWins(playerNum);
                     }
@@ -308,28 +404,34 @@
             }
         }
 
-        // Spieler gewinnt
         function playerWins(playerNum) {
             gameRunning = false;
 
             if (playerNum === 1) {
                 player1.wins++;
-                localStorage.setItem('mazePlayer1Wins', player1.wins);
-                showWinMessage('🎉 Spieler 1 (Blau) gewinnt! 🎉');
+                safeSetItem('mazePlayer1Wins', player1.wins.toString());
+                showWinMessage('Spieler 1 (Blau) gewinnt!');
+                document.getElementById('p1Info').classList.add('winner');
+                createParticles(player1.x, player1.y, '#00bfff', 30);
+                createParticles(player1.x, player1.y, '#00ff00', 20);
             } else {
                 player2.wins++;
-                localStorage.setItem('mazePlayer2Wins', player2.wins);
-                showWinMessage('🎉 Spieler 2 (Rot) gewinnt! 🎉');
+                safeSetItem('mazePlayer2Wins', player2.wins.toString());
+                showWinMessage('Spieler 2 (Rot) gewinnt!');
+                document.getElementById('p2Info').classList.add('winner');
+                createParticles(player2.x, player2.y, '#ff4757', 30);
+                createParticles(player2.x, player2.y, '#00ff00', 20);
             }
 
             updateScoreDisplay();
 
             setTimeout(() => {
+                document.getElementById('p1Info').classList.remove('winner');
+                document.getElementById('p2Info').classList.remove('winner');
                 resetGame();
-            }, 2000);
+            }, 2500);
         }
 
-        // Win-Nachricht anzeigen
         function showWinMessage(message) {
             const winDiv = document.getElementById('winMessage');
             winDiv.textContent = message;
@@ -337,37 +439,40 @@
 
             setTimeout(() => {
                 winDiv.classList.remove('show');
-            }, 2000);
+            }, 2500);
         }
 
-        // Score-Anzeige aktualisieren
         function updateScoreDisplay() {
             document.getElementById('player1Wins').textContent = player1.wins;
             document.getElementById('player2Wins').textContent = player2.wins;
         }
 
-        // Spiel zurücksetzen
         function resetGame() {
+            // Reset maze from template
+            maze = MAZE_TEMPLATE.map(row => [...row]);
+
             player1.x = 1;
             player1.y = 1;
+            player1.trail = [];
             player2.x = 19;
             player2.y = 1;
+            player2.trail = [];
             gameRunning = true;
+            roundTimer = ROUND_TIME;
             lastMoveTime = { player1: 0, player2: 0 };
+            particles = [];
+            wallAnimations = [];
             initializeMovingWalls();
         }
 
-        // Bewegbare Wände initialisieren
         function initializeMovingWalls() {
             movingWalls = [];
-            // Erstelle 8-12 bewegbare Wände an zufälligen Positionen
             const numMovingWalls = Math.floor(Math.random() * 5) + 8;
 
             for (let i = 0; i < numMovingWalls; i++) {
                 let x, y;
                 let attempts = 0;
 
-                // Finde eine Position mit einer Wand, die nicht am Rand ist
                 do {
                     x = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
                     y = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
@@ -375,28 +480,24 @@
                 } while ((maze[y][x] !== 1 || (x === 1 && y === 1) || (x === 19 && y === 1) || (x === 10 && y === 19)) && attempts < 100);
 
                 if (attempts < 100 && maze[y][x] === 1) {
-                    // Zufällige Bewegungsrichtung
                     const directions = [
-                        { dx: 1, dy: 0 },  // rechts
-                        { dx: -1, dy: 0 }, // links
-                        { dx: 0, dy: 1 },  // unten
-                        { dx: 0, dy: -1 }  // oben
+                        { dx: 1, dy: 0 },
+                        { dx: -1, dy: 0 },
+                        { dx: 0, dy: 1 },
+                        { dx: 0, dy: -1 }
                     ];
                     const dir = directions[Math.floor(Math.random() * directions.length)];
 
                     movingWalls.push({
-                        x: x,
-                        y: y,
-                        dx: dir.dx,
-                        dy: dir.dy,
+                        x: x, y: y,
+                        dx: dir.dx, dy: dir.dy,
                         moveTimer: 0,
-                        moveInterval: 2000 + Math.random() * 2000 // 2-4 Sekunden
+                        moveInterval: 2000 + Math.random() * 2000
                     });
                 }
             }
         }
 
-        // Bewegbare Wände updaten
         function updateMovingWalls(deltaTime) {
             if (!gameRunning) return;
 
@@ -409,26 +510,28 @@
                     const newX = wall.x + wall.dx;
                     const newY = wall.y + wall.dy;
 
-                    // Prüfe ob neue Position gültig ist
                     if (newX > 0 && newX < GRID_SIZE - 1 && newY > 0 && newY < GRID_SIZE - 1) {
-                        // Prüfe ob dort keine Spieler sind
                         const playerBlocking = (player1.x === newX && player1.y === newY) ||
                                               (player2.x === newX && player2.y === newY) ||
-                                              (maze[newY][newX] === 2); // Nicht aufs Ziel
+                                              (maze[newY][newX] === 2);
 
                         if (!playerBlocking && maze[newY][newX] === 0) {
-                            // Bewege die Wand
-                            maze[wall.y][wall.x] = 0; // Alte Position freimachen
-                            maze[newY][newX] = 1;     // Neue Position setzen
+                            maze[wall.y][wall.x] = 0;
+                            maze[newY][newX] = 1;
+
+                            wallAnimations.push({
+                                fromX: wall.x, fromY: wall.y,
+                                toX: newX, toY: newY,
+                                progress: 0, duration: 300
+                            });
+
                             wall.x = newX;
                             wall.y = newY;
                         } else {
-                            // Richtung umkehren
                             wall.dx = -wall.dx;
                             wall.dy = -wall.dy;
                         }
                     } else {
-                        // Am Rand - Richtung umkehren
                         wall.dx = -wall.dx;
                         wall.dy = -wall.dy;
                     }
@@ -436,9 +539,8 @@
             });
         }
 
-        // Dynamische Labyrinth-Mutation
         let mutationTimer = 0;
-        const MUTATION_INTERVAL = 3000; // 3 Sekunden
+        const MUTATION_INTERVAL = 3000;
 
         function mutateMaze(deltaTime) {
             if (!gameRunning) return;
@@ -448,29 +550,24 @@
             if (mutationTimer >= MUTATION_INTERVAL) {
                 mutationTimer = 0;
 
-                // Führe 3-5 Mutationen durch
                 const numMutations = Math.floor(Math.random() * 3) + 3;
 
                 for (let i = 0; i < numMutations; i++) {
                     const x = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
                     const y = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
 
-                    // Prüfe ob Position sicher ist (keine Spieler, kein Ziel)
                     const isSafe = (player1.x !== x || player1.y !== y) &&
                                    (player2.x !== x || player2.y !== y) &&
                                    maze[y][x] !== 2 &&
-                                   !(x === 1 && y === 1) && // Startposition Spieler 1
-                                   !(x === 19 && y === 1);  // Startposition Spieler 2
+                                   !(x === 1 && y === 1) &&
+                                   !(x === 19 && y === 1);
 
                     if (isSafe) {
-                        // Toggle: Wand zu Weg oder Weg zu Wand
                         const currentValue = maze[y][x];
                         const newValue = currentValue === 1 ? 0 : 1;
 
-                        // Animation hinzufügen
                         wallAnimations.push({
-                            x: x,
-                            y: y,
+                            x: x, y: y,
                             progress: 0,
                             appearing: newValue === 1,
                             duration: 500
@@ -482,7 +579,6 @@
             }
         }
 
-        // Wand-Animationen updaten
         function updateWallAnimations(deltaTime) {
             wallAnimations = wallAnimations.filter(anim => {
                 anim.progress += deltaTime;
@@ -490,7 +586,25 @@
             });
         }
 
-        // Labyrinth zeichnen
+        function updateParticles(deltaTime) {
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.1;
+                p.life -= 0.02;
+                return p.life > 0;
+            });
+        }
+
+        function updateTrails(deltaTime) {
+            [player1, player2].forEach(player => {
+                player.trail.forEach(t => {
+                    t.life -= 0.02;
+                });
+                player.trail = player.trail.filter(t => t.life > 0);
+            });
+        }
+
         function drawMaze() {
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
@@ -498,31 +612,26 @@
                     const drawX = x * TILE_SIZE;
                     const drawY = y * TILE_SIZE;
 
-                    // Finde Animation für diese Position
-                    const anim = wallAnimations.find(a => a.x === x && a.y === y);
+                    const anim = wallAnimations.find(a => a.x === x && a.y === y && !a.fromX);
                     let animScale = 1;
                     let animAlpha = 1;
 
                     if (anim) {
                         const progress = Math.min(1, anim.progress / anim.duration);
                         if (anim.appearing) {
-                            // Wand erscheint
                             animScale = progress;
                             animAlpha = progress;
                         } else {
-                            // Wand verschwindet
                             animScale = 1 - progress;
                             animAlpha = 1 - progress;
                         }
                     }
 
                     if (tile === 1) {
-                        // Wand
                         const isMoving = movingWalls.some(w => w.x === x && w.y === y);
 
                         ctx.save();
 
-                        // Animierte Transformation
                         if (anim) {
                             ctx.globalAlpha = animAlpha;
                             ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
@@ -532,16 +641,26 @@
                             ctx.translate(drawX, drawY);
                         }
 
-                        // Bewegbare Wände haben andere Farbe
                         if (isMoving) {
-                            ctx.fillStyle = '#4a5588'; // Hellere Farbe für bewegbare Wände
+                            // Moving walls with gradient
+                            const grad = ctx.createLinearGradient(0, 0, TILE_SIZE, TILE_SIZE);
+                            grad.addColorStop(0, '#4a5588');
+                            grad.addColorStop(1, '#3a4578');
+                            ctx.fillStyle = grad;
                         } else {
                             ctx.fillStyle = '#2d3561';
                         }
 
                         ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
 
-                        // Glow für bewegbare Wände
+                        // Subtle 3D effect
+                        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                        ctx.fillRect(0, 0, TILE_SIZE, 2);
+                        ctx.fillRect(0, 0, 2, TILE_SIZE);
+                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                        ctx.fillRect(0, TILE_SIZE - 2, TILE_SIZE, 2);
+                        ctx.fillRect(TILE_SIZE - 2, 0, 2, TILE_SIZE);
+
                         if (isMoving) {
                             ctx.strokeStyle = '#6a75a8';
                             ctx.lineWidth = 2;
@@ -553,11 +672,15 @@
 
                         ctx.restore();
                     } else if (tile === 2) {
-                        // Ziel
+                        // Goal with pulsing glow
+                        const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+
+                        ctx.fillStyle = `rgba(0, 255, 0, ${pulse * 0.3})`;
+                        ctx.fillRect(drawX - 3, drawY - 3, TILE_SIZE + 6, TILE_SIZE + 6);
+
                         ctx.fillStyle = '#00ff00';
                         ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
 
-                        // Glow-Effekt
                         const gradient = ctx.createRadialGradient(
                             drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2, 0,
                             drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2, TILE_SIZE / 2
@@ -566,22 +689,31 @@
                         gradient.addColorStop(1, 'rgba(0, 255, 0, 0.2)');
                         ctx.fillStyle = gradient;
                         ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+
+                        // Flag icon
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(drawX + TILE_SIZE / 2 - 1, drawY + 5, 2, TILE_SIZE - 10);
+                        ctx.fillStyle = `rgba(255, 255, 0, ${pulse})`;
+                        ctx.beginPath();
+                        ctx.moveTo(drawX + TILE_SIZE / 2 + 1, drawY + 5);
+                        ctx.lineTo(drawX + TILE_SIZE / 2 + 12, drawY + 10);
+                        ctx.lineTo(drawX + TILE_SIZE / 2 + 1, drawY + 15);
+                        ctx.closePath();
+                        ctx.fill();
                     } else {
-                        // Weg
+                        // Path
                         ctx.fillStyle = '#0f1729';
                         ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
 
-                        // Verschwindende Wand (war Wand, ist jetzt Weg)
+                        // Disappearing wall animation
                         if (anim && !anim.appearing) {
                             ctx.save();
                             ctx.globalAlpha = animAlpha;
                             ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
                             ctx.scale(animScale, animScale);
                             ctx.translate(-TILE_SIZE / 2, -TILE_SIZE / 2);
-
                             ctx.fillStyle = '#2d3561';
                             ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-
                             ctx.restore();
                         }
                     }
@@ -589,74 +721,114 @@
             }
         }
 
-        // Spieler zeichnen
+        function drawTrail(player) {
+            player.trail.forEach(t => {
+                ctx.globalAlpha = t.life * 0.3;
+                ctx.fillStyle = player.color;
+                ctx.beginPath();
+                ctx.arc(t.x * TILE_SIZE + TILE_SIZE / 2, t.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE / 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
         function drawPlayer(player) {
             const drawX = player.x * TILE_SIZE + TILE_SIZE / 2;
             const drawY = player.y * TILE_SIZE + TILE_SIZE / 2;
             const radius = TILE_SIZE / 2 - 4;
 
-            // Glow-Effekt
-            ctx.shadowBlur = 15;
+            // Outer glow
+            ctx.shadowBlur = 20;
             ctx.shadowColor = player.color;
 
-            // Spieler-Kreis
-            ctx.fillStyle = player.color;
+            // Player circle with gradient
+            const grad = ctx.createRadialGradient(drawX - 2, drawY - 2, 1, drawX, drawY, radius);
+            grad.addColorStop(0, 'white');
+            grad.addColorStop(0.5, player.color);
+            grad.addColorStop(1, player.color);
+            ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(drawX, drawY, radius, 0, Math.PI * 2);
             ctx.fill();
 
-            // Reset Shadow
             ctx.shadowBlur = 0;
 
-            // Innerer Ring
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            // Inner ring
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(drawX, drawY, radius - 3, 0, Math.PI * 2);
             ctx.stroke();
         }
 
-        // Input verarbeiten
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
         function handleInput() {
-            // Spieler 1 - WASD
             if (keys['w']) movePlayer(player1, 0, -1, 1);
             if (keys['s']) movePlayer(player1, 0, 1, 1);
             if (keys['a']) movePlayer(player1, -1, 0, 1);
             if (keys['d']) movePlayer(player1, 1, 0, 1);
 
-            // Spieler 2 - Pfeiltasten
             if (keys['arrowup']) movePlayer(player2, 0, -1, 2);
             if (keys['arrowdown']) movePlayer(player2, 0, 1, 2);
             if (keys['arrowleft']) movePlayer(player2, -1, 0, 2);
             if (keys['arrowright']) movePlayer(player2, 1, 0, 2);
         }
 
-        // Hauptrender-Funktion
         let lastFrameTime = Date.now();
 
         function render() {
             const now = Date.now();
-            const deltaTime = now - lastFrameTime;
+            const deltaTime = Math.min(now - lastFrameTime, 50);
             lastFrameTime = now;
 
-            // Update-Logik
+            // Update timer
+            if (gameRunning) {
+                roundTimer -= deltaTime / 1000;
+                if (roundTimer <= 0) {
+                    roundTimer = 0;
+                    // Time's up - check who's closer
+                    const d1 = Math.abs(player1.x - 10) + Math.abs(player1.y - 19);
+                    const d2 = Math.abs(player2.x - 10) + Math.abs(player2.y - 19);
+                    if (d1 < d2) playerWins(1);
+                    else if (d2 < d1) playerWins(2);
+                    else resetGame(); // Tie
+                }
+                const pct = (roundTimer / ROUND_TIME) * 100;
+                document.getElementById('timerFill').style.width = pct + '%';
+            }
+
+            // Update logic
             updateMovingWalls(deltaTime);
             mutateMaze(deltaTime);
             updateWallAnimations(deltaTime);
+            updateParticles(deltaTime);
+            updateTrails(deltaTime);
 
             // Rendering
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             drawMaze();
+            drawTrail(player1);
+            drawTrail(player2);
             drawPlayer(player1);
             drawPlayer(player2);
+            drawParticles();
 
             handleInput();
 
             requestAnimationFrame(render);
         }
 
-        // Vollbild
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen();
@@ -667,7 +839,7 @@
             }
         }
 
-        // Initialisierung
+        // Initialization
         updateScoreDisplay();
         initializeMovingWalls();
         render();

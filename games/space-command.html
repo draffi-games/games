@@ -428,9 +428,30 @@
             console.info = noop;
         }
 
+        // Safe localStorage access
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
         // Game Core System
         console.log("Space Command loading...");
-        
+
         // Global variables
         let canvas, ctx, minimapCanvas, minimapCtx;
         
@@ -629,6 +650,7 @@
             update(deltaTime) {
                 if (!this.isRunning) return;
 
+                this.inputHandler.tickCamera(deltaTime);
                 this.updateUnits(deltaTime);
                 this.updateBuildings(deltaTime);
                 this.updateProjectiles(deltaTime);
@@ -968,6 +990,22 @@
                     canvas.addEventListener('mousedown', e => this.onMouseDown(e));
                     canvas.addEventListener('mouseup', e => this.onMouseUp(e));
                     canvas.addEventListener('mousemove', e => this.onMouseMove(e));
+                    // Touch support for mobile
+                    canvas.addEventListener('touchstart', e => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        this.onMouseDown({ button: 0, clientX: touch.clientX, clientY: touch.clientY });
+                    }, { passive: false });
+                    canvas.addEventListener('touchend', e => {
+                        e.preventDefault();
+                        const touch = e.changedTouches[0];
+                        this.onMouseUp({ button: 0, clientX: touch.clientX, clientY: touch.clientY });
+                    }, { passive: false });
+                    canvas.addEventListener('touchmove', e => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        this.onMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+                    }, { passive: false });
                     this.mouseListenersAttached = true;
                 }
             }
@@ -1203,18 +1241,22 @@
             }
 
             updateCamera() {
-                setInterval(() => {
-                    const speed = 200;
-                    
-                    if (this.keys['w'] || this.keys['arrowup']) this.game.camera.y -= speed;
-                    if (this.keys['s'] || this.keys['arrowdown']) this.game.camera.y += speed;
-                    if (this.keys['a'] || this.keys['arrowleft']) this.game.camera.x -= speed;
-                    if (this.keys['d'] || this.keys['arrowright']) this.game.camera.x += speed;
+                // Called from game loop via game.update() - no setInterval needed
+                // This method is now called per-frame from GameEngine.update()
+            }
 
-                    // Keep camera in bounds
-                    this.game.camera.x = Math.max(0, Math.min(GAME_CONFIG.MAP_WIDTH - canvas.width, this.game.camera.x));
-                    this.game.camera.y = Math.max(0, Math.min(GAME_CONFIG.MAP_HEIGHT - canvas.height, this.game.camera.y));
-                }, 16);
+            tickCamera(deltaTime) {
+                if (!canvas) return;
+                const speed = 300 * deltaTime; // pixels per second, scaled by deltaTime
+
+                if (this.keys['w'] || this.keys['arrowup']) this.game.camera.y -= speed;
+                if (this.keys['s'] || this.keys['arrowdown']) this.game.camera.y += speed;
+                if (this.keys['a'] || this.keys['arrowleft']) this.game.camera.x -= speed;
+                if (this.keys['d'] || this.keys['arrowright']) this.game.camera.x += speed;
+
+                // Keep camera in bounds
+                this.game.camera.x = Math.max(0, Math.min(GAME_CONFIG.MAP_WIDTH - canvas.width, this.game.camera.x));
+                this.game.camera.y = Math.max(0, Math.min(GAME_CONFIG.MAP_HEIGHT - canvas.height, this.game.camera.y));
             }
 
             setupUIListeners() {
@@ -2148,6 +2190,11 @@
             }
 
             play(soundName) {
+                if (!this.enabled || !this.audioContext) return;
+                // Resume suspended AudioContext (browser policy requires user gesture)
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
                 if (this.sounds[soundName]) {
                     this.sounds[soundName]();
                 }
@@ -2198,7 +2245,16 @@
             document.getElementById('mainMenu').style.display = 'flex';
             if (game) {
                 game.isRunning = false;
+                // Clear entity references to help GC
+                game.units = [];
+                game.buildings = [];
+                game.projectiles = [];
+                game.effects = [];
+                game.selectedUnits = [];
+                game = null;
             }
+            // Restart menu animation
+            menuAnimation();
         }
 
         function initializeGame() {

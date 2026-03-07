@@ -423,8 +423,103 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        // Debug Configuration
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage Access
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Event Manager
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        const eventManager = new EventManager();
+
+        // Safe Canvas Context
+        function initCanvas() {
+            const canvas = document.getElementById('gameCanvas');
+            if (!canvas) {
+                console.error('Canvas element not found');
+                return null;
+            }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Canvas 2D context not available');
+                return null;
+            }
+            return { canvas, ctx };
+        }
+
+        const canvasSetup = initCanvas();
+        if (!canvasSetup) {
+            alert('Your browser does not support Canvas. Please use a modern browser.');
+        }
+        const { canvas, ctx } = canvasSetup || { canvas: null, ctx: null };
+
+        // Particle system
+        const particles = [];
+        function addParticle(x, y, vx, vy, color, life, size) {
+            particles.push({ x, y, vx, vy, color, life, maxLife: life, size: size || 3 });
+        }
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.96;
+                p.vy *= 0.96;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+        function drawParticles() {
+            particles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
 
         // Game state
         let gameRunning = false;
@@ -433,7 +528,13 @@
         let lapStartTime = 0;
         let currentLap = 1;
         const totalLaps = 5;
-        let bestLapTime = localStorage.getItem('racingCircuitBestLap') || Infinity;
+        let bestLapTime = parseFloat(safeGetItem('racingCircuitBestLap', 'Infinity'));
+        if (isNaN(bestLapTime)) bestLapTime = Infinity;
+        let lastFrameTime = 0;
+        let lapJustCompleted = false;
+        let lapFlashTimer = 0;
+        let countdownTimer = 0;
+        let countdownActive = false;
 
         // Car object
         const car = {
@@ -456,6 +557,10 @@
             a: false,
             d: false
         };
+
+        // Tire marks
+        const tireMarks = [];
+        const MAX_TIRE_MARKS = 500;
 
         // Checkpoints
         let currentCheckpoint = 0;
@@ -493,8 +598,8 @@
             { x: 550, y: 600 }
         ];
 
-        // Event listeners
-        document.addEventListener('keydown', (e) => {
+        // Event listeners (using EventManager)
+        eventManager.add(document, 'keydown', (e) => {
             if (e.key in keys) {
                 keys[e.key] = true;
                 e.preventDefault();
@@ -505,7 +610,7 @@
             }
         });
 
-        document.addEventListener('keyup', (e) => {
+        eventManager.add(document, 'keyup', (e) => {
             if (e.key in keys) {
                 keys[e.key] = false;
                 e.preventDefault();
@@ -528,12 +633,12 @@
                     const btn = document.getElementById(id);
                     const key = keyMap[id];
 
-                    btn.addEventListener('touchstart', (e) => {
+                    eventManager.add(btn, 'touchstart', (e) => {
                         e.preventDefault();
                         keys[key] = true;
                     });
 
-                    btn.addEventListener('touchend', (e) => {
+                    eventManager.add(btn, 'touchend', (e) => {
                         e.preventDefault();
                         keys[key] = false;
                     });
@@ -581,11 +686,31 @@
         // Complete lap
         function completeLap() {
             const lapTime = Date.now() - lapStartTime;
+            let isNewRecord = false;
 
             if (lapTime < bestLapTime) {
                 bestLapTime = lapTime;
-                localStorage.setItem('racingCircuitBestLap', bestLapTime);
+                safeSetItem('racingCircuitBestLap', bestLapTime.toString());
                 updateBestLap();
+                isNewRecord = true;
+            }
+
+            // Lap completion effects
+            lapJustCompleted = true;
+            lapFlashTimer = 60;
+
+            // Confetti particles on lap completion
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                const colors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff', '#44ffff'];
+                addParticle(
+                    car.x, car.y,
+                    Math.cos(angle) * speed, Math.sin(angle) * speed,
+                    colors[Math.floor(Math.random() * colors.length)],
+                    40 + Math.floor(Math.random() * 30),
+                    2 + Math.random() * 3
+                );
             }
 
             currentLap++;
@@ -599,7 +724,7 @@
 
         // Update car physics
         function updateCar() {
-            if (!gameRunning || gamePaused) return;
+            if (!gameRunning || gamePaused || countdownActive) return;
 
             // Acceleration
             if (keys.w) {
@@ -636,6 +761,29 @@
                 car.x = oldX;
                 car.y = oldY;
                 car.speed *= 0.3;
+                // Collision sparks
+                for (let i = 0; i < 5; i++) {
+                    addParticle(car.x, car.y,
+                        (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4,
+                        '#ffaa00', 15 + Math.floor(Math.random() * 10), 2);
+                }
+            }
+
+            // Tire marks when turning hard at speed
+            if (Math.abs(car.speed) > 3 && (keys.a || keys.d)) {
+                if (tireMarks.length >= MAX_TIRE_MARKS) tireMarks.shift();
+                tireMarks.push({ x: car.x, y: car.y, alpha: 0.4 });
+            }
+
+            // Engine particles
+            if (Math.abs(car.speed) > 1) {
+                const exhaustX = car.x - Math.cos(car.angle) * 18;
+                const exhaustY = car.y - Math.sin(car.angle) * 18;
+                addParticle(exhaustX, exhaustY,
+                    -Math.cos(car.angle) * 1 + (Math.random() - 0.5),
+                    -Math.sin(car.angle) * 1 + (Math.random() - 0.5),
+                    Math.abs(car.speed) > 5 ? '#ff6600' : '#888888',
+                    10 + Math.floor(Math.random() * 8), 2);
             }
 
             // Check checkpoint
@@ -644,12 +792,27 @@
 
         // Draw track
         function drawTrack() {
-            // Background grass
-            ctx.fillStyle = '#1a4d1a';
+            // Background grass with subtle texture
+            const grassGrad = ctx.createRadialGradient(500, 350, 100, 500, 350, 500);
+            grassGrad.addColorStop(0, '#1e5a1e');
+            grassGrad.addColorStop(1, '#154015');
+            ctx.fillStyle = grassGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Track surface
-            ctx.fillStyle = '#404040';
+            // Grass texture dots
+            ctx.fillStyle = 'rgba(30, 100, 30, 0.3)';
+            for (let i = 0; i < 100; i++) {
+                const gx = (i * 97) % canvas.width;
+                const gy = (i * 73) % canvas.height;
+                ctx.fillRect(gx, gy, 2, 2);
+            }
+
+            // Track surface with gradient
+            const trackGrad = ctx.createLinearGradient(350, 50, 900, 650);
+            trackGrad.addColorStop(0, '#3a3a3a');
+            trackGrad.addColorStop(0.5, '#4a4a4a');
+            trackGrad.addColorStop(1, '#3a3a3a');
+            ctx.fillStyle = trackGrad;
             ctx.beginPath();
             ctx.moveTo(trackOuter[0].x, trackOuter[0].y);
             trackOuter.forEach(point => ctx.lineTo(point.x, point.y));
@@ -657,44 +820,94 @@
             ctx.fill();
 
             // Inner grass
-            ctx.fillStyle = '#1a4d1a';
+            ctx.fillStyle = grassGrad;
             ctx.beginPath();
             ctx.moveTo(trackInner[0].x, trackInner[0].y);
             trackInner.forEach(point => ctx.lineTo(point.x, point.y));
             ctx.closePath();
             ctx.fill();
 
-            // Track lines
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([]);
+            // Tire marks
+            tireMarks.forEach(mark => {
+                mark.alpha *= 0.998;
+                ctx.fillStyle = `rgba(30, 30, 30, ${mark.alpha})`;
+                ctx.beginPath();
+                ctx.arc(mark.x, mark.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            // Clean up faded marks
+            while (tireMarks.length > 0 && tireMarks[0].alpha < 0.02) tireMarks.shift();
 
+            // Track curb stripes (red/white on outer edge)
+            ctx.strokeStyle = '#cc0000';
+            ctx.lineWidth = 8;
+            ctx.setLineDash([15, 15]);
             ctx.beginPath();
             ctx.moveTo(trackOuter[0].x, trackOuter[0].y);
             trackOuter.forEach(point => ctx.lineTo(point.x, point.y));
             ctx.closePath();
             ctx.stroke();
 
+            // Track outer white line
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(trackOuter[0].x, trackOuter[0].y);
+            trackOuter.forEach(point => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
+            ctx.stroke();
+
+            // Inner curb stripes
+            ctx.strokeStyle = '#cc0000';
+            ctx.lineWidth = 6;
+            ctx.setLineDash([12, 12]);
             ctx.beginPath();
             ctx.moveTo(trackInner[0].x, trackInner[0].y);
             trackInner.forEach(point => ctx.lineTo(point.x, point.y));
             ctx.closePath();
             ctx.stroke();
 
-            // Start/Finish line
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 5;
+            // Inner white line
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
             ctx.beginPath();
-            ctx.moveTo(350, 650);
-            ctx.lineTo(650, 650);
+            ctx.moveTo(trackInner[0].x, trackInner[0].y);
+            trackInner.forEach(point => ctx.lineTo(point.x, point.y));
+            ctx.closePath();
             ctx.stroke();
 
-            // Checkered pattern on start line
-            ctx.fillStyle = '#fff';
-            for (let i = 0; i < 10; i++) {
-                if (i % 2 === 0) {
-                    ctx.fillRect(350 + i * 30, 650, 30, 10);
+            // Center dashed line (racing line hint)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 30]);
+            ctx.beginPath();
+            for (let i = 0; i < trackOuter.length; i++) {
+                const mx = (trackOuter[i].x + trackInner[i].x) / 2;
+                const my = (trackOuter[i].y + trackInner[i].y) / 2;
+                if (i === 0) ctx.moveTo(mx, my);
+                else ctx.lineTo(mx, my);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Start/Finish line - checkered flag pattern
+            const sfX = 350, sfW = 300, sfY = 645, sfH = 16;
+            const squareSize = 15;
+            for (let row = 0; row < 2; row++) {
+                for (let i = 0; i < Math.ceil(sfW / squareSize); i++) {
+                    ctx.fillStyle = (i + row) % 2 === 0 ? '#ffffff' : '#000000';
+                    ctx.fillRect(sfX + i * squareSize, sfY + row * (sfH / 2), squareSize, sfH / 2);
                 }
+            }
+
+            // Lap flash effect
+            if (lapFlashTimer > 0) {
+                lapFlashTimer--;
+                ctx.fillStyle = `rgba(68, 255, 68, ${lapFlashTimer / 120})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
         }
 
@@ -704,21 +917,66 @@
             ctx.translate(car.x, car.y);
             ctx.rotate(car.angle + Math.PI / 2);
 
-            // Shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 2, car.width, car.height);
+            // Shadow (offset based on speed for dynamic feel)
+            const shadowOffset = 2 + Math.abs(car.speed) * 0.3;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.roundRect(-car.width / 2 + shadowOffset, -car.height / 2 + shadowOffset, car.width, car.height, 3);
+            ctx.fill();
 
-            // Car body
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+            // Car body with gradient
+            const bodyGrad = ctx.createLinearGradient(-car.width / 2, 0, car.width / 2, 0);
+            bodyGrad.addColorStop(0, '#cc0000');
+            bodyGrad.addColorStop(0.3, '#ff2200');
+            bodyGrad.addColorStop(0.7, '#ff2200');
+            bodyGrad.addColorStop(1, '#cc0000');
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.roundRect(-car.width / 2, -car.height / 2, car.width, car.height, 3);
+            ctx.fill();
 
-            // Car details
-            ctx.fillStyle = '#8b0000';
-            ctx.fillRect(-car.width / 2, -car.height / 2 + 5, car.width, 8);
+            // Racing stripe
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.fillRect(-2, -car.height / 2, 4, car.height);
+
+            // Front spoiler
+            ctx.fillStyle = '#660000';
+            ctx.fillRect(-car.width / 2, -car.height / 2, car.width, 5);
+
+            // Rear wing
+            ctx.fillStyle = '#440000';
+            ctx.fillRect(-car.width / 2 - 2, car.height / 2 - 4, car.width + 4, 4);
 
             // Windshield
-            ctx.fillStyle = '#4a90e2';
-            ctx.fillRect(-car.width / 2 + 3, -car.height / 2 + 8, car.width - 6, 10);
+            const windGrad = ctx.createLinearGradient(0, -car.height / 2 + 7, 0, -car.height / 2 + 17);
+            windGrad.addColorStop(0, '#6ab0ff');
+            windGrad.addColorStop(1, '#2a70c2');
+            ctx.fillStyle = windGrad;
+            ctx.fillRect(-car.width / 2 + 3, -car.height / 2 + 7, car.width - 6, 10);
+
+            // Headlights
+            if (Math.abs(car.speed) > 0.5) {
+                ctx.fillStyle = '#ffffaa';
+                ctx.shadowColor = '#ffffaa';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(-car.width / 2 + 1, -car.height / 2, 4, 3);
+                ctx.fillRect(car.width / 2 - 5, -car.height / 2, 4, 3);
+                ctx.shadowBlur = 0;
+            }
+
+            // Taillights (glow when braking)
+            if (keys.s) {
+                ctx.fillStyle = '#ff0000';
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 12;
+                ctx.fillRect(-car.width / 2 + 1, car.height / 2 - 3, 5, 3);
+                ctx.fillRect(car.width / 2 - 6, car.height / 2 - 3, 5, 3);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.fillStyle = '#880000';
+                ctx.fillRect(-car.width / 2 + 1, car.height / 2 - 3, 5, 3);
+                ctx.fillRect(car.width / 2 - 6, car.height / 2 - 3, 5, 3);
+            }
 
             ctx.restore();
         }
@@ -729,8 +987,21 @@
 
             const currentTime = Date.now() - lapStartTime;
             document.getElementById('lapTime').textContent = formatTime(currentTime);
-            document.getElementById('speed').textContent = Math.round(Math.abs(car.speed) * 15);
-            document.getElementById('lapCount').textContent = `${currentLap} / ${totalLaps}`;
+            const speedKmh = Math.round(Math.abs(car.speed) * 15);
+            const speedEl = document.getElementById('speed');
+            speedEl.textContent = speedKmh;
+            // Speed color: green -> yellow -> red
+            if (speedKmh > 90) {
+                speedEl.style.color = '#ff4444';
+                speedEl.style.textShadow = '0 0 10px rgba(255, 68, 68, 0.5)';
+            } else if (speedKmh > 60) {
+                speedEl.style.color = '#ffaa00';
+                speedEl.style.textShadow = '0 0 10px rgba(255, 170, 0, 0.4)';
+            } else {
+                speedEl.style.color = '#44ff44';
+                speedEl.style.textShadow = '0 0 10px rgba(68, 255, 68, 0.3)';
+            }
+            document.getElementById('lapCount').textContent = `${Math.min(currentLap, totalLaps)} / ${totalLaps}`;
         }
 
         function updateBestLap() {
@@ -755,8 +1026,48 @@
             if (!gameRunning) return;
 
             updateCar();
+            updateParticles();
             drawTrack();
+            drawParticles();
             drawCar();
+
+            // Countdown overlay
+            if (countdownActive && countdownTimer > 0) {
+                const num = Math.ceil(countdownTimer / 60);
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.font = 'bold 120px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const scale = 1 + (countdownTimer % 60) / 60 * 0.3;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(scale, scale);
+                ctx.fillStyle = num > 0 ? '#ff4444' : '#44ff44';
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = 30;
+                ctx.fillText(num > 0 ? num.toString() : 'GO!', 0, 0);
+                ctx.restore();
+                countdownTimer--;
+                if (countdownTimer <= 0) countdownActive = false;
+            }
+
+            // Pause overlay
+            if (gamePaused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ff4444';
+                ctx.shadowColor = '#ff4444';
+                ctx.shadowBlur = 20;
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
+                ctx.font = '18px Arial';
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.fillText('Press P to resume', canvas.width / 2, canvas.height / 2 + 40);
+            }
+
             updateUI();
 
             requestAnimationFrame(gameLoop);
@@ -770,11 +1081,18 @@
             lapStartTime = Date.now();
             currentLap = 1;
             currentCheckpoint = 0;
+            lapFlashTimer = 0;
+            particles.length = 0;
+            tireMarks.length = 0;
 
             car.x = 500;
             car.y = 600;
             car.angle = -Math.PI / 2;
             car.speed = 0;
+
+            // Start countdown
+            countdownActive = true;
+            countdownTimer = 180; // 3 seconds
 
             updateBestLap();
             document.getElementById('gameOver').style.display = 'none';

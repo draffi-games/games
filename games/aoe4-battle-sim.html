@@ -354,33 +354,50 @@
             align-items: center;
             justify-content: center;
             background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
             z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
 
-        .battle-result.visible { display: flex; }
+        .battle-result.visible { display: flex; opacity: 1; }
 
         .result-content { text-align: center; padding: 40px; }
 
         .result-content h2 {
-            font-size: 48px;
+            font-size: 52px;
             margin-bottom: 20px;
-            text-shadow: 0 0 20px currentColor;
+            text-shadow: 0 0 30px currentColor;
+            animation: resultPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes resultPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
         .result-content.victory h2 { color: var(--success); }
         .result-content.defeat h2 { color: var(--danger); }
-        .result-stats { margin: 20px 0; font-size: 16px; }
+        .result-stats { margin: 20px 0; font-size: 16px; line-height: 1.8; }
+        .result-stats div { padding: 4px 0; }
 
         .restart-btn {
             padding: 15px 40px;
             font-size: 18px;
-            background: var(--primary);
-            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border: 2px solid var(--primary);
+            border-radius: 4px;
             color: #000;
             cursor: pointer;
             text-transform: uppercase;
             font-weight: bold;
             margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(201, 162, 39, 0.4);
         }
 
         /* Minimap */
@@ -435,7 +452,7 @@
     </style>
 </head>
 <body>
-    <a href="strategy-index.html" class="back-link">Strategie Hub</a>
+    <a href="../index.html" class="back-link">← Galerie</a>
 
     <div id="container">
         <header class="header">
@@ -525,7 +542,48 @@
 
     <script>
         const DEBUG = false;
-        if (!DEBUG) { console.log = () => {}; console.info = () => {}; }
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        class EventManager {
+            constructor() { this.listeners = []; }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        const eventManager = new EventManager();
 
         // ============================================
         // VECTOR2D CLASS
@@ -1544,11 +1602,37 @@
             }
 
             setupEventListeners() {
-                window.addEventListener('resize', () => this.resize());
-                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
-                this.canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); this.onRightClick(e); });
+                this._onResize = () => this.resize();
+                this._onMouseDown = (e) => this.onMouseDown(e);
+                this._onMouseMove = (e) => this.onMouseMove(e);
+                this._onMouseUp = (e) => this.onMouseUp(e);
+                this._onContextMenu = (e) => { e.preventDefault(); this.onRightClick(e); };
+
+                eventManager.add(window, 'resize', this._onResize);
+                eventManager.add(this.canvas, 'mousedown', this._onMouseDown);
+                eventManager.add(this.canvas, 'mousemove', this._onMouseMove);
+                eventManager.add(this.canvas, 'mouseup', this._onMouseUp);
+                eventManager.add(this.canvas, 'contextmenu', this._onContextMenu);
+
+                // Touch support for mobile
+                this._onTouchStart = (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.onMouseDown({ button: 0, clientX: touch.clientX, clientY: touch.clientY });
+                };
+                this._onTouchMove = (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.onMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+                };
+                this._onTouchEnd = (e) => {
+                    e.preventDefault();
+                    const touch = e.changedTouches[0];
+                    this.onMouseUp({ clientX: touch.clientX, clientY: touch.clientY });
+                };
+                eventManager.add(this.canvas, 'touchstart', this._onTouchStart, { passive: false });
+                eventManager.add(this.canvas, 'touchmove', this._onTouchMove, { passive: false });
+                eventManager.add(this.canvas, 'touchend', this._onTouchEnd, { passive: false });
             }
 
             onMouseDown(e) {
@@ -1835,15 +1919,30 @@
                 rc.querySelector('h2').textContent = victory ? 'SIEG!' : 'NIEDERLAGE';
 
                 const pa = this.playerUnits.filter(u => u.hp > 0).length;
+                const pt = this.playerUnits.length;
+                const ea = this.enemyUnits.filter(u => u.hp > 0).length;
+                const et = this.enemyUnits.length;
                 const m = Math.floor(this.battleTime / 60);
                 const s = Math.floor(this.battleTime % 60);
 
+                const playerKills = et - ea;
+                const enemyKills = pt - pa;
+
                 document.getElementById('result-stats').innerHTML = `
-                    <div>Verbleibende Einheiten: ${pa}</div>
-                    <div>Kampfzeit: ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}</div>
+                    <div>Verbleibende Einheiten: <strong style="color: ${victory ? '#228b22' : '#dc143c'}">${pa}/${pt}</strong></div>
+                    <div>Gegner eliminiert: <strong style="color: #c9a227">${playerKills}/${et}</strong></div>
+                    <div>Eigene Verluste: <strong>${enemyKills}</strong></div>
+                    <div>Kampfzeit: <strong>${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}</strong></div>
                 `;
-                document.getElementById('battle-result').classList.add('visible');
+
+                const resultEl = document.getElementById('battle-result');
+                resultEl.style.display = 'flex';
+                requestAnimationFrame(() => resultEl.classList.add('visible'));
                 logEvent(victory ? 'SIEG!' : 'NIEDERLAGE!');
+
+                // Save battle stats
+                const wins = parseInt(safeGetItem('aoe4BattleWins', '0'));
+                if (victory) safeSetItem('aoe4BattleWins', (wins + 1).toString());
             }
 
             reset() {

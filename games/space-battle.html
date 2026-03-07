@@ -281,8 +281,10 @@
     </div>
 
     <div class="game-over" id="gameOver">
-        <h2 id="winnerText">MISSION COMPLETE</h2>
+        <h2 id="winnerText" style="font-size: 36px; margin-bottom: 10px;">MISSION COMPLETE</h2>
+        <div id="battleStats" style="color: #aaa; font-size: 14px; margin-bottom: 20px;"></div>
         <button onclick="startNewGame()">New Mission</button>
+        <button onclick="location.href='../index.html'" style="background: linear-gradient(45deg, #666, #888); border-color: #aaa;">Exit to Hangar</button>
     </div>
     
     <a href="../index.html" class="back-btn">← Exit to Hangar</a>
@@ -405,6 +407,10 @@
             }
         }
 
+        // Touch state for mobile
+        let touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
+        let touchFiring = false;
+
         function setupInputHandlers() {
             eventManager.add(window, 'keydown', (e) => {
                 if (!keys[e.code]) keysPressed[e.code] = true;
@@ -416,6 +422,58 @@
                 keysPressed[e.code] = false;
                 e.preventDefault();
             });
+
+            // Touch controls for mobile
+            eventManager.add(canvas, 'touchstart', (e) => {
+                e.preventDefault();
+                if (!gameStarted) return;
+                for (const touch of e.changedTouches) {
+                    if (touch.clientX < canvas.width / 2) {
+                        // Left side - joystick
+                        touchJoystick.active = true;
+                        touchJoystick.startX = touch.clientX;
+                        touchJoystick.startY = touch.clientY;
+                        touchJoystick.id = touch.identifier;
+                    } else {
+                        // Right side - fire
+                        touchFiring = true;
+                        keys['Space'] = true;
+                    }
+                }
+            }, { passive: false });
+
+            eventManager.add(canvas, 'touchmove', (e) => {
+                e.preventDefault();
+                for (const touch of e.changedTouches) {
+                    if (touchJoystick.active && touch.identifier === touchJoystick.id) {
+                        touchJoystick.dx = touch.clientX - touchJoystick.startX;
+                        touchJoystick.dy = touch.clientY - touchJoystick.startY;
+
+                        // Map to WASD
+                        const deadzone = 15;
+                        keys['KeyW'] = touchJoystick.dy < -deadzone;
+                        keys['KeyS'] = touchJoystick.dy > deadzone;
+                        keys['KeyA'] = touchJoystick.dx < -deadzone;
+                        keys['KeyD'] = touchJoystick.dx > deadzone;
+                    }
+                }
+            }, { passive: false });
+
+            eventManager.add(canvas, 'touchend', (e) => {
+                e.preventDefault();
+                for (const touch of e.changedTouches) {
+                    if (touchJoystick.active && touch.identifier === touchJoystick.id) {
+                        touchJoystick.active = false;
+                        keys['KeyW'] = false;
+                        keys['KeyS'] = false;
+                        keys['KeyA'] = false;
+                        keys['KeyD'] = false;
+                    } else {
+                        touchFiring = false;
+                        keys['Space'] = false;
+                    }
+                }
+            }, { passive: false });
         }
 
         // Ship class
@@ -1533,14 +1591,15 @@
                     // Health
                     ctx.fillStyle = '#333';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth, barHeight);
-                    ctx.fillStyle = this.health > 60 ? '#00ff00' : this.health > 30 ? '#ffff00' : '#ff0000';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth * (this.health/100), barHeight);
-                    
+                    const healthPct = this.health / this.maxHealth;
+                    ctx.fillStyle = healthPct > 0.6 ? '#00ff00' : healthPct > 0.3 ? '#ffff00' : '#ff0000';
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 20, barWidth * healthPct, barHeight);
+
                     // Shield
                     ctx.fillStyle = '#333';
                     ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth, barHeight);
                     ctx.fillStyle = '#00aaff';
-                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth * (this.shield/100), barHeight);
+                    ctx.fillRect(this.x - barWidth/2, this.y - this.size - 28, barWidth * (this.shield / this.maxShield), barHeight);
                 }
             }
             
@@ -2038,16 +2097,44 @@
                     const heatBarEl = document.getElementById('heatBar');
                     const fuelEl = document.getElementById('fuelLevel');
                     const fuelBarEl = document.getElementById('fuelBar');
-                    
-                    if (shieldEl) shieldEl.textContent = Math.round(player.shield);
-                    if (shieldBarEl) shieldBarEl.style.width = player.shield + '%';
-                    
+
+                    const shieldPct = Math.round((player.shield / player.maxShield) * 100);
+                    if (shieldEl) shieldEl.textContent = shieldPct;
+                    if (shieldBarEl) shieldBarEl.style.width = shieldPct + '%';
+
                     const heat = Math.round(player.weaponHeat + player.engineHeat);
-                    if (heatEl) heatEl.textContent = heat;
+                    if (heatEl) heatEl.textContent = Math.min(heat, 100);
                     if (heatBarEl) heatBarEl.style.width = Math.min(heat, 100) + '%';
-                    
+
                     if (fuelEl) fuelEl.textContent = Math.round(player.fuel);
                     if (fuelBarEl) fuelBarEl.style.width = player.fuel + '%';
+
+                    // System status updates
+                    const engEl = document.getElementById('engineStatus');
+                    const wpnEl = document.getElementById('weaponStatus');
+                    const sldEl = document.getElementById('shieldStatus');
+                    const navEl = document.getElementById('navStatus');
+
+                    if (engEl) {
+                        const eff = Math.round(player.systemDamage.engines * 100);
+                        engEl.textContent = eff >= 90 ? 'NOMINAL' : eff >= 60 ? 'DEGRADED' : 'CRITICAL';
+                        engEl.style.color = eff >= 90 ? '#00ff00' : eff >= 60 ? '#ffaa00' : '#ff0000';
+                    }
+                    if (wpnEl) {
+                        const eff = Math.round(player.systemDamage.weapons * 100);
+                        const overheated = player.weaponHeat >= player.maxWeaponHeat * 0.9;
+                        wpnEl.textContent = overheated ? 'OVERHEAT' : eff >= 90 ? 'READY' : eff >= 60 ? 'IMPAIRED' : 'FAILING';
+                        wpnEl.style.color = overheated ? '#ff0000' : eff >= 90 ? '#00ff00' : eff >= 60 ? '#ffaa00' : '#ff0000';
+                    }
+                    if (sldEl) {
+                        sldEl.textContent = shieldPct > 50 ? 'ACTIVE' : shieldPct > 0 ? 'LOW' : 'OFFLINE';
+                        sldEl.style.color = shieldPct > 50 ? '#00ff00' : shieldPct > 0 ? '#ffaa00' : '#ff0000';
+                    }
+                    if (navEl) {
+                        const eff = Math.round(player.systemDamage.navigation * 100);
+                        navEl.textContent = eff >= 90 ? 'ONLINE' : eff >= 60 ? 'DRIFTING' : 'OFFLINE';
+                        navEl.style.color = eff >= 90 ? '#00ff00' : eff >= 60 ? '#ffaa00' : '#ff0000';
+                    }
                 }
                 
                 // Game over
@@ -2055,7 +2142,34 @@
                     gameRunning = false;
                     const winnerEl = document.getElementById('winnerText');
                     const gameOverEl = document.getElementById('gameOver');
-                    if (winnerEl) winnerEl.textContent = redAlive > 0 ? 'MISSION SUCCESS' : 'MISSION FAILED';
+                    const statsEl = document.getElementById('battleStats');
+
+                    const playerWon = player && player.alive;
+                    const playerTeamWon = (player && player.team === 'red') ? redAlive > 0 : blueAlive > 0;
+
+                    if (winnerEl) {
+                        if (playerWon && playerTeamWon) {
+                            winnerEl.textContent = 'VICTORY - MISSION COMPLETE';
+                            winnerEl.style.color = '#00ff00';
+                        } else if (playerTeamWon) {
+                            winnerEl.textContent = 'PYRRHIC VICTORY';
+                            winnerEl.style.color = '#ffaa00';
+                        } else {
+                            winnerEl.textContent = 'MISSION FAILED';
+                            winnerEl.style.color = '#ff4444';
+                        }
+                    }
+
+                    if (statsEl) {
+                        const playerHealth = player ? Math.round(player.health) : 0;
+                        const playerShield = player ? Math.round(player.shield) : 0;
+                        statsEl.innerHTML = `
+                            Ship: ${playerShipType.toUpperCase()} | Faction: ${playerFaction.toUpperCase()}<br>
+                            Hull: ${playerHealth}% | Shield: ${playerShield}%<br>
+                            Empire: ${redAlive} ships | Rebellion: ${blueAlive} ships
+                        `;
+                    }
+
                     if (gameOverEl) gameOverEl.style.display = 'block';
                 }
             } catch (error) {
@@ -2144,6 +2258,60 @@
             }
         }
 
+        function drawMinimap() {
+            if (!player || !player.alive) return;
+
+            const mmSize = 120;
+            const mmX = canvas.width - mmSize - 20;
+            const mmY = canvas.height - mmSize - 20;
+            const scaleX = mmSize / canvas.width;
+            const scaleY = mmSize / canvas.height;
+
+            ctx.save();
+
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.fillRect(mmX, mmY, mmSize, mmSize);
+            ctx.strokeRect(mmX, mmY, mmSize, mmSize);
+
+            // Ships
+            for (const ship of ships) {
+                if (!ship || !ship.alive) continue;
+                const sx = mmX + ship.x * scaleX;
+                const sy = mmY + ship.y * scaleY;
+
+                if (ship.isPlayer) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(sx - 2, sy - 2, 4, 4);
+                } else if (ship.isBoss) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fillRect(sx - 3, sy - 3, 6, 6);
+                } else {
+                    ctx.fillStyle = ship.team === 'red' ? '#ff4444' : '#4488ff';
+                    ctx.fillRect(sx - 1, sy - 1, 2, 2);
+                }
+            }
+
+            // Target indicator
+            if (currentTarget && currentTarget.alive) {
+                const tx = mmX + currentTarget.x * scaleX;
+                const ty = mmY + currentTarget.y * scaleY;
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(tx - 4, ty - 4, 8, 8);
+            }
+
+            // Label
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '8px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('TACTICAL MAP', mmX + mmSize / 2, mmY - 3);
+
+            ctx.restore();
+        }
+
         function gameLoop() {
             try {
                 if (!gameRunning) return;
@@ -2197,7 +2365,10 @@
                 });
                 
                 ships.forEach(ship => ship && ship.alive && ship.draw());
-                
+
+                // Draw minimap
+                drawMinimap();
+
                 checkCollisions();
                 updateHUD();
                 

@@ -346,20 +346,51 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
+        // Debug Configuration
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Event Manager - Prevents memory leaks
+        class EventManager {
+            constructor() { this.listeners = []; }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+        const eventManager = new EventManager();
+
+        // Safe Canvas Context
+        const _cvs = document.getElementById('gameCanvas');
+        const _ctxRef = _cvs ? _cvs.getContext('2d') : null;
+        if (!_cvs || !_ctxRef) {
+            alert('Your browser does not support Canvas. Please use a modern browser.');
+        }
+        const canvas = _cvs;
+        const ctx = _ctxRef;
+
         let GRAVITY = 0.5;
-        const PLAYER_SPEED = 5.25;  // 50% faster (3.5 * 1.5)
-        const JUMP_POWER = -12;     // 50% higher jump (-8 * 1.5)
+        const PLAYER_SPEED = 5.25;
+        const JUMP_POWER = -12;
         const BALL_SPEED = 5;
         const NET_HEIGHT = 150;
         const WINNING_SCORE = 10;
-        
-        let gameRunning = false;  // Start paused until mode selected
+
+        let gameRunning = false;
         let player1Score = 0;
         let player2Score = 0;
-        let gameMode = 'classic';  // 'classic' or 'extreme'
+        let gameMode = 'classic';
         let particles = [];
         let powerUps = [];
         let specialModeActive = false;
@@ -375,7 +406,8 @@
         let blackout = false;
         let blackoutAlpha = 0;
         let eventCounter = 0;
-        
+        let scoreFlash = { player: 0, timer: 0 };
+
         const keys = {};
         
         class Particle {
@@ -704,12 +736,14 @@
                         player2.combo = 0;
                         player1.combo = 0;
                         this.createScoreEffect(canvas.width * 0.75, 200, '#2196F3');
+                        scoreFlash = { player: 2, timer: 30 };
                         this.reset(2);
                     } else {
                         player1Score++;
                         player1.combo = 0;
                         player2.combo = 0;
                         this.createScoreEffect(canvas.width * 0.25, 200, '#4CAF50');
+                        scoreFlash = { player: 1, timer: 30 };
                         this.reset(1);
                     }
                     updateScore();
@@ -1445,7 +1479,17 @@
             player1.draw();
             player2.draw();
             ball.draw();
-            
+
+            // Score flash effect
+            if (scoreFlash.timer > 0) {
+                scoreFlash.timer--;
+                const alpha = scoreFlash.timer / 30;
+                const color = scoreFlash.player === 1 ? `rgba(76, 175, 80, ${alpha * 0.3})` : `rgba(33, 150, 243, ${alpha * 0.3})`;
+                const side = scoreFlash.player === 1 ? 0 : canvas.width / 2;
+                ctx.fillStyle = color;
+                ctx.fillRect(side, 0, canvas.width / 2, canvas.height);
+            }
+
             spawnPowerUp();
             activateSpecialMode();
             
@@ -1466,13 +1510,23 @@
             gameRunning = false;
             const gameOverDiv = document.getElementById('gameOver');
             const winnerDiv = document.getElementById('winner');
-            
-            if (player1Score >= WINNING_SCORE) {
-                winnerDiv.innerHTML = `<span style="color: #4CAF50;">Player 1 Wins!</span><br>Final Score: ${player1Score} - ${player2Score}`;
-            } else {
-                winnerDiv.innerHTML = `<span style="color: #2196F3;">Player 2 Wins!</span><br>Final Score: ${player1Score} - ${player2Score}`;
+
+            const isP1 = player1Score >= WINNING_SCORE;
+            const winColor = isP1 ? '#4CAF50' : '#2196F3';
+            const winnerName = isP1 ? 'Player 1' : 'Player 2';
+
+            winnerDiv.innerHTML = `
+                <span style="color: ${winColor}; font-size: 32px;">${winnerName} Wins!</span><br>
+                <span style="font-size: 18px; color: #666;">Final Score: ${player1Score} - ${player2Score}</span>
+            `;
+
+            // Victory particles
+            for (let i = 0; i < 40; i++) {
+                const px = canvas.width / 2 + (Math.random() - 0.5) * 400;
+                const py = canvas.height / 2;
+                particles.push(new Particle(px, py, winColor, 6));
             }
-            
+
             gameOverDiv.style.display = 'block';
         }
         
@@ -1531,46 +1585,43 @@
             gameLoop();
         }
         
-        document.addEventListener('keydown', (e) => {
+        eventManager.add(document, 'keydown', (e) => {
             keys[e.key] = true;
-            e.preventDefault();
-        });
-        
-        document.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-            e.preventDefault();
-        });
-        
-        // Fullscreen function
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
-                });
-                document.getElementById('fullscreenBtn').innerHTML = '🎯 Exit Fullscreen';
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-                document.getElementById('fullscreenBtn').innerHTML = '🎮 Fullscreen';
-            }
-        }
-        
-        // Listen for fullscreen changes
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                document.getElementById('fullscreenBtn').innerHTML = '🎮 Fullscreen';
-            }
-        });
-        
-        // ESC key to exit fullscreen
-        document.addEventListener('keydown', (e) => {
             if (e.key === 'F11') {
                 e.preventDefault();
                 toggleFullscreen();
             }
+            // Prevent default for game keys only
+            if (['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
         });
-        
+
+        eventManager.add(document, 'keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Fullscreen function
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+                document.getElementById('fullscreenBtn').textContent = 'Exit Fullscreen';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+                document.getElementById('fullscreenBtn').textContent = 'Fullscreen';
+            }
+        }
+
+        eventManager.add(document, 'fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.getElementById('fullscreenBtn').textContent = 'Fullscreen';
+            }
+        });
+
         gameLoop();
     </script>
 </body>

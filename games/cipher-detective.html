@@ -374,6 +374,61 @@
             transform: translateY(-2px);
         }
 
+        /* Animations for answer feedback */
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(76, 175, 80, 0.6); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-5px); }
+            80% { transform: translateX(5px); }
+        }
+
+        .game-area.correct-flash {
+            animation: correctPulse 0.6s ease;
+        }
+
+        .game-area.wrong-shake {
+            animation: wrongShake 0.5s ease;
+        }
+
+        .choice-btn.correct-answer {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.5) 0%, rgba(46, 125, 50, 0.6) 100%) !important;
+            border-color: #4CAF50 !important;
+            color: #81C784 !important;
+            transform: scale(1.05);
+        }
+
+        .choice-btn.wrong-answer {
+            background: linear-gradient(135deg, rgba(244, 67, 54, 0.3) 0%, rgba(183, 28, 28, 0.4) 100%) !important;
+            border-color: #F44336 !important;
+            color: #EF5350 !important;
+            opacity: 0.6;
+        }
+
+        .choice-btn:disabled {
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* Room transition */
+        .game-area.transitioning {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+        }
+
+        .game-area.transitioned {
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.4s ease;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2.2em;
@@ -464,6 +519,44 @@
     </div>
 
     <script>
+        // Debug Configuration
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage Access
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        function safeRemoveItem(key) {
+            try {
+                localStorage.removeItem(key);
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+            }
+        }
+
         const rooms = [
             {
                 title: "Das Bücherzimmer",
@@ -512,12 +605,16 @@
 
         // Load progress from localStorage
         function loadProgress() {
-            const saved = localStorage.getItem('professorMysteryProgress');
+            const saved = safeGetItem('professorMysteryProgress');
             if (saved) {
-                const data = JSON.parse(saved);
-                unlockedRooms = data.unlockedRooms || 1;
-                updateRoomButtons();
-                updateProgress();
+                try {
+                    const data = JSON.parse(saved);
+                    unlockedRooms = data.unlockedRooms || 1;
+                    updateRoomButtons();
+                    updateProgress();
+                } catch (e) {
+                    console.error('Failed to parse saved progress');
+                }
             }
         }
 
@@ -525,7 +622,7 @@
             const data = {
                 unlockedRooms: unlockedRooms
             };
-            localStorage.setItem('professorMysteryProgress', JSON.stringify(data));
+            safeSetItem('professorMysteryProgress', JSON.stringify(data));
         }
 
         function selectRoom(room) {
@@ -577,23 +674,43 @@
         function checkAnswer(selectedLetter) {
             const roomData = rooms[currentRoom - 1];
             const messageBox = document.getElementById('messageBox');
-            
+            const gameArea = document.querySelector('.game-area');
+            const buttons = document.querySelectorAll('.choice-btn');
+
+            // Disable all buttons during feedback
+            buttons.forEach(btn => btn.disabled = true);
+
             if (selectedLetter === roomData.correct) {
                 messageBox.className = 'message success';
-                messageBox.textContent = '✅ Richtig! ' + roomData.explanation;
+                messageBox.textContent = 'Richtig! ' + roomData.explanation;
                 messageBox.style.display = 'block';
-                
+
+                // Highlight correct answer
+                const correctIndex = selectedLetter.charCodeAt(0) - 65;
+                if (buttons[correctIndex]) buttons[correctIndex].classList.add('correct-answer');
+
+                // Visual pulse
+                gameArea.classList.add('correct-flash');
+                setTimeout(() => gameArea.classList.remove('correct-flash'), 600);
+
                 // Mark room as completed
                 document.getElementById(`dot${currentRoom}`).classList.add('completed');
-                
+
                 // Unlock next room
                 if (currentRoom < 5) {
                     unlockedRooms = Math.max(unlockedRooms, currentRoom + 1);
                     saveProgress();
-                    
+
                     setTimeout(() => {
-                        selectRoom(currentRoom + 1);
-                    }, 3000);
+                        // Transition animation
+                        gameArea.classList.add('transitioning');
+                        setTimeout(() => {
+                            selectRoom(currentRoom + 1);
+                            gameArea.classList.remove('transitioning');
+                            gameArea.classList.add('transitioned');
+                            setTimeout(() => gameArea.classList.remove('transitioned'), 400);
+                        }, 400);
+                    }, 2500);
                 } else {
                     // Game completed!
                     setTimeout(() => {
@@ -601,16 +718,28 @@
                         document.querySelector('.game-area').style.display = 'none';
                     }, 3000);
                 }
-                
+
                 updateRoomButtons();
             } else {
                 messageBox.className = 'message error';
-                messageBox.textContent = '❌ Das ist nicht richtig. Lies den Hinweis nochmal aufmerksam durch...';
+                messageBox.textContent = 'Das ist nicht richtig. Lies den Hinweis nochmal aufmerksam durch...';
                 messageBox.style.display = 'block';
-                
+
+                // Highlight wrong answer
+                const wrongIndex = selectedLetter.charCodeAt(0) - 65;
+                if (buttons[wrongIndex]) buttons[wrongIndex].classList.add('wrong-answer');
+
+                // Shake effect
+                gameArea.classList.add('wrong-shake');
+                setTimeout(() => gameArea.classList.remove('wrong-shake'), 500);
+
                 setTimeout(() => {
                     messageBox.style.display = 'none';
-                }, 4000);
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.classList.remove('wrong-answer');
+                    });
+                }, 3000);
             }
         }
 
@@ -623,7 +752,7 @@
         function resetGame() {
             currentRoom = 1;
             unlockedRooms = 1;
-            localStorage.removeItem('professorMysteryProgress');
+            safeRemoveItem('professorMysteryProgress');
             
             document.getElementById('finalMessage').style.display = 'none';
             document.querySelector('.game-area').style.display = 'block';

@@ -4,8 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Helldivers 2 Stratego - Super Earth Defense</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
+        /* Self-contained font - no external dependencies */
+        @font-face {
+            font-family: 'GameFont';
+            src: local('Orbitron'), local('Orbitron-Regular');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'GameFont';
+            src: local('Orbitron Bold'), local('Orbitron-Bold');
+            font-weight: 700;
+        }
+        @font-face {
+            font-family: 'GameFont';
+            src: local('Orbitron Black'), local('Orbitron-Black');
+            font-weight: 900;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -27,7 +42,7 @@
                     #0f0820 50%,
                     #1a0a30 75%,
                     #000 100%);
-            font-family: 'Orbitron', 'Courier New', monospace;
+            font-family: 'GameFont', 'Courier New', monospace;
             overflow: hidden;
             color: #FFD700;
             user-select: none;
@@ -427,7 +442,7 @@
             color: #ffffff;
             text-align: center;
             line-height: 1;
-            font-family: 'Orbitron', Arial, sans-serif;
+            font-family: 'GameFont', Arial, sans-serif;
             text-shadow: 
                 0 0 8px rgba(255, 255, 255, 0.8),
                 0 2px 4px rgba(0, 0, 0, 0.9),
@@ -441,7 +456,7 @@
             text-align: center;
             line-height: 1;
             margin-top: 2px;
-            font-family: 'Orbitron', Arial, sans-serif;
+            font-family: 'GameFont', Arial, sans-serif;
             font-weight: 600;
             text-shadow: 
                 0 1px 2px rgba(0, 0, 0, 0.9),
@@ -473,7 +488,7 @@
             font-weight: bold;
             padding: 2px 4px;
             border-radius: 4px;
-            font-family: 'Orbitron', Arial, sans-serif;
+            font-family: 'GameFont', Arial, sans-serif;
             box-shadow: 
                 0 0 8px rgba(255, 170, 0, 0.8),
                 inset 0 1px 2px rgba(255, 255, 255, 0.3);
@@ -723,7 +738,7 @@
             text-decoration: none;
             transition: all 0.3s;
             pointer-events: auto;
-            font-family: 'Orbitron', monospace;
+            font-family: 'GameFont', monospace;
         }
 
         #backButton:hover {
@@ -984,6 +999,56 @@
     </div>
 
     <script>
+        // Debug Configuration
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // Safe localStorage access
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // Shared AudioContext - reuse single instance
+        let sharedAudioCtx = null;
+        function getAudioContext() {
+            try {
+                if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+                    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (sharedAudioCtx.state === 'suspended') {
+                    sharedAudioCtx.resume();
+                }
+                return sharedAudioCtx;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Stats tracking
+        let gamesPlayed = parseInt(safeGetItem('helldivers-gamesPlayed', '0'));
+        let gamesWon = parseInt(safeGetItem('helldivers-gamesWon', '0'));
+
         // Game state and constants
         const BOARD_SIZE = 10;
         let gameState = 'setup';
@@ -1785,14 +1850,24 @@
             `;
             
             const isVictory = message.includes('Player Wins') || message.includes('Super Earth');
-            const title = isVictory ? '🏆 VICTORY! 🏆' : '💀 DEFEAT 💀';
+
+            // Track stats
+            gamesPlayed++;
+            safeSetItem('helldivers-gamesPlayed', gamesPlayed.toString());
+            if (isVictory) {
+                gamesWon++;
+                safeSetItem('helldivers-gamesWon', gamesWon.toString());
+            }
+
+            const title = isVictory ? 'VICTORY!' : 'DEFEAT';
             const titleColor = isVictory ? '#00ff88' : '#ff5555';
             const subtitle = isVictory ? 'SUPER EARTH PREVAILS!' : 'DEMOCRACY FALLS...';
             
             victoryDiv.innerHTML = `
                 <h1 style="font-size: 4em; color: ${titleColor}; text-shadow: 0 0 20px ${titleColor}; margin-bottom: 20px; animation: pulse 2s infinite;">${title}</h1>
                 <h2 style="font-size: 2em; color: #ffaa00; text-shadow: 0 0 15px #ffaa00; margin-bottom: 30px;">${subtitle}</h2>
-                <div style="font-size: 1.5em; margin-bottom: 40px; color: #ffffff;">${message}</div>
+                <div style="font-size: 1.5em; margin-bottom: 20px; color: #ffffff;">${message}</div>
+                <div style="font-size: 0.9em; margin-bottom: 30px; color: #aaaaaa;">Games: ${gamesPlayed} | Wins: ${gamesWon} | Win Rate: ${gamesPlayed > 0 ? Math.round(gamesWon / gamesPlayed * 100) : 0}%</div>
                 <div style="display: flex; gap: 20px;">
                     <button id="playAgainBtn" style="
                         padding: 15px 30px;
@@ -1803,7 +1878,7 @@
                         color: white;
                         cursor: pointer;
                         transition: all 0.3s;
-                        font-family: 'Orbitron', monospace;
+                        font-family: 'GameFont', monospace;
                         box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
                     ">🔄 PLAY AGAIN</button>
                     <button id="mainMenuBtn" style="
@@ -1815,7 +1890,7 @@
                         color: white;
                         cursor: pointer;
                         transition: all 0.3s;
-                        font-family: 'Orbitron', monospace;
+                        font-family: 'GameFont', monospace;
                         box-shadow: 0 0 15px rgba(170, 170, 170, 0.4);
                     ">🏠 MAIN MENU</button>
                 </div>
@@ -1859,61 +1934,45 @@
         }
 
         function playVictorySound() {
+            const audioCtx = getAudioContext();
+            if (!audioCtx) return;
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Victory fanfare
-                const frequencies = [523, 659, 784, 1047]; // C, E, G, C (major chord)
-                
+                const frequencies = [523, 659, 784, 1047];
                 frequencies.forEach((freq, index) => {
                     const oscillator = audioCtx.createOscillator();
                     const gainNode = audioCtx.createGain();
-                    
                     oscillator.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
-                    
                     oscillator.frequency.value = freq;
                     oscillator.type = 'sine';
-                    
                     const startTime = audioCtx.currentTime + index * 0.2;
                     gainNode.gain.setValueAtTime(0.1, startTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8);
-                    
                     oscillator.start(startTime);
                     oscillator.stop(startTime + 0.8);
                 });
-            } catch (e) {
-                // Audio not supported
-            }
+            } catch (e) { /* Audio not supported */ }
         }
 
         function playDefeatSound() {
+            const audioCtx = getAudioContext();
+            if (!audioCtx) return;
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Defeat sound - descending notes
-                const frequencies = [330, 294, 262, 220]; // E, D, C, A (descending)
-                
+                const frequencies = [330, 294, 262, 220];
                 frequencies.forEach((freq, index) => {
                     const oscillator = audioCtx.createOscillator();
                     const gainNode = audioCtx.createGain();
-                    
                     oscillator.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
-                    
                     oscillator.frequency.value = freq;
                     oscillator.type = 'triangle';
-                    
                     const startTime = audioCtx.currentTime + index * 0.3;
                     gainNode.gain.setValueAtTime(0.08, startTime);
                     gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 1);
-                    
                     oscillator.start(startTime);
                     oscillator.stop(startTime + 1);
                 });
-            } catch (e) {
-                // Audio not supported
-            }
+            } catch (e) { /* Audio not supported */ }
         }
 
         function autoSetupPlayer() {
@@ -2026,6 +2085,27 @@
             }
         }
 
+        function resetGame() {
+            gameState = 'setup';
+            currentPlayer = 1;
+            selectedPiece = null;
+            board = [];
+            setupMode = false;
+            selectedPieceType = null;
+            playerInventory = {};
+            setupComplete = false;
+
+            // Reset UI
+            document.getElementById('gamePhase').textContent = 'Setup Phase';
+            document.getElementById('currentPlayer').textContent = "Player 1's Turn (Super Earth)";
+            document.getElementById('unitDescriptions').style.display = 'block';
+            document.getElementById('setupInventory').style.display = 'none';
+            document.getElementById('battleInfo').style.display = 'none';
+
+            initializeBoard();
+            createUnitDescriptions();
+        }
+
         // Event listeners
         document.getElementById('startGameBtn').addEventListener('click', () => {
             document.getElementById('setupPhase').style.display = 'none';
@@ -2056,91 +2136,70 @@
             }
         });
 
-        // Enhanced Audio system
+        // Enhanced Audio system - uses shared AudioContext
         function playBattleSound() {
+            const audioCtx = getAudioContext();
+            if (!audioCtx) return;
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Create explosion sound effect
                 const oscillator1 = audioCtx.createOscillator();
                 const oscillator2 = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
                 const filter = audioCtx.createBiquadFilter();
-                
                 oscillator1.connect(filter);
                 oscillator2.connect(filter);
                 filter.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                
-                // Two oscillators for richer sound
                 oscillator1.frequency.setValueAtTime(80, audioCtx.currentTime);
                 oscillator1.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.4);
                 oscillator1.type = 'sawtooth';
-                
                 oscillator2.frequency.setValueAtTime(200, audioCtx.currentTime);
                 oscillator2.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
                 oscillator2.type = 'square';
-                
-                // Low-pass filter for explosion effect
                 filter.type = 'lowpass';
                 filter.frequency.setValueAtTime(800, audioCtx.currentTime);
                 filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.4);
-                
                 gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-                
                 oscillator1.start(audioCtx.currentTime);
                 oscillator2.start(audioCtx.currentTime);
                 oscillator1.stop(audioCtx.currentTime + 0.4);
                 oscillator2.stop(audioCtx.currentTime + 0.4);
-            } catch (e) {
-                // Audio not supported
-            }
+            } catch (e) { /* Audio not supported */ }
         }
 
         function playMoveSound() {
+            const audioCtx = getAudioContext();
+            if (!audioCtx) return;
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
-                
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                
                 oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
                 oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
                 oscillator.type = 'sine';
-                
                 gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-                
                 oscillator.start(audioCtx.currentTime);
                 oscillator.stop(audioCtx.currentTime + 0.15);
-            } catch (e) {
-                // Audio not supported
-            }
+            } catch (e) { /* Audio not supported */ }
         }
 
         function playSelectSound() {
+            const audioCtx = getAudioContext();
+            if (!audioCtx) return;
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
-                
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                
                 oscillator.frequency.value = 800;
                 oscillator.type = 'sine';
-                
                 gainNode.gain.setValueAtTime(0.03, audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                
                 oscillator.start(audioCtx.currentTime);
                 oscillator.stop(audioCtx.currentTime + 0.1);
-            } catch (e) {
-                // Audio not supported
-            }
+            } catch (e) { /* Audio not supported */ }
         }
 
         // Create animated starfield

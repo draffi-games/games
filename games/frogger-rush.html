@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐸 Frogger Rush</title>
+    <title>Frogger Rush</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
         body {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            background: linear-gradient(135deg, #0a1628 0%, #1a3a5c 100%);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -20,64 +20,73 @@
             padding: 20px;
         }
         .game-container {
-            background: white;
+            background: rgba(15, 25, 45, 0.95);
             border-radius: 20px;
             padding: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 60px rgba(39, 174, 96, 0.1);
             max-width: 640px;
+            border: 1px solid rgba(39, 174, 96, 0.2);
         }
         .header {
             text-align: center;
             margin-bottom: 20px;
         }
         h1 {
-            color: #2c3e50;
+            color: #2ecc71;
             font-size: 2em;
             margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
         }
         .stats {
             display: flex;
             justify-content: space-around;
             margin-bottom: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 10px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
         }
         .stat {
             text-align: center;
         }
         .stat-label {
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #7f8c8d;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .stat-value {
             font-size: 1.5em;
             font-weight: bold;
-            color: #2c3e50;
+            transition: transform 0.2s, color 0.3s;
+        }
+        .stat-value.bump {
+            transform: scale(1.3);
         }
         .lives { color: #e74c3c; }
-        .score { color: #27ae60; }
+        .score { color: #2ecc71; }
         .level { color: #3498db; }
         .timer-bar {
-            height: 20px;
-            background: #ecf0f1;
-            border-radius: 10px;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
             overflow: hidden;
             margin-bottom: 15px;
         }
         .timer-fill {
             height: 100%;
-            background: linear-gradient(90deg, #27ae60, #f39c12, #e74c3c);
+            background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
             transition: width 0.1s linear;
+            border-radius: 4px;
         }
         #gameCanvas {
             display: block;
             border-radius: 10px;
-            background: #34495e;
+            background: #1a2a3a;
             margin: 0 auto;
             max-width: 100%;
             height: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
         }
         .controls {
             margin-top: 20px;
@@ -92,36 +101,42 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .btn-start {
-            background: #27ae60;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
             color: white;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
         }
         .btn-start:hover {
-            background: #229954;
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.5);
         }
         .btn-pause {
-            background: #f39c12;
+            background: linear-gradient(135deg, #e67e22, #f39c12);
             color: white;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
         }
         .btn-pause:hover {
-            background: #e67e22;
+            transform: translateY(-2px);
         }
         .btn-fullscreen {
-            background: #3498db;
+            background: linear-gradient(135deg, #2980b9, #3498db);
             color: white;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
         }
         .btn-fullscreen:hover {
-            background: #2980b9;
+            transform: translateY(-2px);
         }
         .instructions {
             margin-top: 20px;
             padding: 15px;
-            background: #f8f9fa;
+            background: rgba(255,255,255,0.05);
             border-radius: 10px;
             font-size: 0.9em;
-            color: #2c3e50;
+            color: #bdc3c7;
+            border: 1px solid rgba(255,255,255,0.08);
         }
         .instructions h3 {
             margin-bottom: 10px;
@@ -131,18 +146,23 @@
             list-style-position: inside;
             margin-left: 10px;
         }
+        .instructions li {
+            margin: 4px 0;
+        }
         .back-link {
             display: inline-block;
             margin-top: 20px;
             padding: 10px 20px;
-            background: #95a5a6;
-            color: white;
+            background: rgba(255,255,255,0.1);
+            color: #bdc3c7;
             text-decoration: none;
             border-radius: 8px;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .back-link:hover {
-            background: #7f8c8d;
+            background: rgba(255,255,255,0.15);
+            color: white;
         }
         .game-over-overlay {
             display: none;
@@ -151,66 +171,130 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
         .game-over-content {
-            background: white;
+            background: rgba(15, 25, 45, 0.98);
             padding: 40px;
             border-radius: 20px;
             text-align: center;
             max-width: 400px;
+            border: 2px solid rgba(231, 76, 60, 0.5);
+            box-shadow: 0 0 60px rgba(231, 76, 60, 0.2);
+            animation: popIn 0.4s ease-out;
+        }
+        .game-over-content.win {
+            border-color: rgba(46, 204, 113, 0.5);
+            box-shadow: 0 0 60px rgba(46, 204, 113, 0.2);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
         }
         .game-over-content h2 {
             color: #e74c3c;
             font-size: 2.5em;
             margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+        }
+        .game-over-content.win h2 {
+            color: #2ecc71;
+            text-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
         }
         .game-over-content .final-score {
-            font-size: 1.5em;
-            margin: 20px 0;
-            color: #2c3e50;
+            font-size: 1.3em;
+            margin: 10px 0;
+            color: #bdc3c7;
+        }
+        .game-over-content .final-score span {
+            color: #f1c40f;
+            font-weight: bold;
+        }
+        .new-high-score {
+            color: #f1c40f;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px 0;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         .mobile-controls {
             display: none;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 8px;
             margin-top: 15px;
-            max-width: 300px;
+            max-width: 240px;
             margin-left: auto;
             margin-right: auto;
         }
         .mobile-btn {
-            padding: 20px;
-            background: #3498db;
+            padding: 18px;
+            background: rgba(52, 152, 219, 0.3);
             color: white;
-            border: none;
-            border-radius: 10px;
+            border: 2px solid rgba(52, 152, 219, 0.5);
+            border-radius: 12px;
             font-size: 1.5em;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.15s;
             user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
         .mobile-btn:active {
-            background: #2980b9;
+            background: rgba(52, 152, 219, 0.6);
+            transform: scale(0.95);
         }
         .mobile-btn:nth-child(1) { grid-column: 2; }
         .mobile-btn:nth-child(2) { grid-column: 1; grid-row: 2; }
         .mobile-btn:nth-child(3) { grid-column: 3; grid-row: 2; }
         .mobile-btn:nth-child(4) { grid-column: 2; grid-row: 2; }
+        .pause-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+        }
+        .pause-overlay.active {
+            display: flex;
+        }
+        .pause-text {
+            color: white;
+            font-size: 2em;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .canvas-wrapper {
+            position: relative;
+        }
         @media (max-width: 768px) {
             .mobile-controls { display: grid; }
             h1 { font-size: 1.5em; }
             .stat-value { font-size: 1.2em; }
+            .btn { padding: 10px 16px; font-size: 0.85em; }
+        }
+        @media (pointer: coarse) {
+            .mobile-controls { display: grid; }
         }
     </style>
 </head>
 <body>
     <div class="game-container">
         <div class="header">
-            <h1>🐸 Frogger Rush</h1>
+            <h1>Frogger Rush</h1>
         </div>
         <div class="stats">
             <div class="stat">
@@ -225,46 +309,114 @@
                 <div class="stat-label">Level</div>
                 <div class="stat-value level" id="levelDisplay">1</div>
             </div>
+            <div class="stat">
+                <div class="stat-label">High Score</div>
+                <div class="stat-value score" id="highScoreDisplay">0</div>
+            </div>
         </div>
         <div class="timer-bar">
             <div class="timer-fill" id="timerFill"></div>
         </div>
-        <canvas id="gameCanvas" width="600" height="560"></canvas>
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="600" height="560"></canvas>
+            <div class="pause-overlay" id="pauseOverlay">
+                <div class="pause-text">PAUSED</div>
+            </div>
+        </div>
         <div class="mobile-controls">
-            <button class="mobile-btn" data-direction="up">↑</button>
-            <button class="mobile-btn" data-direction="left">←</button>
-            <button class="mobile-btn" data-direction="right">→</button>
-            <button class="mobile-btn" data-direction="down">↓</button>
+            <button class="mobile-btn" data-direction="up">&#9650;</button>
+            <button class="mobile-btn" data-direction="left">&#9664;</button>
+            <button class="mobile-btn" data-direction="right">&#9654;</button>
+            <button class="mobile-btn" data-direction="down">&#9660;</button>
         </div>
         <div class="controls">
-            <button class="btn btn-start" onclick="startGame()">Neues Spiel</button>
-            <button class="btn btn-pause" onclick="togglePause()">Pause</button>
-            <button class="btn btn-fullscreen" onclick="toggleFullscreen()">Vollbild</button>
+            <button class="btn btn-start" id="btnStart">Neues Spiel</button>
+            <button class="btn btn-pause" id="btnPause">Pause</button>
+            <button class="btn btn-fullscreen" id="btnFullscreen">Vollbild</button>
         </div>
         <div class="instructions">
-            <h3>📖 Spielanleitung</h3>
+            <h3>Spielanleitung</h3>
             <ul>
-                <li>Bewege den Frosch mit den Pfeiltasten 🐸</li>
-                <li>Überquere die Straßen ohne von Autos getroffen zu werden 🚗</li>
-                <li>Springe auf Baumstämme um den Fluss zu überqueren 🪵</li>
-                <li>Erreiche alle 5 Ziele oben 🎯</li>
-                <li>Vorsicht: Im Wasser ertrinkt der Frosch! 💧</li>
+                <li>Bewege den Frosch mit den Pfeiltasten oder WASD</li>
+                <li>Uberquere die Strassen ohne von Autos getroffen zu werden</li>
+                <li>Springe auf Baumstaemme um den Fluss zu ueberqueren</li>
+                <li>Erreiche alle 5 Ziele oben</li>
+                <li>Vorsicht: Im Wasser ertrinkt der Frosch!</li>
             </ul>
         </div>
-        <a href="../index.html" class="back-link">← Zurück zur Übersicht</a>
+        <a href="../index.html" class="back-link">&larr; Zurueck zur Uebersicht</a>
     </div>
     <div class="game-over-overlay" id="gameOverOverlay">
-        <div class="game-over-content">
-            <h2>Game Over!</h2>
+        <div class="game-over-content" id="gameOverContent">
+            <h2 id="gameOverTitle">Game Over!</h2>
             <div class="final-score">Score: <span id="finalScore">0</span></div>
             <div class="final-score">Level: <span id="finalLevel">1</span></div>
             <div class="final-score">High Score: <span id="highScore">0</span></div>
-            <button class="btn btn-start" onclick="restartGame()">Nochmal spielen</button>
+            <div class="new-high-score" id="newHighScore" style="display:none">Neuer Highscore!</div>
+            <button class="btn btn-start" id="btnRestart">Nochmal spielen</button>
         </div>
     </div>
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        // === DEBUG MODE ===
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        // === SAFE LOCALSTORAGE ===
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        // === EVENT MANAGER ===
+        class EventManager {
+            constructor() {
+                this.listeners = [];
+            }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+        const eventManager = new EventManager();
+
+        // === SAFE CANVAS ===
+        function initCanvas() {
+            const canvas = document.getElementById('gameCanvas');
+            if (!canvas) { console.error('Canvas element not found'); return null; }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { console.error('Canvas 2D context not available'); return null; }
+            return { canvas, ctx };
+        }
+        const canvasSetup = initCanvas();
+        if (!canvasSetup) {
+            alert('Dein Browser unterstuetzt kein Canvas. Bitte verwende einen modernen Browser.');
+        }
+        const { canvas, ctx } = canvasSetup || {};
 
         // Game constants
         const CELL_SIZE = 40;
@@ -280,17 +432,20 @@
         let lives = 3;
         let level = 1;
         let timeRemaining = MAX_TIME;
-        let highScore = localStorage.getItem('froggerHighScore') || 0;
+        let highScore = parseInt(safeGetItem('froggerHighScore', '0'));
         let lastTime = 0;
         let highestRow = ROWS - 2;
         let isDying = false;
         let deathTimer = 0;
+        let particles = [];
+        let screenShake = 0;
+        let frogDirection = 0; // 0=up, 1=right, 2=down, 3=left
 
-        // Frog - with pixel-based x position for smooth log movement
+        // Frog
         let frog = {
             col: 7,
             row: ROWS - 2,
-            x: 7 * CELL_SIZE,  // Actual pixel position
+            x: 7 * CELL_SIZE,
             onLog: false,
             currentLog: null
         };
@@ -316,27 +471,38 @@
             { type: 'safe', row: 13 }
         ];
 
-        // Vehicles and logs
         let vehicles = [];
         let logs = [];
+        let waterOffset = 0;
 
         function initGame() {
             vehicles = [];
             logs = [];
 
-            // Initialize vehicles
             lanes.forEach(lane => {
                 if (lane.type === 'road') {
                     const numVehicles = Math.floor(Math.random() * 2) + 2;
                     const spacing = canvas.width / numVehicles;
                     for (let i = 0; i < numVehicles; i++) {
+                        const vehicleType = Math.random();
+                        let width, color;
+                        if (vehicleType < 0.3) {
+                            width = CELL_SIZE * 2.5;
+                            color = '#e74c3c'; // truck
+                        } else if (vehicleType < 0.6) {
+                            width = CELL_SIZE * 1.5;
+                            color = '#3498db'; // car
+                        } else {
+                            width = CELL_SIZE * 1.3;
+                            color = ['#f39c12', '#9b59b6', '#1abc9c'][Math.floor(Math.random() * 3)];
+                        }
                         vehicles.push({
-                            x: i * spacing + Math.random() * spacing,
+                            x: i * spacing + Math.random() * spacing * 0.5,
                             y: lane.row * CELL_SIZE,
-                            width: CELL_SIZE * (1.5 + Math.random()),
+                            width: width,
                             height: CELL_SIZE * 0.7,
                             speed: lane.speed * lane.direction * (1 + level * 0.15),
-                            color: ['#e74c3c', '#3498db', '#f39c12', '#9b59b6'][Math.floor(Math.random() * 4)],
+                            color: color,
                             row: lane.row
                         });
                     }
@@ -347,7 +513,7 @@
                     const spacing = canvas.width / numLogs;
                     for (let i = 0; i < numLogs; i++) {
                         logs.push({
-                            x: i * spacing + Math.random() * spacing,
+                            x: i * spacing + Math.random() * spacing * 0.5,
                             y: lane.row * CELL_SIZE,
                             width: CELL_SIZE * (2 + Math.random() * 2),
                             height: CELL_SIZE * 0.8,
@@ -357,6 +523,28 @@
                     }
                 }
             });
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3 + 1;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2,
+                    life: 1,
+                    color: color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
+        function bumpStat(id) {
+            const el = document.getElementById(id);
+            el.classList.add('bump');
+            setTimeout(() => el.classList.remove('bump'), 200);
         }
 
         function startGame() {
@@ -369,6 +557,9 @@
             highestRow = ROWS - 2;
             isDying = false;
             deathTimer = 0;
+            particles = [];
+            screenShake = 0;
+            frogDirection = 0;
 
             frog = {
                 col: 7,
@@ -383,6 +574,7 @@
             initGame();
             updateDisplay();
             document.getElementById('gameOverOverlay').style.display = 'none';
+            document.getElementById('pauseOverlay').classList.remove('active');
             lastTime = performance.now();
             requestAnimationFrame(gameLoop);
         }
@@ -390,6 +582,7 @@
         function togglePause() {
             if (gameRunning && !isDying) {
                 paused = !paused;
+                document.getElementById('pauseOverlay').classList.toggle('active', paused);
                 if (!paused) {
                     lastTime = performance.now();
                     requestAnimationFrame(gameLoop);
@@ -397,22 +590,30 @@
             }
         }
 
-        function restartGame() {
-            startGame();
-        }
-
         function gameOver() {
             gameRunning = false;
+            const isNewHigh = score > highScore;
 
-            if (score > highScore) {
+            if (isNewHigh) {
                 highScore = score;
-                localStorage.setItem('froggerHighScore', highScore);
+                safeSetItem('froggerHighScore', highScore);
             }
 
             document.getElementById('finalScore').textContent = score;
             document.getElementById('finalLevel').textContent = level;
             document.getElementById('highScore').textContent = highScore;
+            document.getElementById('newHighScore').style.display = isNewHigh ? 'block' : 'none';
+            document.getElementById('gameOverTitle').textContent = 'Game Over!';
+
+            const content = document.getElementById('gameOverContent');
+            content.classList.remove('win');
             document.getElementById('gameOverOverlay').style.display = 'flex';
+        }
+
+        function levelComplete() {
+            // Show brief celebration before next level
+            createParticles(canvas.width / 2, canvas.height / 2, '#f1c40f', 40);
+            createParticles(canvas.width / 2, canvas.height / 2, '#2ecc71', 40);
         }
 
         function resetFrog() {
@@ -421,6 +622,7 @@
             frog.x = 7 * CELL_SIZE;
             frog.onLog = false;
             frog.currentLog = null;
+            frogDirection = 0;
             timeRemaining = MAX_TIME;
             highestRow = ROWS - 2;
             isDying = false;
@@ -428,12 +630,27 @@
         }
 
         function killFrog() {
-            if (isDying) return;  // Already dying
+            if (isDying) return;
 
             isDying = true;
-            deathTimer = 500;  // 500ms death animation
+            deathTimer = 600;
             lives--;
+            screenShake = 10;
+
+            // Death particles
+            const fx = frog.x + CELL_SIZE / 2;
+            const fy = frog.row * CELL_SIZE + CELL_SIZE / 2;
+            const lane = lanes.find(l => l.row === frog.row);
+            if (lane && lane.type === 'water') {
+                createParticles(fx, fy, '#3498db', 15);
+                createParticles(fx, fy, '#85c1e9', 10);
+            } else {
+                createParticles(fx, fy, '#e74c3c', 15);
+                createParticles(fx, fy, '#f1c40f', 8);
+            }
+
             updateDisplay();
+            bumpStat('livesDisplay');
 
             setTimeout(() => {
                 if (lives <= 0) {
@@ -441,7 +658,7 @@
                 } else {
                     resetFrog();
                 }
-            }, 500);
+            }, 600);
         }
 
         function nextLevel() {
@@ -450,7 +667,9 @@
             resetFrog();
             initGame();
             score += 1000;
+            levelComplete();
             updateDisplay();
+            bumpStat('levelDisplay');
         }
 
         function moveFrog(dcol, drow) {
@@ -467,11 +686,18 @@
             frog.onLog = false;
             frog.currentLog = null;
 
+            // Set direction
+            if (drow < 0) frogDirection = 0;
+            else if (dcol > 0) frogDirection = 1;
+            else if (drow > 0) frogDirection = 2;
+            else if (dcol < 0) frogDirection = 3;
+
             // Score for moving forward
             if (drow < 0 && newRow < highestRow) {
                 score += 10;
                 highestRow = newRow;
                 updateDisplay();
+                bumpStat('scoreDisplay');
             }
 
             // Check if reached goal
@@ -480,6 +706,8 @@
                 if (goal) {
                     goal.reached = true;
                     score += 200 + Math.floor(timeRemaining * 10);
+                    createParticles(frog.x + CELL_SIZE / 2, CELL_SIZE / 2, '#2ecc71', 20);
+                    createParticles(frog.x + CELL_SIZE / 2, CELL_SIZE / 2, '#f1c40f', 15);
 
                     if (goals.every(g => g.reached)) {
                         nextLevel();
@@ -487,8 +715,8 @@
                         resetFrog();
                     }
                     updateDisplay();
+                    bumpStat('scoreDisplay');
                 } else {
-                    // Invalid goal position
                     killFrog();
                 }
             }
@@ -498,6 +726,7 @@
             document.getElementById('scoreDisplay').textContent = score;
             document.getElementById('livesDisplay').textContent = lives;
             document.getElementById('levelDisplay').textContent = level;
+            document.getElementById('highScoreDisplay').textContent = highScore;
         }
 
         function updateTimer(deltaTime) {
@@ -514,6 +743,22 @@
         }
 
         function update(deltaTime) {
+            // Update particles
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.1;
+                p.life -= 0.02;
+                return p.life > 0;
+            });
+
+            // Screen shake decay
+            if (screenShake > 0) screenShake *= 0.9;
+            if (screenShake < 0.5) screenShake = 0;
+
+            // Water animation
+            waterOffset += deltaTime * 0.002;
+
             if (isDying) {
                 deathTimer -= deltaTime;
                 return;
@@ -522,7 +767,6 @@
             // Move vehicles
             vehicles.forEach(vehicle => {
                 vehicle.x += vehicle.speed;
-
                 if (vehicle.speed > 0 && vehicle.x > canvas.width) {
                     vehicle.x = -vehicle.width;
                 } else if (vehicle.speed < 0 && vehicle.x < -vehicle.width) {
@@ -533,7 +777,6 @@
             // Move logs
             logs.forEach(log => {
                 log.x += log.speed;
-
                 if (log.speed > 0 && log.x > canvas.width) {
                     log.x = -log.width;
                 } else if (log.speed < 0 && log.x < -log.width) {
@@ -547,7 +790,6 @@
                 frog.onLog = false;
                 frog.currentLog = null;
 
-                // Check if on a log
                 logs.forEach(log => {
                     if (log.row === frog.row) {
                         const frogCenterX = frog.x + CELL_SIZE / 2;
@@ -558,13 +800,11 @@
                     }
                 });
 
-                // If not on log, frog drowns
                 if (!frog.onLog) {
                     killFrog();
                     return;
                 }
             } else {
-                // Not in water, reset log status
                 frog.onLog = false;
                 frog.currentLog = null;
             }
@@ -574,16 +814,15 @@
                 frog.x += frog.currentLog.speed;
                 frog.col = Math.round(frog.x / CELL_SIZE);
 
-                // Check if pushed off edge
                 if (frog.col < 0 || frog.col >= COLS) {
                     killFrog();
                     return;
                 }
             }
 
-            // Check collision with vehicles (only if not already dying)
+            // Check collision with vehicles
             if (!isDying) {
-                vehicles.forEach(vehicle => {
+                for (const vehicle of vehicles) {
                     if (vehicle.row === frog.row) {
                         const frogX = frog.x;
                         const frogY = frog.row * CELL_SIZE;
@@ -593,10 +832,10 @@
                             frogY < vehicle.y + vehicle.height &&
                             frogY + CELL_SIZE > vehicle.y) {
                             killFrog();
-                            return;
+                            break;
                         }
                     }
-                });
+                }
             }
 
             updateTimer(deltaTime);
@@ -604,35 +843,66 @@
 
         function drawBackground() {
             lanes.forEach(lane => {
+                const y = lane.row * CELL_SIZE;
                 if (lane.type === 'safe') {
-                    ctx.fillStyle = '#27ae60';
+                    // Grass with texture
+                    ctx.fillStyle = '#1e7a3a';
+                    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
+                    ctx.fillStyle = '#2a9d4a';
+                    for (let x = 0; x < canvas.width; x += 20) {
+                        const h = Math.sin(x * 0.3 + lane.row) * 3 + 5;
+                        ctx.fillRect(x, y + CELL_SIZE - h, 3, h);
+                    }
                 } else if (lane.type === 'road') {
-                    ctx.fillStyle = '#7f8c8d';
+                    ctx.fillStyle = '#3d3d3d';
+                    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
+                    // Subtle road texture
+                    ctx.fillStyle = '#4a4a4a';
+                    ctx.fillRect(0, y, canvas.width, 2);
+                    ctx.fillRect(0, y + CELL_SIZE - 2, canvas.width, 2);
                 } else if (lane.type === 'water') {
-                    ctx.fillStyle = '#3498db';
+                    // Animated water
+                    ctx.fillStyle = '#1a6fa0';
+                    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
+                    ctx.fillStyle = 'rgba(100, 200, 255, 0.15)';
+                    for (let x = 0; x < canvas.width; x += 30) {
+                        const waveY = Math.sin((x + waterOffset * 100) * 0.08 + lane.row * 2) * 3;
+                        ctx.fillRect(x, y + CELL_SIZE / 2 + waveY, 20, 2);
+                    }
                 } else if (lane.type === 'goal') {
-                    ctx.fillStyle = '#2ecc71';
+                    ctx.fillStyle = '#1e7a3a';
+                    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
                 }
-                ctx.fillRect(0, lane.row * CELL_SIZE, canvas.width, CELL_SIZE);
             });
 
             // Draw goal spots
             goals.forEach(goal => {
-                ctx.fillStyle = goal.reached ? '#f39c12' : '#1abc9c';
-                ctx.beginPath();
-                ctx.arc(goal.col * CELL_SIZE + CELL_SIZE / 2, CELL_SIZE / 2, CELL_SIZE / 2.5, 0, Math.PI * 2);
-                ctx.fill();
-
+                const gx = goal.col * CELL_SIZE + CELL_SIZE / 2;
+                const gy = CELL_SIZE / 2;
                 if (goal.reached) {
-                    ctx.font = '24px Arial';
-                    ctx.fillText('🐸', goal.col * CELL_SIZE + CELL_SIZE / 2 - 12, CELL_SIZE / 2 + 8);
+                    ctx.fillStyle = '#f39c12';
+                    ctx.beginPath();
+                    ctx.arc(gx, gy, CELL_SIZE / 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Draw small frog
+                    drawSmallFrog(gx, gy, 0.6);
+                } else {
+                    // Glowing target
+                    const glow = Math.sin(Date.now() * 0.004) * 0.3 + 0.7;
+                    ctx.fillStyle = `rgba(26, 188, 156, ${glow})`;
+                    ctx.beginPath();
+                    ctx.arc(gx, gy, CELL_SIZE / 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = `rgba(46, 204, 113, ${glow})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
                 }
             });
 
             // Draw road lines
             lanes.forEach(lane => {
                 if (lane.type === 'road') {
-                    ctx.strokeStyle = '#f1c40f';
+                    ctx.strokeStyle = 'rgba(241, 196, 15, 0.6)';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([15, 10]);
                     ctx.beginPath();
@@ -646,79 +916,250 @@
 
         function drawVehicles() {
             vehicles.forEach(vehicle => {
-                // Car body
+                const y = vehicle.y + 5;
+                const w = vehicle.width;
+                const h = vehicle.height;
+                const r = 6;
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(vehicle.x + 3, y + 3, w, h);
+
+                // Car body with rounded corners
                 ctx.fillStyle = vehicle.color;
-                ctx.fillRect(vehicle.x, vehicle.y + 5, vehicle.width, vehicle.height);
+                ctx.beginPath();
+                ctx.moveTo(vehicle.x + r, y);
+                ctx.lineTo(vehicle.x + w - r, y);
+                ctx.quadraticCurveTo(vehicle.x + w, y, vehicle.x + w, y + r);
+                ctx.lineTo(vehicle.x + w, y + h - r);
+                ctx.quadraticCurveTo(vehicle.x + w, y + h, vehicle.x + w - r, y + h);
+                ctx.lineTo(vehicle.x + r, y + h);
+                ctx.quadraticCurveTo(vehicle.x, y + h, vehicle.x, y + h - r);
+                ctx.lineTo(vehicle.x, y + r);
+                ctx.quadraticCurveTo(vehicle.x, y, vehicle.x + r, y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fillRect(vehicle.x + 4, y + 2, w - 8, h * 0.3);
 
                 // Windows
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                const windowWidth = vehicle.width * 0.3;
-                ctx.fillRect(vehicle.x + vehicle.width * 0.2, vehicle.y + 8, windowWidth, vehicle.height * 0.4);
-                ctx.fillRect(vehicle.x + vehicle.width * 0.6, vehicle.y + 8, windowWidth, vehicle.height * 0.4);
+                ctx.fillStyle = 'rgba(100, 200, 255, 0.5)';
+                const ww = w * 0.2;
+                ctx.fillRect(vehicle.x + w * 0.25, y + 4, ww, h * 0.4);
+                ctx.fillRect(vehicle.x + w * 0.55, y + 4, ww, h * 0.4);
+
+                // Headlights
+                const isMovingRight = vehicle.speed > 0;
+                ctx.fillStyle = '#f1c40f';
+                if (isMovingRight) {
+                    ctx.fillRect(vehicle.x + w - 4, y + 4, 4, 5);
+                    ctx.fillRect(vehicle.x + w - 4, y + h - 9, 4, 5);
+                } else {
+                    ctx.fillRect(vehicle.x, y + 4, 4, 5);
+                    ctx.fillRect(vehicle.x, y + h - 9, 4, 5);
+                }
             });
         }
 
         function drawLogs() {
             logs.forEach(log => {
-                ctx.fillStyle = '#8B4513';
-                ctx.fillRect(log.x, log.y + 4, log.width, log.height);
+                const x = log.x;
+                const y = log.y + 4;
+                const w = log.width;
+                const h = log.height;
+                const r = h / 2;
 
-                // Wood texture lines
-                ctx.strokeStyle = '#654321';
-                ctx.lineWidth = 2;
-                for (let i = 0; i < 3; i++) {
-                    const x = log.x + (log.width / 3) * i;
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.fillRect(x + 2, y + 2, w, h);
+
+                // Log body (rounded ends)
+                ctx.fillStyle = '#6d4c2a';
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+                ctx.lineTo(x + r, y + h);
+                ctx.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2);
+                ctx.closePath();
+                ctx.fill();
+
+                // Wood grain
+                ctx.strokeStyle = '#5a3a1a';
+                ctx.lineWidth = 1;
+                for (let i = 1; i < 4; i++) {
+                    const lx = x + (w / 4) * i;
                     ctx.beginPath();
-                    ctx.moveTo(x, log.y + 4);
-                    ctx.lineTo(x, log.y + 4 + log.height);
+                    ctx.moveTo(lx, y + 2);
+                    ctx.lineTo(lx, y + h - 2);
                     ctx.stroke();
                 }
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(x + r, y + 2, w - r * 2, h * 0.3);
+
+                // End rings
+                ctx.strokeStyle = '#8B6914';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x + r, y + r, r - 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(x + w - r, y + r, r - 2, 0, Math.PI * 2);
+                ctx.stroke();
             });
+        }
+
+        function drawSmallFrog(x, y, scale) {
+            ctx.fillStyle = '#27ae60';
+            ctx.beginPath();
+            ctx.arc(x, y, CELL_SIZE / 3 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x - 4 * scale, y - 4 * scale, 3 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 4 * scale, y - 4 * scale, 3 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(x - 4 * scale, y - 4 * scale, 1.5 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 4 * scale, y - 4 * scale, 1.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         function drawFrog() {
             const x = frog.x + CELL_SIZE / 2;
             const y = frog.row * CELL_SIZE + CELL_SIZE / 2;
 
-            // If dying, flash or fade
             if (isDying) {
-                const flash = Math.floor(deathTimer / 100) % 2;
-                if (flash === 0) return;  // Skip drawing on even frames
+                // Death animation - spinning shrink
+                const progress = 1 - (deathTimer / 600);
+                const scale = 1 - progress;
+                const rotation = progress * Math.PI * 4;
+                if (scale <= 0) return;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                ctx.scale(scale, scale);
+                ctx.globalAlpha = 1 - progress;
+
+                // X marks
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-CELL_SIZE / 3, -CELL_SIZE / 3);
+                ctx.lineTo(CELL_SIZE / 3, CELL_SIZE / 3);
+                ctx.moveTo(CELL_SIZE / 3, -CELL_SIZE / 3);
+                ctx.lineTo(-CELL_SIZE / 3, CELL_SIZE / 3);
+                ctx.stroke();
+
+                // Body
+                ctx.fillStyle = '#c0392b';
+                ctx.beginPath();
+                ctx.arc(0, 0, CELL_SIZE / 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+                return;
             }
+
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Rotate based on direction
+            ctx.rotate(frogDirection * Math.PI / 2);
+
+            // Hop animation
+            const hopBounce = frog.onLog ? Math.sin(Date.now() * 0.005) * 1 : 0;
+            ctx.translate(0, hopBounce);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.ellipse(0, CELL_SIZE / 3, CELL_SIZE / 3, CELL_SIZE / 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Back legs
+            ctx.fillStyle = '#1e8c3a';
+            ctx.beginPath();
+            ctx.ellipse(-8, 10, 5, 8, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(8, 10, 5, 8, 0.3, 0, Math.PI * 2);
+            ctx.fill();
 
             // Body
             ctx.fillStyle = '#27ae60';
             ctx.beginPath();
-            ctx.arc(x, y, CELL_SIZE / 3, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, CELL_SIZE / 3.5, CELL_SIZE / 2.8, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Eyes
+            // Belly
+            ctx.fillStyle = '#a9dfbf';
+            ctx.beginPath();
+            ctx.ellipse(0, 3, CELL_SIZE / 5, CELL_SIZE / 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes (big, protruding)
             ctx.fillStyle = 'white';
             ctx.beginPath();
-            ctx.arc(x - 6, y - 5, 5, 0, Math.PI * 2);
-            ctx.arc(x + 6, y - 5, 5, 0, Math.PI * 2);
+            ctx.arc(-7, -10, 6, 0, Math.PI * 2);
+            ctx.arc(7, -10, 6, 0, Math.PI * 2);
             ctx.fill();
 
-            // Pupils
-            ctx.fillStyle = 'black';
+            ctx.fillStyle = '#1a1a1a';
             ctx.beginPath();
-            ctx.arc(x - 6, y - 5, 3, 0, Math.PI * 2);
-            ctx.arc(x + 6, y - 5, 3, 0, Math.PI * 2);
+            ctx.arc(-7, -10, 3, 0, Math.PI * 2);
+            ctx.arc(7, -10, 3, 0, Math.PI * 2);
             ctx.fill();
+
+            // Eye shine
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(-8, -11, 1.5, 0, Math.PI * 2);
+            ctx.arc(6, -11, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
         }
 
         function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+
+            // Screen shake
+            if (screenShake > 0) {
+                const sx = (Math.random() - 0.5) * screenShake;
+                const sy = (Math.random() - 0.5) * screenShake;
+                ctx.translate(sx, sy);
+            }
+
+            ctx.clearRect(-10, -10, canvas.width + 20, canvas.height + 20);
             drawBackground();
             drawLogs();
             drawVehicles();
             drawFrog();
+            drawParticles();
+
+            ctx.restore();
         }
 
         function gameLoop(currentTime) {
             if (!gameRunning || paused) return;
 
-            const deltaTime = currentTime - lastTime;
+            const deltaTime = Math.min(currentTime - lastTime, 50); // Cap delta
             lastTime = currentTime;
 
             update(deltaTime);
@@ -726,46 +1167,6 @@
 
             requestAnimationFrame(gameLoop);
         }
-
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => {
-            switch(e.key) {
-                case 'ArrowUp':
-                    e.preventDefault();
-                    moveFrog(0, -1);
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    moveFrog(0, 1);
-                    break;
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    moveFrog(-1, 0);
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    moveFrog(1, 0);
-                    break;
-                case 'p':
-                case 'P':
-                case 'Escape':
-                    togglePause();
-                    break;
-            }
-        });
-
-        // Mobile controls
-        document.querySelectorAll('.mobile-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const direction = btn.dataset.direction;
-                switch(direction) {
-                    case 'up': moveFrog(0, -1); break;
-                    case 'down': moveFrog(0, 1); break;
-                    case 'left': moveFrog(-1, 0); break;
-                    case 'right': moveFrog(1, 0); break;
-                }
-            });
-        });
 
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
@@ -776,6 +1177,73 @@
                 }
             }
         }
+
+        // === EVENT LISTENERS (via EventManager) ===
+        eventManager.add(document, 'keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': case 'w': case 'W':
+                    e.preventDefault();
+                    moveFrog(0, -1);
+                    break;
+                case 'ArrowDown': case 's': case 'S':
+                    e.preventDefault();
+                    moveFrog(0, 1);
+                    break;
+                case 'ArrowLeft': case 'a': case 'A':
+                    e.preventDefault();
+                    moveFrog(-1, 0);
+                    break;
+                case 'ArrowRight': case 'd': case 'D':
+                    e.preventDefault();
+                    moveFrog(1, 0);
+                    break;
+                case 'p': case 'P': case 'Escape':
+                    togglePause();
+                    break;
+            }
+        });
+
+        // Mobile controls - use touchstart for responsiveness
+        document.querySelectorAll('.mobile-btn').forEach(btn => {
+            const handler = (e) => {
+                e.preventDefault();
+                const direction = btn.dataset.direction;
+                switch(direction) {
+                    case 'up': moveFrog(0, -1); break;
+                    case 'down': moveFrog(0, 1); break;
+                    case 'left': moveFrog(-1, 0); break;
+                    case 'right': moveFrog(1, 0); break;
+                }
+            };
+            eventManager.add(btn, 'touchstart', handler, { passive: false });
+            eventManager.add(btn, 'click', handler);
+        });
+
+        // Touch swipe support
+        let touchStartX = 0, touchStartY = 0;
+        eventManager.add(canvas, 'touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        eventManager.add(canvas, 'touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            if (absDx < 15 && absDy < 15) return; // too small
+            if (absDx > absDy) {
+                moveFrog(dx > 0 ? 1 : -1, 0);
+            } else {
+                moveFrog(0, dy > 0 ? 1 : -1);
+            }
+        }, { passive: true });
+
+        // Button handlers
+        eventManager.add(document.getElementById('btnStart'), 'click', startGame);
+        eventManager.add(document.getElementById('btnPause'), 'click', togglePause);
+        eventManager.add(document.getElementById('btnFullscreen'), 'click', toggleFullscreen);
+        eventManager.add(document.getElementById('btnRestart'), 'click', startGame);
 
         // Initial render
         render();

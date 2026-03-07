@@ -448,7 +448,7 @@
                         <strong>Turm ausgewählt</strong>
                         <div id="towerDetails"></div>
                     </div>
-                    <button class="control-btn" id="startWaveBtn">▶️ Nächste Welle Starten</button>
+                    <button class="control-btn" id="startWaveBtn">▶️ Nächste Welle [Leertaste]</button>
                     <button class="control-btn upgrade-btn" id="upgradeBtn" style="display: none;">⬆️ Upgrade (💰 <span id="upgradeCost">0</span>)</button>
                     <button class="control-btn sell-btn" id="sellBtn" style="display: none;">💰 Verkaufen (💰 <span id="sellValue">0</span>)</button>
                 </div>
@@ -505,8 +505,69 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const DEBUG = false;
+        if (!DEBUG) {
+            const noop = () => {};
+            console.log = noop;
+            console.warn = noop;
+            console.info = noop;
+        }
+
+        class EventManager {
+            constructor() { this.listeners = []; }
+            add(element, event, handler, options) {
+                element.addEventListener(event, handler, options);
+                this.listeners.push({ element, event, handler, options });
+            }
+            removeAll() {
+                this.listeners.forEach(({ element, event, handler, options }) => {
+                    element.removeEventListener(event, handler, options);
+                });
+                this.listeners = [];
+            }
+        }
+
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item !== null ? item : defaultValue;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (error) {
+                console.error('LocalStorage not available:', error);
+                return false;
+            }
+        }
+
+        function initCanvas() {
+            const canvas = document.getElementById('gameCanvas');
+            if (!canvas) {
+                console.error('Canvas element not found');
+                return null;
+            }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Canvas 2D context not available');
+                return null;
+            }
+            return { canvas, ctx };
+        }
+
+        const canvasSetup = initCanvas();
+        if (!canvasSetup) {
+            alert('Your browser does not support Canvas. Please use a modern browser.');
+            throw new Error('Canvas not supported');
+        }
+        const { canvas, ctx } = canvasSetup;
+        const eventManager = new EventManager();
 
         // Game state
         let gold = 250;
@@ -926,41 +987,61 @@
 
             draw() {
                 const stats = enemyTypes[this.type];
+                const r = stats.size / 2;
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.ellipse(this.x + 2, this.y + r + 2, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
 
                 // Status effect overlays
                 if (this.slowUntil > Date.now()) {
-                    ctx.fillStyle = 'rgba(135, 206, 235, 0.4)';
+                    ctx.fillStyle = 'rgba(135, 206, 235, 0.35)';
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, stats.size / 2 + 4, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, r + 5, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
                 if (this.poisonUntil > Date.now()) {
-                    ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.25)';
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, stats.size / 2 + 2, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, r + 3, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
-                // Enemy body
-                ctx.fillStyle = stats.color;
+                // Enemy body with gradient
+                const bodyGrad = ctx.createRadialGradient(this.x - 2, this.y - 2, 0, this.x, this.y, r);
+                bodyGrad.addColorStop(0, lightenColor(stats.color, 20));
+                bodyGrad.addColorStop(1, darkenColor(stats.color, 20));
+                ctx.fillStyle = bodyGrad;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, stats.size / 2, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = '#000';
+                ctx.strokeStyle = darkenColor(stats.color, 40);
                 ctx.lineWidth = 2;
                 ctx.stroke();
+
+                // Type indicator
+                if (this.type === 'dragon' || this.type === 'demon') {
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                    const glowSize = r + 5 + Math.sin(Date.now() / 200) * 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, glowSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
                 // HP bar
                 const barWidth = stats.size + 10;
                 const barHeight = 4;
                 const hpPercent = this.hp / this.maxHp;
 
-                ctx.fillStyle = '#000';
-                ctx.fillRect(this.x - barWidth / 2, this.y - stats.size / 2 - 10, barWidth, barHeight);
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(this.x - barWidth / 2 - 1, this.y - r - 11, barWidth + 2, barHeight + 2);
 
-                ctx.fillStyle = hpPercent > 0.5 ? '#00FF00' : hpPercent > 0.25 ? '#FFFF00' : '#FF0000';
-                ctx.fillRect(this.x - barWidth / 2, this.y - stats.size / 2 - 10, barWidth * hpPercent, barHeight);
+                const hpColor = hpPercent > 0.5 ? '#00FF00' : hpPercent > 0.25 ? '#FFFF00' : '#FF0000';
+                ctx.fillStyle = hpColor;
+                ctx.fillRect(this.x - barWidth / 2, this.y - r - 10, barWidth * hpPercent, barHeight);
             }
         }
 
@@ -1178,12 +1259,64 @@
             return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
         }
 
+        // Generate static terrain elements once
+        const terrainElements = [];
+        function generateTerrain() {
+            terrainElements.length = 0;
+            // Trees and bushes
+            for (let i = 0; i < 40; i++) {
+                let x, y, valid = false;
+                for (let attempt = 0; attempt < 20; attempt++) {
+                    x = 30 + Math.random() * (canvas.width - 60);
+                    y = 30 + Math.random() * (canvas.height - 60);
+                    valid = true;
+                    for (let j = 0; j < path.length - 1; j++) {
+                        if (distanceToLineSegment(x, y, path[j].x, path[j].y, path[j+1].x, path[j+1].y) < 55) {
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if (valid) break;
+                }
+                if (valid) {
+                    terrainElements.push({
+                        x, y,
+                        type: Math.random() > 0.6 ? 'tree' : 'bush',
+                        size: 6 + Math.random() * 8,
+                        shade: `hsl(${100 + Math.random() * 40}, ${40 + Math.random() * 20}%, ${20 + Math.random() * 15}%)`
+                    });
+                }
+            }
+            // Grass patches
+            for (let i = 0; i < 80; i++) {
+                terrainElements.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    type: 'grass',
+                    size: 2 + Math.random() * 3,
+                    shade: `hsl(${90 + Math.random() * 30}, ${30 + Math.random() * 20}%, ${25 + Math.random() * 10}%)`
+                });
+            }
+        }
+        generateTerrain();
+
         // Draw path
         function drawPath() {
-            ctx.strokeStyle = '#654321';
-            ctx.lineWidth = 40;
+            // Path shadow
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 46;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(path[0].x + 3, path[0].y + 3);
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x + 3, path[i].y + 3);
+            }
+            ctx.stroke();
+
+            // Path base
+            ctx.strokeStyle = '#4a3420';
+            ctx.lineWidth = 44;
             ctx.beginPath();
             ctx.moveTo(path[0].x, path[0].y);
             for (let i = 1; i < path.length; i++) {
@@ -1191,7 +1324,54 @@
             }
             ctx.stroke();
 
-            // Draw castle at end
+            // Path surface
+            ctx.strokeStyle = '#7a5c3e';
+            ctx.lineWidth = 36;
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+            ctx.stroke();
+
+            // Path highlight
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 16;
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y - 3);
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y - 3);
+            }
+            ctx.stroke();
+
+            // Draw terrain
+            terrainElements.forEach(t => {
+                ctx.fillStyle = t.shade;
+                if (t.type === 'tree') {
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                    ctx.beginPath();
+                    ctx.ellipse(t.x + 2, t.y + t.size + 2, t.size * 0.6, t.size * 0.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (t.type === 'bush') {
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, t.size * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(t.x, t.y, t.size * 0.4, t.size);
+                }
+            });
+
+            // Spawn marker
+            const start = path[0];
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
+            ctx.beginPath();
+            ctx.arc(start.x, start.y, 25 + Math.sin(Date.now() / 500) * 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Castle at end
             const end = path[path.length - 1];
             ctx.font = '48px Arial';
             ctx.textAlign = 'center';
@@ -1249,6 +1429,7 @@
             currentWave++;
             waveInProgress = true;
             updateDisplay();
+            showWaveAnnouncement(`Welle ${currentWave}`);
 
             const waveConfig = waves[currentWave - 1];
             let enemyQueue = [];
@@ -1278,8 +1459,12 @@
         function gameLoop(timestamp) {
             if (!gameRunning) return;
 
-            // Clear canvas
-            ctx.fillStyle = '#2d5016';
+            // Clear canvas with gradient
+            const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            bgGrad.addColorStop(0, '#2d5016');
+            bgGrad.addColorStop(0.5, '#3a6020');
+            bgGrad.addColorStop(1, '#2d5016');
+            ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Draw path
@@ -1333,6 +1518,9 @@
                 }
             }
 
+            // Wave announcement
+            drawWaveAnnouncement();
+
             // Draw tower preview
             if (selectedTowerType && !selectedTower) {
                 const stats = towerTypes[selectedTowerType];
@@ -1372,9 +1560,39 @@
             document.getElementById('startWaveBtn').disabled = waveInProgress || currentWave >= waves.length;
         }
 
+        // Wave announcement overlay
+        let waveAnnouncement = { text: '', timer: 0 };
+
+        function showWaveAnnouncement(text) {
+            waveAnnouncement.text = text;
+            waveAnnouncement.timer = 90;
+        }
+
+        function drawWaveAnnouncement() {
+            if (waveAnnouncement.timer <= 0) return;
+            waveAnnouncement.timer--;
+            const alpha = waveAnnouncement.timer > 60 ? 1 : waveAnnouncement.timer / 60;
+            const scale = waveAnnouncement.timer > 75 ? 1 + (waveAnnouncement.timer - 75) * 0.03 : 1;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.font = `bold ${28 * scale}px Segoe UI`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#ffd700';
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 8;
+            ctx.fillText(waveAnnouncement.text, canvas.width / 2, canvas.height / 2);
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+
         // Game over
         function gameOver() {
             gameRunning = false;
+            const bestWave = parseInt(safeGetItem('kingdomDefenseBestWave', '0'));
+            if (currentWave > bestWave) {
+                safeSetItem('kingdomDefenseBestWave', currentWave.toString());
+            }
             document.getElementById('finalWave').textContent = currentWave;
             document.getElementById('finalTowers').textContent = towers.length;
             document.getElementById('finalGold').textContent = gold;
@@ -1384,22 +1602,23 @@
         // Victory
         function victory() {
             gameRunning = false;
+            safeSetItem('kingdomDefenseBestWave', '15');
             document.getElementById('victoryTowers').textContent = towers.length;
             document.getElementById('victoryGold').textContent = gold;
             document.getElementById('victoryModal').style.display = 'flex';
         }
 
         // Event listeners
-        canvas.addEventListener('mousemove', (e) => {
+        eventManager.add(canvas, 'mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
         });
 
-        canvas.addEventListener('click', (e) => {
+        eventManager.add(canvas, 'click', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
             // Check if clicking existing tower
             selectedTower = null;
@@ -1419,11 +1638,44 @@
                     towers.push(new Tower(x, y, selectedTowerType));
                     gold -= stats.cost;
                     updateDisplay();
+                    createParticles(x, y, '#ffd700', 12);
                 }
             }
 
             updateTowerInfo();
         });
+
+        // Touch support for mobile
+        eventManager.add(canvas, 'touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+            mouseX = x;
+            mouseY = y;
+
+            selectedTower = null;
+            for (let tower of towers) {
+                const dist = Math.hypot(tower.x - x, tower.y - y);
+                if (dist < 30) {
+                    selectedTower = tower;
+                    updateTowerInfo();
+                    return;
+                }
+            }
+
+            if (selectedTowerType) {
+                const stats = towerTypes[selectedTowerType];
+                if (gold >= stats.cost && isValidTowerPosition(x, y)) {
+                    towers.push(new Tower(x, y, selectedTowerType));
+                    gold -= stats.cost;
+                    updateDisplay();
+                    createParticles(x, y, '#ffd700', 12);
+                }
+            }
+            updateTowerInfo();
+        }, { passive: false });
 
         function updateTowerInfo() {
             const infoDiv = document.getElementById('selectedTowerInfo');
@@ -1474,7 +1726,7 @@
         };
 
         for (let btnId in towerButtons) {
-            document.getElementById(btnId).addEventListener('click', () => {
+            eventManager.add(document.getElementById(btnId), 'click', () => {
                 selectedTowerType = towerButtons[btnId];
                 selectedTower = null;
                 document.querySelectorAll('.tower-btn').forEach(btn => btn.classList.remove('selected'));
@@ -1483,22 +1735,49 @@
             });
         }
 
-        // Control buttons
-        document.getElementById('startWaveBtn').addEventListener('click', startWave);
+        // Keyboard shortcuts for tower selection
+        eventManager.add(window, 'keydown', (e) => {
+            const shortcuts = { '1': 'archerBtn', '2': 'cannonBtn', '3': 'magicBtn', '4': 'poisonBtn', '5': 'frostBtn', '6': 'lightningBtn', '7': 'ballistaBtn' };
+            if (shortcuts[e.key]) {
+                const btnId = shortcuts[e.key];
+                selectedTowerType = towerButtons[btnId];
+                selectedTower = null;
+                document.querySelectorAll('.tower-btn').forEach(btn => btn.classList.remove('selected'));
+                document.getElementById(btnId).classList.add('selected');
+                updateTowerInfo();
+            }
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                startWave();
+            }
+            if (e.key === 'Escape') {
+                selectedTowerType = null;
+                selectedTower = null;
+                document.querySelectorAll('.tower-btn').forEach(btn => btn.classList.remove('selected'));
+                updateTowerInfo();
+            }
+            if (e.key === 'u' || e.key === 'U') {
+                if (selectedTower) document.getElementById('upgradeBtn').click();
+            }
+        });
 
-        document.getElementById('upgradeBtn').addEventListener('click', () => {
+        // Control buttons
+        eventManager.add(document.getElementById('startWaveBtn'), 'click', startWave);
+
+        eventManager.add(document.getElementById('upgradeBtn'), 'click', () => {
             if (selectedTower) {
                 const upgradeCost = selectedTower.getUpgradeCost();
                 if (gold >= upgradeCost && selectedTower.level < 10) {
                     gold -= upgradeCost;
                     selectedTower.level++;
+                    createParticles(selectedTower.x, selectedTower.y, '#FFD700', 15);
                     updateDisplay();
                     updateTowerInfo();
                 }
             }
         });
 
-        document.getElementById('sellBtn').addEventListener('click', () => {
+        eventManager.add(document.getElementById('sellBtn'), 'click', () => {
             if (selectedTower) {
                 const totalCost = towerTypes[selectedTower.type].cost +
                     (selectedTower.level > 1 ? Array.from({length: selectedTower.level - 1}, (_, i) => {
@@ -1508,6 +1787,7 @@
                     }).reduce((a, b) => a + b, 0) : 0);
                 const sellValue = Math.round(totalCost * 0.7);
                 gold += sellValue;
+                createParticles(selectedTower.x, selectedTower.y, '#ffd700', 10);
                 towers = towers.filter(t => t !== selectedTower);
                 selectedTower = null;
                 updateDisplay();
