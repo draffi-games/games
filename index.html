@@ -1,1011 +1,819 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI Game Collection - Browser-Spiele</title>
-
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Arcade, Mehrspieler und Simulationen. Keine Installation erforderlich!">
-    <meta name="keywords" content="HTML5 Spiele, Browser Games, KI-generiert, JavaScript Games, kostenlose Spiele, Indie Games, Web Games, Canvas Games, Arcade Games">
-    <meta name="author" content="KI Game Collection">
-    <meta name="robots" content="index, follow">
-    <meta name="language" content="German">
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="KI Game Collection - Browser-Spiele">
-    <meta property="og:description" content="KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Arcade und mehr!">
-    <meta property="og:site_name" content="KI Game Collection">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="KI Game Collection - Browser-Spiele">
-    <meta name="twitter:description" content="KI-generierte HTML5-Spiele direkt im Browser spielbar. Action, Strategie, Arcade und mehr!">
-
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI4IiBmaWxsPSIjMWExMjJmIi8+PHRleHQgeD0iMTYiIHk9IjIyIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjE4IiBmaWxsPSIjYTc4YmZhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXdlaWdodD0iYm9sZCI+RzwvdGV4dD48L3N2Zz4=">
-
-    <style>
-        /* ==========================================
-           Design System - CSS Custom Properties
-           ========================================== */
-        :root {
-            --bg-primary: #0a0e17;
-            --bg-secondary: #111827;
-            --bg-card: #1a1f2e;
-            --bg-card-hover: #242a3d;
-
-            --accent-primary: #a78bfa;
-            --accent-secondary: #818cf8;
-            --accent-tertiary: #6366f1;
-            --accent-success: #34d399;
-
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-
-            --border-subtle: rgba(148, 163, 184, 0.1);
-            --border-medium: rgba(148, 163, 184, 0.15);
-
-            --gradient-accent: linear-gradient(135deg, #a78bfa, #6366f1);
-
-            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-            --shadow-glow: 0 0 30px rgba(167, 139, 250, 0.15);
-            --shadow-glow-hover: 0 0 40px rgba(167, 139, 250, 0.25);
-
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-pill: 100px;
-
-            --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-
-            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* ==========================================
-           Reset & Base
-           ========================================== */
-        *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: var(--font-body);
-            line-height: 1.6;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* ==========================================
-           Background Ambient Effect
-           ========================================== */
-        .ambient-bg {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
-        .ambient-orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.3;
-            animation: orbFloat 20s ease-in-out infinite;
-        }
-
-        .ambient-orb:nth-child(1) {
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(167, 139, 250, 0.15), transparent 70%);
-            top: -200px;
-            left: -100px;
-        }
-
-        .ambient-orb:nth-child(2) {
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.12), transparent 70%);
-            top: 50%;
-            right: -150px;
-            animation-delay: -7s;
-            animation-duration: 25s;
-        }
-
-        .ambient-orb:nth-child(3) {
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(129, 140, 248, 0.1), transparent 70%);
-            bottom: -100px;
-            left: 30%;
-            animation-delay: -14s;
-            animation-duration: 22s;
-        }
-
-        @keyframes orbFloat {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(30px, -40px) scale(1.05); }
-            50% { transform: translate(-20px, 20px) scale(0.95); }
-            75% { transform: translate(40px, 30px) scale(1.02); }
-        }
-
-        /* ==========================================
-           Header
-           ========================================== */
-        .site-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(20px) saturate(1.5);
-            -webkit-backdrop-filter: blur(20px) saturate(1.5);
-            background: rgba(10, 14, 23, 0.85);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .header-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 24px;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: var(--text-primary);
-        }
-
-        .logo-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: var(--radius-sm);
-            background: var(--gradient-accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 16px;
-            color: white;
-        }
-
-        .logo-text {
-            font-size: 18px;
-            font-weight: 700;
-            letter-spacing: -0.3px;
-        }
-
-        .logo-text span {
-            color: var(--accent-primary);
-        }
-
-        .game-count-badge {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--accent-primary);
-            background: rgba(167, 139, 250, 0.1);
-            padding: 4px 12px;
-            border-radius: var(--radius-pill);
-            border: 1px solid rgba(167, 139, 250, 0.2);
-        }
-
-        /* ==========================================
-           Main Content
-           ========================================== */
-        .app-container {
-            position: relative;
-            z-index: 1;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        /* ==========================================
-           Filter & Search Bar
-           ========================================== */
-        .filter-bar {
-            position: sticky;
-            top: 64px;
-            z-index: 90;
-            backdrop-filter: blur(16px) saturate(1.4);
-            -webkit-backdrop-filter: blur(16px) saturate(1.4);
-            background: rgba(10, 14, 23, 0.8);
-            border-bottom: 1px solid var(--border-subtle);
-            padding: 16px 0;
-        }
-
-        .filter-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .filter-pills {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            flex: 1;
-        }
-
-        .filter-pill {
-            padding: 8px 18px;
-            border-radius: var(--radius-pill);
-            border: 1px solid var(--border-medium);
-            background: transparent;
-            color: var(--text-secondary);
-            font-family: var(--font-body);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all var(--transition-base);
-            white-space: nowrap;
-            user-select: none;
-        }
-
-        .filter-pill:hover {
-            border-color: var(--accent-primary);
-            color: var(--text-primary);
-            background: rgba(167, 139, 250, 0.08);
-        }
-
-        .filter-pill.active {
-            background: var(--gradient-accent);
-            border-color: transparent;
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 2px 12px rgba(167, 139, 250, 0.3);
-        }
-
-        .search-box {
-            position: relative;
-            min-width: 200px;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 8px 16px 8px 38px;
-            border-radius: var(--radius-pill);
-            border: 1px solid var(--border-medium);
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text-primary);
-            font-family: var(--font-body);
-            font-size: 14px;
-            outline: none;
-            transition: all var(--transition-base);
-        }
-
-        .search-box input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .search-box input:focus {
-            border-color: var(--accent-primary);
-            background: rgba(167, 139, 250, 0.06);
-            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 14px;
-            pointer-events: none;
-        }
-
-        /* ==========================================
-           Game Counter
-           ========================================== */
-        .results-info {
-            padding: 24px 0 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .results-count {
-            font-size: 14px;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .results-count strong {
-            color: var(--text-primary);
-            font-weight: 700;
-        }
-
-        /* ==========================================
-           Game Grid
-           ========================================== */
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            padding-bottom: 80px;
-        }
-
-        @media (max-width: 1200px) {
-            .game-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        @media (max-width: 800px) {
-            .game-grid { grid-template-columns: repeat(2, 1fr); }
-            .filter-inner { flex-direction: column; align-items: stretch; }
-            .search-box { min-width: unset; }
-        }
-
-        @media (max-width: 480px) {
-            .game-grid { grid-template-columns: 1fr; gap: 14px; }
-        }
-
-        /* ==========================================
-           Game Card
-           ========================================== */
-        .game-card {
-            background: linear-gradient(145deg, rgba(167, 139, 250, 0.06), rgba(99, 102, 241, 0.03));
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            padding: 24px 20px 18px;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            transition: all var(--transition-base);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .game-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(145deg, rgba(167, 139, 250, 0.12), rgba(99, 102, 241, 0.06));
-            opacity: 0;
-            transition: opacity var(--transition-base);
-        }
-
-        .game-card:hover {
-            border-color: rgba(167, 139, 250, 0.3);
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-glow-hover);
-        }
-
-        .game-card:hover::before {
-            opacity: 1;
-        }
-
-        .game-card > * {
-            position: relative;
-            z-index: 1;
-        }
-
-        .card-icon {
-            font-size: 36px;
-            line-height: 1;
-            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
-        }
-
-        .card-title {
-            font-size: 16px;
-            font-weight: 700;
-            letter-spacing: -0.2px;
-            line-height: 1.2;
-        }
-
-        .card-desc {
-            font-size: 13px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .card-tags {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-top: auto;
-            padding-top: 6px;
-        }
-
-        .card-tag {
-            font-size: 11px;
-            font-family: var(--font-mono);
-            color: var(--accent-primary);
-            background: rgba(167, 139, 250, 0.1);
-            padding: 3px 10px;
-            border-radius: var(--radius-pill);
-            border: 1px solid rgba(167, 139, 250, 0.15);
-            white-space: nowrap;
-        }
-
-        /* Filter transition */
-        .game-card.hiding {
-            opacity: 0;
-            transform: scale(0.92);
-            pointer-events: none;
-        }
-
-        .game-card.hidden {
-            display: none;
-        }
-
-        /* ==========================================
-           No Results
-           ========================================== */
-        .no-results {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
-        }
-
-        .no-results-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .no-results-text {
-            font-size: 16px;
-        }
-
-        /* ==========================================
-           Footer
-           ========================================== */
-        .site-footer {
-            text-align: center;
-            padding: 32px 24px;
-            color: var(--text-muted);
-            font-size: 13px;
-            border-top: 1px solid var(--border-subtle);
-        }
-
-        /* ==========================================
-           Game Launch Overlay
-           ========================================== */
-        .launch-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(10, 14, 23, 0.95);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        .launch-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .launch-content {
-            text-align: center;
-            transform: scale(0.9);
-            transition: transform 0.3s;
-        }
-
-        .launch-overlay.active .launch-content {
-            transform: scale(1);
-        }
-
-        .launch-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-            animation: launchBounce 0.6s ease-out;
-        }
-
-        .launch-text {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        @keyframes launchBounce {
-            0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
-            60% { transform: scale(1.15) rotate(5deg); }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAFI GAMES — AI-Generated Browser Games</title>
+<meta name="description" content="AI-generierte HTML5-Spiele direkt im Browser. Action, Strategie, Arcade, Simulationen. Keine Installation.">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI4IiBmaWxsPSIjMGYwZjIzIi8+PHRleHQgeD0iMTYiIHk9IjIyIiBmb250LWZhbWlseT0nc3lzdGVtLXVpJyBmb250LXNpemU9IjE2IiBmaWxsPSIjYTc4YmZhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXdlaWdodD0iYm9sZCI+RDwvdGV4dD48L3N2Zz4=">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#06060e;
+  --surface:#12122a;
+  --glass:rgba(124,58,237,0.05);
+  --glass-border:rgba(124,58,237,0.12);
+  --purple:#7C3AED;
+  --purple-light:#A78BFA;
+  --purple-dim:rgba(124,58,237,0.3);
+  --pink:#F43F5E;
+  --cyan:#06B6D4;
+  --green:#34D399;
+  --orange:#FB923C;
+  --yellow:#F59E0B;
+  --indigo:#818CF8;
+  --text:#E2E8F0;
+  --text-muted:#64748B;
+  --radius:16px;
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;overflow-x:hidden;min-height:100vh;}
+
+/* === BACKGROUND LAYERS === */
+#bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* Tron Grid Floor */
+.tron-grid{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+  background-size:60px 60px;
+  mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.1) 100%);
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.1) 100%);
+}
+
+/* Scanlines */
+body::after{
+  content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+}
+
+/* Cursor Glow */
+.cursor-glow{
+  position:fixed;width:400px;height:400px;border-radius:50%;
+  background:radial-gradient(circle,rgba(124,58,237,0.08) 0%,transparent 70%);
+  pointer-events:none;z-index:1;
+  transform:translate(-50%,-50%);
+  transition:left 0.15s ease-out, top 0.15s ease-out;
+}
+
+/* === HEADER === */
+.header{
+  position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(24px) saturate(1.5);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+  background:rgba(6,6,14,0.85);
+  border-bottom:1px solid var(--glass-border);
+}
+.header-inner{max-width:1400px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text);}
+.logo-mark{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(135deg,var(--purple),var(--pink));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:18px;color:white;
+  box-shadow:0 0 24px rgba(124,58,237,0.5);
+  animation:logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse{
+  0%,100%{box-shadow:0 0 24px rgba(124,58,237,0.4);}
+  50%{box-shadow:0 0 36px rgba(244,63,94,0.5);}
+}
+.logo-text{font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.logo-text span{color:var(--purple-light);}
+.header-badge{
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+  color:var(--purple-light);background:rgba(124,58,237,0.1);
+  padding:6px 14px;border-radius:100px;border:1px solid rgba(124,58,237,0.2);
+}
+
+/* === HERO === */
+.hero{position:relative;z-index:2;text-align:center;padding:72px 24px 24px;overflow:hidden;}
+
+.hero h1{
+  font-size:clamp(3rem,8vw,6rem);font-weight:900;line-height:1.0;letter-spacing:-3px;
+  position:relative;display:inline-block;
+}
+
+.hero h1 .line1{
+  display:block;
+  background:linear-gradient(90deg,var(--text) 0%,var(--purple-light) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.hero h1 .line2{
+  display:block;
+  background:linear-gradient(90deg,var(--purple) 0%,var(--pink) 50%,var(--cyan) 100%);
+  background-size:200% 100%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:gradientShift 4s ease infinite;
+}
+
+@keyframes gradientShift{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+/* Glitch effect */
+.hero h1::before,.hero h1::after{
+  content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%;
+  -webkit-text-fill-color:transparent;background-clip:text;-webkit-background-clip:text;
+}
+.hero h1::before{
+  background:linear-gradient(90deg,var(--cyan),var(--purple-light));
+  animation:glitch1 4s infinite;z-index:-1;
+}
+.hero h1::after{
+  background:linear-gradient(90deg,var(--pink),var(--purple));
+  animation:glitch2 4s infinite;z-index:-1;
+}
+@keyframes glitch1{
+  0%,92%,100%{clip-path:inset(0 0 0 0);transform:none;}
+  93%{clip-path:inset(20% 0 60% 0);transform:translateX(-4px);}
+  95%{clip-path:inset(50% 0 20% 0);transform:translateX(3px);}
+  97%{clip-path:inset(70% 0 10% 0);transform:translateX(-2px);}
+}
+@keyframes glitch2{
+  0%,92%,100%{clip-path:inset(0 0 0 0);transform:none;}
+  94%{clip-path:inset(40% 0 30% 0);transform:translateX(4px);}
+  96%{clip-path:inset(10% 0 70% 0);transform:translateX(-3px);}
+  98%{clip-path:inset(60% 0 15% 0);transform:translateX(2px);}
+}
+
+.hero-sub{
+  font-size:1.1rem;color:var(--text-muted);margin-top:20px;font-weight:300;
+  opacity:0;animation:fadeUp 0.8s ease 0.5s forwards;
+}
+
+@keyframes fadeUp{to{opacity:1;transform:translateY(0);}}
+.hero-sub{transform:translateY(15px);}
+
+/* Floating game icons */
+.floating-icons{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.float-icon{
+  position:absolute;font-size:28px;opacity:0.12;
+  animation:floatAround 20s linear infinite;
+}
+@keyframes floatAround{
+  0%{transform:translate(0,0) rotate(0deg);}
+  25%{transform:translate(40px,-60px) rotate(90deg);}
+  50%{transform:translate(-30px,-120px) rotate(180deg);}
+  75%{transform:translate(50px,-60px) rotate(270deg);}
+  100%{transform:translate(0,0) rotate(360deg);}
+}
+
+/* Stats */
+.hero-stats{display:flex;gap:40px;justify-content:center;margin-top:36px;opacity:0;animation:fadeUp 0.8s ease 0.8s forwards;transform:translateY(15px);}
+.hero-stat{text-align:center;position:relative;}
+.hero-stat::after{
+  content:'';position:absolute;right:-20px;top:50%;transform:translateY(-50%);
+  width:1px;height:32px;background:var(--glass-border);
+}
+.hero-stat:last-child::after{display:none;}
+.hero-stat-num{
+  font-family:'JetBrains Mono',monospace;font-size:2.2rem;font-weight:700;
+  color:var(--purple-light);text-shadow:0 0 30px rgba(124,58,237,0.6);
+}
+.hero-stat-label{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:3px;margin-top:4px;}
+
+/* Divider */
+.hero-divider{
+  width:120px;height:2px;margin:40px auto 0;
+  background:linear-gradient(90deg,transparent,var(--purple),var(--pink),transparent);
+  border-radius:2px;
+  animation:dividerPulse 3s ease-in-out infinite;
+}
+@keyframes dividerPulse{
+  0%,100%{opacity:0.5;transform:scaleX(1);}
+  50%{opacity:1;transform:scaleX(1.3);}
+}
+
+/* === FEATURED MARQUEE === */
+.marquee-section{
+  position:relative;z-index:2;padding:32px 0;overflow:hidden;
+  border-top:1px solid var(--glass-border);border-bottom:1px solid var(--glass-border);
+  background:rgba(124,58,237,0.02);
+}
+.marquee-track{display:flex;gap:40px;width:max-content;animation:marquee 30s linear infinite;}
+.marquee-item{
+  font-size:0.85rem;font-weight:500;white-space:nowrap;color:var(--text-muted);opacity:0.5;
+  display:flex;align-items:center;gap:8px;
+}
+.marquee-item .mi-icon{font-size:1.2rem;}
+.marquee-item.featured{color:var(--purple-light);opacity:1;font-weight:600;}
+@keyframes marquee{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* === FILTER BAR === */
+.filter-bar{
+  position:sticky;top:64px;z-index:90;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background:rgba(6,6,14,0.82);
+  border-bottom:1px solid var(--glass-border);padding:14px 0;
+}
+.filter-inner{max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.filter-pills{display:flex;gap:8px;flex-wrap:wrap;flex:1;}
+
+.pill{
+  padding:8px 20px;border-radius:100px;border:1px solid var(--glass-border);
+  background:transparent;color:var(--text-muted);font-family:'Outfit',sans-serif;
+  font-size:14px;font-weight:500;cursor:pointer;transition:all 0.25s ease;white-space:nowrap;
+  position:relative;overflow:hidden;
+}
+.pill::before{
+  content:'';position:absolute;inset:0;border-radius:100px;
+  background:linear-gradient(135deg,var(--purple),var(--pink));
+  opacity:0;transition:opacity 0.3s ease;z-index:-1;
+}
+.pill:hover{border-color:var(--purple);color:var(--text);background:rgba(124,58,237,0.08);}
+.pill.active{border-color:transparent;color:white;font-weight:600;box-shadow:0 4px 20px rgba(124,58,237,0.4);}
+.pill.active::before{opacity:1;}
+
+.pill .pill-count{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  margin-left:6px;opacity:0.6;
+}
+
+.search-wrap{position:relative;min-width:220px;}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
+.search-wrap input{
+  width:100%;padding:9px 16px 9px 40px;border-radius:100px;
+  border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);
+  color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none;
+  transition:all 0.25s ease;
+}
+.search-wrap input::placeholder{color:var(--text-muted);}
+.search-wrap input:focus{
+  border-color:var(--purple);background:rgba(124,58,237,0.06);
+  box-shadow:0 0 0 3px rgba(124,58,237,0.12);
+}
+
+/* === RESULTS === */
+.results-bar{max-width:1400px;margin:0 auto;padding:20px 24px 12px;position:relative;z-index:2;}
+.results-count{font-size:14px;color:var(--text-muted);font-weight:500;}
+.results-count strong{color:var(--text);font-weight:700;}
+
+/* === GAME GRID === */
+.grid-wrap{max-width:1400px;margin:0 auto;padding:0 24px 80px;position:relative;z-index:2;}
+.game-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+
+/* === GAME CARD === */
+.game-card{
+  position:relative;
+  background:linear-gradient(145deg,rgba(124,58,237,0.05),rgba(18,18,42,0.8));
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);padding:28px 22px 20px;
+  cursor:pointer;text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;gap:10px;
+  transition:transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s ease;
+  overflow:hidden;
+  transform-style:preserve-3d;
+  perspective:800px;
+}
+
+/* Animated gradient border */
+.game-card::before{
+  content:'';position:absolute;inset:-1px;border-radius:var(--radius);
+  background:conic-gradient(from var(--angle,0deg),transparent 40%,var(--purple) 50%,var(--pink) 55%,transparent 65%);
+  opacity:0;transition:opacity 0.4s ease;z-index:-1;
+  padding:1px;
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  mask-composite:xor;-webkit-mask-composite:xor;
+}
+
+/* Inner glow */
+.game-card::after{
+  content:'';position:absolute;inset:0;border-radius:var(--radius);
+  background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(124,58,237,0.15) 0%,transparent 60%);
+  opacity:0;transition:opacity 0.3s ease;pointer-events:none;
+}
+
+.game-card:hover{
+  transform:translateY(-8px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  box-shadow:0 24px 80px rgba(124,58,237,0.2),0 0 40px rgba(124,58,237,0.08);
+  border-color:transparent;
+}
+.game-card:hover::before{opacity:1;}
+.game-card:hover::after{opacity:1;}
+
+.game-card>*{position:relative;z-index:1;}
+
+.card-icon{
+  font-size:42px;line-height:1;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.game-card:hover .card-icon{transform:scale(1.2) rotate(-8deg) translateY(-4px);}
+
+.card-title{font-size:17px;font-weight:700;letter-spacing:-0.3px;line-height:1.2;}
+.card-desc{
+  font-size:13px;color:var(--text-muted);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.card-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px;}
+.card-tag{
+  font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:500;
+  padding:3px 10px;border-radius:100px;white-space:nowrap;
+}
+
+.tag-action{color:#F43F5E;background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);}
+.tag-strategie{color:#F59E0B;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);}
+.tag-arcade{color:#06B6D4;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);}
+.tag-mehrspieler{color:#34D399;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);}
+.tag-simulation{color:#A78BFA;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);}
+.tag-tron{color:#818CF8;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.2);}
+.tag-3d{color:#FB923C;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.2);}
+
+/* Scroll reveal */
+.game-card{opacity:0;transform:translateY(30px) scale(0.97);}
+.game-card.visible{opacity:1;transform:translateY(0) scale(1);transition:all 0.6s cubic-bezier(0.16,1,0.3,1);}
+.game-card.hiding{opacity:0;transform:scale(0.92);pointer-events:none;transition:all 0.25s ease;}
+.game-card.hidden{display:none;}
+
+/* === LAUNCH OVERLAY === */
+.launch-overlay{
+  position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,6,14,0.96);opacity:0;pointer-events:none;transition:opacity 0.3s;
+}
+.launch-overlay.active{opacity:1;pointer-events:auto;}
+.launch-content{text-align:center;}
+
+.launch-icon{font-size:80px;animation:launchPop 0.6s cubic-bezier(0.16,1,0.3,1);}
+@keyframes launchPop{
+  0%{transform:scale(0) rotate(-20deg);opacity:0;}
+  50%{transform:scale(1.3) rotate(8deg);}
+  100%{transform:scale(1) rotate(0);opacity:1;}
+}
+
+.launch-title{
+  font-size:28px;font-weight:800;margin-top:16px;letter-spacing:-1px;
+  background:linear-gradient(135deg,var(--purple-light),var(--pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+.launch-sub{font-size:14px;color:var(--text-muted);margin-top:8px;}
+
+.launch-bar{width:240px;height:3px;background:var(--surface);border-radius:2px;margin:20px auto 0;overflow:hidden;}
+.launch-bar-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--purple),var(--pink),var(--cyan));
+  background-size:200% 100%;
+  animation:launchFill 0.7s ease forwards, launchGradient 1s linear infinite;
+}
+@keyframes launchFill{0%{width:0;}100%{width:100%;}}
+@keyframes launchGradient{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
+
+/* Warp lines */
+.launch-overlay.active .warp-line{
+  position:absolute;width:2px;background:linear-gradient(to bottom,transparent,var(--purple-light),transparent);
+  animation:warpIn 0.6s ease-out forwards;opacity:0;
+}
+@keyframes warpIn{0%{height:0;opacity:0;}50%{opacity:0.6;}100%{height:100vh;opacity:0;}}
+
+/* === NO RESULTS === */
+.no-results{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);}
+.no-results-icon{font-size:48px;opacity:0.3;margin-bottom:12px;}
+
+/* === FOOTER === */
+footer{
+  position:relative;z-index:2;text-align:center;padding:40px 24px;
+  color:var(--text-muted);font-size:13px;
+  border-top:1px solid var(--glass-border);
+  background:linear-gradient(to top,rgba(124,58,237,0.03),transparent);
+}
+footer a{color:var(--purple-light);text-decoration:none;}
+
+/* === SCROLL PROGRESS === */
+.scroll-progress{position:fixed;top:0;left:0;height:2px;z-index:200;width:0%;
+  background:linear-gradient(90deg,var(--purple),var(--pink),var(--cyan));
+  box-shadow:0 0 10px rgba(124,58,237,0.5);transition:width 0.05s linear;}
+
+/* === RESPONSIVE === */
+@media(max-width:1200px){.game-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:800px){
+  .game-grid{grid-template-columns:repeat(2,1fr);}
+  .filter-inner{flex-direction:column;align-items:stretch;}
+  .search-wrap{min-width:unset;}
+  .hero h1{letter-spacing:-1.5px;}
+  .hero-stats{gap:24px;}
+}
+@media(max-width:480px){
+  .game-grid{grid-template-columns:1fr;gap:14px;}
+  .hero{padding:48px 16px 24px;}
+  .hero-stats{flex-wrap:wrap;gap:16px;}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important;}
+  html{scroll-behavior:auto;}
+  .cursor-glow,.floating-icons,#bgCanvas,.tron-grid{display:none;}
+}
+</style>
 </head>
 <body>
-    <!-- Ambient Background -->
-    <div class="ambient-bg">
-        <div class="ambient-orb"></div>
-        <div class="ambient-orb"></div>
-        <div class="ambient-orb"></div>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+<canvas id="bgCanvas"></canvas>
+<div class="tron-grid"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-mark">D</div>
+      <div class="logo-text">DRAFI<span>GAMES</span></div>
+    </a>
+    <div class="header-badge" id="totalBadge"></div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="floating-icons" id="floatingIcons"></div>
+  <h1 data-text="AI-Generated Browser Games">
+    <span class="line1">AI-Generated</span>
+    <span class="line2">Browser Games</span>
+  </h1>
+  <p class="hero-sub">Jedes Spiel komplett von KI erstellt. Kein Download. Sofort spielen.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-num" id="statGames">0</div><div class="hero-stat-label">Spiele</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="statCats">7</div><div class="hero-stat-label">Kategorien</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">0</div><div class="hero-stat-label">Downloads</div></div>
+  </div>
+  <div class="hero-divider"></div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-section">
+  <div class="marquee-track" id="marqueeTrack"></div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-inner">
+    <div class="filter-pills" id="filterPills"></div>
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="searchInput" placeholder="Suchen... ( / )" autocomplete="off">
     </div>
+  </div>
+</div>
 
-    <!-- Header -->
-    <header class="site-header">
-        <div class="header-inner">
-            <a href="index.html" class="logo">
-                <div class="logo-icon">G</div>
-                <div class="logo-text">Game<span>Collection</span></div>
-            </a>
-            <div class="game-count-badge" id="totalBadge"></div>
-        </div>
-    </header>
+<!-- RESULTS -->
+<div class="results-bar"><span class="results-count" id="resultsCount"></span></div>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <div class="filter-inner">
-            <div class="filter-pills" id="filterPills"></div>
-            <div class="search-box">
-                <span class="search-icon">&#128269;</span>
-                <input type="text" id="searchInput" placeholder="Spiel suchen..." autocomplete="off">
-            </div>
-        </div>
-    </div>
+<!-- GRID -->
+<div class="grid-wrap"><div class="game-grid" id="gameGrid"></div></div>
 
-    <!-- Main Content -->
-    <main class="app-container">
-        <div class="results-info">
-            <span class="results-count" id="resultsCount"></span>
-        </div>
-        <div class="game-grid" id="gameGrid"></div>
-    </main>
+<!-- LAUNCH OVERLAY -->
+<div class="launch-overlay" id="launchOverlay">
+  <div class="launch-content">
+    <div class="launch-icon" id="launchIcon"></div>
+    <div class="launch-title" id="launchTitle"></div>
+    <div class="launch-sub">Loading...</div>
+    <div class="launch-bar"><div class="launch-bar-fill"></div></div>
+  </div>
+</div>
 
-    <!-- Launch Overlay -->
-    <div class="launch-overlay" id="launchOverlay">
-        <div class="launch-content">
-            <div class="launch-icon" id="launchIcon"></div>
-            <div class="launch-text" id="launchText">Starte Spiel...</div>
-        </div>
-    </div>
+<!-- FOOTER -->
+<footer>DRAFI GAMES &mdash; Alle Spiele sind KI-generiert und laufen direkt im Browser.</footer>
 
-    <!-- Footer -->
-    <footer class="site-footer">
-        KI Game Collection &mdash; Alle Spiele sind KI-generiert und laufen direkt im Browser.
-    </footer>
+<script>
+// =============================================
+// PARTICLE + SHOOTING STAR BACKGROUND
+// =============================================
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [], stars = [], mouse = {x:-1000,y:-1000};
 
-    <script>
-        // ==========================================
-        // Games Data - flat array, no duplicates
-        // ==========================================
-        const games = [
-            // --- Action ---
-            {
-                title: "Space Battle Arena",
-                description: "Intensiver 4v4 Weltraumkampf! WASD-Steuerung, Schilde und epische Raumschlachten.",
-                url: "games/space-battle.html",
-                icon: "\uD83D\uDE80",
-                tags: ["action"]
-            },
-            {
-                title: "Zombie Waves",
-                description: "Top-Down Shooter gegen Zombie-Wellen! Baue Barrikaden, sammle Ressourcen und \u00fcberlebe.",
-                url: "games/zombie-waves.html",
-                icon: "\uD83E\uDDDF",
-                tags: ["action"]
-            },
-            {
-                title: "VOID PROTOCOL",
-                description: "Dungeon Crawler mit prozeduralen Leveln, 4 Androiden-Typen, 6 Waffen und Fog of War.",
-                url: "games/void-protocol.html",
-                icon: "\uD83C\uDFAF",
-                tags: ["action", "mehrspieler"]
-            },
-            // --- Strategie ---
-            {
-                title: "AoE4 Battle Simulator",
-                description: "Age of Empires 4 Kampfsimulator! 16 Fraktionen, KI-Counter-Empfehlungen und Echtzeit-Taktik.",
-                url: "games/aoe4-battle-sim.html",
-                icon: "\u2694\uFE0F",
-                tags: ["strategie"]
-            },
-            {
-                title: "Space Command",
-                description: "StarCraft-inspirierte Weltraum-RTS! Raumschiffe befehligen, Basen bauen, epische Schlachten.",
-                url: "games/space-command.html",
-                icon: "\uD83D\uDEF0\uFE0F",
-                tags: ["strategie"]
-            },
-            {
-                title: "Kingdom Defense",
-                description: "Tower Defense! Bogensch\u00fctzen, Kanonen und Magier-T\u00fcrme gegen 15 Wellen platzieren.",
-                url: "games/kingdom-defense.html",
-                icon: "\uD83C\uDFF0",
-                tags: ["strategie"]
-            },
-            // --- Arcade ---
-            {
-                title: "Snake",
-                description: "Das klassische Snake-Spiel - sammle \u00c4pfel und werde l\u00e4nger!",
-                url: "games/snake.html",
-                icon: "\uD83D\uDC0D",
-                tags: ["arcade"]
-            },
-            {
-                title: "Brick Breaker",
-                description: "Zerst\u00f6re Bl\u00f6cke und sammle Power-Ups f\u00fcr Multi-Ball und Laser-Waffen!",
-                url: "games/brickbreaker.html",
-                icon: "\uD83E\uDDF1",
-                tags: ["arcade"]
-            },
-            {
-                title: "Flappy Bird",
-                description: "Steuere den Vogel durch die R\u00f6hren. Einfach zu lernen, schwer zu meistern!",
-                url: "games/flappy-bird.html",
-                icon: "\uD83D\uDC26",
-                tags: ["arcade"]
-            },
-            {
-                title: "Frogger Rush",
-                description: "Klassisches Frogger! \u00dcberquere Stra\u00dfen und springe auf Baumst\u00e4mme \u00fcber den Fluss.",
-                url: "games/frogger-rush.html",
-                icon: "\uD83D\uDC38",
-                tags: ["arcade"]
-            },
-            {
-                title: "Neon Tetris",
-                description: "Tetris mit Cyberpunk-\u00c4sthetik! Ghost-Piece, Wall-Kicks und Glow-Effekte.",
-                url: "games/neon-tetris.html",
-                icon: "\uD83D\uDFE6",
-                tags: ["arcade"]
-            },
-            {
-                title: "Territory Garden",
-                description: "Paper.io-inspiriert! Erobere Territorium als Pflanze gegen intelligente KI.",
-                url: "games/territory-garden.html",
-                icon: "\uD83C\uDF3F",
-                tags: ["arcade"]
-            },
-            {
-                title: "Penalty Shootout",
-                description: "Elfmeterschie\u00dfen! Perfekte Schusskraft w\u00e4hlen und den Torwart bezwingen.",
-                url: "games/penalty-shootout.html",
-                icon: "\u26BD",
-                tags: ["arcade"]
-            },
-            {
-                title: "Racing Circuit",
-                description: "Top-Down Rennspiel mit Zeitrennen! 5 Runden auf dem Circuit, Bestzeiten aufstellen.",
-                url: "games/racing-circuit.html",
-                icon: "\uD83C\uDFCE\uFE0F",
-                tags: ["arcade"]
-            },
-            {
-                title: "Das Geheimnis des Professors",
-                description: "R\u00e4tselabenteuer! Professor Blackwood ist verschwunden - l\u00f6se R\u00e4tsel in 5 R\u00e4umen.",
-                url: "games/cipher-detective.html",
-                icon: "\uD83D\uDCDA",
-                tags: ["arcade"]
-            },
-            // --- Mehrspieler ---
-            {
-                title: "Jedi Stickman Arena",
-                description: "Physik-basierter Lichtschwert-Kampf mit Ragdoll-Physik und Force-Kr\u00e4ften!",
-                url: "games/jedi-stickman.html",
-                icon: "\u2694\uFE0F",
-                tags: ["action", "mehrspieler"]
-            },
-            {
-                title: "Volleyball",
-                description: "Volleyball-Action f\u00fcr zwei Spieler mit realistischer Physik!",
-                url: "games/volleyball.html",
-                icon: "\uD83C\uDFD0",
-                tags: ["mehrspieler"]
-            },
-            {
-                title: "Maze Runner",
-                description: "Zwei-Spieler Labyrinth-Rennen! WASD vs Pfeiltasten - wer findet zuerst das Ziel?",
-                url: "games/maze-runner.html",
-                icon: "\uD83C\uDFAF",
-                tags: ["mehrspieler"]
-            },
-            {
-                title: "Asteroid Miners",
-                description: "Kooperatives Weltraum-Mining f\u00fcr 2-4 Spieler! Asteroiden abbauen, Piraten ausweichen.",
-                url: "games/asteroid-miners.html",
-                icon: "\u26CF\uFE0F",
-                tags: ["mehrspieler", "action"]
-            },
-            {
-                title: "Sumo Bumpers",
-                description: "Arena-Kampf f\u00fcr 2-4 Spieler! Gegner von der schrumpfenden Plattform sto\u00dfen.",
-                url: "games/sumo-bumpers.html",
-                icon: "\uD83E\uDD3C",
-                tags: ["mehrspieler"]
-            },
-            // --- 3D ---
-            {
-                title: "Tron: 3D Arena WebGL",
-                description: "ULTIMATE 3D Tron mit Three.js! Light Cycles, Split-Screen Duell, Turbo-Boost.",
-                url: "games/tron/tron-3d-dual-arena-threejs.html",
-                icon: "\uD83C\uDF1F",
-                tags: ["action", "mehrspieler"]
-            },
-            {
-                title: "Minecraft 3D",
-                description: "3D Voxel-Spiel - baue, erkunde und \u00fcberlebe in deiner eigenen Blockwelt!",
-                url: "games/minecraft3d.html",
-                icon: "\u26CF\uFE0F",
-                tags: ["action"]
-            },
-            // --- Simulationen ---
-            {
-                title: "Bio-Sim: Mikrobiologie-Labor",
-                description: "Beobachte Zellen, Bakterien und Immunzellen. Zellteilung und Phagozytose erleben.",
-                url: "games/bio-sim.html",
-                icon: "\uD83E\uDDA0",
-                tags: ["simulation"]
-            },
-            {
-                title: "Ecosystem Simulator",
-                description: "NPC-basiertes Ecosystem mit Flocking und Predator-Prey-Dynamik.",
-                url: "games/simulations/ecosystem-simulator.html",
-                icon: "\uD83E\uDDEC",
-                tags: ["simulation"]
-            },
-            {
-                title: "Gravity Sandbox",
-                description: "Planeten und Sterne erstellen, Gravitationsfelder und Orbits beobachten.",
-                url: "games/simulations/gravity-sandbox.html",
-                icon: "\uD83C\uDF0C",
-                tags: ["simulation"]
-            },
-            {
-                title: "Wave Simulator",
-                description: "Wellenmechanik! Interferenz, Beugung, Reflexion und stehende Wellen.",
-                url: "games/simulations/wave-simulator.html",
-                icon: "\uD83C\uDF0A",
-                tags: ["simulation"]
-            },
-            {
-                title: "Interaktives Periodensystem",
-                description: "Alle 118 Elemente mit Details. Filterbar nach Gruppen und Eigenschaften.",
-                url: "games/simulations/periodic-table.html",
-                icon: "\u2697\uFE0F",
-                tags: ["simulation"]
-            },
-            {
-                title: "Chemische Reaktionen",
-                description: "Chemische Reaktionen simulieren! Elemente mischen, Molek\u00fclstrukturen sehen.",
-                url: "games/simulations/chemical-reactions.html",
-                icon: "\uD83E\uDDEA",
-                tags: ["simulation"]
-            },
-            {
-                title: "Web Synthesizer",
-                description: "Vollwertiger Synthesizer! Oszillatoren, Filter, ADSR und Sequencer.",
-                url: "games/simulations/synthesizer.html",
-                icon: "\uD83C\uDFB9",
-                tags: ["simulation"]
-            },
-            {
-                title: "Frequency Lab",
-                description: "Schallwellen und Frequenzen erforschen! Wellenformen und Obert\u00f6ne visualisieren.",
-                url: "games/simulations/frequency-lab.html",
-                icon: "\uD83D\uDD0A",
-                tags: ["simulation"]
-            },
-            {
-                title: "Circuit Builder",
-                description: "Elektronische Schaltkreise bauen! Widerst\u00e4nde, LEDs und Transistoren.",
-                url: "games/simulations/circuit-builder.html",
-                icon: "\u26A1",
-                tags: ["simulation"]
-            },
-            {
-                title: "Logic Gate Simulator",
-                description: "Digitale Logikschaltungen entwerfen! AND, OR, NOT, XOR und mehr.",
-                url: "games/simulations/logic-gates.html",
-                icon: "\uD83D\uDD27",
-                tags: ["simulation"]
-            },
-            {
-                title: "Solar System Orrery",
-                description: "Interaktives Sonnensystem mit korrekten Orbits und Planeten-Infos.",
-                url: "games/simulations/solar-system.html",
-                icon: "\uD83E\uDE90",
-                tags: ["simulation"]
-            },
-            {
-                title: "Weather System",
-                description: "Wettersysteme simulieren! Hoch-/Tiefdruckgebiete, Wolken und Wind.",
-                url: "games/simulations/weather-system.html",
-                icon: "\u26C8\uFE0F",
-                tags: ["simulation"]
-            }
-        ];
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
 
-        // ==========================================
-        // Tag display names
-        // ==========================================
-        const tagLabels = {
-            alle: "Alle",
-            action: "Action",
-            strategie: "Strategie",
-            arcade: "Arcade",
-            mehrspieler: "Mehrspieler",
-            simulation: "Simulation"
-        };
+function createParticles(){
+  particles=[];
+  const count=Math.min(70,Math.floor(window.innerWidth/22));
+  for(let i=0;i<count;i++){
+    particles.push({
+      x:Math.random()*canvas.width,y:Math.random()*canvas.height,
+      vx:(Math.random()-0.5)*0.25,vy:(Math.random()-0.5)*0.25,
+      r:Math.random()*1.8+0.4,
+      hue:Math.random()>0.6?270:Math.random()>0.5?340:200,
+      alpha:Math.random()*0.3+0.1
+    });
+  }
+}
 
-        // ==========================================
-        // State
-        // ==========================================
-        let activeFilter = 'alle';
-        let searchQuery = '';
+function spawnStar(){
+  if(stars.length>3)return;
+  const fromLeft=Math.random()>0.5;
+  stars.push({
+    x:fromLeft?-20:canvas.width+20,
+    y:Math.random()*canvas.height*0.6,
+    vx:fromLeft?(Math.random()*4+3):-(Math.random()*4+3),
+    vy:Math.random()*1.5+0.5,
+    life:1,decay:Math.random()*0.008+0.005,
+    len:Math.random()*80+40
+  });
+}
 
-        // ==========================================
-        // Render filter pills
-        // ==========================================
-        function renderFilters() {
-            const container = document.getElementById('filterPills');
-            Object.entries(tagLabels).forEach(([key, label]) => {
-                const btn = document.createElement('button');
-                btn.className = 'filter-pill' + (key === 'alle' ? ' active' : '');
-                btn.textContent = label;
-                btn.dataset.filter = key;
-                btn.addEventListener('click', () => {
-                    activeFilter = key;
-                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-                    btn.classList.add('active');
-                    applyFilters();
-                });
-                container.appendChild(btn);
-            });
-        }
+function drawBg(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-        // ==========================================
-        // Render game cards
-        // ==========================================
-        function renderCards() {
-            const grid = document.getElementById('gameGrid');
-            grid.innerHTML = '';
+  // Particles
+  for(let i=0;i<particles.length;i++){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=canvas.width; if(p.x>canvas.width)p.x=0;
+    if(p.y<0)p.y=canvas.height; if(p.y>canvas.height)p.y=0;
 
-            games.forEach(game => {
-                const card = document.createElement('a');
-                card.className = 'game-card';
-                card.href = game.url;
-                card.dataset.tags = game.tags.join(',');
-                card.dataset.search = (game.title + ' ' + game.description).toLowerCase();
+    const dx=p.x-mouse.x,dy=p.y-mouse.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<180){p.x+=dx/dist*1.2;p.y+=dy/dist*1.2;}
 
-                card.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    launchGame(game.url, game.icon, game.title);
-                });
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`hsla(${p.hue},70%,65%,${p.alpha})`;
+    ctx.fill();
 
-                card.innerHTML = `
-                    <div class="card-icon">${game.icon}</div>
-                    <div class="card-title">${game.title}</div>
-                    <div class="card-desc">${game.description}</div>
-                    <div class="card-tags">
-                        ${game.tags.map(t => `<span class="card-tag">${tagLabels[t] || t}</span>`).join('')}
-                    </div>
-                `;
+    for(let j=i+1;j<particles.length;j++){
+      const p2=particles[j];
+      const d=Math.hypot(p.x-p2.x,p.y-p2.y);
+      if(d<110){
+        ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p2.x,p2.y);
+        ctx.strokeStyle=`rgba(124,58,237,${0.06*(1-d/110)})`;
+        ctx.lineWidth=0.5;ctx.stroke();
+      }
+    }
+  }
 
-                grid.appendChild(card);
-            });
+  // Shooting stars
+  for(let i=stars.length-1;i>=0;i--){
+    const s=stars[i];
+    ctx.beginPath();
+    ctx.moveTo(s.x,s.y);
+    ctx.lineTo(s.x-s.vx*s.len/5,s.y-s.vy*s.len/5);
+    const grad=ctx.createLinearGradient(s.x,s.y,s.x-s.vx*s.len/5,s.y-s.vy*s.len/5);
+    grad.addColorStop(0,`rgba(167,139,250,${s.life*0.8})`);
+    grad.addColorStop(1,'rgba(167,139,250,0)');
+    ctx.strokeStyle=grad;ctx.lineWidth=1.5;ctx.stroke();
 
-            document.getElementById('totalBadge').textContent = games.length + ' Spiele';
-            updateResultsCount(games.length);
-        }
+    ctx.beginPath();ctx.arc(s.x,s.y,2,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${s.life})`;ctx.fill();
 
-        // ==========================================
-        // Apply filters + search
-        // ==========================================
-        function applyFilters() {
-            const cards = document.querySelectorAll('.game-card');
-            let visibleCount = 0;
-            const query = searchQuery.toLowerCase().trim();
+    s.x+=s.vx;s.y+=s.vy;s.life-=s.decay;
+    if(s.life<=0)stars.splice(i,1);
+  }
 
-            cards.forEach(card => {
-                const tags = card.dataset.tags;
-                const searchText = card.dataset.search;
+  if(Math.random()<0.008)spawnStar();
+  requestAnimationFrame(drawBg);
+}
 
-                const matchesFilter = activeFilter === 'alle' || tags.includes(activeFilter);
-                const matchesSearch = !query || searchText.includes(query);
-                const visible = matchesFilter && matchesSearch;
+resizeCanvas();createParticles();drawBg();
+window.addEventListener('resize',()=>{resizeCanvas();createParticles();});
+document.addEventListener('mousemove',e=>{
+  mouse.x=e.clientX;mouse.y=e.clientY;
+  const glow=document.getElementById('cursorGlow');
+  glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px';
+});
 
-                if (visible) {
-                    card.classList.remove('hiding', 'hidden');
-                    visibleCount++;
-                } else {
-                    card.classList.add('hiding');
-                    setTimeout(() => {
-                        if (card.classList.contains('hiding')) {
-                            card.classList.add('hidden');
-                        }
-                    }, 250);
-                }
-            });
+// =============================================
+// FLOATING HERO ICONS
+// =============================================
+const heroIcons=["\uD83D\uDE80","\uD83D\uDC0D","\u2694\uFE0F","\uD83C\uDFAE","\uD83C\uDFF0","\uD83E\uDDA0","\u26BD","\uD83C\uDF1F","\u26A1","\uD83C\uDF0C","\uD83C\uDFCE\uFE0F","\uD83E\uDDDF"];
+const floatContainer=document.getElementById('floatingIcons');
+heroIcons.forEach((icon,i)=>{
+  const el=document.createElement('span');
+  el.className='float-icon';
+  el.textContent=icon;
+  el.style.left=Math.random()*90+'%';
+  el.style.top=Math.random()*80+10+'%';
+  el.style.animationDelay=(-i*1.7)+'s';
+  el.style.animationDuration=(15+Math.random()*10)+'s';
+  floatContainer.appendChild(el);
+});
 
-            updateResultsCount(visibleCount);
-        }
+// =============================================
+// SCROLL PROGRESS
+// =============================================
+window.addEventListener('scroll',()=>{
+  const pct=window.scrollY/(document.documentElement.scrollHeight-window.innerHeight);
+  document.getElementById('scrollProgress').style.width=(pct*100)+'%';
+});
 
-        // ==========================================
-        // Results count
-        // ==========================================
-        function updateResultsCount(count) {
-            const el = document.getElementById('resultsCount');
-            const filterName = tagLabels[activeFilter] || 'Alle';
-            if (activeFilter === 'alle' && !searchQuery) {
-                el.innerHTML = `<strong>${count}</strong> Spiele`;
-            } else {
-                el.innerHTML = `<strong>${count}</strong> ${count === 1 ? 'Spiel' : 'Spiele'} ${activeFilter !== 'alle' ? 'in ' + filterName : ''} ${searchQuery ? 'f\u00fcr "' + searchQuery + '"' : ''}`.trim();
-            }
-        }
+// =============================================
+// GAMES DATA
+// =============================================
+const games=[
+  {title:"Space Battle Arena",desc:"Intensiver 4v4 Weltraumkampf! WASD-Steuerung, Schilde und epische Raumschlachten.",url:"games/space-battle.html",icon:"\uD83D\uDE80",tags:["action"]},
+  {title:"Zombie Waves",desc:"Top-Down Shooter gegen Zombie-Wellen! Baue Barrikaden, sammle Ressourcen.",url:"games/zombie-waves.html",icon:"\uD83E\uDDDF",tags:["action"]},
+  {title:"VOID PROTOCOL",desc:"Dungeon Crawler mit prozeduralen Leveln, 4 Androiden-Typen und Fog of War.",url:"games/void-protocol.html",icon:"\uD83C\uDFAF",tags:["action","mehrspieler"]},
+  {title:"Minecraft 3D",desc:"3D Voxel-Welt \u2014 baue, erkunde und \u00fcberlebe in deiner eigenen Blockwelt!",url:"games/minecraft3d.html",icon:"\u26CF\uFE0F",tags:["action","3d"]},
+  {title:"Helldivers Stratego",desc:"Taktischer Kampf inspiriert von Helldivers. Strategos und Airstrikes!",url:"games/helldivers-stratego.html",icon:"\uD83D\uDCA5",tags:["action","strategie"]},
+  {title:"AoE4 Battle Simulator",desc:"Age of Empires 4 Kampfsimulator! 16 Fraktionen, KI-Counter-Empfehlungen.",url:"games/aoe4-battle-sim.html",icon:"\u2694\uFE0F",tags:["strategie"]},
+  {title:"Space Command",desc:"StarCraft-inspirierte Weltraum-RTS! Raumschiffe befehligen, Basen bauen.",url:"games/space-command.html",icon:"\uD83D\uDEF0\uFE0F",tags:["strategie"]},
+  {title:"Kingdom Defense",desc:"Tower Defense! Bogensch\u00fctzen, Kanonen und Magier gegen 15 Wellen.",url:"games/kingdom-defense.html",icon:"\uD83C\uDFF0",tags:["strategie"]},
+  {title:"Snake",desc:"Das klassische Snake-Spiel \u2014 sammle \u00c4pfel und werde l\u00e4nger!",url:"games/snake.html",icon:"\uD83D\uDC0D",tags:["arcade"]},
+  {title:"Brick Breaker",desc:"Zerst\u00f6re Bl\u00f6cke und sammle Power-Ups f\u00fcr Multi-Ball und Laser!",url:"games/brickbreaker.html",icon:"\uD83E\uDDF1",tags:["arcade"]},
+  {title:"Flappy Bird",desc:"Steuere den Vogel durch die R\u00f6hren. Einfach zu lernen, schwer zu meistern!",url:"games/flappy-bird.html",icon:"\uD83D\uDC26",tags:["arcade"]},
+  {title:"Frogger Rush",desc:"Klassisches Frogger! \u00dcberquere Stra\u00dfen und springe auf Baumst\u00e4mme.",url:"games/frogger-rush.html",icon:"\uD83D\uDC38",tags:["arcade"]},
+  {title:"Neon Tetris",desc:"Tetris mit Cyberpunk-Look! Ghost-Piece, Wall-Kicks und Glow-Effekte.",url:"games/neon-tetris.html",icon:"\uD83D\uDFE6",tags:["arcade"]},
+  {title:"Territory Garden",desc:"Paper.io-inspiriert! Erobere Territorium als Pflanze gegen KI.",url:"games/territory-garden.html",icon:"\uD83C\uDF3F",tags:["arcade"]},
+  {title:"Penalty Shootout",desc:"Elfmeterschie\u00dfen! Perfekte Schusskraft und den Torwart bezwingen.",url:"games/penalty-shootout.html",icon:"\u26BD",tags:["arcade"]},
+  {title:"Racing Circuit",desc:"Top-Down Rennspiel! 5 Runden auf dem Circuit, Bestzeiten aufstellen.",url:"games/racing-circuit.html",icon:"\uD83C\uDFCE\uFE0F",tags:["arcade"]},
+  {title:"Das Geheimnis des Professors",desc:"R\u00e4tselabenteuer! Professor Blackwood verschwunden \u2014 l\u00f6se R\u00e4tsel in 5 R\u00e4umen.",url:"games/cipher-detective.html",icon:"\uD83D\uDCDA",tags:["arcade"]},
+  {title:"Game Juice Demo",desc:"Lerne Game Feel! Vergleiche Animationen mit und ohne Juice-Effekte.",url:"games/game-juice-demo.html",icon:"\uD83C\uDFAE",tags:["arcade"]},
+  {title:"Jedi Stickman Arena",desc:"Physik-basierter Lichtschwert-Kampf mit Ragdoll und Force-Kr\u00e4ften!",url:"games/jedi-stickman.html",icon:"\u2694\uFE0F",tags:["action","mehrspieler"]},
+  {title:"Volleyball",desc:"Volleyball f\u00fcr zwei Spieler mit realistischer Physik!",url:"games/volleyball.html",icon:"\uD83C\uDFD0",tags:["mehrspieler"]},
+  {title:"Maze Runner",desc:"Zwei-Spieler Labyrinth-Rennen! WASD vs Pfeiltasten \u2014 wer findet das Ziel?",url:"games/maze-runner.html",icon:"\uD83C\uDFAF",tags:["mehrspieler"]},
+  {title:"Asteroid Miners",desc:"Kooperatives Weltraum-Mining f\u00fcr 2-4 Spieler! Piraten ausweichen.",url:"games/asteroid-miners.html",icon:"\u26CF\uFE0F",tags:["mehrspieler","action"]},
+  {title:"Sumo Bumpers",desc:"Arena-Kampf f\u00fcr 2-4 Spieler! Gegner von der schrumpfenden Plattform sto\u00dfen.",url:"games/sumo-bumpers.html",icon:"\uD83E\uDD3C",tags:["mehrspieler"]},
+  {title:"Tron: 3D Arena WebGL",desc:"ULTIMATE 3D Tron mit Three.js! Light Cycles, Split-Screen, Turbo-Boost.",url:"games/tron/tron-3d-dual-arena-threejs.html",icon:"\uD83C\uDF1F",tags:["tron","3d","mehrspieler"]},
+  {title:"Tron: Disc Wars",desc:"Disc-basierte Tron-Arena! Wirf deine Disc und weiche aus.",url:"games/tron/disc-wars.html",icon:"\uD83D\uDFE3",tags:["tron","action"]},
+  {title:"Tron: Grid Puzzle",desc:"Puzzle auf dem Tron-Grid! Logik trifft Neon-\u00c4sthetik.",url:"games/tron/grid-puzzle.html",icon:"\uD83D\uDFE6",tags:["tron","arcade"]},
+  {title:"Tron: Memory Grid",desc:"Memory-Spiel im Tron-Universum! Finde die leuchtenden Paare.",url:"games/tron/memory-grid.html",icon:"\uD83E\uDDE0",tags:["tron","arcade"]},
+  {title:"Tron: Snake",desc:"Snake trifft Tron! Light-Trail auf dem digitalen Grid.",url:"games/tron/tron-snake.html",icon:"\uD83D\uDC0D",tags:["tron","arcade"]},
+  {title:"Tron: Tetris",desc:"Tetris im Tron-Style! Neon-Bl\u00f6cke auf dem Grid.",url:"games/tron/tron-tetris.html",icon:"\uD83D\uDFE9",tags:["tron","arcade"]},
+  {title:"Bio-Sim: Mikrobiologie",desc:"Beobachte Zellen, Bakterien und Immunzellen. Zellteilung erleben.",url:"games/bio-sim.html",icon:"\uD83E\uDDA0",tags:["simulation"]},
+  {title:"Ecosystem Simulator",desc:"NPC-basiertes \u00d6kosystem mit Flocking und Predator-Prey-Dynamik.",url:"games/simulations/ecosystem-simulator.html",icon:"\uD83E\uDDEC",tags:["simulation"]},
+  {title:"Gravity Sandbox",desc:"Planeten erstellen, Gravitationsfelder und Orbits beobachten.",url:"games/simulations/gravity-sandbox.html",icon:"\uD83C\uDF0C",tags:["simulation"]},
+  {title:"Wave Simulator",desc:"Wellenmechanik! Interferenz, Beugung, Reflexion und stehende Wellen.",url:"games/simulations/wave-simulator.html",icon:"\uD83C\uDF0A",tags:["simulation"]},
+  {title:"Periodensystem",desc:"Alle 118 Elemente mit Details. Filterbar nach Gruppen.",url:"games/simulations/periodic-table.html",icon:"\u2697\uFE0F",tags:["simulation"]},
+  {title:"Chemische Reaktionen",desc:"Elemente mischen, Molek\u00fclstrukturen und Reaktionen sehen.",url:"games/simulations/chemical-reactions.html",icon:"\uD83E\uDDEA",tags:["simulation"]},
+  {title:"Web Synthesizer",desc:"Vollwertiger Synthesizer! Oszillatoren, Filter, ADSR und Sequencer.",url:"games/simulations/synthesizer.html",icon:"\uD83C\uDFB9",tags:["simulation"]},
+  {title:"Frequency Lab",desc:"Schallwellen und Frequenzen erforschen! Wellenformen visualisieren.",url:"games/simulations/frequency-lab.html",icon:"\uD83D\uDD0A",tags:["simulation"]},
+  {title:"Circuit Builder",desc:"Elektronische Schaltkreise bauen! Widerst\u00e4nde, LEDs, Transistoren.",url:"games/simulations/circuit-builder.html",icon:"\u26A1",tags:["simulation"]},
+  {title:"Logic Gate Simulator",desc:"Digitale Logikschaltungen! AND, OR, NOT, XOR und mehr.",url:"games/simulations/logic-gates.html",icon:"\uD83D\uDD27",tags:["simulation"]},
+  {title:"Solar System Orrery",desc:"Interaktives Sonnensystem mit korrekten Orbits und Planeten-Infos.",url:"games/simulations/solar-system.html",icon:"\uD83E\uDE90",tags:["simulation"]},
+  {title:"Weather System",desc:"Wettersysteme simulieren! Hoch-/Tiefdruckgebiete, Wolken und Wind.",url:"games/simulations/weather-system.html",icon:"\u26C8\uFE0F",tags:["simulation"]}
+];
 
-        // ==========================================
-        // Launch game with overlay
-        // ==========================================
-        function launchGame(url, icon, title) {
-            const overlay = document.getElementById('launchOverlay');
-            document.getElementById('launchIcon').textContent = icon;
-            document.getElementById('launchText').textContent = title;
-            overlay.classList.add('active');
+// =============================================
+// TAG CONFIG
+// =============================================
+const tagLabels={alle:"Alle",action:"Action",strategie:"Strategie",arcade:"Arcade",mehrspieler:"Mehrspieler",tron:"Tron",simulation:"Simulation"};
+const tagClasses={action:"tag-action",strategie:"tag-strategie",arcade:"tag-arcade",mehrspieler:"tag-mehrspieler",simulation:"tag-simulation",tron:"tag-tron","3d":"tag-3d"};
 
-            setTimeout(() => {
-                window.location.href = url;
-            }, 500);
-        }
+// Count per category
+const tagCounts={};
+games.forEach(g=>g.tags.forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
 
-        // ==========================================
-        // Init
-        // ==========================================
-        function init() {
-            renderFilters();
-            renderCards();
+let activeFilter='alle',searchQuery='';
 
-            const searchInput = document.getElementById('searchInput');
-            searchInput.addEventListener('input', (e) => {
-                searchQuery = e.target.value;
-                applyFilters();
-            });
+// =============================================
+// MARQUEE
+// =============================================
+function renderMarquee(){
+  const track=document.getElementById('marqueeTrack');
+  const items=games.map(g=>`<span class="marquee-item${Math.random()>0.6?' featured':''}"><span class="mi-icon">${g.icon}</span>${g.title}</span>`).join('');
+  track.innerHTML=items+items;
+}
 
-            // Keyboard shortcut: Escape clears search + filter
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    searchInput.value = '';
-                    searchQuery = '';
-                    activeFilter = 'alle';
-                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-                    document.querySelector('.filter-pill[data-filter="alle"]').classList.add('active');
-                    applyFilters();
-                }
-                // Focus search on /
-                if (e.key === '/' && document.activeElement !== searchInput) {
-                    e.preventDefault();
-                    searchInput.focus();
-                }
-            });
-        }
+// =============================================
+// RENDER
+// =============================================
+function renderFilters(){
+  const c=document.getElementById('filterPills');
+  Object.entries(tagLabels).forEach(([key,label])=>{
+    const btn=document.createElement('button');
+    btn.className='pill'+(key==='alle'?' active':'');
+    const count=key==='alle'?games.length:(tagCounts[key]||0);
+    btn.innerHTML=`${label}<span class="pill-count">${count}</span>`;
+    btn.dataset.filter=key;
+    btn.addEventListener('click',()=>{
+      activeFilter=key;
+      document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilters();
+    });
+    c.appendChild(btn);
+  });
+}
 
-        init();
-    </script>
+function renderCards(){
+  const grid=document.getElementById('gameGrid');
+  grid.innerHTML='';
+  games.forEach((g,i)=>{
+    const card=document.createElement('a');
+    card.className='game-card';
+    card.href=g.url;
+    card.dataset.tags=g.tags.join(',');
+    card.dataset.search=(g.title+' '+g.desc).toLowerCase();
+
+    card.addEventListener('click',e=>{e.preventDefault();launchGame(g.url,g.icon,g.title);});
+
+    // 3D Tilt
+    card.addEventListener('mousemove',e=>{
+      const rect=card.getBoundingClientRect();
+      const x=(e.clientX-rect.left)/rect.width;
+      const y=(e.clientY-rect.top)/rect.height;
+      card.style.setProperty('--rx',(-(y-0.5)*12)+'deg');
+      card.style.setProperty('--ry',((x-0.5)*12)+'deg');
+      card.style.setProperty('--mx',(x*100)+'%');
+      card.style.setProperty('--my',(y*100)+'%');
+      card.style.setProperty('--angle',(Math.atan2(y-0.5,x-0.5)*180/Math.PI+180)+'deg');
+    });
+    card.addEventListener('mouseleave',()=>{
+      card.style.setProperty('--rx','0deg');
+      card.style.setProperty('--ry','0deg');
+      card.style.removeProperty('--mx');
+      card.style.removeProperty('--my');
+    });
+
+    card.innerHTML=`
+      <div class="card-icon">${g.icon}</div>
+      <div class="card-title">${g.title}</div>
+      <div class="card-desc">${g.desc}</div>
+      <div class="card-tags">${g.tags.map(t=>`<span class="card-tag ${tagClasses[t]||''}">${tagLabels[t]||t}</span>`).join('')}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('totalBadge').textContent=games.length+' Spiele';
+  animateCounter('statGames',games.length);
+  updateResults(games.length);
+
+  // IntersectionObserver for scroll reveal
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach((entry,i)=>{
+      if(entry.isIntersecting){
+        setTimeout(()=>entry.target.classList.add('visible'),i*40);
+        obs.unobserve(entry.target);
+      }
+    });
+  },{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.game-card').forEach(c=>obs.observe(c));
+}
+
+// =============================================
+// FILTER + SEARCH
+// =============================================
+function applyFilters(){
+  const cards=document.querySelectorAll('.game-card');
+  const q=searchQuery.toLowerCase().trim();
+  let count=0;
+  cards.forEach(card=>{
+    const tags=card.dataset.tags,txt=card.dataset.search;
+    const ok=(activeFilter==='alle'||tags.includes(activeFilter))&&(!q||txt.includes(q));
+    if(ok){card.classList.remove('hiding','hidden');card.classList.add('visible');count++;}
+    else{card.classList.add('hiding');setTimeout(()=>{if(card.classList.contains('hiding'))card.classList.add('hidden');},250);}
+  });
+  updateResults(count);
+}
+
+function updateResults(count){
+  const el=document.getElementById('resultsCount');
+  const f=tagLabels[activeFilter]||'Alle';
+  if(activeFilter==='alle'&&!searchQuery)el.innerHTML=`<strong>${count}</strong> Spiele`;
+  else el.innerHTML=`<strong>${count}</strong> ${count===1?'Spiel':'Spiele'} ${activeFilter!=='alle'?'in '+f:''} ${searchQuery?'f\u00fcr "'+searchQuery+'"':''}`.trim();
+}
+
+// =============================================
+// COUNTER
+// =============================================
+function animateCounter(id,target){
+  const el=document.getElementById(id);
+  let cur=0;const step=Math.ceil(target/35);
+  const t=setInterval(()=>{cur+=step;if(cur>=target){cur=target;clearInterval(t);}el.textContent=cur;},25);
+}
+
+// =============================================
+// LAUNCH with WARP LINES
+// =============================================
+function launchGame(url,icon,title){
+  const overlay=document.getElementById('launchOverlay');
+  document.getElementById('launchIcon').textContent=icon;
+  document.getElementById('launchTitle').textContent=title;
+
+  // Create warp lines
+  for(let i=0;i<12;i++){
+    const line=document.createElement('div');
+    line.className='warp-line';
+    line.style.left=(Math.random()*100)+'%';
+    line.style.animationDelay=(Math.random()*0.3)+'s';
+    line.style.opacity='0';
+    overlay.appendChild(line);
+  }
+
+  overlay.classList.add('active');
+  setTimeout(()=>{window.location.href=url;},700);
+}
+
+// =============================================
+// INIT
+// =============================================
+renderMarquee();
+renderFilters();
+renderCards();
+
+const searchInput=document.getElementById('searchInput');
+searchInput.addEventListener('input',e=>{searchQuery=e.target.value;applyFilters();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){searchInput.value='';searchQuery='';activeFilter='alle';document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));document.querySelector('.pill[data-filter="alle"]').classList.add('active');applyFilters();}
+  if(e.key==='/'&&document.activeElement!==searchInput){e.preventDefault();searchInput.focus();}
+});
+</script>
 </body>
 </html>
