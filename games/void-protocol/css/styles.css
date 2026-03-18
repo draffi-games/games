@@ -1,0 +1,148 @@
+/* VOID PROTOCOL: Ground Zero — Styles */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #050608;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: #0df;
+    user-select: none;
+}
+
+canvas {
+    display: block;
+    cursor: none;
+}
+
+/* === Overlay & Panels === */
+#overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    pointer-events: none;
+}
+
+#overlay.active {
+    pointer-events: all;
+}
+
+.panel {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(5, 6, 8, 0.95);
+    border: 1px solid #0df;
+    padding: 40px;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 0 40px rgba(0, 221, 255, 0.15);
+}
+
+.panel.show {
+    display: flex;
+}
+
+.panel h1 {
+    font-size: 28px;
+    color: #0df;
+    text-shadow: 0 0 20px rgba(0, 221, 255, 0.5);
+    margin-bottom: 8px;
+    letter-spacing: 4px;
+}
+
+.panel h2 {
+    font-size: 16px;
+    color: #08a;
+    margin-bottom: 24px;
+    letter-spacing: 2px;
+}
+
+.panel p {
+    font-size: 13px;
+    color: #899;
+    margin-bottom: 16px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.btn {
+    background: transparent;
+    border: 1px solid #0df;
+    color: #0df;
+    padding: 12px 32px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    margin: 6px;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+    min-width: 180px;
+}
+
+.btn:hover {
+    background: rgba(0, 221, 255, 0.15);
+    box-shadow: 0 0 15px rgba(0, 221, 255, 0.3);
+}
+
+.btn.sel {
+    background: rgba(0, 221, 255, 0.2);
+    box-shadow: 0 0 10px rgba(0, 221, 255, 0.2);
+}
+
+.diff-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.stat-line {
+    font-size: 13px;
+    color: #899;
+    margin: 4px 0;
+}
+
+.stat-line span {
+    color: #0df;
+}
+
+.controls-info {
+    font-size: 11px;
+    color: #566;
+    margin-top: 16px;
+    text-align: center;
+    line-height: 1.8;
+}
+
+#menuPanel .subtitle {
+    color: #f44;
+    font-size: 11px;
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+}
+
+/* === Back Link === */
+.back-link {
+    position: fixed;
+    top: 12px; left: 12px;
+    color: rgba(0, 221, 255, 0.5);
+    text-decoration: none;
+    font-size: 13px;
+    z-index: 100;
+    padding: 6px 14px;
+    background: rgba(5, 6, 8, 0.8);
+    border: 1px solid rgba(0, 221, 255, 0.2);
+    border-radius: 6px;
+    transition: all 0.3s;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+}
+
+.back-link:hover {
+    color: #0df;
+    border-color: rgba(0, 221, 255, 0.5);
+}

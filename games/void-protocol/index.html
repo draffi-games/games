@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VOID PROTOCOL: Ground Zero</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a href="../index.html" class="back-link">← Gallery</a>
+<canvas id="gc"></canvas>
+<canvas id="lc" style="display:none"></canvas>
+<div id="overlay" class="active">
+<div id="menuPanel" class="panel show">
+<h1>VOID PROTOCOL</h1>
+<h2>GROUND ZERO</h2>
+<div class="subtitle">ANDROID CONTAINMENT FAILURE</div>
+<p>Navigate the facility. Find keycards. Hack the terminal.<br>Escape before the countdown ends.</p>
+<div class="diff-row">
+<button class="btn sel" onclick="window.setDiff(0)">EASY</button>
+<button class="btn" onclick="window.setDiff(1)">NORMAL</button>
+<button class="btn" onclick="window.setDiff(2)">HARD</button>
+</div>
+<button class="btn" onclick="window.startGame()">INITIATE PROTOCOL</button>
+<div class="controls-info">
+WASD Move | Mouse Aim | Click Shoot | Shift Sprint<br>
+E Interact | Q/Scroll Switch Weapon | 1-6 Select | Tab Map
+</div>
+</div>
+<div id="pausePanel" class="panel">
+<h1>PAUSED</h1>
+<p>System halted.</p>
+<button class="btn" onclick="window.resumeGame()">RESUME</button>
+<button class="btn" onclick="window.quitToMenu()">QUIT</button>
+</div>
+<div id="deathPanel" class="panel">
+<h1>SYSTEM FAILURE</h1>
+<p>You have been terminated.</p>
+<div id="deathStats"></div>
+<button class="btn" onclick="window.startGame()">RETRY</button>
+<button class="btn" onclick="window.quitToMenu()">QUIT</button>
+</div>
+<div id="winPanel" class="panel">
+<h1>LEVEL CLEAR</h1>
+<p id="winMsg">Proceeding to next sector...</p>
+<div id="winStats"></div>
+<button class="btn" onclick="window.nextLevel()">CONTINUE</button>
+</div>
+<div id="victoryPanel" class="panel">
+<h1>PROTOCOL COMPLETE</h1>
+<h2>FACILITY SECURED</h2>
+<div id="victoryStats"></div>
+<button class="btn" onclick="window.quitToMenu()">MAIN MENU</button>
+</div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
