@@ -12,7 +12,7 @@ Ein intensiver Alien-Breed-Style Top-Down Dungeon Crawler mit Androiden-Gegnern 
 Kaempfe dich durch 3 Sektoren einer zerstoerten Forschungsstation. Finde Keycards, hacke das Terminal und fliehe durch den Sicherheitstunnel bevor der Countdown ablaeuft. Androiden jagen dich in Schwaermen -- nutze 6 verschiedene Waffen, deine Taschenlampe und taktisches Geschick zum Ueberleben.
 
 <div style="position: relative; width: 100%; max-width: 960px; margin: 20px auto;">
-    <iframe id="gameFrame" src="../games/void-protocol.html" style="width: 100%; height: 600px; border: 2px solid #00f0ff; border-radius: 8px; background: #0a0b0d;" allowfullscreen></iframe>
+    <iframe id="gameFrame" src="../games/void-protocol/index.html" style="width: 100%; height: 600px; border: 2px solid #00f0ff; border-radius: 8px; background: #0a0b0d;" allowfullscreen></iframe>
     <button onclick="document.getElementById('gameFrame').requestFullscreen()" style="display: block; margin: 10px auto; padding: 8px 20px; background: #0a0b0d; color: #00f0ff; border: 1px solid #00f0ff; border-radius: 4px; cursor: pointer; font-family: monospace;">Fullscreen</button>
 </div>
 
