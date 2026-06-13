@@ -379,7 +379,10 @@ export function updateParticles(dt) {
     let p = particles[i];
     p.life -= dt;
     if (p.type === 'shockwave') {
-      p.radius += p.speed * dt;
+      // Expand from 0 to maxRadius over the particle's lifetime.
+      // (Creators set maxRadius + maxLife but never a `speed` field — relying
+      //  on p.speed produced NaN and every shockwave ring stayed invisible.)
+      p.radius += (p.maxRadius / p.maxLife) * dt;
     }
     if (p.life <= 0) {
       particles.splice(i, 1);
