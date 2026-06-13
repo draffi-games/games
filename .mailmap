@@ -1,0 +1,7 @@
+# Collapse the four git identities behind this repo into the two real people,
+# so `git shortlog -sne`, GitHub's contributor graph, and blame aggregate cleanly.
+# Canonical emails are the real gmail addresses (the *.fritz.box one is a local
+# machine hostname, not a real mailbox). Adjust names/emails to taste.
+Michael Boiman <mboiman@gmail.com> mboiman <mboiman@gmail.com>
+Rafael Boiman <boimanrafael@gmail.com> <rafaelboiman@MacBookPro.fritz.box>
+Rafael Boiman <boimanrafael@gmail.com> draffi599 <boimanrafael@gmail.com>

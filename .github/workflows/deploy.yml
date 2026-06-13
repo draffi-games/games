@@ -46,7 +46,7 @@ jobs:
       - name: Check for Debug Code
         run: |
           echo "🐛 Checking for debug code..."
-          if grep -r "console\.log" games/*.html | grep -v "DEBUG = false" | grep -v "console.error"; then
+          if grep -rn "console\.log" games --include="*.html" --include="*.js" | grep -v "DEBUG = false" | grep -v "console.error"; then
             echo "⚠️  Found console.log statements in production code"
           else
             echo "✅ No debug code found"
