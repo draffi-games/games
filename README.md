@@ -1,100 +1,109 @@
 # 🎮 KI Game Collection
 
-Eine beeindruckende Sammlung von **29 KI-generierten HTML-Spielen** (23 Hauptspiele + 6 TRON: Ares Spiele), die direkt im Browser gespielt werden können - keine Installation erforderlich!
+Eine beeindruckende Sammlung von **39 KI-generierten HTML-Spielen**, die direkt im Browser gespielt werden können - keine Installation erforderlich!
 
 ## 🌐 Live Demo
 
-Die Spiele sind über GitHub Pages verfügbar und können sofort gespielt werden.
+Die Spiele sind über GitHub Pages verfügbar und können sofort gespielt werden. Der Launcher (`index.html`) ist das **GRID OS** - die zentrale Galerie mit Filter nach Kategorie und Suche.
 
 ## 📁 Projektstruktur
 
 ```
 games/
-├── index.html          # Hauptgalerie mit 23 Spielen
-├── tron-index.html     # TRON: Ares Untergalerie
-├── games/              # Ordner mit den Haupt-Spielen
+├── index.html              # GRID OS - zentrale Galerie mit allen 39 Spielen
+├── games/                  # Haupt-Spiele (eine Ebene tief)
 │   ├── snake.html
-│   ├── jedi-stickman.html
 │   ├── space-battle.html
-│   └── ... (20 weitere)
-├── games/tron/         # TRON: Ares Collection
-│   ├── light-cycle-racing.html
+│   ├── kingdom-defense.html
+│   └── ... (weitere)
+├── games/tron/             # Tron-Collection (zwei Ebenen tief)
+│   ├── tron-3d-dual-arena-threejs.html
 │   ├── disc-wars.html
-│   └── ... (4 weitere)
-├── docs/               # Dokumentation für Spiele
+│   ├── grid-puzzle.html
+│   └── memory-grid.html
+├── games/simulations/      # Simulationen (zwei Ebenen tief)
+│   ├── ecosystem-simulator.html
+│   ├── gravity-sandbox.html
+│   └── ... (weitere)
+├── games/void-protocol/    # VOID PROTOCOL - modulares Spiel mit eigenem Ordner
+│   └── index.html
+├── docs/                   # Dokumentation für ausgewählte Spiele
 │   ├── snake.md
-│   ├── chain_run_ketten_jumpnrun_chat_canvas.md
 │   ├── kingdom-defense.md
-│   └── racing-circuit.md
-├── .github/workflows/  # CI/CD Pipeline
+│   ├── racing-circuit.md
+│   └── void-protocol.md
+├── .github/workflows/      # CI/CD Pipeline
 │   └── deploy.yml
-├── _config.yml         # GitHub Pages Konfiguration
-├── CLAUDE.md           # AI-Entwicklungsrichtlinien
-└── README.md           # Diese Datei
+├── _config.yml             # GitHub Pages Konfiguration
+├── CLAUDE.md               # AI-Entwicklungsrichtlinien
+└── README.md               # Diese Datei
 ```
 
-## 🎯 Verfügbare Spiele
+## 🎯 Verfügbare Spiele (39)
 
-### 🏆 Hauptgalerie (23 Spiele)
+### 💥 Action (5)
 
-**Klassiker & Arcade**
-- 🐍 **Snake** - Das klassische Snake-Spiel | [Spielen](games/snake.html) | [Docs](docs/snake.md)
-- 🐸 **Frogger Rush** - Überquere die Straße und den Fluss | [Spielen](games/frogger-rush.html)
-- 🐦 **Flappy Bird** - Fliege durch die Röhren | [Spielen](games/flappy-bird.html)
-- 🧱 **Brick Breaker** - Zerstöre alle Blöcke | [Spielen](games/brickbreaker.html)
-- 🟦 **Neon Tetris** - Klassisches Tetris mit Neon-Style | [Spielen](games/neon-tetris.html)
+- 🚀 **Space Battle Arena** - Intensiver 4v4 Weltraumkampf mit WASD-Steuerung und Schilden | [Spielen](games/space-battle.html)
+- 🧟 **Zombie Waves** - Top-Down Shooter gegen Zombie-Wellen, baue Barrikaden | [Spielen](games/zombie-waves.html)
+- 🎯 **VOID PROTOCOL** - Dungeon Crawler mit prozeduralen Leveln, 4 Androiden-Typen und Fog of War | [Spielen](games/void-protocol/index.html) | [Docs](docs/void-protocol.md)
+- ⛏️ **Minecraft 3D** - Voxel-Welt zum Bauen, Erkunden und Überleben | [Spielen](games/minecraft3d.html)
+- 💥 **Helldivers Stratego** - Taktischer Kampf mit Strategos und Airstrikes | [Spielen](games/helldivers-stratego.html)
 
-**Action & Kampf**
-- ⚔️ **Jedi Stickman Arena** - Physics-basierter Lichtschwert-Kampf | [Spielen](games/jedi-stickman.html)
-- 🛡️ **Shield Siege** - Verteidigungsspiel mit Strategie | [Spielen](games/shield-siege.html)
-- 🧟 **Zombie Waves** - Überlebe die Zombie-Wellen | [Spielen](games/zombie-waves.html)
-- ⚡ **Blitz Battle** - Schnelles Action-Spiel | [Spielen](games/blitz-battle.html)
-- 🎯 **Penalty Shootout** - Fußball-Elfmeterschießen | [Spielen](games/penalty-shootout.html)
-- 🏐 **Volleyball** - 2-Spieler Volleyball | [Spielen](games/volleyball.html)
+### ♟️ Strategie (3)
 
-**Strategie & Tower Defense**
-- 🏰 **Kingdom Defense** - Tower Defense Strategie | [Spielen](games/kingdom-defense.html) | [Docs](docs/kingdom-defense.md)
-- 🚀 **Helldivers Strategy** - Taktisches Strategiespiel | [Spielen](games/helldivers-strategy.html)
-- 🎖️ **Helldivers Stratego** - Erweiterte Strategie-Version | [Spielen](games/helldivers-stratego.html)
+- ⚔️ **AoE4 Battle Simulator** - Age of Empires 4 Kampfsimulator, 16 Fraktionen, KI-Counter | [Spielen](games/aoe4-battle-sim.html)
+- 🛰️ **Space Command** - StarCraft-inspirierte Weltraum-RTS, Basen bauen | [Spielen](games/space-command.html)
+- 🏰 **Kingdom Defense** - Tower Defense mit Bogenschützen, Kanonen und Magiern gegen 15 Wellen | [Spielen](games/kingdom-defense.html) | [Docs](docs/kingdom-defense.md)
 
-**Weltraum & Sci-Fi**
-- 🛸 **Space Battle Arena** - Massive Weltraumschlachten | [Spielen](games/space-battle.html)
-- 🚀 **Space Command** - Weltraum-Kommando-Strategie | [Spielen](games/space-command.html)
-- 🚀 **Rocket Duel** - 2-Spieler Raketen-Duell | [Spielen](games/rocket-duel.html)
+### 🕹️ Arcade (10)
 
-**Rätsel & Puzzle**
-- 🔐 **Cipher Detective** - Entschlüssele Codes | [Spielen](games/cipher-detective.html)
-- 🧩 **Maze Runner** - Finde den Ausweg | [Spielen](games/maze-runner.html)
-- 🎮 **Maze 3D** - 3D Labyrinth-Erkundung | [Spielen](games/maze3d.html)
+- 🐍 **Snake** - Das klassische Snake-Spiel, sammle Äpfel | [Spielen](games/snake.html) | [Docs](docs/snake.md)
+- 🧱 **Brick Breaker** - Zerstöre Blöcke und sammle Power-Ups | [Spielen](games/brickbreaker.html)
+- 🐦 **Flappy Bird** - Steuere den Vogel durch die Röhren | [Spielen](games/flappy-bird.html)
+- 🐸 **Frogger Rush** - Überquere Straßen und springe auf Baumstämme | [Spielen](games/frogger-rush.html)
+- 🟦 **Neon Tetris** - Tetris mit Cyberpunk-Look, Ghost-Piece und Glow-Effekte | [Spielen](games/neon-tetris.html)
+- 🌿 **Territory Garden** - Paper.io-inspiriert, erobere Territorium als Pflanze | [Spielen](games/territory-garden.html)
+- ⚽ **Penalty Shootout** - Elfmeterschießen, bezwinge den Torwart | [Spielen](games/penalty-shootout.html)
+- 🏎️ **Racing Circuit** - Top-Down Rennspiel, 5 Runden auf dem Circuit | [Spielen](games/racing-circuit.html) | [Docs](docs/racing-circuit.md)
+- 📚 **Das Geheimnis des Professors** - Rätselabenteuer in 5 Räumen | [Spielen](games/cipher-detective.html)
+- 🎮 **Game Juice Demo** - Lerne Game Feel mit und ohne Juice-Effekte | [Spielen](games/game-juice-demo.html)
 
-**Rennen & Racing**
-- 🏎️ **Racing Circuit** - Top-Down Racing | [Spielen](games/racing-circuit.html) | [Docs](docs/racing-circuit.md)
+### 👥 Mehrspieler (5)
 
-**Plattformer & Jump'n'Run**
-- 🔗 **Chain Run** - Ketten-basiertes Jump'n'Run | [Spielen](games/chain_run_ketten_jumpnrun_chat_canvas.html) | [Docs](docs/chain_run_ketten_jumpnrun_chat_canvas.md)
+- ⚔️ **Jedi Stickman Arena** - Physik-basierter Lichtschwert-Kampf mit Ragdoll | [Spielen](games/jedi-stickman.html)
+- 🏐 **Volleyball** - Volleyball für zwei Spieler mit realistischer Physik | [Spielen](games/volleyball.html)
+- 🎯 **Maze Runner** - Zwei-Spieler Labyrinth-Rennen, WASD vs Pfeiltasten | [Spielen](games/maze-runner.html)
+- ⛏️ **Asteroid Miners** - Kooperatives Weltraum-Mining für 2-4 Spieler | [Spielen](games/asteroid-miners.html)
+- 🤼 **Sumo Bumpers** - Arena-Kampf für 2-4 Spieler auf schrumpfender Plattform | [Spielen](games/sumo-bumpers.html)
 
-**3D & Sandbox**
-- ⛏️ **Minecraft 3D** - Voxel-basierter 3D-Builder | [Spielen](games/minecraft3d.html)
+### 🔴 Tron (4)
 
----
+Spiele auf dem Neon-Grid, inspiriert vom Tron-Universum:
 
-### 🔴 TRON: Ares Collection (6 Spiele)
+- 🌟 **Tron: 3D Arena WebGL** - Ultimatives 3D-Tron mit Three.js, Light Cycles und Split-Screen | [Spielen](games/tron/tron-3d-dual-arena-threejs.html)
+- 🟣 **Tron: Disc Wars** - Disc-basierte Tron-Arena, wirf deine Disc und weiche aus | [Spielen](games/tron/disc-wars.html)
+- 🟦 **Tron: Grid Puzzle** - Puzzle auf dem Tron-Grid, Logik trifft Neon | [Spielen](games/tron/grid-puzzle.html)
+- 🧠 **Tron: Memory Grid** - Memory-Spiel im Tron-Universum, finde die leuchtenden Paare | [Spielen](games/tron/memory-grid.html)
 
-Exklusive TRON-themed Spiele inspiriert vom kommenden Film **TRON: Ares**:
+### 🔬 Simulationen (12)
 
-- 🏍️ **Light Cycle Racing** - Klassisches Light Cycle Duell
-- 💿 **Disc Wars** - Identity Disc Kampfarena
-- 🟦 **TRON Tetris** - Tetris im Grid-Style
-- 🧠 **Memory Grid** - Memory-Spiel auf dem Grid
-- 🧩 **Grid Puzzle** - Puzzle-Herausforderung
-- 🐍 **TRON Snake** - Snake im TRON-Universe
-
-👉 [Zur TRON Gallery](tron-index.html)
+- 🦠 **Bio-Sim: Mikrobiologie** - Beobachte Zellen, Bakterien und Immunzellen | [Spielen](games/bio-sim.html)
+- 🧬 **Ecosystem Simulator** - NPC-basiertes Ökosystem mit Flocking und Predator-Prey | [Spielen](games/simulations/ecosystem-simulator.html)
+- 🌌 **Gravity Sandbox** - Planeten erstellen, Gravitationsfelder und Orbits beobachten | [Spielen](games/simulations/gravity-sandbox.html)
+- 🌊 **Wave Simulator** - Wellenmechanik mit Interferenz, Beugung und Reflexion | [Spielen](games/simulations/wave-simulator.html)
+- ⚗️ **Periodensystem** - Alle 118 Elemente mit Details, filterbar nach Gruppen | [Spielen](games/simulations/periodic-table.html)
+- 🧪 **Chemische Reaktionen** - Elemente mischen, Molekülstrukturen und Reaktionen sehen | [Spielen](games/simulations/chemical-reactions.html)
+- 🎹 **Web Synthesizer** - Vollwertiger Synthesizer mit Oszillatoren, Filtern, ADSR und Sequencer | [Spielen](games/simulations/synthesizer.html)
+- 🔊 **Frequency Lab** - Schallwellen und Frequenzen erforschen, Wellenformen visualisieren | [Spielen](games/simulations/frequency-lab.html)
+- ⚡ **Circuit Builder** - Elektronische Schaltkreise bauen mit Widerständen, LEDs, Transistoren | [Spielen](games/simulations/circuit-builder.html)
+- 🔧 **Logic Gate Simulator** - Digitale Logikschaltungen: AND, OR, NOT, XOR und mehr | [Spielen](games/simulations/logic-gates.html)
+- 🪐 **Solar System Orrery** - Interaktives Sonnensystem mit korrekten Orbits | [Spielen](games/simulations/solar-system.html)
+- ⛈️ **Weather System** - Wettersysteme simulieren: Hoch-/Tiefdruck, Wolken und Wind | [Spielen](games/simulations/weather-system.html)
 
 ## 🚀 GitHub Pages aktivieren
 
 1. Gehe zu den Repository-Einstellungen
-2. Scrolle zu "Pages" 
+2. Scrolle zu "Pages"
 3. Wähle unter "Source" → "Deploy from a branch"
 4. Wähle "main" branch und "/ (root)" Ordner
 5. Speichern und warten bis die Seite deployed ist
@@ -108,24 +117,18 @@ Die Spiele sind dann unter `https://draffi-games.github.io/games` erreichbar.
    games/meinspiel.html
    ```
 
-2. **Dokumentation erstellen**: Erstelle eine Markdown-Datei im `docs/` Ordner
+2. **Back-Link einbauen**: Jedes Spiel braucht einen konsistenten Zurück-Link ins GRID OS.
+   - Eine Ebene tief (`games/*.html`): `<a href="../index.html">← GRID OS</a>`
+   - Zwei Ebenen tief (`games/tron/`, `games/simulations/`, `games/void-protocol/`): `<a href="../../index.html">← GRID OS</a>`
+
+3. **Dokumentation erstellen** (optional): Erstelle eine Markdown-Datei im `docs/` Ordner
    ```markdown
    docs/meinspiel.md
    ```
-   
-3. **Spiel einbinden**: In der Markdown-Datei das Spiel mit iframe einbinden:
-   ```html
-   <iframe src="../games/meinspiel.html" width="100%" height="700px"></iframe>
-   ```
 
-4. **Zur Übersicht hinzufügen**: In `index.html` das neue Spiel zur Liste hinzufügen:
+4. **Zur Übersicht hinzufügen**: In `index.html` das neue Spiel zum `games`-Array hinzufügen:
    ```javascript
-   {
-       title: "Mein Spiel",
-       description: "Beschreibung",
-       url: "games/meinspiel.html",
-       icon: "🎮"
-   }
+   {title:"Mein Spiel", desc:"Beschreibung", url:"games/meinspiel.html", icon:"🎮", tags:["arcade"]}
    ```
 
 ## 🛠 Technologie
@@ -138,10 +141,10 @@ Die Spiele sind dann unter `https://draffi-games.github.io/games` erreichbar.
 ## 📝 Features
 
 - ✅ Responsive Design
-- ✅ Vollbildmodus für alle Spiele
+- ✅ Vollbildmodus für viele Spiele
 - ✅ Lokale Highscore-Speicherung
 - ✅ Direkte Browser-Ausführung ohne Server
-- ✅ Markdown-Dokumentation für jedes Spiel
+- ✅ Konsistente Navigation (← GRID OS) in jedem Spiel
 - ✅ Automatisches Deployment über GitHub Pages
 
 ## 🤝 Beitragen
@@ -152,8 +155,8 @@ Du möchtest ein neues KI-generiertes Spiel hinzufügen? Großartig!
 
 - ✅ Standalone HTML-Datei (alle CSS/JS inline)
 - ✅ Responsive Design (Mobile + Desktop)
-- ✅ Dateigröße < 100KB (für schnelles Laden)
-- ✅ Vollbildmodus-Support
+- ✅ Konsistenter Back-Link ins GRID OS (siehe oben)
+- ✅ Vollbildmodus-Support (wo sinnvoll)
 - ✅ LocalStorage für Highscores/Settings
 - ✅ Keyboard Controls (+ Touch wo sinnvoll)
 - ✅ Error Handling (localStorage, Canvas, etc.)
@@ -166,7 +169,7 @@ Du möchtest ein neues KI-generiertes Spiel hinzufügen? Großartig!
 2. **Erstelle** dein Spiel (siehe [CLAUDE.md](CLAUDE.md) für Best Practices)
 3. **Teste** lokal mit `python3 -m http.server 8000`
 4. **Füge Dokumentation** hinzu (`docs/meinspiel.md`)
-5. **Update** `index.html` (game array)
+5. **Update** `index.html` (games-Array)
 6. **Erstelle** einen Pull Request
 
 Siehe [CLAUDE.md](CLAUDE.md) für detaillierte Code-Patterns und Best Practices!
@@ -186,6 +189,6 @@ Weitere Details siehe [CLAUDE.md](CLAUDE.md)
 
 ---
 
-**⭐ 29 Spiele | 🎮 100% Browser-basiert | 🚀 GitHub Pages | 🤖 KI-generiert**
+**⭐ 39 Spiele | 🎮 100% Browser-basiert | 🚀 GitHub Pages | 🤖 KI-generiert**
 
 *Alle Spiele in dieser Sammlung wurden mit Hilfe von KI (Claude) generiert und demonstrieren die Möglichkeiten moderner Web-Technologien.*

@@ -14,13 +14,13 @@
 
 [![🚀 ENTER THE COMMAND CENTER 🚀](https://img.shields.io/badge/🚀_ENTER_THE_COMMAND_CENTER_🚀-00FFFF?style=for-the-badge&logoColor=white)](https://draffi-games.github.io/games/)
 
-*> Engage with 13 unique browser-based missions <*
+*> Engage with 39 unique browser-based missions <*
 
 </div>
 
 <p align="center">
   <img src="https://img.shields.io/badge/STATUS-ONLINE-00FF00?style=for-the-badge&logo=power&logoColor=white" />
-  <img src="https://img.shields.io/badge/GAMES-13-FF6B00?style=for-the-badge&logo=gamepad&logoColor=white" />
+  <img src="https://img.shields.io/badge/GAMES-39-FF6B00?style=for-the-badge&logo=gamepad&logoColor=white" />
   <img src="https://img.shields.io/badge/TECH-HTML5_CSS3_JS-61DAFB?style=for-the-badge&logo=javascript&logoColor=black" />
   <img src="https://img.shields.io/badge/DEPLOYMENT-GitHub_Pages-181717?style=for-the-badge&logo=github&logoColor=white" />
 </p>
@@ -36,26 +36,27 @@
 │  🎯 OBJECTIVE: Creating immersive browser-based experiences  │
 │  🛸 PLATFORM: Futuristic starship command interface         │
 │  ⚡ POWER: 100% JavaScript + CSS3 + HTML5                  │
-│  🎮 ARSENAL: 13 fully operational game systems              │
+│  🎮 ARSENAL: 39 fully operational game systems              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 </div>
 
-### 🎲 **ACTIVE GAME SYSTEMS** 
-- 🐍 **Snake** - Classic arcade survival
-- 🏃 **Chain Run** - Endless runner adventure  
-- 🧱 **Brick Breaker** - Retro arcade action
-- 🏐 **Volleyball** - Sports simulation
-- 🏗️ **3D Maze Escape** - Dimensional navigation
-- 🎖️ **Helldivers Strategy** - Tactical warfare
-- ⚔️ **Helldivers 2 Stratego** - Advanced tactics
+### 🎲 **FEATURED GAME SYSTEMS** 
+*A selection from the 39-game fleet — Action, Strategie, Arcade, Mehrspieler, Tron and Simulationen.*
+
+- 🚀 **Space Battle Arena** - Galactic 4v4 combat
+- 🎯 **VOID PROTOCOL** - Procedural dungeon crawler
 - ⛏️ **Minecraft 3D** - Voxel world exploration
-- 🌌 **Space Battle Arena** - Galactic combat
-- 🔍 **Cipher Detective** - Cryptographic puzzles
+- 🏰 **Kingdom Defense** - Tower defense strategy
+- ⚔️ **AoE4 Battle Simulator** - Tactical warfare
+- 🐍 **Snake** - Classic arcade survival
 - 🟦 **Neon Tetris** - Block puzzle mastery
-- 🚀 **Space Command** - Strategic space operations
-- 🐦 **Flappy Bird** - Precision flight control
+- ⚔️ **Jedi Stickman Arena** - Physics lightsaber duels
+- 🌟 **Tron: 3D Arena WebGL** - Neon-grid light cycles
+- 🌌 **Gravity Sandbox** - Orbital physics simulation
+
+**→ [Browse all 39 games in the GRID OS launcher](https://draffi-games.github.io/games/)**
 
 ---
 
