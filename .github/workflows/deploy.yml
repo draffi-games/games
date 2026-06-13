@@ -52,6 +52,15 @@ jobs:
             echo "✅ No debug code found"
           fi
 
+      - name: Check for External Dependencies
+        run: |
+          echo "🔒 Checking for external dependencies (repo rule: none — vendor locally)..."
+          if grep -rnE '<script[^>]+src="https?://|<link[^>]+href="https?://|fonts\.googleapis|fonts\.gstatic|cdnjs\.cloudflare|unpkg\.com|cdn\.jsdelivr' --include="*.html" . ; then
+            echo "❌ External dependency found above. Games must be self-contained — vendor it locally (see games/tron/vendor/three.min.js) or use a system font stack."
+            exit 1
+          fi
+          echo "✅ No external dependencies"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
