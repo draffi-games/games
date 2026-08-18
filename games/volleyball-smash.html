@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Volleyball Smash</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+        height: 100%;
+        background: #2b3350;
+        overflow: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: 'Segoe UI', Verdana, Arial, sans-serif;
+        color: #eef2ff;
+        min-height: 100vh;
+        padding: 10px;
+    }
+
+    #topbar {
+        width: 100%;
+        max-width: 960px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 4px 2px 10px 2px;
+        flex-shrink: 0;
+    }
+
+    .backButton, #fullscreenBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #3c4674;
+        color: #eef2ff;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 14px;
+        padding: 9px 16px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.15s ease;
+        box-shadow: 0 3px 0 #1c2340;
+    }
+
+    .backButton:hover, #fullscreenBtn:hover {
+        background: #4d5a94;
+        transform: translateY(-1px);
+    }
+
+    .backButton:active, #fullscreenBtn:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #1c2340;
+    }
+
+    #pageTitle {
+        font-weight: 900;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-shadow: 0 2px 0 #1c2340;
+        white-space: nowrap;
+    }
+
+    #stage {
+        position: relative;
+        width: min(96vw, 960px, calc(84vh * 1.77778));
+        aspect-ratio: 960 / 540;
+        flex-shrink: 0;
+    }
+
+    canvas#game {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        box-shadow: 0 10px 0 #1c2340, 0 14px 24px rgba(0,0,0,0.35);
+        background: #8FD3F4;
+        cursor: default;
+        touch-action: none;
+    }
+
+    #hint {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #aab3d6;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    #hint b { color: #eef2ff; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+    <a href="../index.html" class="backButton">&larr; Back to Gallery</a>
+    <div id="pageTitle">🏐 VOLLEYBALL SMASH</div>
+    <button id="fullscreenBtn" type="button">&#x26F6; Fullscreen</button>
+</div>
+
+<div id="stage">
+    <canvas id="game" aria-label="Volleyball Smash game canvas"></canvas>
+</div>
+
+<div id="hint">
+    <b>P1:</b> W jump &middot; A/D move &nbsp;&nbsp;|&nbsp;&nbsp; <b>P2:</b> &uarr; jump &middot; &larr;/&rarr; move
+    &nbsp;&nbsp;|&nbsp;&nbsp; <b>Space</b> start/rematch &middot; <b>R</b> restart &middot; <b>F</b> fullscreen &middot; <b>Esc</b> pause/back
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // ============================================================
+    // DEBUG / CONSOLE
+    // ============================================================
+    const DEBUG = false;
+    if (!DEBUG) {
+        const noop = () => {};
+        console.log = noop;
+        console.warn = noop;
+        console.info = noop;
+    }
+
+    // ============================================================
+    // EVENT MANAGER (leak-safe listener cleanup)
+    // ============================================================
+    class EventManager {
+        constructor() { this.listeners = []; }
+        add(element, event, handler, options) {
+            element.addEventListener(event, handler, options);
+            this.listeners.push({ element, event, handler, options });
+        }
+        removeAll() {
+            this.listeners.forEach(({ element, event, handler, options }) => {
+                element.removeEventListener(event, handler, options);
+            });
+            this.listeners = [];
+        }
+    }
+    const eventManager = new EventManager();
+
+    // ============================================================
+    // SAFE LOCALSTORAGE
+    // ============================================================
+    function safeGetItem(key, defaultValue = null) {
+        try {
+            const item = localStorage.getItem(key);
+            return item !== null ? item : defaultValue;
+        } catch (error) {
+            console.error('LocalStorage not available:', error);
+            return defaultValue;
+        }
+    }
+    function safeSetItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (error) {
+            console.error('LocalStorage not available:', error);
+            return false;
+        }
+    }
+
+    // ============================================================
+    // CONSTANTS (exact values from design spec)
+    // ============================================================
+    const CANVAS_W = 960, CANVAS_H = 540;
+    const GROUND_Y = 480;
+    const GRAVITY = 0.58;
+    const JUMP_POWER = -13.2;
+    const PLAYER_SPEED = 6.4;
+    const NET_HEIGHT = 140;
+    const NET_X = 480;
+    const NET_TOP_Y = GROUND_Y - NET_HEIGHT; // 340
+    const NET_POST_HALF_WIDTH = 4;
+    const PLAYER_RADIUS = 26;
+    const BALL_RADIUS = 12;
+    const HIT_FORGIVENESS = 6;
+    const HIT_RADIUS_SUM = PLAYER_RADIUS + BALL_RADIUS + HIT_FORGIVENESS; // 44
+    const WINNING_SCORE = 7;
+    const WIN_BY = 2;
+    const HARD_CAP = 11;
+    const MAX_BALL_SPEED = 22;
+    const WALL_LEFT = 12, WALL_RIGHT = CANVAS_W - 12; // 948
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function easeOutQuad(t) { return 1 - (1 - t) * (1 - t); }
+    function easeInQuad(t) { return t * t; }
+    function randRange(a, b) { return a + Math.random() * (b - a); }
+
+    // ============================================================
+    // CANVAS SETUP
+    // ============================================================
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const stage = document.getElementById('stage');
+
+    function setupCanvasBuffer() {
+        const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+        canvas.width = Math.round(CANVAS_W * dpr);
+        canvas.height = Math.round(CANVAS_H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function resizeStage() {
+        const availW = window.innerWidth * 0.96;
+        const availH = window.innerHeight * 0.78;
+        let w = availW, h = w * (CANVAS_H / CANVAS_W);
+        if (h > availH) { h = availH; w = h * (CANVAS_W / CANVAS_H); }
+        stage.style.width = w + 'px';
+        setupCanvasBuffer();
+    }
+
+    // ============================================================
+    // AUDIO (Web Audio synthesized SFX, single shared context)
+    // ============================================================
+    let audioCtx = null;
+    let masterGain = null;
+    let noiseBuffer = null;
+
+    function ensureAudio() {
+        if (audioCtx) return audioCtx;
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new Ctx();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 1;
+            masterGain.connect(audioCtx.destination);
+        } catch (e) {
+            console.error('AudioContext unavailable', e);
+            audioCtx = null;
+        }
+        return audioCtx;
+    }
+
+    function resumeAudio() {
+        const ctxA = ensureAudio();
+        if (ctxA && ctxA.state === 'suspended') {
+            ctxA.resume().catch(() => {});
+        }
+    }
+
+    function tone(type, freq, dur, gainPeak, opts = {}) {
+        const ctxA = ensureAudio();
+        if (!ctxA) return;
+        try {
+            const osc = ctxA.createOscillator();
+            const g = ctxA.createGain();
+            osc.type = type;
+            const start = ctxA.currentTime + (opts.delay || 0);
+            osc.frequency.setValueAtTime(freq, start);
+            if (opts.freqEnd !== undefined) {
+                osc.frequency.linearRampToValueAtTime(opts.freqEnd, start + dur);
+            }
+            g.gain.setValueAtTime(0.0001, start);
+            g.gain.exponentialRampToValueAtTime(Math.max(gainPeak, 0.001), start + Math.min(0.012, dur * 0.25));
+            g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+            osc.connect(g);
+            g.connect(masterGain);
+            osc.start(start);
+            osc.stop(start + dur + 0.03);
+            osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (e) {} };
+        } catch (e) { console.error(e); }
+    }
+
+    function getNoiseBuffer() {
+        const ctxA = ensureAudio();
+        if (!ctxA) return null;
+        if (!noiseBuffer) {
+            const len = Math.floor(ctxA.sampleRate * 0.08);
+            noiseBuffer = ctxA.createBuffer(1, len, ctxA.sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        }
+        return noiseBuffer;
+    }
+
+    function noiseBurst(dur, gainPeak, filterFreq, delay) {
+        const ctxA = ensureAudio();
+        if (!ctxA) return;
+        try {
+            const buf = getNoiseBuffer();
+            if (!buf) return;
+            const src = ctxA.createBufferSource();
+            src.buffer = buf;
+            const filt = ctxA.createBiquadFilter();
+            filt.type = 'lowpass';
+            filt.frequency.value = filterFreq;
+            const g = ctxA.createGain();
+            const start = ctxA.currentTime + (delay || 0);
+            g.gain.setValueAtTime(0.0001, start);
+            g.gain.exponentialRampToValueAtTime(Math.max(gainPeak, 0.001), start + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+            src.connect(filt); filt.connect(g); g.connect(masterGain);
+            src.start(start);
+            src.stop(start + dur + 0.03);
+            src.onended = () => { try { src.disconnect(); filt.disconnect(); g.disconnect(); } catch (e) {} };
+        } catch (e) { console.error(e); }
+    }
+
+    function playJump() { tone('triangle', 300, 0.08, 0.15, { freqEnd: 500 }); }
+    function playBump() { tone('sine', 220, 0.05, 0.12); }
+    function playSpike(powerFactor) {
+        const g = 0.30 + clamp(powerFactor, 0, 1) * 0.06;
+        tone('sawtooth', 180, 0.09, g, { freqEnd: 70 });
+        noiseBurst(0.05, g * 0.9, 800, 0);
+        tone('sine', 55, 0.08, g * 0.85, { delay: 0.01 });
+    }
+    function playNetHit() { tone('triangle', 90, 0.06, 0.12); }
+    function playFault() {
+        tone('square', 300, 0.1, 0.15);
+        tone('square', 200, 0.1, 0.15, { delay: 0.1 });
+    }
+    function playPointScored(delay) {
+        const d = delay || 0;
+        tone('triangle', 523, 0.08, 0.16, { delay: d });
+        tone('triangle', 659, 0.08, 0.16, { delay: d + 0.06 });
+        tone('triangle', 784, 0.08, 0.16, { delay: d + 0.12 });
+    }
+    function playServeReady(golden) {
+        tone('sine', 880, 0.1, 0.14);
+        if (golden) tone('sine', 1320, 0.12, 0.13, { delay: 0.08 });
+    }
+    function playTrickStinger(delay) {
+        const d = delay || 0;
+        tone('sine', 660, 0.08, 0.15, { delay: d });
+        tone('sine', 880, 0.08, 0.15, { delay: d + 0.07 });
+    }
+    function playComboTick(streak, delay) {
+        tone('square', 523 + 80 * Math.min(streak, 5), 0.06, 0.13, { delay: delay || 0 });
+    }
+    function playMatchWin() {
+        tone('triangle', 523, 0.11, 0.18, { delay: 0 });
+        tone('triangle', 659, 0.11, 0.18, { delay: 0.11 });
+        tone('triangle', 784, 0.11, 0.18, { delay: 0.22 });
+        tone('triangle', 1046, 0.14, 0.18, { delay: 0.33 });
+        try {
+            const ctxA = ensureAudio();
+            if (ctxA) {
+                const src = ctxA.createBufferSource();
+                src.buffer = getNoiseBuffer();
+                src.loop = true;
+                const filt = ctxA.createBiquadFilter();
+                filt.type = 'bandpass';
+                filt.Q.value = 0.8;
+                const g = ctxA.createGain();
+                const start = ctxA.currentTime;
+                filt.frequency.setValueAtTime(500, start);
+                filt.frequency.linearRampToValueAtTime(2200, start + 0.5);
+                g.gain.setValueAtTime(0.0001, start);
+                g.gain.linearRampToValueAtTime(0.1, start + 0.2);
+                g.gain.linearRampToValueAtTime(0.0001, start + 0.5);
+                src.connect(filt); filt.connect(g); g.connect(masterGain);
+                src.start(start);
+                src.stop(start + 0.55);
+                src.onended = () => { try { src.disconnect(); filt.disconnect(); g.disconnect(); } catch (e) {} };
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    // ============================================================
+    // JUICE SYSTEMS
+    // ============================================================
+
+    // --- Screen shake ---
+    const shake = { timer: 0, totalDur: 1, amp: 0 };
+    function triggerShake(amp, durMs) {
+        shake.amp = amp;
+        shake.totalDur = durMs;
+        shake.timer = durMs;
+    }
+    function currentShakeOffset() {
+        if (shake.timer <= 0) return { x: 0, y: 0 };
+        const t = shake.timer / shake.totalDur;
+        const mag = shake.amp * t * t;
+        return { x: (Math.random() * 2 - 1) * mag, y: (Math.random() * 2 - 1) * mag };
+    }
+
+    // --- Hit-stop (real pause) ---
+    let hitStopTimer = 0;
+    function triggerHitStop(ms) { hitStopTimer = Math.max(hitStopTimer, ms); }
+
+    // --- Slow-motion dip (Clutch Save) ---
+    const slowMo = { timer: 0, scale: 0.3 };
+    function triggerSlowMo(ms, scale) { slowMo.timer = ms; slowMo.scale = scale; }
+
+    // --- Camera punch-in (spike contact) ---
+    const cameraPunch = { timer: 0, totalDur: 250, phaseIn: 100, x: 480, y: 270 };
+    function triggerCameraPunch(x, y) {
+        cameraPunch.timer = cameraPunch.totalDur;
+        cameraPunch.x = x; cameraPunch.y = y;
+    }
+    function currentCameraScaleAndPivot() {
+        if (cameraPunch.timer > 0) {
+            const elapsed = cameraPunch.totalDur - cameraPunch.timer;
+            let s;
+            if (elapsed < cameraPunch.phaseIn) {
+                s = 1 + 0.03 * easeOutQuad(elapsed / cameraPunch.phaseIn);
+            } else {
+                const t = (elapsed - cameraPunch.phaseIn) / (cameraPunch.totalDur - cameraPunch.phaseIn);
+                s = 1 + 0.03 * (1 - easeInQuad(clamp(t, 0, 1)));
+            }
+            return { scale: s, x: cameraPunch.x, y: cameraPunch.y };
+        }
+        return { scale: 1, x: 480, y: 270 };
+    }
+
+    // --- Particles ---
+    let particles = [];
+    function spawnParticles(x, y, count, opts) {
+        for (let i = 0; i < count; i++) {
+            const angle = (opts.angleMin !== undefined)
+                ? randRange(opts.angleMin, opts.angleMax)
+                : Math.random() * Math.PI * 2;
+            const speed = randRange(opts.speedMin || 1, opts.speedMax || 4);
+            const color = Array.isArray(opts.color) ? opts.color[Math.floor(Math.random() * opts.color.length)] : opts.color;
+            particles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - (opts.upBias || 0),
+                life: 0,
+                maxLife: opts.life || 500,
+                size: randRange(opts.sizeMin || 2, opts.sizeMax || 5),
+                color: color,
+                shape: opts.shape || 'rect',
+                gravity: opts.gravity !== undefined ? opts.gravity : 0.25,
+                rot: Math.random() * Math.PI * 2,
+                rotSpeed: randRange(-0.25, 0.25)
+            });
+        }
+    }
+    function updateParticles(dtMs) {
+        const scale = dtMs / 16.667;
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.life += dtMs;
+            if (p.life >= p.maxLife) { particles.splice(i, 1); continue; }
+            p.vy += p.gravity * scale;
+            p.x += p.vx * scale;
+            p.y += p.vy * scale;
+            p.rot += p.rotSpeed * scale;
+        }
+    }
+    function drawParticles() {
+        for (const p of particles) {
+            const t = p.life / p.maxLife;
+            ctx.save();
+            ctx.globalAlpha = clamp(1 - t, 0, 1);
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.color;
+            if (p.shape === 'circle') {
+                ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+            }
+            ctx.restore();
+        }
+    }
+
+    // --- Floating text popups ---
+    let popups = [];
+    function spawnPopup(text, x, y, color, big) {
+        popups.push({ text, x, y, age: 0, life: 700, big: !!big });
+    }
+    function popupScale(age) {
+        if (age >= 150) return 1.0;
+        const t = age / 150;
+        if (t < 0.6) return lerp(0, 1.2, t / 0.6);
+        return lerp(1.2, 1.0, (t - 0.6) / 0.4);
+    }
+    function updatePopups(dtMs) {
+        for (let i = popups.length - 1; i >= 0; i--) {
+            popups[i].age += dtMs;
+            if (popups[i].age >= popups[i].life) popups.splice(i, 1);
+        }
+    }
+    function drawChunkyText(c, text, x, y, size, fill, stroke, strokeWidth, align) {
+        c.font = `900 ${size}px 'Arial Black', Arial, sans-serif`;
+        c.textAlign = align || 'center';
+        c.textBaseline = 'middle';
+        c.lineJoin = 'round';
+        c.lineWidth = strokeWidth || 4;
+        c.strokeStyle = stroke || 'rgba(0,0,0,0.4)';
+        c.strokeText(text, x, y);
+        c.fillStyle = fill;
+        c.fillText(text, x, y);
+    }
+    function drawPopups() {
+        for (const p of popups) {
+            const t = p.age / p.life;
+            const s = popupScale(p.age);
+            const alpha = clamp(1 - t, 0, 1);
+            const y = p.y - 40 * t;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, y);
+            ctx.scale(s, s);
+            drawChunkyText(ctx, p.text, 0, 0, p.big ? 30 : 20, p.color, 'rgba(0,0,0,0.45)', p.big ? 5 : 4, 'center');
+            ctx.restore();
+        }
+    }
+
+    // --- Net wobble ---
+    const netWobble = { timer: 0, dur: 400 };
+    function triggerNetWobble() { netWobble.timer = netWobble.dur; }
+
+    // --- Screen flash ---
+    const flash = { timer: 0, dur: 120, color: '#ffffff' };
+    function triggerFlash(color) { flash.timer = flash.dur; flash.color = color; }
+
+    // ============================================================
+    // ENTITIES
+    // ============================================================
+    function makePlayer(id) {
+        const isP1 = id === 1;
+        return {
+            id: id,
+            x: isP1 ? 200 : 760,
+            y: GROUND_Y - PLAYER_RADIUS,
+            vx: 0, vy: 0,
+            grounded: true,
+            color: isP1 ? '#4FC3F7' : '#FF7043',
+            outline: isP1 ? '#1565C0' : '#D84315',
+            minX: isP1 ? 26 : 510,
+            maxX: isP1 ? 450 : 934,
+            keyLeft: isP1 ? 'a' : 'ArrowLeft',
+            keyRight: isP1 ? 'd' : 'ArrowRight',
+            keyJump: isP1 ? 'w' : 'ArrowUp',
+            scaleX: 1, scaleY: 1,
+            squashTimer: 0, squashDur: 1, squashFromX: 1, squashFromY: 1,
+            faceState: 'idle',
+            spikeFaceFrames: 0,
+            eyeLookX: 0,
+            touchedSinceCross: false,
+            wasOverlapping: false,
+            comboStreak: 0,
+            score: 0
+        };
+    }
+
+    function makeBall() {
+        return {
+            x: 480, y: 100, vx: 0, vy: 0,
+            trail: [],
+            scaleX: 1, scaleY: 1,
+            squashTimer: 0, squashDur: 1, squashFromX: 1, squashFromY: 1,
+            spawnPulseTimer: 0,
+            isGolden: false,
+            active: false,
+            seamRotation: 0,
+            prevX: 480
+        };
+    }
+
+    let p1 = makePlayer(1);
+    let p2 = makePlayer(2);
+    let ball = makeBall();
+    const rally = { touched: { 1: false, 2: false }, lastHitBy: null, lastHitType: null };
+
+    // ============================================================
+    // GAME / MATCH STATE
+    // ============================================================
+    let phase = 'TITLE'; // TITLE | PLAY | MATCH_SLOWMO | VICTORY
+    let paused = false;
+    let server = 1;
+    let pointWaitTimer = 0;
+    let matchWinner = null;
+    let matchWinWasSpike = false;
+    let winTallyBumped = false;
+    const slowMoReplay = { active: false, elapsed: 0, totalDur: 1200, pivotX: 480, pivotY: 270 };
+
+    let winsP1 = parseInt(safeGetItem('volleyballSmashP1Wins', '0'), 10) || 0;
+    let winsP2 = parseInt(safeGetItem('volleyballSmashP2Wins', '0'), 10) || 0;
+
+    function opponentOf(p) { return p.id === 1 ? p2 : p1; }
+
+    function wouldWinNext(myScore, otherScore) {
+        const next = myScore + 1;
+        return (next >= WINNING_SCORE && (next - otherScore) >= WIN_BY) || next >= HARD_CAP;
+    }
+    function isMatchPointUpcoming() {
+        return wouldWinNext(p1.score, p2.score) || wouldWinNext(p2.score, p1.score);
+    }
+
+    // ============================================================
+    // INPUT
+    // ============================================================
+    const keysDown = new Set();
+    const justPressed = new Set();
+    const MOVE_KEYS = new Set(['w', 'a', 'd', 'ArrowUp', 'ArrowLeft', 'ArrowRight']);
+    const HANDLED_KEYS = new Set(['w', 'a', 'd', 's', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'ArrowDown', 'Space', 'r', 'f', 'Escape']);
+
+    function normalizeKey(e) {
+        let key = e.key;
+        if (key === ' ' || key === 'Spacebar') key = 'Space';
+        else if (key.length === 1) key = key.toLowerCase();
+        return key;
+    }
+
+    function handleKeyDown(e) {
+        const key = normalizeKey(e);
+        if (HANDLED_KEYS.has(key)) e.preventDefault();
+        resumeAudio();
+
+        if (MOVE_KEYS.has(key)) {
+            if (!keysDown.has(key)) { keysDown.add(key); justPressed.add(key); }
+            return;
+        }
+        if (e.repeat) return;
+
+        if (key === 'Space') {
+            if (phase === 'TITLE') startMatch();
+            else if (phase === 'VICTORY') rematch();
+            return;
+        }
+        if (key === 'r') {
+            resetMatch();
+            return;
+        }
+        if (key === 'f') {
+            toggleFullscreen();
+            return;
+        }
+        if (key === 'Escape') {
+            if (phase === 'PLAY') paused = !paused;
+            else if (phase === 'TITLE' || phase === 'VICTORY') window.location.href = '../index.html';
+            return;
+        }
+    }
+
+    function handleKeyUp(e) {
+        const key = normalizeKey(e);
+        keysDown.delete(key);
+        if (phase === 'PLAY' && !paused) {
+            if (key === p1.keyJump && !p1.grounded && p1.vy < -6) p1.vy *= 0.45;
+            if (key === p2.keyJump && !p2.grounded && p2.vy < -6) p2.vy *= 0.45;
+        }
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+
+    function initInput() {
+        eventManager.add(window, 'keydown', handleKeyDown);
+        eventManager.add(window, 'keyup', handleKeyUp);
+        eventManager.add(window, 'resize', resizeStage);
+        eventManager.add(window, 'blur', () => { keysDown.clear(); });
+        eventManager.add(document, 'fullscreenchange', resizeStage);
+        eventManager.add(document.getElementById('fullscreenBtn'), 'click', () => { resumeAudio(); toggleFullscreen(); });
+    }
+
+    // ============================================================
+    // PLAYER PHYSICS / JUICE HOOKS
+    // ============================================================
+    function triggerPlayerSquash(p, fromX, fromY, durMs) {
+        p.squashTimer = durMs; p.squashDur = durMs;
+        p.squashFromX = fromX; p.squashFromY = fromY;
+    }
+    function updatePlayerSquash(p, dtMs) {
+        if (p.squashTimer > 0) {
+            p.squashTimer -= dtMs;
+            const t = clamp(1 - p.squashTimer / p.squashDur, 0, 1);
+            const e = easeOutQuad(t);
+            p.scaleX = lerp(p.squashFromX, 1, e);
+            p.scaleY = lerp(p.squashFromY, 1, e);
+        } else {
+            p.scaleX = 1; p.scaleY = 1;
+        }
+    }
+
+    function onPlayerJumpLaunch(p) {
+        triggerPlayerSquash(p, 1.15, 0.8, 80);
+        playJump();
+    }
+    function onPlayerLand(p) {
+        triggerPlayerSquash(p, 1.2, 0.75, 120);
+        triggerShake(2, 100);
+        spawnParticles(p.x, GROUND_Y, 8, {
+            color: '#EAD9A0', angleMin: Math.PI * 1.05, angleMax: Math.PI * 1.95,
+            speedMin: 1, speedMax: 3.2, life: 400, gravity: 0.3, shape: 'circle', sizeMin: 2, sizeMax: 4
+        });
+    }
+
+    function updatePlayerFace(p) {
+        p.eyeLookX = clamp((ball.x - p.x) / 60, -1, 1);
+        if (p.spikeFaceFrames > 0) { p.faceState = 'spikeContact'; return; }
+        if (p.grounded) { p.faceState = 'idle'; return; }
+        if (p.vy < -1.5) p.faceState = 'rising';
+        else if (p.vy > 1.5) p.faceState = 'falling';
+        else p.faceState = 'idle';
+    }
+
+    function updatePlayerPhysics(p, dtMs) {
+        // Scale every velocity-driven change by real elapsed time (relative to
+        // an assumed 60Hz/16.667ms frame) so movement/gravity speed is the
+        // same in real time regardless of display refresh rate.
+        const scale = dtMs / 16.667;
+        let move = 0;
+        if (keysDown.has(p.keyLeft)) move -= 1;
+        if (keysDown.has(p.keyRight)) move += 1;
+        p.vx = move * PLAYER_SPEED;
+        p.x = clamp(p.x + p.vx * scale, p.minX, p.maxX);
+
+        if (!p.grounded) {
+            const g = Math.abs(p.vy) < 2.0 ? GRAVITY * 0.25 : GRAVITY;
+            p.vy += g * scale;
+            p.y += p.vy * scale;
+            if (p.y >= GROUND_Y - PLAYER_RADIUS) {
+                p.y = GROUND_Y - PLAYER_RADIUS;
+                p.vy = 0;
+                p.grounded = true;
+                onPlayerLand(p);
+            }
+        }
+
+        if (p.grounded && justPressed.has(p.keyJump)) {
+            p.vy = JUMP_POWER;
+            p.grounded = false;
+            onPlayerJumpLaunch(p);
+        }
+
+        if (p.spikeFaceFrames > 0) p.spikeFaceFrames--;
+        updatePlayerFace(p);
+        updatePlayerSquash(p, dtMs);
+    }
+
+    // ============================================================
+    // BALL PHYSICS / JUICE HOOKS
+    // ============================================================
+    function triggerBallSquash(fromX, fromY, durMs) {
+        ball.squashTimer = durMs; ball.squashDur = durMs;
+        ball.squashFromX = fromX; ball.squashFromY = fromY;
+    }
+    function updateBallSquash(dtMs) {
+        if (ball.squashTimer > 0) {
+            ball.squashTimer -= dtMs;
+            const t = clamp(1 - ball.squashTimer / ball.squashDur, 0, 1);
+            const e = easeOutQuad(t);
+            ball.scaleX = lerp(ball.squashFromX, 1, e);
+            ball.scaleY = lerp(ball.squashFromY, 1, e);
+        } else {
+            const speed = Math.hypot(ball.vx, ball.vy);
+            const stretch = clamp(speed / MAX_BALL_SPEED, 0, 1) * 0.15;
+            if (Math.abs(ball.vx) >= Math.abs(ball.vy)) {
+                ball.scaleX = 1 + stretch; ball.scaleY = 1 - stretch * 0.6;
+            } else {
+                ball.scaleY = 1 + stretch; ball.scaleX = 1 - stretch * 0.6;
+            }
+        }
+    }
+
+    function updateBallTrail() {
+        ball.trail.push({ x: ball.x, y: ball.y });
+        if (ball.trail.length > 6) ball.trail.shift();
+    }
+
+    function checkNetInteraction() {
+        const prevX = ball.prevX, newX = ball.x;
+        const crossed = (prevX - NET_X) * (newX - NET_X) < 0;
+        if (!crossed) return;
+        const blocked = (ball.y + BALL_RADIUS) > NET_TOP_Y;
+        if (blocked) {
+            ball.vx = -ball.vx * 0.85;
+            ball.x = prevX < NET_X ? (NET_X - NET_POST_HALF_WIDTH - BALL_RADIUS) : (NET_X + NET_POST_HALF_WIDTH + BALL_RADIUS);
+            triggerNetWobble();
+            playNetHit();
+            triggerShake(2, 100);
+            triggerBallSquash(1.3, 0.7, 130);
+        } else {
+            if (ball.y >= 325 && ball.y <= 355) {
+                spawnPopup('NET SKIM!', NET_X, ball.y - 24, '#FFD54F', false);
+                playTrickStinger();
+            }
+            p1.touchedSinceCross = false;
+            p2.touchedSinceCross = false;
+        }
+    }
+
+    function checkWalls() {
+        if (ball.x <= WALL_LEFT) { ball.x = WALL_LEFT; ball.vx = Math.abs(ball.vx); }
+        else if (ball.x >= WALL_RIGHT) { ball.x = WALL_RIGHT; ball.vx = -Math.abs(ball.vx); }
+    }
+
+    function checkGroundFault() {
+        if (ball.y >= GROUND_Y - BALL_RADIUS) {
+            const faultedSide = ball.x < NET_X ? 1 : 2;
+            const scorer = faultedSide === 1 ? 2 : 1;
+            endRally(scorer, 'GROUND');
+        }
+    }
+
+    function maybeClutchSave(contactY) {
+        if (contactY >= GROUND_Y - 40) {
+            triggerSlowMo(300, 0.3);
+            spawnPopup('CLUTCH!', ball.x, ball.y - 46, '#4FC3F7', true);
+            playTrickStinger();
+        }
+    }
+
+    function resolveHit(p) {
+        if (p.touchedSinceCross) {
+            endRally(opponentOf(p).id, 'DOUBLE_TOUCH');
+            return;
+        }
+        p.touchedSinceCross = true;
+        rally.touched[p.id] = true;
+
+        const facingSign = p.id === 1 ? 1 : -1;
+        const contactOffset = clamp((ball.x - p.x) / (PLAYER_RADIUS + BALL_RADIUS), -1, 1);
+        const contactY = ball.y;
+        const isSpike = (!p.grounded) && (p.vy > 1.5) && (ball.y <= p.y);
+
+        if (isSpike) {
+            const powerFactor = clamp((p.vy - 1.5) / 6, 0, 1);
+            const isPerfect = p.vy > 1.5 && p.vy <= 4.0;
+            let spikeSpeed = 14 + 4 * powerFactor;
+            if (p.comboStreak >= 3) spikeSpeed *= 1.1;
+            if (isPerfect) spikeSpeed *= 1.2;
+
+            ball.vx = clamp(facingSign * spikeSpeed + contactOffset * 3 + p.vx * 0.3, -MAX_BALL_SPEED, MAX_BALL_SPEED);
+            ball.vy = 12 + 2 * powerFactor;
+
+            rally.lastHitBy = p.id; rally.lastHitType = 'SPIKE';
+            p.spikeFaceFrames = 4;
+
+            const streakBoost = p.comboStreak >= 3;
+            playSpike(powerFactor);
+            triggerShake(8 * (streakBoost ? 1.3 : 1), 220);
+            triggerHitStop(70);
+            triggerCameraPunch(ball.x, ball.y);
+            triggerBallSquash(1.35, 0.65, 150);
+            spawnParticles(ball.x, ball.y, Math.round((streakBoost ? 20 : 18) * (streakBoost ? 1.2 : 1)), {
+                color: [p.color, '#ffffff'], speedMin: 2, speedMax: 6.5, life: 450, shape: 'rect',
+                sizeMin: 2, sizeMax: 5, gravity: 0.35
+            });
+
+            if (isPerfect) {
+                spawnPopup('PERFECT!', ball.x, ball.y - 26, '#FFD54F', true);
+                playTrickStinger();
+                spawnParticles(ball.x, ball.y, 10, {
+                    color: '#FFD54F', speedMin: 3, speedMax: 7, life: 500, shape: 'circle', sizeMin: 2, sizeMax: 4, gravity: 0.25
+                });
+            } else {
+                spawnPopup('SPIKE!', ball.x, ball.y - 26, p.color, false);
+            }
+        } else {
+            // The first touch of every rally is always the server bumping
+            // their own dropped toss back over the net. From that standing
+            // start, the standard bump arc's apex never actually clears
+            // NET_TOP_Y, so a player who takes the obvious "do nothing, let
+            // it auto-bump" approach reliably self-faults. Give that one
+            // specific touch enough lift/pace to clear the net for real.
+            const isServeReturn = rally.lastHitBy === null;
+            const bumpVx = isServeReturn ? 10 : 7.2;
+            const bumpVy = isServeReturn ? -12 : -9;
+            ball.vx = clamp(facingSign * bumpVx + contactOffset * 4 + p.vx * 0.5, -14, 14);
+            ball.vy = bumpVy;
+
+            rally.lastHitBy = p.id; rally.lastHitType = 'BUMP';
+
+            playBump();
+            triggerShake(2 * (p.comboStreak >= 3 ? 1.3 : 1), 100);
+            triggerHitStop(20);
+            triggerBallSquash(1.35, 0.65, 150);
+            spawnParticles(ball.x, ball.y, 8, {
+                color: p.color, speedMin: 1.5, speedMax: 3.5, life: 350, shape: 'circle', sizeMin: 2, sizeMax: 4, gravity: 0.2
+            });
+        }
+
+        maybeClutchSave(contactY);
+    }
+
+    function checkPlayerHit(p) {
+        if (!ball.active) return false;
+        const dx = ball.x - p.x, dy = ball.y - p.y;
+        const overlapping = Math.hypot(dx, dy) < HIT_RADIUS_SUM;
+        let contacted = false;
+        if (overlapping && !p.wasOverlapping) { resolveHit(p); contacted = true; }
+        p.wasOverlapping = overlapping;
+        return contacted;
+    }
+
+    // Ball contact was already resolved by the other player earlier this same
+    // tick (a net battle where both hit radii overlap the ball at once): just
+    // keep this player's overlap tracking current, without resolving a second
+    // hit that would silently overwrite the first and falsely flag both
+    // players as having touched (risking a bogus DOUBLE_TOUCH fault later).
+    function consumeOverlap(p) {
+        if (!ball.active) { p.wasOverlapping = false; return false; }
+        const dx = ball.x - p.x, dy = ball.y - p.y;
+        p.wasOverlapping = Math.hypot(dx, dy) < HIT_RADIUS_SUM;
+        return false;
+    }
+
+    function updateBallPhysics(dtMs) {
+        if (!ball.active) return;
+        const scale = dtMs / 16.667;
+        ball.prevX = ball.x;
+        ball.vy += GRAVITY * scale;
+        ball.x += ball.vx * scale;
+        ball.y += ball.vy * scale;
+        ball.vx = clamp(ball.vx, -MAX_BALL_SPEED, MAX_BALL_SPEED);
+
+        checkWalls();
+        checkNetInteraction();
+        updateBallTrail();
+        ball.seamRotation += ball.vx * 0.015 * scale;
+
+        // Only the first contact resolved this tick may act on the ball.
+        const hit1 = checkPlayerHit(p1);
+        if (!ball.active) return; // p1's hit may have ended the rally (double touch fault)
+        const hit2 = hit1 ? consumeOverlap(p2) : checkPlayerHit(p2);
+        if (!ball.active) return; // a hit this tick may have ended the rally (double touch fault)
+
+        // A contact this tick proves the ball didn't hit the ground, so skip the
+        // fault check: a last-instant save at the ground threshold shouldn't be
+        // spuriously overruled by the ball's stale pre-hit y position.
+        if (!hit1 && !hit2) checkGroundFault();
+    }
+
+    // ============================================================
+    // SCORING / SERVE FLOW
+    // ============================================================
+    function checkMatchOver(scorer) {
+        return scorer.score >= HARD_CAP ||
+            (scorer.score >= WINNING_SCORE && (scorer.score - opponentOf(scorer).score) >= WIN_BY);
+    }
+
+    function endRally(scorerId, reason) {
+        if (!ball.active) return;
+        ball.active = false;
+        p1.wasOverlapping = false; p2.wasOverlapping = false;
+
+        const scorer = scorerId === 1 ? p1 : p2;
+        const loser = scorerId === 1 ? p2 : p1;
+        const wasSpikeWin = rally.lastHitBy === scorerId && rally.lastHitType === 'SPIKE';
+        const isAce = !rally.touched[loser.id];
+
+        scorer.score++;
+        if (wasSpikeWin) scorer.comboStreak++;
+        loser.comboStreak = 0;
+        server = scorerId;
+
+        const matchOver = checkMatchOver(scorer);
+
+        playFault();
+
+        // Stagger the reward stingers after the point-scored cascade instead
+        // of layering everything at t=0 with the fault buzzer, so ace/combo
+        // points read as one clean escalating sting rather than a mush.
+        const cascadeDelay = 0.12;
+        playPointScored(cascadeDelay);
+        if (isAce) { playTrickStinger(cascadeDelay + 0.22); }
+
+        const streakBoost = scorer.comboStreak >= 3;
+        triggerShake(matchOver ? 14 : (5 * (streakBoost ? 1.3 : 1)), matchOver ? 400 : 150);
+        triggerFlash(scorer.color);
+
+        let confettiCount = 22;
+        let confettiColors = [scorer.color, '#ffffff', loser.color];
+        if (matchOver) confettiCount = 44;
+        else if (isAce) confettiCount = 34;
+
+        spawnParticles(scorer === p1 ? 120 : 840, 40, confettiCount, {
+            color: confettiColors, speedMin: 2, speedMax: 6, life: 900, shape: 'rect',
+            sizeMin: 3, sizeMax: 7, gravity: 0.28, angleMin: -Math.PI, angleMax: 0
+        });
+        if (matchOver) {
+            spawnParticles(480, 20, 24, {
+                color: ['#FFD54F', '#FFF176', '#FFB300'], speedMin: 3, speedMax: 7, life: 1000, shape: 'rect',
+                sizeMin: 3, sizeMax: 6, gravity: 0.25, angleMin: -Math.PI, angleMax: 0
+            });
+        }
+
+        if (isAce) {
+            spawnPopup('ACE!', scorer === p1 ? 240 : 720, 220, '#FFD54F', true);
+        }
+        if (scorer.comboStreak >= 2) {
+            spawnPopup('COMBO x' + scorer.comboStreak, scorer.id === 1 ? 240 : 720, isAce ? 260 : 220, scorer.color, scorer.comboStreak >= 3);
+            playComboTick(scorer.comboStreak, cascadeDelay + (isAce ? 0.36 : 0.22));
+        }
+
+        if (matchOver) {
+            matchWinner = scorer.id;
+            matchWinWasSpike = wasSpikeWin;
+            winTallyBumped = false;
+            triggerHitStop(120);
+            if (wasSpikeWin) {
+                slowMoReplay.active = true;
+                slowMoReplay.elapsed = 0;
+                slowMoReplay.pivotX = ball.x;
+                slowMoReplay.pivotY = ball.y;
+            } else {
+                slowMoReplay.active = false;
+            }
+        } else {
+            pointWaitTimer = 1000;
+        }
+    }
+
+    function spawnServe() {
+        const srv = server === 1 ? p1 : p2;
+        ball.x = srv.x;
+        ball.y = (srv.y - PLAYER_RADIUS) - 90;
+        ball.vx = 0; ball.vy = 0;
+        ball.trail = [];
+        ball.spawnPulseTimer = 400;
+        ball.active = true;
+        ball.scaleX = 1; ball.scaleY = 1;
+        ball.squashTimer = 0;
+        rally.touched = { 1: false, 2: false };
+        rally.lastHitBy = null; rally.lastHitType = null;
+        p1.touchedSinceCross = false; p2.touchedSinceCross = false;
+        p1.wasOverlapping = false; p2.wasOverlapping = false;
+        ball.isGolden = isMatchPointUpcoming();
+        playServeReady(ball.isGolden);
+    }
+
+    // ============================================================
+    // MAIN UPDATE
+    // ============================================================
+    function updatePlayState(dtRawMs) {
+        if (paused) return;
+
+        if (hitStopTimer > 0) {
+            hitStopTimer -= dtRawMs;
+            // A jump tapped during hit-stop must still register on the frame
+            // play resumes, so don't discard justPressed while physics is
+            // frozen here - it's cleared normally once a real tick runs.
+            return;
+        }
+
+        // Clutch-save bullet time: dip actual gameplay motion to slowMo.scale
+        // without slowing real-time countdowns (hit-stop, serve wait, etc).
+        const dtMs = slowMo.timer > 0 ? dtRawMs * slowMo.scale : dtRawMs;
+
+        updatePlayerPhysics(p1, dtMs);
+        updatePlayerPhysics(p2, dtMs);
+
+        if (ball.active) {
+            updateBallPhysics(dtMs);
+        } else if (matchWinner === null) {
+            pointWaitTimer -= dtRawMs;
+            if (pointWaitTimer <= 0 && phase === 'PLAY') {
+                spawnServe();
+            }
+        }
+
+        if (ball.spawnPulseTimer > 0) ball.spawnPulseTimer -= dtRawMs;
+        updateBallSquash(dtRawMs);
+
+        justPressed.clear();
+
+        // Match just ended and its hit-stop has finished: hand off to the
+        // slow-motion replay (spike finish) or straight to the victory screen.
+        if (matchWinner !== null && hitStopTimer <= 0) {
+            if (matchWinWasSpike) {
+                phase = 'MATCH_SLOWMO';
+                slowMoReplay.active = true;
+                slowMoReplay.elapsed = 0;
+            } else {
+                enterVictory();
+            }
+        }
+    }
+
+    function updateMatchSlowMo(dtRawMs) {
+        slowMoReplay.elapsed += dtRawMs;
+        const scaled = dtRawMs * 0.25;
+        if (ball.y < GROUND_Y - BALL_RADIUS + 0.5) {
+            ball.vy += GRAVITY * (scaled / 16.667);
+            ball.y += ball.vy * (scaled / 16.667);
+            ball.x += ball.vx * (scaled / 16.667);
+            if (ball.y >= GROUND_Y - BALL_RADIUS) {
+                ball.y = GROUND_Y - BALL_RADIUS;
+                ball.vy *= -0.35;
+                ball.vx *= 0.6;
+                if (Math.abs(ball.vy) < 1) ball.vy = 0;
+            }
+        }
+        updateBallSquash(dtRawMs * 0.25);
+        if (slowMoReplay.elapsed >= slowMoReplay.totalDur) {
+            slowMoReplay.active = false;
+            enterVictory();
+        }
+    }
+
+    function enterVictory() {
+        phase = 'VICTORY';
+        if (!winTallyBumped) {
+            winTallyBumped = true;
+            if (matchWinner === 1) { winsP1++; safeSetItem('volleyballSmashP1Wins', String(winsP1)); }
+            else { winsP2++; safeSetItem('volleyballSmashP2Wins', String(winsP2)); }
+            playMatchWin();
+        }
+    }
+
+    function updateVictoryDance(dtRawMs) {
+        // purely cosmetic idle motion handled at draw time via performance.now()
+        if (Math.random() < 0.06) {
+            spawnParticles(randRange(60, 900), -10, 1, {
+                color: [matchWinner === 1 ? p1.color : p2.color, '#ffffff', '#FFD54F'],
+                speedMin: 0.5, speedMax: 1.5, life: 1800, shape: 'rect', sizeMin: 3, sizeMax: 6, gravity: 0.05,
+                angleMin: Math.PI * 0.3, angleMax: Math.PI * 0.7
+            });
+        }
+    }
+
+    let lastTime = null;
+    function frame(ts) {
+        requestAnimationFrame(frame);
+        if (lastTime === null) lastTime = ts;
+        let dt = ts - lastTime;
+        lastTime = ts;
+        dt = clamp(dt, 0, 48);
+
+        if (phase === 'PLAY') {
+            updatePlayState(dt);
+        } else if (phase === 'MATCH_SLOWMO') {
+            if (hitStopTimer > 0) { hitStopTimer -= dt; }
+            else updateMatchSlowMo(dt);
+        } else if (phase === 'VICTORY') {
+            updateVictoryDance(dt);
+        }
+
+        // Cosmetic timers always tick through hit-stop (so impacts read
+        // clearly), but freeze along with everything else while paused so a
+        // burst mid-animation doesn't keep playing out over a frozen scene.
+        if (!paused) {
+            if (shake.timer > 0) shake.timer = Math.max(0, shake.timer - dt);
+            if (slowMo.timer > 0) slowMo.timer = Math.max(0, slowMo.timer - dt);
+            if (cameraPunch.timer > 0) cameraPunch.timer = Math.max(0, cameraPunch.timer - dt);
+            if (netWobble.timer > 0) netWobble.timer = Math.max(0, netWobble.timer - dt);
+            if (flash.timer > 0) flash.timer = Math.max(0, flash.timer - dt);
+            updateParticles(dt);
+            updatePopups(dt);
+        }
+
+        render();
+    }
+
+    // ============================================================
+    // RENDERING
+    // ============================================================
+    function drawCloudPuff(x, y, scale) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.arc(20, -6, 14, 0, Math.PI * 2);
+        ctx.arc(-20, -4,14, 0, Math.PI * 2);
+        ctx.arc(10, 8, 16, 0, Math.PI * 2);
+        ctx.arc(-12, 8, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawSky() {
+        ctx.fillStyle = '#8FD3F4';
+        ctx.fillRect(-24, -24, CANVAS_W + 48, CANVAS_H + 48);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        drawCloudPuff(120, 75, 1);
+        drawCloudPuff(430, 55, 0.8);
+        drawCloudPuff(700, 95, 1.1);
+        drawCloudPuff(860, 45, 0.7);
+    }
+
+    function drawGround() {
+        ctx.fillStyle = '#F4D35E';
+        ctx.fillRect(0, GROUND_Y, CANVAS_W, CANVAS_H - GROUND_Y);
+        ctx.fillStyle = 'rgba(79,195,247,0.14)';
+        ctx.fillRect(0, GROUND_Y, CANVAS_W / 2, CANVAS_H - GROUND_Y);
+        ctx.fillStyle = 'rgba(255,112,67,0.14)';
+        ctx.fillRect(CANVAS_W / 2, GROUND_Y, CANVAS_W / 2, CANVAS_H - GROUND_Y);
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(CANVAS_W, GROUND_Y); ctx.stroke();
+    }
+
+    function drawNet() {
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(NET_X - NET_POST_HALF_WIDTH, NET_TOP_Y, NET_POST_HALF_WIDTH * 2, GROUND_Y - NET_TOP_Y);
+        const elapsed = netWobble.dur - netWobble.timer;
+        const wob = netWobble.timer > 0 ? netWobble.timer / netWobble.dur : 0;
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+            const ly = NET_TOP_Y + 8 + i * ((GROUND_Y - NET_TOP_Y - 16) / 4);
+            const off = netWobble.timer > 0 ? Math.sin(elapsed * 0.06 + i * 1.3) * (6 * wob) : 0;
+            ctx.beginPath();
+            ctx.moveTo(NET_X - 34 + off, ly);
+            ctx.lineTo(NET_X + 34 + off, ly);
+            ctx.stroke();
+        }
+    }
+
+    function drawBallShadow() {
+        if (!ball.active && phase !== 'MATCH_SLOWMO') return;
+        const h = clamp(GROUND_Y - ball.y, 0, 320);
+        const t = clamp(h / 280, 0, 1);
+        const scale = lerp(1, 0.4, t);
+        const alpha = lerp(0.42, 0.1, t);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.ellipse(ball.x, GROUND_Y + 2, 15 * scale, 5.5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawPlayerFace(p) {
+        const falling = p.faceState === 'falling';
+        const eyeY = -6, eyeSpacing = 10, eyeW = 6, eyeH = falling ? 5 : 7;
+        for (const side of [-1, 1]) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(side * eyeSpacing, eyeY, eyeW, eyeH, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#222222';
+            const pupilOffset = p.eyeLookX * 3;
+            ctx.beginPath();
+            ctx.arc(side * eyeSpacing + pupilOffset, eyeY + 1, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (falling) {
+            ctx.strokeStyle = p.outline;
+            ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round';
+            for (const side of [-1, 1]) {
+                ctx.beginPath();
+                ctx.moveTo(side * eyeSpacing - 6, eyeY - 9);
+                ctx.lineTo(side * eyeSpacing + 6, eyeY - 6);
+                ctx.stroke();
+            }
+        }
+        ctx.strokeStyle = p.outline;
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        if (p.faceState === 'spikeContact') {
+            ctx.fillStyle = '#4a2323';
+            ctx.beginPath(); ctx.arc(0, 6, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        } else if (p.faceState === 'frown') {
+            ctx.arc(0, 13, 5, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
+        } else if (p.faceState === 'rising') {
+            ctx.arc(0, 4, 5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+        } else if (falling) {
+            ctx.moveTo(-5, 7); ctx.lineTo(5, 7); ctx.stroke();
+        } else {
+            ctx.arc(0, 3, 4, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+        }
+    }
+
+    function drawPlayer(p, extraY) {
+        ctx.save();
+        ctx.translate(p.x, p.y + (extraY || 0));
+        ctx.scale(p.scaleX, p.scaleY);
+        ctx.beginPath();
+        ctx.arc(0, 0, PLAYER_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = p.outline;
+        ctx.stroke();
+        drawPlayerFace(p);
+        ctx.restore();
+    }
+
+    function drawBallTrail() {
+        const n = ball.trail.length;
+        for (let i = 0; i < n; i++) {
+            const pt = ball.trail[i];
+            const t = (i + 1) / n;
+            ctx.save();
+            ctx.globalAlpha = 0.22 * t;
+            ctx.fillStyle = ball.isGolden ? '#FFE082' : '#ffffff';
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, BALL_RADIUS * 0.65 * t, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function drawBall() {
+        drawBallTrail();
+        ctx.save();
+        ctx.translate(ball.x, ball.y);
+        const pulseT = ball.spawnPulseTimer > 0 ? clamp(1 - ball.spawnPulseTimer / 400, 0, 1) : 1;
+        const pulseScale = ball.spawnPulseTimer > 0 ? easeOutQuad(pulseT) : 1;
+        ctx.scale(ball.scaleX * pulseScale, ball.scaleY * pulseScale);
+        ctx.beginPath();
+        ctx.arc(0, 0, BALL_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = ball.isGolden ? '#FFD54F' : '#F5F5F5';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = ball.isGolden ? '#FF8F00' : '#BDBDBD';
+        ctx.stroke();
+        ctx.strokeStyle = ball.isGolden ? '#FFB300' : '#9E9E9E';
+        ctx.lineWidth = 1.4;
+        for (let i = 0; i < 3; i++) {
+            ctx.save();
+            ctx.rotate(ball.seamRotation + i * (Math.PI / 3));
+            ctx.beginPath();
+            ctx.ellipse(0, 0, BALL_RADIUS * 0.85, BALL_RADIUS * 0.32, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        if (ball.isGolden) {
+            ctx.globalAlpha = 0.5 + 0.3 * Math.sin(performance.now() * 0.012);
+            ctx.fillStyle = '#FFF9C4';
+            ctx.beginPath(); ctx.arc(-4, -4, 2.6, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function drawFlame(x, y, seed) {
+        ctx.save();
+        ctx.translate(x, y);
+        const bob = Math.sin(performance.now() * 0.008 + seed) * 2;
+        ctx.translate(0, bob);
+        ctx.fillStyle = '#FF7043';
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.quadraticCurveTo(7, -2, 4, 6);
+        ctx.quadraticCurveTo(2, 9, 0, 10);
+        ctx.quadraticCurveTo(-2, 9, -4, 6);
+        ctx.quadraticCurveTo(-7, -2, 0, -10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#FFEB3B';
+        ctx.beginPath();
+        ctx.ellipse(0, 3, 2.2, 3.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawHUD() {
+        drawChunkyText(ctx, String(p1.score), 80, 46, 40, p1.color, 'rgba(0,0,0,0.35)', 5, 'center');
+        drawChunkyText(ctx, String(p2.score), 880, 46, 40, p2.color, 'rgba(0,0,0,0.35)', 5, 'center');
+        if (p1.comboStreak >= 3) drawFlame(80, 76, 0);
+        if (p2.comboStreak >= 3) drawFlame(880, 76, 1.5);
+    }
+
+    function drawFlashOverlay() {
+        if (flash.timer <= 0) return;
+        const t = flash.timer / flash.dur;
+        ctx.save();
+        ctx.globalAlpha = 0.25 * t;
+        ctx.fillStyle = flash.color;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.restore();
+    }
+
+    function drawKeyChip(x, y, label, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        const w = 30, h = 26;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        roundRect(-w / 2 + 2, -h / 2 + 2, w, h, 6);
+        ctx.fill();
+        ctx.fillStyle = color;
+        roundRect(-w / 2, -h / 2, w, h, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 2;
+        roundRect(-w / 2, -h / 2, w, h, 6);
+        ctx.stroke();
+        drawChunkyText(ctx, label, 0, 1, 13, '#ffffff', 'rgba(0,0,0,0.3)', 3, 'center');
+        ctx.restore();
+    }
+
+    function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function drawTitleScreen() {
+        ctx.save();
+        ctx.fillStyle = 'rgba(20,26,50,0.42)';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.restore();
+
+        drawChunkyText(ctx, 'VOLLEYBALL SMASH', 480, 96, 52, '#FFFFFF', '#1c2340', 7, 'center');
+        drawChunkyText(ctx, 'local 1v1 hotseat', 480, 132, 16, '#FFE082', 'rgba(0,0,0,0.4)', 3, 'center');
+
+        // legends
+        const boxY = 210, boxH = 150;
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = 'rgba(21,101,192,0.28)';
+        roundRect(70, boxY, 300, boxH, 14); ctx.fill();
+        ctx.fillStyle = 'rgba(216,67,21,0.28)';
+        roundRect(590, boxY, 300, boxH, 14); ctx.fill();
+        ctx.restore();
+
+        drawChunkyText(ctx, 'PLAYER 1', 220, boxY + 28, 20, p1.color, '#1c2340', 4, 'center');
+        drawKeyChip(150, boxY + 78, 'A', p1.outline);
+        drawKeyChip(190, boxY + 78, 'W', p1.outline);
+        drawKeyChip(230, boxY + 78, 'D', p1.outline);
+        drawChunkyText(ctx, 'A / D move  ·  W jump', 220, boxY + 118, 13, '#EEF2FF', 'rgba(0,0,0,0.3)', 3, 'center');
+
+        drawChunkyText(ctx, 'PLAYER 2', 740, boxY + 28, 20, p2.color, '#1c2340', 4, 'center');
+        drawKeyChip(700, boxY + 78, '←', p2.outline);
+        drawKeyChip(740, boxY + 78, '↑', p2.outline);
+        drawKeyChip(780, boxY + 78, '→', p2.outline);
+        drawChunkyText(ctx, '← / → move  ·  ↑ jump', 740, boxY + 118, 13, '#EEF2FF', 'rgba(0,0,0,0.3)', 3, 'center');
+
+        drawChunkyText(ctx, 'Jump early, fall onto the ball to SPIKE it', 480, boxY + boxH + 34, 15, '#FFFFFF', 'rgba(0,0,0,0.35)', 3, 'center');
+
+        const pulse = 0.8 + 0.2 * Math.sin(performance.now() * 0.005);
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        drawChunkyText(ctx, 'PRESS SPACE TO START', 480, boxY + boxH + 78, 24, '#FFD54F', '#1c2340', 5, 'center');
+        ctx.restore();
+
+        drawChunkyText(ctx, `P1 Wins: ${winsP1}   ·   P2 Wins: ${winsP2}`, 480, 512, 14, '#C8D0F0', 'rgba(0,0,0,0.3)', 3, 'center');
+    }
+
+    function drawPauseOverlay() {
+        ctx.save();
+        ctx.fillStyle = 'rgba(10,14,30,0.55)';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.restore();
+        drawChunkyText(ctx, 'PAUSED', 480, 250, 44, '#FFFFFF', '#1c2340', 6, 'center');
+        drawChunkyText(ctx, 'ESC to resume  ·  R to restart', 480, 300, 16, '#C8D0F0', 'rgba(0,0,0,0.3)', 3, 'center');
+    }
+
+    function drawVictoryScreen() {
+        ctx.save();
+        ctx.fillStyle = 'rgba(15,20,42,0.5)';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.restore();
+
+        const winner = matchWinner === 1 ? p1 : p2;
+        const loser = matchWinner === 1 ? p2 : p1;
+
+        drawChunkyText(ctx, `PLAYER ${matchWinner} WINS!`, 480, 90, 46, winner.color, '#1c2340', 6, 'center');
+        drawChunkyText(ctx, `${p1.score} - ${p2.score}`, 480, 140, 24, '#FFFFFF', 'rgba(0,0,0,0.35)', 4, 'center');
+
+        const bounceT = (performance.now() % 900) / 900;
+        const bounce = Math.abs(Math.sin(bounceT * Math.PI));
+        winner.faceState = 'idle';
+        winner.scaleX = lerp(1.12, 0.92, bounce);
+        winner.scaleY = lerp(0.85, 1.15, bounce);
+        loser.faceState = 'frown';
+        loser.scaleX = 1.05; loser.scaleY = 0.92;
+
+        const winnerLiftY = -Math.abs(Math.sin(bounceT * Math.PI)) * 26;
+        drawPlayer(winner, winnerLiftY);
+        drawPlayer(loser, 0);
+
+        drawChunkyText(ctx, `P1 Wins: ${winsP1}   ·   P2 Wins: ${winsP2}`, 480, 430, 14, '#C8D0F0', 'rgba(0,0,0,0.3)', 3, 'center');
+
+        const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.005);
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        drawChunkyText(ctx, 'SPACE - Rematch     ESC - Back to Gallery', 480, 480, 18, '#FFD54F', '#1c2340', 4, 'center');
+        ctx.restore();
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+        const off = currentShakeOffset();
+        const cam = currentCameraScaleAndPivot();
+
+        ctx.save();
+        ctx.translate(off.x, off.y);
+
+        let camScale = cam.scale, camX = cam.x, camY = cam.y;
+        if (phase === 'MATCH_SLOWMO' && slowMoReplay.active) {
+            const t = clamp(slowMoReplay.elapsed / 400, 0, 1);
+            camScale = lerp(1, 1.15, easeOutQuad(t));
+            camX = slowMoReplay.pivotX; camY = slowMoReplay.pivotY;
+        }
+        if (camScale !== 1) {
+            ctx.translate(camX, camY);
+            ctx.scale(camScale, camScale);
+            ctx.translate(-camX, -camY);
+        }
+
+        drawSky();
+        drawGround();
+        drawNet();
+
+        const showBall = ball.active || phase === 'MATCH_SLOWMO';
+        if (showBall) drawBallShadow();
+
+        if (phase !== 'TITLE') {
+            drawPlayer(p1);
+            drawPlayer(p2);
+        } else {
+            const bob1 = Math.sin(performance.now() * 0.0035) * 3;
+            const bob2 = Math.sin(performance.now() * 0.0035 + 1.4) * 3;
+            drawPlayer(p1, bob1);
+            drawPlayer(p2, bob2);
+        }
+
+        if (showBall) drawBall();
+
+        drawParticles();
+        drawPopups();
+
+        ctx.restore();
+
+        drawFlashOverlay();
+
+        if (phase !== 'TITLE') drawHUD();
+
+        if (phase === 'TITLE') drawTitleScreen();
+        else if (phase === 'PLAY' && paused) drawPauseOverlay();
+        else if (phase === 'VICTORY') drawVictoryScreen();
+    }
+
+    // ============================================================
+    // LIFECYCLE
+    // ============================================================
+    function resetEntities() {
+        p1 = makePlayer(1);
+        p2 = makePlayer(2);
+        ball = makeBall();
+        rally.touched = { 1: false, 2: false };
+        rally.lastHitBy = null; rally.lastHitType = null;
+        particles = [];
+        popups = [];
+        shake.timer = 0;
+        slowMo.timer = 0;
+        cameraPunch.timer = 0;
+        netWobble.timer = 0;
+        flash.timer = 0;
+        hitStopTimer = 0;
+        keysDown.clear();
+        justPressed.clear();
+        paused = false;
+        matchWinner = null;
+        matchWinWasSpike = false;
+        winTallyBumped = false;
+        slowMoReplay.active = false;
+        slowMoReplay.elapsed = 0;
+    }
+
+    function hardReset(startPhase, startServer) {
+        eventManager.removeAll();
+        resetEntities();
+        server = startServer;
+        phase = startPhase;
+        pointWaitTimer = 650;
+        initInput();
+    }
+
+    function startMatch() { hardReset('PLAY', 1); }
+    function resetMatch() { hardReset('PLAY', 1); }
+    function rematch() {
+        const loserId = matchWinner === 1 ? 2 : 1;
+        hardReset('PLAY', loserId);
+    }
+
+    // ============================================================
+    // BOOT
+    // ============================================================
+    resizeStage();
+    initInput();
+    requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
